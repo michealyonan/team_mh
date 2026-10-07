@@ -197,7 +197,7 @@ html{-webkit-text-size-adjust:100%}body{overflow-x:hidden}
 <div id="um" style="display:none;position:fixed;inset:0;background:#000c;z-index:70;overflow:auto;padding:12px" onclick="if(event.target===this)this.style.display='none'"><div class="card" style="max-width:820px;margin:auto"><div class="row"><h3 style="margin:0">👥 إدارة المستخدمين</h3><button class="btn" style="margin-inline-start:auto" onclick="$('um').style.display='none'">✕</button></div>
 <div class="fm"><input id="nu" placeholder="اسم المستخدم" autocapitalize="off"><input id="nn" placeholder="الاسم الظاهر"><select id="nr"><option value="sup">مشرف</option><option value="manager">مدير منطقة</option><option value="admin">أدمن</option></select><select id="nz" title="فلتر بالمنطقة"></select><select id="ns"></select><input id="np" type="text" placeholder="كلمة المرور (فاضية = تفضل زي ما هي)"><button class="btn pr" id="na">➕ إضافة / تحديث</button></div>
 <input id="us" placeholder="🔍 ابحث بالمشرف أو الاسم أو المستخدم أو المنطقة..." style="width:100%;margin:10px 0"><div class="tw rt3" style="max-height:45vh"><table style="min-width:600px"><thead><tr><th>الاسم</th><th>المستخدم</th><th>الدور</th><th>مرتبط بـ</th><th>كلمة المرور</th><th></th></tr></thead><tbody id="ut"></tbody></table></div>
-<div class="sub" style="margin:10px 0">التعديلات تُحفظ على هذا الجهاز فقط. كلمات المرور المعروضة محفوظة على جهازك أنت فقط (مش جوه الملف المرفوع)، والحسابات القديمة بتظهر "غير معروفة" لأن باسورداتها متخزنة مشفرة. تعديل الاسم/الربط من غير كتابة باسورد <b>مش بيغيّر</b> الباسورد. علشان تتطبق على كل الأجهزة: انسخ الكود واستبدل به سطر <b>USERS_EMBED</b> في الملف ثم أعد رفعه.</div><button class="btn pr" id="ng">⚡ إنشاء حسابات لكل المديرين والمشرفين</button> <button class="btn" id="nc">📋 نسخ كود المستخدمين</button> <button class="btn" id="nf">💾 تحميل نسخة الملف بالحسابات (للموبايل)</button> <button class="btn pr" id="nx">📥 تحميل ملف اليوزرات والباسوردات</button></div></div>
+<div class="sub" id="gst" style="margin:10px 0 4px;font-weight:700"></div><div class="sub" style="margin:4px 0 10px">أي إضافة أو تعديل أو حذف بيتجمّع هنا الأول، ولما تدوس <b>🚀 نشر على GitHub</b> بيتحفظ في ملف <b>users.json</b> جوه الريبو وبيظهر لكل المشرفين على كل الأجهزة (بعد حوالي دقيقة). مفيش حاجة تتنسخ أو تتبدّل في الملف يدوي. أول مرة هيطلب منك GitHub Token (بيتخزن على جهازك أنت بس).</div><button class="btn pr" id="gp">🚀 نشر على GitHub</button> <button class="btn" id="ng">⚡ إنشاء حسابات لكل المديرين والمشرفين</button> <button class="btn" id="gd">💾 تحميل users.json</button> <button class="btn" id="gs">⚙️ إعداد GitHub</button> <button class="btn" id="nx">📥 تحميل ملف اليوزرات والباسوردات</button></div></div>
 <div id="bm" style="display:none;position:fixed;inset:0;background:#000c;z-index:55;overflow:auto;padding:12px" onclick="if(event.target===this)this.style.display='none'"><div class="card" style="max-width:900px;margin:auto"><div class="row"><h3 id="bmt" style="margin:0"></h3><button class="btn" style="margin-inline-start:auto" onclick="$('bm').style.display='none'">✕</button></div><div id="bms" class="sub" style="margin:8px 0"></div><div class="tw" style="max-height:65vh"><table style="min-width:0"><thead><tr><th>#</th><th>الكود</th><th>الاسم</th><th>المنطقة</th><th>المشرف</th><th>المركبة</th><th>أيام</th><th>ساعات</th><th>طلبات</th><th>طلب/س</th></tr></thead><tbody id="bmb"></tbody></table></div></div></div>
 <div id="pm" style="display:none;position:fixed;inset:0;background:#000c;z-index:70;overflow:auto;padding:12px" onclick="if(event.target===this)this.style.display='none'"><div class="card" style="max-width:820px;margin:auto"><div class="row"><h3 style="margin:0">💰 أسعار الباتشات (سعر الطلب بالجنيه) لكل مشرف</h3><button class="btn" style="margin-inline-start:auto" onclick="$('pm').style.display='none'">✕</button></div><div class="row" style="margin:10px 0"><label style="font-weight:700">👷 المشرف</label><select id="psS" style="flex:1;min-width:0"></select></div><div class="tw" style="max-height:60vh"><table style="min-width:0"><thead id="ph"></thead><tbody id="pb"></tbody></table></div><div class="sub" style="margin:10px 0">كل مشرف له أسعاره الخاصة ومفيش أي ارتباط بينه وبين باقي المشرفين. القبض التقريبي = عدد الطلبات × سعر (باتش الطيار + مركبته) حسب مشرف الطيار. الأسعار بتتحفظ على هذا الجهاز؛ علشان تتطبق على كل الأجهزة اضغط "نسخ الكود" واستبدل به سطر <b>PRICES_EMBED</b> في الملف.</div><button class="btn pr" id="ps">💾 حفظ</button> <button class="btn" id="pc">📋 نسخ كود الأسعار</button></div></div>
 <script>
@@ -563,16 +563,25 @@ $('pc').onclick=()=>{const t='const PRICES_EMBED='+JSON.stringify(mergeP())+';';
 /* ---------- auth ---------- */
 const hp=(u,p)=>sha(u.toLowerCase()+':'+p+':pd1'),esc=s=>String(s).replace(/[&<>"']/g,c=>'&#'+c.charCodeAt(0)+';');
 const ROLE={admin:'أدمن',manager:'مدير منطقة',sup:'مشرف'};
-function getU(){try{const x=JSON.parse(localStorage.getItem('pd_users'));if(Array.isArray(x)&&x.length)return x}catch(e){}return USERS_EMBED}
+function getU(){return(CUR&&CUR.r==='admin'&&DRAFT)?DRAFT:USERS}
 function getPW(){try{return JSON.parse(localStorage.getItem('pd_pw'))||{}}catch(e){return{}}}
 function setPW(u,p){const b=getPW();if(p==null)delete b[u.toLowerCase()];else b[u.toLowerCase()]=p;try{localStorage.setItem('pd_pw',JSON.stringify(b))}catch(e){}}
 function dlCSV(rows,name){const l=document.createElement('a');l.href=URL.createObjectURL(new Blob(['\ufeff'+Papa.unparse(rows)],{type:'text/csv'}));l.download=name;l.click()}
-function saveU(a){try{localStorage.setItem('pd_users',JSON.stringify(a))}catch(e){}}
+function saveU(a){DRAFT=a;try{localStorage.setItem('pd_draft',JSON.stringify(a))}catch(e){}gstat()}
+function gstat(){const e=$('gst');if(e)e.textContent=DRAFT?'⚠️ فيه تعديلات لسه متنشرتش — اضغط 🚀 نشر على GitHub':'✅ كل التعديلات منشورة'}
 function scope(rows){if(!CUR||CUR.r==='admin')return rows;const k=CUR.r==='manager'?'m':'s';return rows.filter(r=>r[k]===CUR.s)}
-function findU(u,h){return getU().find(y=>y.u.toLowerCase()===u&&y.h===h)}
+function findU(u,h){return USERS.find(y=>y.u.toLowerCase()===u&&y.h===h)||(DRAFT&&DRAFT.find(y=>y.u.toLowerCase()===u&&y.h===h))}
 function enter(x){CUR=x;idleReset();try{sessionStorage.setItem('pd_sess',x.u.toLowerCase()+'|'+x.h)}catch(e){}
   $('lg').style.display='none';$('who').textContent='👤 '+x.n+' · '+ROLE[x.r];$('usrB').style.display=x.r==='admin'?'':'none';$('prB').style.display='';load().then(()=>{if(x.r==='admin'&&x.h===DEF_H){const m=$('msg');m.style.display='block';m.textContent='⚠️ كلمة مرور الأدمن الافتراضية لسه شغالة — غيّرها من 👥 المستخدمين.'}})}
-function boot(){let s='';try{localStorage.removeItem('pd_sess');s=sessionStorage.getItem('pd_sess')||''}catch(e){}const [u,h]=s.split('|'),x=u&&findU(u,h);if(x)enter(x);else $('lg').style.display='flex'}
+let USERS=USERS_EMBED,DRAFT=null,VAULT=PW_EMBED;
+async function loadUsers(){
+  try{const r=await fetch('users.json?_='+Date.now(),{cache:'no-store'});if(r.ok){const d=await r.json();if(d&&Array.isArray(d.users)&&d.users.length){USERS=d.users;if(d.vault)VAULT=d.vault}}}catch(e){}
+  try{let d=JSON.parse(localStorage.getItem('pd_draft'));if(!(Array.isArray(d)&&d.length)){d=JSON.parse(localStorage.getItem('pd_users'));if(Array.isArray(d)&&d.length)localStorage.setItem('pd_draft',JSON.stringify(d));else d=null}
+    localStorage.removeItem('pd_users');
+    if(d&&JSON.stringify(d)!==JSON.stringify(USERS))DRAFT=d;else if(d)localStorage.removeItem('pd_draft')}catch(e){}
+}
+async function boot(){await loadUsers();boot0()}
+function boot0(){let s='';try{localStorage.removeItem('pd_sess');s=sessionStorage.getItem('pd_sess')||''}catch(e){}const [u,h]=s.split('|'),x=u&&findU(u,h);if(x)enter(x);else $('lg').style.display='flex'}
 const AR_D=t=>String(t).replace(/[٠-٩]/g,d=>'٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/[۰-۹]/g,d=>'۰۱۲۳۴۵۶۷۸۹'.indexOf(d));
 let LGBUSY=false,FAIL=0,LOCK=0;
 function doLogin(){
@@ -587,7 +596,7 @@ function doLogin(){
   if(!x){
     E.textContent='اسم المستخدم أو كلمة المرور غير صحيحة';if(++FAIL>=5){LOCK=Date.now()+60000;FAIL=0}
     const h=$('lh');h.style.display='block';
-    h.textContent='ملحوظة: الحسابات اللي اتعملت من جهاز تاني (كمبيوتر مثلاً) بتتحفظ على المتصفح بتاعه بس. لو الحساب جديد، اطلب من الأدمن نسخة محدثة من الملف.';
+    h.textContent='لو الحساب جديد، اتأكد إن الأدمن نشر التحديث (🚀 نشر على GitHub) وبعدها حدّث الصفحة وجرّب تاني.';
     return}
   LGBUSY=true;btn.disabled=true;btn.textContent='جارٍ الدخول…';
   try{$('lp').value='';enter(x)}catch(err){E.textContent='تعذّر الدخول: '+err.message;$('lg').style.display='flex'}
@@ -605,8 +614,8 @@ let VP=null,VL=0;
 async function vKey(p,salt){const k=await crypto.subtle.importKey('raw',new TextEncoder().encode(p),'PBKDF2',false,['deriveKey']);return crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations:200000,hash:'SHA-256'},k,{name:'AES-GCM',length:256},false,['encrypt','decrypt'])}
 async function vEnc(map,p){const s=crypto.getRandomValues(new Uint8Array(16)),i=crypto.getRandomValues(new Uint8Array(12)),k=await vKey(p,s),d=await crypto.subtle.encrypt({name:'AES-GCM',iv:i},k,new TextEncoder().encode(JSON.stringify(map)));return{s:b64(s),i:b64(i),d:b64(new Uint8Array(d))}}
 async function vDec(o,p){const k=await vKey(p,ub64(o.s)),d=await crypto.subtle.decrypt({name:'AES-GCM',iv:ub64(o.i)},k,ub64(o.d));return JSON.parse(new TextDecoder().decode(d))}
-async function unlockV(){if(!PW_EMBED||VL)return;const p=prompt('اكتب كلمة سر الخزنة علشان تظهر الباسوردات (سيبها فاضية للتخطي):');if(!p)return;
-  try{const m=await vDec(PW_EMBED,p);VP=p;const b=getPW();for(const k in m)if(!b[k])b[k]=m[k];localStorage.setItem('pd_pw',JSON.stringify(b));VL=1}catch(e){alert('كلمة سر الخزنة غلط')}}
+async function unlockV(){if(!VAULT||VL)return;const p=prompt('اكتب كلمة سر الخزنة علشان تظهر الباسوردات (سيبها فاضية للتخطي):');if(!p)return;
+  try{const m=await vDec(VAULT,p);VP=p;const b=getPW();for(const k in m)if(!b[k])b[k]=m[k];localStorage.setItem('pd_pw',JSON.stringify(b));VL=1}catch(e){alert('كلمة سر الخزنة غلط')}}
 /* ---------- users page (admin) ---------- */
 function zOf(k,nm){return [...new Set(ALL.filter(r=>r[k]===nm).map(r=>r.z).filter(Boolean))]}
 function sc(){const r=$('nr').value,k=r==='manager'?'m':'s',na=r==='admin',zs=uniq('z',ALL),cz=$('nz').value;
@@ -615,7 +624,7 @@ function sc(){const r=$('nr').value,k=r==='manager'?'m':'s',na=r==='admin',zs=un
   const prev=$('ns').value,list=uniq(k,$('nz').value?ALL.filter(x=>x.z===$('nz').value):ALL);
   $('ns').innerHTML=na?'':list.map(x=>`<option>${esc(x)}</option>`).join('');if(list.includes(prev))$('ns').value=prev}
 function pwCell(x){const p=getPW()[x.u.toLowerCase()];return p?`<span dir="ltr" style="cursor:pointer" data-p="${esc(p)}" onclick="if(this.dataset.s){this.textContent='••••••';this.dataset.s=''}else{this.textContent=this.dataset.p;this.dataset.s='1'}">••••••</span>`:'<span class="sub" style="margin:0">غير معروفة</span>'}
-function ru(){const q=($('us').value||'').trim().toLowerCase();
+function ru(){gstat();const q=($('us').value||'').trim().toLowerCase();
   $('ut').innerHTML=getU().map((x,i)=>({x,i,z:x.r==='admin'?[]:zOf(x.r==='manager'?'m':'s',x.s)})).filter(({x,z})=>!q||[x.n,x.u,x.s,ROLE[x.r],...z].join(' ').toLowerCase().includes(q))
   .map(({x,i,z})=>`<tr><td>${esc(x.n)}</td><td>${esc(x.u)}</td><td>${ROLE[x.r]}</td><td>${esc(x.s||'—')}${z.length?`<div class="sub" style="margin:0">📍 ${esc(z.join('، '))}</div>`:''}</td><td>${pwCell(x)}</td><td style="display:flex;gap:6px"><button class="btn" onclick="eu(${i})">✏️</button><button class="btn" onclick="du(${i})">🗑</button></td></tr>`).join('')||'<tr><td colspan="5">مفيش نتائج</td></tr>';{const H=['الاسم','المستخدم','الدور','مرتبط بـ','كلمة المرور',''];[...$('ut').rows].forEach(r=>[...r.cells].forEach((c,j)=>c.dataset.l=H[j]))}}
 function du(i){if(!CUR||CUR.r!=='admin')return;const a=getU();if(a[i].r==='admin'&&a.filter(x=>x.r==='admin').length<2)return alert('لازم يفضل أدمن واحد على الأقل');if(!confirm('حذف '+a[i].n+'؟'))return;setPW(a[i].u,null);a.splice(i,1);saveU(a);ru()}
@@ -631,23 +640,44 @@ $('na').onclick=()=>{if(!CUR||CUR.r!=='admin')return;const u=$('nu').value.trim(
     const p=p0||rp();a.push({u,n,r,s,h:hp(u,p)});setPW(u,p);msg='اتضاف الحساب. كلمة المرور: '+p
   }
   saveU(a);['nu','nn','np'].forEach(k=>$(k).value='');ru();alert(msg)};
-$('nc').onclick=()=>{const t='const USERS_EMBED='+JSON.stringify(getU())+';';navigator.clipboard.writeText(t).then(()=>alert('تم النسخ'),()=>prompt('انسخ الكود:',t))};
-$('nf').onclick=async()=>{
-  const line='const USERS_EMBED='+JSON.stringify(getU())+';';
-  let vline='';
-  try{await unlockV();const b=getPW();
-    if(Object.keys(b).length){if(!VP)VP=prompt('اختار كلمة سر للخزنة (بيها هتشوف كل الباسوردات من أي جهاز). متنساهاش — لو ضاعت مفيش استرجاع:');
-      if(VP)vline='const PW_EMBED='+JSON.stringify(await vEnc(b,VP))+';/*vault*/'}}catch(e){vline=''}
-  const fallback=()=>{const all=line+(vline?'\n'+vline:'');return navigator.clipboard.writeText(all).then(()=>alert('مقدرتش أجهّز الملف تلقائياً (غالباً الصفحة مفتوحة من ملف محلي). الكود اتنسخ — استبدل بيه سطر USERS_EMBED (وسطر PW_EMBED) في الملف وارفعه تاني.'),()=>prompt('انسخ الكود واستبدل بيه سطري USERS_EMBED و PW_EMBED:',all))};
+/* ---------- نشر المستخدمين على GitHub ---------- */
+const GHK='pd_gh';
+function ghCfg(){let c={};try{c=JSON.parse(localStorage.getItem(GHK))||{}}catch(e){}
+  if(!c.owner&&/\.github\.io$/.test(location.hostname)){c.owner=location.hostname.split('.')[0];c.repo=location.pathname.split('/')[1]||(c.owner+'.github.io')}
+  return{branch:'main',...c}}
+function ghSetup(){const c=ghCfg();
+  const o=prompt('اسم حساب GitHub (owner):',c.owner||'');if(!o)return false;
+  const r=prompt('اسم الـ repository:',c.repo||'');if(!r)return false;
+  const b=prompt('اسم الـ branch:',c.branch||'main');if(!b)return false;
+  const k=prompt('الصق GitHub Token (Fine-grained — صلاحية Contents: Read and write على الريبو ده بس). بيتخزن على جهازك أنت بس:',c.token||'');if(!k)return false;
+  try{localStorage.setItem(GHK,JSON.stringify({owner:o.trim(),repo:r.trim(),branch:b.trim(),token:k.trim()}))}catch(e){return false}return true}
+async function usersPayload(){
+  let vault=VAULT||null;const b=getPW();
+  if(Object.keys(b).length){
+    if(VAULT&&!VP)await unlockV();
+    if(!VAULT&&!VP)VP=prompt('اختار كلمة سر للخزنة (بيها هتشوف الباسوردات من أي جهاز). متنساهاش — لو ضاعت مفيش استرجاع. سيبها فاضية لو مش عايز تحفظ الباسوردات:')||null;
+    if(VP)vault=await vEnc(b,VP);
+    else if(VAULT&&!confirm('كلمة سر الخزنة مش متفكّة، فالباسوردات الجديدة مش هتتحفظ في الخزنة. تكمل النشر؟'))return null}
+  return{txt:JSON.stringify({v:1,users:getU(),vault}),vault}}
+$('gs').onclick=()=>{if(!CUR||CUR.r!=='admin')return;if(ghSetup())alert('اتحفظت إعدادات GitHub على الجهاز ده.')};
+$('gd').onclick=async()=>{if(!CUR||CUR.r!=='admin')return;const p=await usersPayload();if(!p)return;
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([p.txt],{type:'application/json'}));a.download='users.json';a.click();
+  alert('اتحمّل users.json — ارفعه في الريبو (جنب index.html) مكان القديم.')};
+$('gp').onclick=async()=>{if(!CUR||CUR.r!=='admin')return;
+  let c=ghCfg();if(!c.token){if(!ghSetup())return;c=ghCfg()}
+  const btn=$('gp'),old=btn.textContent;btn.disabled=true;btn.textContent='جارٍ النشر…';
   try{
-    const t=await (await fetch(location.href.split('#')[0],{cache:'no-store'})).text();
-    const re=/const USERS_EMBED=\[.*?\];(?=\/\*|\r|\n|$)/,re2=/const PW_EMBED=.*?;\/\*vault\*\//;
-    if(!re.test(t))return fallback();
-    let o=t.replace(re,()=>line);if(vline&&re2.test(o))o=o.replace(re2,()=>vline);
-    const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([o],{type:'text/html'}));a.download='index.html';a.click();
-    alert('اتحمّل ملف index.html فيه كل الحسابات'+(vline?' وخزنة الباسوردات المشفرة':'')+'. ارفعه على GitHub مكان القديم.');
-  }catch(e){fallback()}
-};
+    const p=await usersPayload();if(!p)return;
+    const api='https://api.github.com/repos/'+encodeURIComponent(c.owner)+'/'+encodeURIComponent(c.repo)+'/contents/users.json',H={Authorization:'Bearer '+c.token,Accept:'application/vnd.github+json'};
+    let sha;const g=await fetch(api+'?ref='+encodeURIComponent(c.branch),{headers:H});
+    if(g.ok)sha=(await g.json()).sha;else if(g.status!==404)throw new Error('GitHub رد بـ '+g.status+(g.status===401?' — التوكن غلط أو منتهي':g.status===403?' — التوكن ملوش صلاحية Contents: Read and write':''));
+    const body={message:'تحديث المستخدمين',content:btoa(unescape(encodeURIComponent(p.txt))),branch:c.branch};if(sha)body.sha=sha;
+    const r=await fetch(api,{method:'PUT',headers:{...H,'Content-Type':'application/json'},body:JSON.stringify(body)});
+    if(!r.ok){let m='';try{m=(await r.json()).message}catch(e){}throw new Error('فشل النشر ('+r.status+') '+m)}
+    USERS=getU();VAULT=p.vault;DRAFT=null;try{localStorage.removeItem('pd_draft')}catch(e){}
+    ru();alert('✅ اتنشر. التحديث بيظهر لكل الأجهزة خلال حوالي دقيقة (لحد ما GitHub Pages يخلّص).')
+  }catch(e){alert('❌ '+e.message+'\n\nتقدر تدوس "⚙️ إعداد GitHub" وتعدّل البيانات، أو "💾 تحميل users.json" وترفعه يدوي.')}
+  finally{btn.disabled=false;btn.textContent=old}};
 $('nx').onclick=async()=>{if(!CUR||CUR.r!=='admin')return;await unlockV();const b=getPW(),a=getU();
   const rows=a.map(x=>({'الدور':ROLE[x.r],'الاسم':x.n,'اسم المستخدم':x.u,'كلمة المرور':b[x.u.toLowerCase()]||'غير معروفة','مرتبط بـ':x.s||''}));
   const unk=rows.filter(r=>r['كلمة المرور']==='غير معروفة').length;
