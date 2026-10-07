@@ -4,9 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow,noarchive"><link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E🚀%3C/text%3E%3C/svg%3E"><meta name="color-scheme" content="dark"><meta name="theme-color" content="#0b0f19"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><title>داش بورد أداء الطيارين</title>
-<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="preconnect" href="https://docs.google.com"><link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 :root{color-scheme:dark;--bg:#0b0f19;--card:#121a2b;--bd:#232e45;--tx:#f3f5f9;--mut:#8b97b0;--pr:#3b82f6;--ok:#10b981;--wa:#f59e0b;--bad:#ef4444;--pu:#8b5cf6;--cy:#06b6d4}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -110,6 +111,11 @@ html{-webkit-text-size-adjust:100%}body{overflow-x:hidden}
  #msg{font-size:12px}
  .sub{font-size:12px}
 }
+
+:focus-visible{outline:2px solid var(--pr);outline-offset:2px}
+.kpi{transition:transform .15s,border-color .15s}.kpi:hover{transform:translateY(-2px)}
+@media(min-width:700px){tbody tr:nth-child(even) td{background:#0f1626}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
 <body>
@@ -118,8 +124,8 @@ html{-webkit-text-size-adjust:100%}body{overflow-x:hidden}
 <header><div class="hr">
  <div><h1>🚀 داش بورد أداء الطيارين</h1><div class="sub" id="sync">—</div></div>
  <div class="row" style="margin:0">
-  <span class="sub" id="who"></span><button class="btn" id="usrB" style="display:none">👥 المستخدمين</button><button class="btn" id="out">خروج</button>
-  <button class="btn pr" id="rf">🔄 تحديث</button>
+  <span class="sub" id="who"></span><button class="btn" id="prB" style="display:none">💰 الأسعار</button><button class="btn" id="usrB" style="display:none">👥 المستخدمين</button><button class="btn" id="out">خروج</button>
+  <button class="btn" id="wa">📲 واتساب</button><button class="btn pr" id="rf">🔄 تحديث</button>
  </div></div></header>
 <main>
  <div id="msg"></div>
@@ -139,12 +145,12 @@ html{-webkit-text-size-adjust:100%}body{overflow-x:hidden}
  </div>
  <div class="kpis" id="kpis"></div>
  <div class="charts">
-  <div class="card c4"><h3>🏆 أفضل 10 طيارين (طلبات)</h3><div id="top"></div></div>
-  <div class="card c4"><h3>📉 أضعف 10 (أقل التزام)</h3><div id="bot"></div></div>
-  <div class="card c4"><h3>🐌 أقل 10 في الطلبات <span class="sub">(اللي اشتغلوا فعلاً)</span></h3><div id="lo1"></div></div>
-  <div class="card c4"><h3>⏳ أقل 10 في الساعات <span class="sub">(اللي اشتغلوا فعلاً)</span></h3><div id="lo2"></div></div>
-  <div class="card c4"><h3>📆 أقل 10 في أيام العمل</h3><div id="lo3"></div></div>
-  <div class="card c4"><h3>📆 الطلبات حسب يوم الأسبوع</h3><div class="cw"><canvas id="ch5"></canvas></div></div>
+  <div class="card c4"><h3 style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">🏆 أفضل <input type="number" min="1" class="tn" data-k="top" value="10" title="كام عايز تعرض؟" style="width:62px;min-height:28px;padding:2px 6px;font-size:13px"> طيارين (طلبات)<button class="btn" style="margin-inline-start:auto;padding:4px 10px;min-height:30px;font-size:12px" onclick="exl('top')">⬇ Excel</button></h3><div id="top"></div></div>
+  <div class="card c4"><h3 style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">📉 أضعف <input type="number" min="1" class="tn" data-k="bot" value="10" title="كام عايز تعرض؟" style="width:62px;min-height:28px;padding:2px 6px;font-size:13px"> (أقل التزام)<button class="btn" style="margin-inline-start:auto;padding:4px 10px;min-height:30px;font-size:12px" onclick="exl('bot')">⬇ Excel</button></h3><div id="bot"></div></div>
+  <div class="card c4"><h3 style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">🐌 أقل <input type="number" min="1" class="tn" data-k="lo1" value="10" title="كام عايز تعرض؟" style="width:62px;min-height:28px;padding:2px 6px;font-size:13px"> في الطلبات <span class="sub">(اللي اشتغلوا فعلاً)</span><button class="btn" style="margin-inline-start:auto;padding:4px 10px;min-height:30px;font-size:12px" onclick="exl('lo1')">⬇ Excel</button></h3><div id="lo1"></div></div>
+  <div class="card c4"><h3 style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">⏳ أقل <input type="number" min="1" class="tn" data-k="lo2" value="10" title="كام عايز تعرض؟" style="width:62px;min-height:28px;padding:2px 6px;font-size:13px"> في الساعات <span class="sub">(اللي اشتغلوا فعلاً)</span><button class="btn" style="margin-inline-start:auto;padding:4px 10px;min-height:30px;font-size:12px" onclick="exl('lo2')">⬇ Excel</button></h3><div id="lo2"></div></div>
+  <div class="card c4"><h3 style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">📆 أقل <input type="number" min="1" class="tn" data-k="lo3" value="10" title="كام عايز تعرض؟" style="width:62px;min-height:28px;padding:2px 6px;font-size:13px"> في أيام العمل<button class="btn" style="margin-inline-start:auto;padding:4px 10px;min-height:30px;font-size:12px" onclick="exl('lo3')">⬇ Excel</button></h3><div id="lo3"></div></div>
+  <div class="card c4"><div class="row" style="margin-bottom:6px"><h3 style="margin:0">📆 حسب يوم الأسبوع</h3><span style="margin-inline-start:auto;display:flex;gap:6px"><button class="chip on" id="m5o" onclick="setM5('o')">📦 طلبات</button><button class="chip" id="m5a" onclick="setM5('a')">⏱ ساعات</button><button class="chip" id="m5x" onclick="setM5('x')">🔀 مكس</button><button class="chip" onclick="exl('ch5')">⬇ Excel</button></span></div><div class="cw"><canvas id="ch5"></canvas></div></div>
  </div>
  <div class="card"><div class="row"><h3 style="margin:0">📊 تحليل مجمّع حسب</h3><select id="gb"><option value="m">مدير المنطقة</option><option value="z">المنطقة</option><option value="s">المشرف</option><option value="bt">الباتش</option><option value="v">المركبة</option></select><button class="btn" id="gx" style="margin-inline-start:auto">⬇ CSV</button></div><div class="tw rt2"><table style="min-width:620px"><thead id="gh"></thead><tbody id="gt"></tbody></table></div></div>
  <div class="card"><div class="row"><h3 style="margin:0">🚨 مركز التنبيهات</h3><button class="btn" id="alX" style="margin-inline-start:auto">⬇ تصدير CSV</button></div>
@@ -162,16 +168,31 @@ html{-webkit-text-size-adjust:100%}body{overflow-x:hidden}
   <div class="card c8"><div class="row" style="margin-bottom:6px"><h3 style="margin:0">📈 المسار اليومي</h3><span style="margin-inline-start:auto;display:flex;gap:6px"><button class="chip on" id="m1o" onclick="setM1('o')">📦 طلبات</button><button class="chip" id="m1a" onclick="setM1('a')">⏱ ساعات</button></span></div><div class="cw"><canvas id="ch1"></canvas></div></div>
   <div class="card c4"><h3>🛵 المركبات (الطلبات)</h3><div class="cw"><canvas id="ch2"></canvas></div></div>
   <div class="card c8"><h3>📍 أفضل المناطق (الطلبات + الالتزام %)</h3><div class="cw"><canvas id="ch3"></canvas></div></div>
-  <div class="card c4"><h3>🏷 الباتشات (طلب/ساعة)</h3><div class="cw"><canvas id="ch4"></canvas></div></div>
+  <div class="card c4"><h3>🏷 الباتشات (طلب/ساعة)</h3><div class="cw"><canvas id="ch4"></canvas></div><div class="tw" style="max-height:230px;margin-top:8px"><table style="min-width:0"><thead><tr><th>الباتش</th><th>طيارين</th><th>ساعات</th><th>طلبات</th><th>طلب/س</th></tr></thead><tbody id="bkb"></tbody></table></div><div class="sub" style="margin-top:6px">اضغط على أي باتش (في الجدول أو العمود) لعرض المناديب.</div></div>
  </div>
  <div class="card"><div class="row"><h3 style="margin:0">🛌 طيارين بدون شغل</h3><span class="b r" id="idN">0</span><span class="sub">من</span><input type="number" id="idD" value="10" min="1" max="90" style="width:70px;min-height:34px"><span class="sub">يوم أو أكتر (بدون طلبات)</span><button class="btn" id="idX" style="margin-inline-start:auto">⬇ تصدير CSV</button></div><div id="idL" style="max-height:320px;overflow:auto"></div></div>
  <div class="charts">
   <div class="card c8"><h3>👷 أداء المشرفين (الطلبات + الالتزام %)</h3><div class="cw"><canvas id="ch7"></canvas></div></div>
   <div class="card c4"><h3>⭐ توزيع تقييم الطيارين</h3><div class="cw"><canvas id="ch8"></canvas></div></div>
   <div class="card c12" style="grid-column:1/-1"><h3>🎯 الالتزام مقابل الإنتاجية <span class="sub">(الطيارين مقسمين حسب نسبة الالتزام، والخط = متوسط الإنتاجية لكل شريحة)</span></h3><div class="cw"><canvas id="ch9"></canvas></div></div>
+  <div class="card c12" style="grid-column:1/-1"><h3>⏱ المناديب حسب ساعات الشغل <span class="sub">(متوسط ساعات المندوب في اليوم اللي اشتغل فيه، والخط = متوسط الإنتاجية)</span></h3><div class="cw"><canvas id="ch10"></canvas></div></div>
+  <div class="card c12" style="grid-column:1/-1"><h3 style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">👔 ساعات المشرفين <button class="btn" id="svx" style="margin-inline-start:auto">⬇ تصدير Excel</button><span class="sub" style="flex-basis:100%">(الأعمدة = إجمالي الساعات الفعلية، والخط = متوسط ساعات المندوب · اضغط على مشرف لعرض مناديبه)</span></h3><div class="cw"><canvas id="ch11"></canvas></div><div class="tw" style="max-height:340px;margin-top:8px"><table style="min-width:0"><thead><tr><th>#</th><th>المشرف</th><th>مناديب اشتغلوا</th><th>إجمالي الساعات</th><th>متوسط س/مندوب</th><th>متوسط س/يوم عمل</th><th>طلبات</th><th>طلب/س</th></tr></thead><tbody id="svb"></tbody></table></div></div>
  </div>
  <div class="card">
   <div class="row"><h3 style="margin:0">📋 تفاصيل الطيارين</h3><span class="sub" id="tc"></span><button class="btn" id="exp" style="margin-inline-start:auto">⬇ تصدير CSV</button></div>
+  <div class="fm" id="tf" style="margin:10px 0">
+    <input id="tf_q" placeholder="🔎 بحث بالاسم أو الكود">
+    <select id="tf_z"></select><select id="tf_s"></select><select id="tf_v"></select><select id="tf_bt"></select>
+    <select id="tf_c"><option value="">الالتزام: الكل</option><option value="90">90% فأكثر</option><option value="60">من 60% إلى 90%</option><option value="lt60">أقل من 60%</option></select>
+    <select id="tf_r"><option value="">التقييم: الكل</option><option>ممتاز</option><option>جيد</option><option>متوسط</option><option>ضعيف</option></select>
+    <select id="tf_w"><option value="">المحفظة: الكل</option><option value="neg">سالبة</option><option value="zero">صفر</option><option value="pos">موجبة</option></select>
+    <select id="tf_l"><option value="">العقد: الكل</option><option value="exp">منتهي</option><option value="7">ينتهي خلال 7 أيام</option><option value="30">ينتهي خلال 30 يوم</option><option value="ok">أكثر من 30 يوم</option></select>
+    <input id="tf_o" type="number" min="0" placeholder="طلبات من">
+    <input id="tf_a" type="number" min="0" step="any" placeholder="ساعات فعلية من">
+    <input id="tf_oph" type="number" min="0" step="any" placeholder="طلب/س من">
+    <input id="tf_pay" type="number" min="0" placeholder="قبض تقريبي من">
+    <button class="btn" id="tf_x">✕ مسح فلاتر الجدول</button>
+  </div>
   <div class="tw rt"><table><thead><tr id="th"></tr></thead><tbody id="tb"></tbody></table></div>
   <div class="pg"><button class="btn" id="pp">‹</button><span id="pi"></span><button class="btn" id="pn">›</button></div>
  </div>
@@ -181,7 +202,10 @@ html{-webkit-text-size-adjust:100%}body{overflow-x:hidden}
 <div class="fm"><input id="nu" placeholder="اسم المستخدم" autocapitalize="off"><input id="nn" placeholder="الاسم الظاهر"><select id="nr"><option value="sup">مشرف</option><option value="manager">مدير منطقة</option><option value="admin">أدمن</option></select><select id="nz" title="فلتر بالمنطقة"></select><select id="ns"></select><input id="np" type="text" placeholder="كلمة المرور"><button class="btn pr" id="na">➕ إضافة / تحديث</button></div>
 <input id="us" placeholder="🔍 ابحث بالمشرف أو الاسم أو المستخدم أو المنطقة..." style="width:100%;margin:10px 0"><div class="tw rt3" style="max-height:45vh"><table style="min-width:520px"><thead><tr><th>الاسم</th><th>المستخدم</th><th>الدور</th><th>مرتبط بـ</th><th></th></tr></thead><tbody id="ut"></tbody></table></div>
 <div class="sub" style="margin:10px 0">التعديلات تُحفظ على هذا الجهاز فقط. علشان تتطبق على كل الأجهزة: انسخ الكود واستبدل به سطر <b>USERS_EMBED</b> في الملف ثم أعد رفعه.</div><button class="btn pr" id="ng">⚡ إنشاء حسابات لكل المديرين والمشرفين</button> <button class="btn" id="nc">📋 نسخ كود المستخدمين</button> <button class="btn" id="nf">💾 تحميل نسخة الملف بالحسابات (للموبايل)</button></div></div>
+<div id="bm" style="display:none;position:fixed;inset:0;background:#000c;z-index:55;overflow:auto;padding:12px" onclick="if(event.target===this)this.style.display='none'"><div class="card" style="max-width:900px;margin:auto"><div class="row"><h3 id="bmt" style="margin:0"></h3><button class="btn" style="margin-inline-start:auto" onclick="$('bm').style.display='none'">✕</button></div><div id="bms" class="sub" style="margin:8px 0"></div><div class="tw" style="max-height:65vh"><table style="min-width:0"><thead><tr><th>#</th><th>الكود</th><th>الاسم</th><th>المنطقة</th><th>المشرف</th><th>المركبة</th><th>أيام</th><th>ساعات</th><th>طلبات</th><th>طلب/س</th></tr></thead><tbody id="bmb"></tbody></table></div></div></div>
+<div id="pm" style="display:none;position:fixed;inset:0;background:#000c;z-index:70;overflow:auto;padding:12px" onclick="if(event.target===this)this.style.display='none'"><div class="card" style="max-width:820px;margin:auto"><div class="row"><h3 style="margin:0">💰 سعر الطلب (جنيه) لكل مشرف</h3><button class="btn" style="margin-inline-start:auto" onclick="$('pm').style.display='none'">✕</button></div><div class="row" style="margin:10px 0"><label style="font-weight:700">👷 المشرف</label><select id="psS" style="flex:1;min-width:0"></select></div><div class="tw" style="max-height:60vh"><table style="min-width:0"><thead id="ph"></thead><tbody id="pb"></tbody></table></div><div class="sub" style="margin:10px 0">كل مشرف له أسعاره الخاصة ومفيش أي ارتباط بينه وبين باقي المشرفين. القبض التقريبي = عدد الطلبات × سعر (باتش الطيار + مركبته) حسب مشرف الطيار. الأسعار بتتحفظ على هذا الجهاز؛ علشان تتطبق على كل الأجهزة اضغط "نسخ الكود" واستبدل به سطر <b>PRICES_EMBED</b> في الملف.</div><button class="btn pr" id="ps">💾 حفظ</button> <button class="btn" id="pc">📋 نسخ كود الأسعار</button></div></div>
 <script>
+const PRICES_EMBED={};
 const USERS_EMBED=[{"u":"admin","n":"الأدمن","r":"admin","s":"","h":"a366ec9615ed195b78768736633787676a77e6db9efc93a7a1f8d2379ed6d0ce"},{"u":"mgr1","n":"احمد كمال","r":"manager","s":"احمد كمال","h":"4f629b4e9592cd5adc93acef8fa7e0b7aebab66ee66616993f393509e60f684f"},{"u":"mgr2","n":"اقاليم","r":"manager","s":"اقاليم","h":"27a8c01c1f6c764c2cb804628c091cd4a1d8cfc0272087e012edb9d00494999a"},{"u":"mgr3","n":"المشرف اقاله","r":"manager","s":"المشرف اقاله","h":"51c9299f72dcc09c4eb3d566d66246dfe2f6e81386df67159ccd812645dd86d8"},{"u":"mgr4","n":"ايهاب","r":"manager","s":"ايهاب","h":"a97feb6436037bf59549f023c15c149bf953fb325556f74c6c2c42ce59050d1d"},{"u":"mgr5","n":"حماده","r":"manager","s":"حماده","h":"4e4add64d089b82db845c0253b9b067aab26531f85cfbfe68b2e7fc99fac8cf6"},{"u":"mgr6","n":"راتب","r":"manager","s":"راتب","h":"ac8a8a7f8c1a90531a1fdff5f52e3a9e5587a1ff89b5b33662d2c321551a9cf5"},{"u":"mgr7","n":"عادل نسيم","r":"manager","s":"عادل نسيم","h":"8712d225ddfa22676bac13c2d120fc8c0f624520147ba7936e3f6c177992b916"},{"u":"mgr8","n":"علاء النجار","r":"manager","s":"علاء النجار","h":"5e0389d9474a897bc4ca6db3b436af039fb57c144df136e5927e3e0a4b8eb520"},{"u":"mgr9","n":"مايكل","r":"manager","s":"مايكل","h":"087281f78abf9bf6af45ab81701d34289ac964d26cf04e48e0356d18fc217ced"},{"u":"mgr10","n":"محمود حلاوه","r":"manager","s":"محمود حلاوه","h":"9c8759cbb0bb368967a2e3c6b32adb63dbe78965e1c8a2ad234a18ae0cc30db3"},{"u":"mgr11","n":"blal","r":"manager","s":"blal","h":"dbacede5d8fb66b843449877d8aae10d35d809f1f24b02ef452e22a0e9399bed"},{"u":"mgr12","n":"Blal","r":"manager","s":"Blal","h":"da09cf9cb138daa4dfa22e050cf807de8932f01cccbf6f47088ecb4ecc3e96a4"},{"u":"sup1","n":"ابطال المعادى","r":"sup","s":"ابطال المعادى","h":"077e53b945e27baab950f82c41cab2bdfa4a366e1452ff596426a27b036561b2"},{"u":"sup2","n":"ابو اسر","r":"sup","s":"ابو اسر","h":"75eef6bf75bbb27025b4997685853d3b8394d38049bd54a2fcff76c89a92c5be"},{"u":"sup3","n":"ابو مكة تجمعات","r":"sup","s":"ابو مكة تجمعات","h":"7d49906efbf8811acfa81608052314cefe8f3adf8381e124c15e7b790f492fc9"},{"u":"sup4","n":"ابو يارا","r":"sup","s":"ابو يارا","h":"e28c761f69f07bd2a91081d670f2db8cdf7eec091049324b6e77c73f2e71b050"},{"u":"sup5","n":"ابو يونس","r":"sup","s":"ابو يونس","h":"a27d93369929e2095a32b800d50505ad206d99b3b5cbf9d0969f61efe3c22ea3"},{"u":"sup6","n":"احمد اسماعيل","r":"sup","s":"احمد اسماعيل","h":"71bfb210c879ccc39b95b0abb474d52e133948666cc6925384743ddd74577dcf"},{"u":"sup7","n":"احمد اسماعيل مشرف رحاب","r":"sup","s":"احمد اسماعيل مشرف رحاب","h":"4a6e8c0cdd5f95bd2f1bbc1a1017096511530702ac964f14a2475fc9fe9f402c"},{"u":"sup8","n":"احمد السيد حسين","r":"sup","s":"احمد السيد حسين","h":"1b43ff701656bf6cd5456d41e7078ecc6473824c0c5c52208ed18266aa41ecd6"},{"u":"sup9","n":"أحمد جمال","r":"sup","s":"أحمد جمال","h":"5925f4cf107db7b63acb2638b2bbe990a2a73d6a69791cf5a32e9dd47cb8625b"},{"u":"sup10","n":"احمد صبحي","r":"sup","s":"احمد صبحي","h":"ec131771ae2baf0ea067090def2e3af90c17ef2de7883ad8c8c523bd787b4969"},{"u":"sup11","n":"احمد طلعت","r":"sup","s":"احمد طلعت","h":"d3e4b73e09b5ff855e7e1f79db4d204b72faa38ba84ecaedb86a361342205477"},{"u":"sup12","n":"احمد عبده الغردقه","r":"sup","s":"احمد عبده الغردقه","h":"632cf3f086db42bad6db484903a2c85df2e05dbc264550ffb47a952db12deb3e"},{"u":"sup13","n":"احمد علي","r":"sup","s":"احمد علي","h":"87b75ab69cd252bfa6a4c72ff8fd6741d378eb3ed134461450e530382090b719"},{"u":"sup14","n":"احمد عماد","r":"sup","s":"احمد عماد","h":"e59c59c94fd6201341c85fc567dbe2c57543e7cced22e291261bc22b7708652d"},{"u":"sup15","n":"احمد عماد السويس","r":"sup","s":"احمد عماد السويس","h":"0fb35029e91df368c19306ed2a450a1efe3bbf63a6385f7f143dbcd56be492f8"},{"u":"sup16","n":"احمد عمر","r":"sup","s":"احمد عمر","h":"4cbcae1919b6b3b1ff8b82ceb2e1f3c711317460d1c676ce3690a5797b56cd59"},{"u":"sup17","n":"أحمد فتحي","r":"sup","s":"أحمد فتحي","h":"6a316530d93623f621ac0450bc06c302fcb77f0722c354e25a72ab19322a7668"},{"u":"sup18","n":"احمد فتحي","r":"sup","s":"احمد فتحي","h":"733a364714408656c4c2756c739dccab542f8d602505347cbcc6102e04abc788"},{"u":"sup19","n":"احمد ناصر","r":"sup","s":"احمد ناصر","h":"e3287686eefcbc776d3c7f613492032c947e878e3748f0d7e17fcdbfa361cdc0"},{"u":"sup20","n":"احمد يونس","r":"sup","s":"احمد يونس","h":"940d1cb7ad05fe2712faaf046cf95c0525521fdee1cd5ab895c30ea861f01503"},{"u":"sup21","n":"اساف عاصم","r":"sup","s":"اساف عاصم","h":"c20d82e9772f590dbd69a5379735038663e7e1e3850dfe946d0e051b84bf45ad"},{"u":"sup22","n":"اسامه طه","r":"sup","s":"اسامه طه","h":"4d87ba063224cc75d87a4b9135b9c47ae9097506393f81bc0dab9e6b5e50a54d"},{"u":"sup23","n":"اسلام ابوزيد","r":"sup","s":"اسلام ابوزيد","h":"a5eb429afc1ce5b1799a8c28efe06c01fc2109041a7263d6a5d8176a320bb7a6"},{"u":"sup24","n":"اسلام اكتوبر","r":"sup","s":"اسلام اكتوبر","h":"b0e8d11844db7c03dc1df5aaac3f5f15bb3b496999ee42053281710903fabbb5"},{"u":"sup25","n":"اسلام السوهاجي","r":"sup","s":"اسلام السوهاجي","h":"cd38f42fbe4bb76ded650a19fc213cdd4d0cec236d41ad2381cfa4ab89257520"},{"u":"sup26","n":"اسلام رضا","r":"sup","s":"اسلام رضا","h":"f3185f540e4fb92c14a7ec44598927b92f88a6e825b9529e32b6e24183f80e87"},{"u":"sup27","n":"اسلام عاطف تجمعات","r":"sup","s":"اسلام عاطف تجمعات","h":"92f5bc2e3e64d832c02a8fc6806fcd1f8f5006f6e8613a6f748ae2cf51a33526"},{"u":"sup28","n":"إسلام منصورة","r":"sup","s":"إسلام منصورة","h":"a45d95a361e9ac466b8866cb347a75ee4dd369dd051c8375c96d7e391b03d6d1"},{"u":"sup29","n":"اسماء نادر","r":"sup","s":"اسماء نادر","h":"7d70712758ea516d299d483d086d2b24a8bd75ea880102e8b23ae8c9cf7201c7"},{"u":"sup30","n":"اسماعيل جابر","r":"sup","s":"اسماعيل جابر","h":"ba23c1f40e0da3ecd05a528e944357b539629d98dc7ff9a1fb2f733b5f58c32f"},{"u":"sup31","n":"الخضري","r":"sup","s":"الخضري","h":"0c8dbe4e0ca12eb45f7586c4c47a4acde52b262519b324b2833594469b5009b8"},{"u":"sup32","n":"الديب","r":"sup","s":"الديب","h":"0c83b626c3545448e14d565ca2588047a5206d651319b4ae745fa7afc6582b20"},{"u":"sup33","n":"السقا","r":"sup","s":"السقا","h":"709c16d40fe58fde357e9bb12c0040136a6400034c4f330429aa24cabded20c6"},{"u":"sup34","n":"أنطونيوس","r":"sup","s":"أنطونيوس","h":"5552ee5590c87751d4bef477511122c28de5be4e2f0c5d6099f503fdd224bc34"},{"u":"sup35","n":"اوزو","r":"sup","s":"اوزو","h":"d4a09b91a179f9cf2a960e05c24c8f8a96258b222e22778299457a3815a1f217"},{"u":"sup36","n":"باولو","r":"sup","s":"باولو","h":"a50c775645beca16f2d66f727d88b88eeeca9233cc55cf702d6ba2c7eb8210a6"},{"u":"sup37","n":"بطيخه","r":"sup","s":"بطيخه","h":"a1f648ea5dfb8be0432a82e3a0c3ce84d42e152ffa07acbc994be49209c68750"},{"u":"sup38","n":"بكر","r":"sup","s":"بكر","h":"8e5503388cc06407a101a8d6aaa5e67e39b3ec83b8d37b9c5c40511a44a9b5f5"},{"u":"sup39","n":"بهيج احمد","r":"sup","s":"بهيج احمد","h":"c32dec6dfe2e3f02727d363dca776164cecdc03eb5106f1352a8519fa2e128c7"},{"u":"sup40","n":"تريكه","r":"sup","s":"تريكه","h":"e18bceeaa70e597b3fde7018b2b08622ecee9caa2fe7ff81fba52bc6197b878a"},{"u":"sup41","n":"تونه","r":"sup","s":"تونه","h":"6f955864412232a2b64bcf3b4a25657b8357b192a4f40beb6e6de31c33b072a9"},{"u":"sup42","n":"جابر عبدالحارث","r":"sup","s":"جابر عبدالحارث","h":"df2b6007a4ae77dca0f4a6d3334bef501f5ecdb5680853bf48fb006967e9a992"},{"u":"sup43","n":"جمال مصطفى","r":"sup","s":"جمال مصطفى","h":"c2aa90d726aab5d64c5a6e4525dd6c8cfc1e77102d64ea2cb9e85e8d4b5d46ad"},{"u":"sup44","n":"جمعه الجوهري","r":"sup","s":"جمعه الجوهري","h":"351210f9e52d258188bd4034afbf008a2f8a7f657774735fb760eaec452201a3"},{"u":"sup45","n":"حازم زكريا","r":"sup","s":"حازم زكريا","h":"d4ff522223263b61972881a41c06c5547ae39d031af2814dd6d6792cdcfb6461"},{"u":"sup46","n":"حازم محمد","r":"sup","s":"حازم محمد","h":"876b1e419ebfc23722bf0fe2a7103994842d5bbba2484e10ff0824e5196596da"},{"u":"sup47","n":"حربى","r":"sup","s":"حربى","h":"6556d5ab15d08517e63f68965a59ce3e9661172780b3be6c734545484fdeabc1"},{"u":"sup48","n":"حسن الشروق","r":"sup","s":"حسن الشروق","h":"7803fe69d900688243bffd2d7c5794c7be31fe9c1351488a78905dd96ff26ce2"},{"u":"sup49","n":"حسن سليمان","r":"sup","s":"حسن سليمان","h":"d1348db0cbb4aad9ea2d7878b14c52878f13dd705aaf506040f00400ddf06b36"},{"u":"sup50","n":"حسين الإسماعيلية","r":"sup","s":"حسين الإسماعيلية","h":"3beb78a905bba7319093891b2faea4372b389a68adf72aad33e0cfcf2fbd3a46"},{"u":"sup51","n":"خالد عبد المعبود","r":"sup","s":"خالد عبد المعبود","h":"b587861c71fd785e757da8924c1434152b60768c4afa9562250a188ca1e0374e"},{"u":"sup52","n":"خالد عبدالمعبود","r":"sup","s":"خالد عبدالمعبود","h":"dacee0c3d8f7eb5053553b5602770916a717e4ef140d4af8fab16d0ebbb8ce0b"},{"u":"sup53","n":"رؤف الخواجة","r":"sup","s":"رؤف الخواجة","h":"dfd09a4e848100a72f58399eccf7d188e78a3577c64c3a8950b9758ce37f45dc"},{"u":"sup54","n":"رضا حسني","r":"sup","s":"رضا حسني","h":"e68c85003d0039f6dd160053548ace450d7ce803400384868c0743507d0b1e06"},{"u":"sup55","n":"رضوان ابراهيم","r":"sup","s":"رضوان ابراهيم","h":"46c58c7f8e736efe94e6fe7126725a34225fc39d6ca85a7703b9310b537ba6fb"},{"u":"sup56","n":"زياد بدر","r":"sup","s":"زياد بدر","h":"2ad098bc65b71820c3c342bcc3737d274c105e64ede951de9047f7014f5b2208"},{"u":"sup57","n":"سامح حسن","r":"sup","s":"سامح حسن","h":"63c3e854120078e2f67dcba875bbde688780a8ee95c3298ff7bd055a57b714c7"},{"u":"sup58","n":"سعودي","r":"sup","s":"سعودي","h":"2049d8b1c002013e083104bb491345a2602d3e2e183f26458f8c6cc2adc403ee"},{"u":"sup59","n":"سليمان مصر الجديده","r":"sup","s":"سليمان مصر الجديده","h":"d010c39f9c6de0bd3edbef18c9a76b887028bfee32ed31cf1821745c848d8b16"},{"u":"sup60","n":"سماره شبرا","r":"sup","s":"سماره شبرا","h":"9c488ac2f2cbf7c3985ebff08bb63377f77acf5843fd84cebad8eb4059ee003e"},{"u":"sup61","n":"سيد الاسماعيلية","r":"sup","s":"سيد الاسماعيلية","h":"20ee1fd41248ca5383ff9435b6c75ca9dfb04a4091872a27fa76dfc193eebf09"},{"u":"sup62","n":"سيد الغردقه","r":"sup","s":"سيد الغردقه","h":"825c97acc7a670bf01d52beeee53ff181af78e741e92a2924665d432f31e799d"},{"u":"sup63","n":"سيف الاسلام مقطم","r":"sup","s":"سيف الاسلام مقطم","h":"b3cd0c21f08ff6cd0da9833da4259e9d3b53e3ef139887d571a650bff9d94552"},{"u":"sup64","n":"شريف بكري التجمعات","r":"sup","s":"شريف بكري التجمعات","h":"4625f54331143c0aa2274b7bc9b3c844ea9a387a6f8f46093409d9e7bfe906a5"},{"u":"sup65","n":"شريف عيسي","r":"sup","s":"شريف عيسي","h":"b0608c0d27cff54a4e295d38ca0ec723ad5f94b1072a1b0a84971e59ffc2cd23"},{"u":"sup66","n":"شهاب نبيشى","r":"sup","s":"شهاب نبيشى","h":"5039a2615ec275e921f6dda87067b4b8ae85523946e44b07ee2d1c1976f8d9e9"},{"u":"sup67","n":"شيكا","r":"sup","s":"شيكا","h":"a5c9adab6fa32e3a3eb71c0a946bab720d319cf5289e404e3c8b0e2481b6f524"},{"u":"sup68","n":"شيكو","r":"sup","s":"شيكو","h":"fa31042059fbe2d3156175d356ef67dd12d3c329dbc18826f22503673e02b418"},{"u":"sup69","n":"صابر البندارى","r":"sup","s":"صابر البندارى","h":"c7f7ad1276a9b195f3ef2134fdb2dda50131e4a4b9d46bf72a7d0733dbc82b26"},{"u":"sup70","n":"صبحي العاشر","r":"sup","s":"صبحي العاشر","h":"e0ce48fcb8735dcdcb430ae7be453e8579ffa893c1b0438a7c5c4a6d07d7a2e0"},{"u":"sup71","n":"صبرى","r":"sup","s":"صبرى","h":"0b492469e420b7e6e0e6206dfca22b451af9392ff65403dc34eb8ee3d7f2b076"},{"u":"sup72","n":"طه احمد","r":"sup","s":"طه احمد","h":"0c1dfad73a64699d2b52e610fbc1a9d52b007344fd021ff55e73ee3e95b12868"},{"u":"sup73","n":"عادل اسكندريه","r":"sup","s":"عادل اسكندريه","h":"17cf1a281c71a05d849003973f62bbba2fa789f4930f543b90a50bb40ec22b7f"},{"u":"sup74","n":"عادل التجمع","r":"sup","s":"عادل التجمع","h":"ba4ed7f11baeb3cdfe393aa2ed2967ed4657685758f504c4fbecf7777a5def40"},{"u":"sup75","n":"عادل الخولي","r":"sup","s":"عادل الخولي","h":"6a0147c11a993dca0e63c5264901cd639cbaa86d0c502aab1f187937ded87d50"},{"u":"sup76","n":"عباد الله","r":"sup","s":"عباد الله","h":"f9b499812bc80bf39cff51173ac8999249a0614078f98041f2992c531785894b"},{"u":"sup77","n":"عبد الرحمن عبد الباسط التجمع","r":"sup","s":"عبد الرحمن عبد الباسط التجمع","h":"87fecfffd55a490a5ec633c34fdcc1167d8f91e7ce9f5d9983b12f6455e00cee"},{"u":"sup78","n":"عبد الرحمن محمد الرحاب","r":"sup","s":"عبد الرحمن محمد الرحاب","h":"78ac00feb9bae3c07ec14260c3abf63c027ad8f808701535069988c991c8e0cc"},{"u":"sup79","n":"عبد العظيم محمود","r":"sup","s":"عبد العظيم محمود","h":"9965796d4c2d61d89e8c510e11dcb0d7ab2d5ebea32de4ac94753608a8ea2037"},{"u":"sup80","n":"عبدالرحمن اسكندريه","r":"sup","s":"عبدالرحمن اسكندريه","h":"08e47a6550048e60b848b1081d6ad3eea3010fc13acb837ad0d9b19ba7183f0d"},{"u":"sup81","n":"عبدالله رمضان","r":"sup","s":"عبدالله رمضان","h":"6aff58c488efeaf56a2ace7c8568a6739bb5846ae0d7e41b1811ad627dc3cdc8"},{"u":"sup82","n":"عصام سامي الزقازيق","r":"sup","s":"عصام سامي الزقازيق","h":"e4f7837079d2e8fd240f45a8bf554afc14104f473688a24e709433a3e9103a6a"},{"u":"sup83","n":"على","r":"sup","s":"على","h":"7297d8dbdbf17249584e57e093ccd73c95c6c3ec9dba4eefbeaded536513df0d"},{"u":"sup84","n":"علي ابو العلا المنيا","r":"sup","s":"علي ابو العلا المنيا","h":"4cc0f974297a4451c60df206a13738619297f96ba066a8da4308776fa8f487ff"},{"u":"sup85","n":"علي شعبان اكتوبر","r":"sup","s":"علي شعبان اكتوبر","h":"0ab8576a6fecd3e31595adbd33cd65377a0e05dbf4c4fa7097194c57cfa74eb8"},{"u":"sup86","n":"على كزبر","r":"sup","s":"على كزبر","h":"647a2b9767864f45bafb86efd80488187f4de9b6b387337f5fe90004996ca4c7"},{"u":"sup87","n":"عليان عبدالمولي","r":"sup","s":"عليان عبدالمولي","h":"094031f1124d3c22988097faeb06c059f8c586576ddb9b1a44a53174ad3b6ba3"},{"u":"sup88","n":"عماد جمال","r":"sup","s":"عماد جمال","h":"f2560314e14bae4331ddfe9233fab74fcf4270cde18fb925d956a60681f63a16"},{"u":"sup89","n":"عمر عبد الحليم","r":"sup","s":"عمر عبد الحليم","h":"f3255e5da5d08d50503dc33ce4e57c49e19c7bf898d1fbd6e21efafcfb04d8ac"},{"u":"sup90","n":"عمر ممدوح","r":"sup","s":"عمر ممدوح","h":"7fa168eaaec609053078ccb0265a79afd1b8a3d2cdee9a5fd02e6fcf892ab32d"},{"u":"sup91","n":"عمرو خالد","r":"sup","s":"عمرو خالد","h":"af98cf97ea4da2f031e8aeca75fb00d0dd9b62524b34940de7c0cf28917e5809"},{"u":"sup92","n":"عمرو مسعد","r":"sup","s":"عمرو مسعد","h":"52714a7305d401f8c5faafdd97f6783ac23e97c053219e217d792ed488f9814a"},{"u":"sup93","n":"عيد محمد","r":"sup","s":"عيد محمد","h":"c81bdda74cd5236bafcedc2a601a97c3fb0b862db1f57e7c4d72c4a894859e23"},{"u":"sup94","n":"فهد البطل","r":"sup","s":"فهد البطل","h":"ed4f9335f283d10bcd319102c73f186b7312ef9459803149f492345478057e8e"},{"u":"sup95","n":"كابو","r":"sup","s":"كابو","h":"c7771e88ed0de7022fbff60ef9e645867269ac5183e3b3fdc28138eb60726f3e"},{"u":"sup96","n":"كريم التركي","r":"sup","s":"كريم التركي","h":"944578c86aec6eb097d9bcbabadbf54e98c812dc6d4306ae25ac07fc32311c2d"},{"u":"sup97","n":"كريم شعبان اكتوبر","r":"sup","s":"كريم شعبان اكتوبر","h":"7bca544a30c09d776f0ae2a7769c1097b7659da4cec90366cdde6e3e23b721b6"},{"u":"sup98","n":"كريم نبيل","r":"sup","s":"كريم نبيل","h":"d502dd4789d02d7a55635c35c10dd0ecd30f7b21c3d7f12f5dd0e3dc610bde38"},{"u":"sup99","n":"كمال الرحاب","r":"sup","s":"كمال الرحاب","h":"8c5e693f7655a4e407980ebe26f0188e3761db10f1ab8f51ffa4e128b5fb1809"},{"u":"sup100","n":"ليل","r":"sup","s":"ليل","h":"84f63632ce7d5fe6665b2251205e7a1cad04905d38b18b7d393c16400ee3b93c"},{"u":"sup101","n":"ماستر لاين","r":"sup","s":"ماستر لاين","h":"84ddede296da36cd6ad047a196a9cbbb61dedd50e63c6b33424a82b96fdc9cbc"},{"u":"sup102","n":"مايكل ممدوح","r":"sup","s":"مايكل ممدوح","h":"a3f9aea3df00b25029f5bfae8e5727978045205dd1d471ef46429397df54ed62"},{"u":"sup103","n":"مجدي","r":"sup","s":"مجدي","h":"cb670237aec9b1193599eeb062d49fefb60c5fe8b172a4c5cfd8df62b0accab7"},{"u":"sup104","n":"محمد السعيد المنصورة","r":"sup","s":"محمد السعيد المنصورة","h":"53b87d81338343ed7d49ba4d046e31c9702843ea4eaf29f9038aa6c42ccb8475"},{"u":"sup105","n":"محمد العمده","r":"sup","s":"محمد العمده","h":"2b1ed695b49151acc3e04b6729ddf12dfe3d4848b1b7d6a7c464f9eb116cfa7c"},{"u":"sup107","n":"محمد خصوصي","r":"sup","s":"محمد خصوصي","h":"b2d9bd87dd2bb22f6ffe5d0cdc93ba399aae25adc9621b4cab0d3fdaf0f9e293"},{"u":"sup108","n":"محمد دياب","r":"sup","s":"محمد دياب","h":"fa5d1a82a2e2a50d1b5ae817fe594294b11349293d44373d7a7ed7dde51341ee"},{"u":"sup109","n":"محمد رجب","r":"sup","s":"محمد رجب","h":"49157111d746153c10277b35fe68bcb6a0872e1058c47e036189198ece7e0205"},{"u":"sup110","n":"محمد رمضان","r":"sup","s":"محمد رمضان","h":"3cb412d4d079326492b01864919d635c836dc8f9c002296e70de5c51fef1b4b0"},{"u":"sup111","n":"محمد سامح","r":"sup","s":"محمد سامح","h":"3f1ca4f0cb98d74021f535924494d023ad1cae23cb64dc8e0ed8f4926d967e65"},{"u":"sup112","n":"محمد سعيد","r":"sup","s":"محمد سعيد","h":"2447495dba289abf5c85aefdf26572ec7f6aa8e1efe46c300346c8afed1aba03"},{"u":"sup113","n":"محمد شعبان حلوان","r":"sup","s":"محمد شعبان حلوان","h":"9c60df79040ebc5095790c92a4fe7db306ff1afc5b826cd5e77237dc36aaa6fb"},{"u":"sup114","n":"محمد شوقى","r":"sup","s":"محمد شوقى","h":"e3798e7a33bf576289e87249bba8863137b92b2f44f032a37a8fa93f5f6f01f4"},{"u":"sup115","n":"محمد طلعت الغردقه","r":"sup","s":"محمد طلعت الغردقه","h":"d3ce37532c113c8ee28345f7e1e9c11376cbed363ab1747c635211cedee32222"},{"u":"sup116","n":"محمد عبد البر الرحاب","r":"sup","s":"محمد عبد البر الرحاب","h":"ea5e59ba6ff5e3a18ccce7b5e14a87cd0846f537ba295311ead64d2ae3336542"},{"u":"sup117","n":"محمد عبداللطيف","r":"sup","s":"محمد عبداللطيف","h":"8eb0fc8efe14c912c4af0f512cecc7ec5f626fafdef4fda2fa3a8cc9f73c60da"},{"u":"sup118","n":"محمد عبدالله","r":"sup","s":"محمد عبدالله","h":"c690ea7405a784778fc5f45ee5d12d5e193027b4a8a45bee63cbcee743f8176c"},{"u":"sup119","n":"محمد عبده","r":"sup","s":"محمد عبده","h":"1078c9b4c5ead0a0dedd438a56cc817894a9bc9c181946e5844ade3b5d9eae32"},{"u":"sup120","n":"محمد مصباح","r":"sup","s":"محمد مصباح","h":"9acc8d713c962b4bd704458f2321d9ec9570ff609e79129e6e4ad9b1caba6193"},{"u":"sup121","n":"محمود بيومى","r":"sup","s":"محمود بيومى","h":"b991029c1bc695bda7387ccc4417182b653136c9d0a4f90c5d8c1894d4dc1111"},{"u":"sup122","n":"محمود كوكا","r":"sup","s":"محمود كوكا","h":"aea167e7397f0fc4488b8fb78ff9ed7daa6c1621b9c1c5c4cab5e9260dcda037"},{"u":"sup123","n":"محمود يونس","r":"sup","s":"محمود يونس","h":"3b5192b4d29180fca827aed8060002ecc3d627739d772b8c16f73f85f684004b"},{"u":"sup124","n":"مصطفي فزاع","r":"sup","s":"مصطفي فزاع","h":"ed8b9f44e5923092fd075369e295b8ed7d2b0ff5685b689737ab15d8d16fd71f"},{"u":"sup125","n":"مصطفي محمد","r":"sup","s":"مصطفي محمد","h":"bb42668afd8abc86628674149849f373d8efd23bee8083e7d361d9f4111c628c"},{"u":"sup126","n":"معاذ طنطا","r":"sup","s":"معاذ طنطا","h":"37d55c270d7abf12a6cb3e5817dab0e3f183b8418c3f277be4b1194539f989ee"},{"u":"sup127","n":"ممدوح محي الدين","r":"sup","s":"ممدوح محي الدين","h":"7bcabc11be36694dcba5674329ca3915fd5b0a2e906de1fa4351dd4f64248196"},{"u":"sup128","n":"هيرو","r":"sup","s":"هيرو","h":"7cd7715dc6d3d2564825448af418fe00dfc105f56d67927516f4e3d123ea5195"},{"u":"sup129","n":"يسرى حامد","r":"sup","s":"يسرى حامد","h":"c3a4b97f6f885480881ab6ee0c57900aaa4f55a5e4db8a78f658b388de274fb8"},{"u":"sup130","n":"يوسف السيد","r":"sup","s":"يوسف السيد","h":"e8c59d145ae7cff2d2a9e14513c47db8424d0339cf5d4203c811c194e42a515d"},{"u":"sup131","n":"يوسف عبدالله","r":"sup","s":"يوسف عبدالله","h":"4101b1461a57f5f84e1e2b698905d84cb4ab066b3f8839406a3519781dcdd877"},{"u":"sup132","n":"SM","r":"sup","s":"SM","h":"1374554321b400f54db03267d5a3d6ee2bf8c4e6d2c9938a149189cdf27f666b"},{"u":"1","n":"محمد حسن اسكندريه","r":"sup","s":"محمد حسن اسكندريه","h":"7c21da1310ee6835183b9660b0d6d60fedb3989dbb156bf521c4b9e57a0568b7"}];/* admin / admin123 — غيّرها */
 const DEF_H='a366ec9615ed195b78768736633787676a77e6db9efc93a7a1f8d2379ed6d0ce';
 const idb=(m,v)=>new Promise(res=>{try{const q=indexedDB.open('pd',1);q.onupgradeneeded=()=>q.result.createObjectStore('s');q.onsuccess=()=>{const t=q.result.transaction('s',m==='get'?'readonly':'readwrite').objectStore('s');const r=m==='get'?t.get('rows'):t.put(v,'rows');r.onsuccess=()=>res(r.result);r.onerror=()=>res(null)};q.onerror=()=>res(null)}catch(e){res(null)}});
@@ -282,9 +306,9 @@ function apply(){
   const day={},zn={},vh={},bh={},rd={};let T={o:0,a:0,p:0,b:0};
   const add=(M,k,r)=>{const x=M[k]||(M[k]={o:0,a:0,p:0,b:0,rs:new Set});x.o+=r.o;x.a+=r.a;x.p+=r.p;x.b+=r.b;x.rs.add(r.id)};
   for(const r of fr){T.o+=r.o;T.a+=r.a;T.p+=r.p;T.b+=r.b;add(day,r.t,r);if(r.z)add(zn,r.z,r);if(r.v)add(vh,r.v,r);if(r.bt)add(bh,r.bt,r);
-    const x=rd[r.id]||(rd[r.id]={id:r.id,n:r.n,z:r.z,s:r.s,m:r.m,v:r.v,bt:r.bt,o:0,a:0,p:0,b:0,days:0,lt:0,w:0,e:0});
-    x.o+=r.o;x.a+=r.a;x.p+=r.p;x.b+=r.b;x.days++;if(r.t>=x.lt){x.lt=r.t;x.w=r.w;x.e=r.e;x.n=r.n||x.n}}
-  const now=Date.now();let list=Object.values(rd).map(x=>({...x,c:x.p?x.a/x.p*100:0,oph:x.a?x.o/x.a:0,left:x.e?Math.ceil((x.e-now)/DAY):null}));
+    const x=rd[r.id]||(rd[r.id]={id:r.id,n:r.n,z:r.z,s:r.s,m:r.m,v:r.v,bt:r.bt,o:0,a:0,p:0,b:0,days:0,wd:0,pay:0,lt:0,w:0,e:0});
+    x.o+=r.o;x.a+=r.a;x.p+=r.p;x.b+=r.b;x.days++;if(r.a>0||r.o>0)x.wd++;x.pay+=r.o*pr(r.s,r.bt,r.v);if(r.t>=x.lt){x.lt=r.t;x.w=r.w;x.e=r.e;x.n=r.n||x.n}}
+  const now=Date.now();let list=Object.values(rd).map(x=>({...x,c:x.p?x.a/x.p*100:0,oph:x.a?x.o/x.a:0,avg:x.wd?x.a/x.wd:0,left:x.e?Math.ceil((x.e-now)/DAY):null}));
   const cf=$('fc').value,wf=$('fw').value;
   list=list.filter(x=>(!cf||(x.left!==null&&(cf==='exp'?x.left<0:x.left>=0&&x.left<=+cf)))&&(!wf||(wf==='neg'?x.w<0:wf==='zero'?x.w===0:x.w>0)));
   AGG=list;page=0;
@@ -302,9 +326,17 @@ function apply(){
   const zk=Object.keys(zn).sort((x,y)=>zn[y].o-zn[x].o).slice(0,12);
   draw('ch3',{type:'bar',data:{labels:zk,datasets:[{label:'طلبات',data:zk.map(k=>zn[k].o),backgroundColor:'#8b5cf6aa',yAxisID:'y'},{label:'الالتزام %',type:'line',data:zk.map(k=>+(zn[k].p?zn[k].a/zn[k].p*100:0).toFixed(1)),borderColor:'#f59e0b',yAxisID:'y1'}]},options:{scales:{y:{position:'left'},y1:{position:'right',grid:{display:false}}}}});
   const bk=Object.keys(bh).sort((x,y)=>x-y);
-  draw('ch4',{type:'bar',data:{labels:bk.map(k=>'باتش '+k),datasets:[{label:'طلب/ساعة',data:bk.map(k=>+(bh[k].a?bh[k].o/bh[k].a:0).toFixed(2)),backgroundColor:'#06b6d4aa'}]},options:{}});
-  const wd={};fr.forEach(r=>{const k=new Date(r.t).getDay();wd[k]=(wd[k]||0)+r.o});const WN=['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
-  draw('ch5',{type:'bar',data:{labels:WN,datasets:[{label:'طلبات',data:WN.map((_,k)=>wd[k]||0),backgroundColor:'#10b981aa'}]},options:{}});
+  draw('ch4',{type:'bar',data:{labels:bk.map(k=>'باتش '+k),datasets:[{label:'طلب/ساعة',data:bk.map(k=>+(bh[k].a?bh[k].o/bh[k].a:0).toFixed(2)),backgroundColor:'#06b6d4aa'}]},options:{onClick:(e,els)=>{if(els.length)showB(bk[els[0].index])},onHover:(e,els)=>{e.native.target.style.cursor=els.length?'pointer':'default'}}});
+  $('bkb').innerHTML=bk.map(k=>{const x=bh[k];return`<tr data-k="${esc(k)}" style="cursor:pointer"><td><b style="color:#93c5fd">باتش ${esc(k)}</b></td><td>${x.rs.size}</td><td>${F1(x.a)}</td><td>${NF(x.o)}</td><td>${F1(x.a?x.o/x.a:0)}</td></tr>`}).join('')||'<tr><td colspan="5" class="sub">لا توجد بيانات</td></tr>';
+  $('bkb').onclick=e=>{const tr=e.target.closest('tr');if(tr&&tr.dataset.k)showB(tr.dataset.k)};
+  {const g={};for(const r of fr){if(!r.s)continue;const x=g[r.s]||(g[r.s]={s:r.s,ids:new Set,a:0,o:0,wd:0});x.a+=r.a;x.o+=r.o;if(r.a>0||r.o>0){x.ids.add(r.id);x.wd++}}
+   const SL=Object.values(g).map(x=>({...x,n:x.ids.size,avg:x.ids.size?x.a/x.ids.size:0,avgd:x.wd?x.a/x.wd:0,oph:x.a?x.o/x.a:0})).sort((x,y)=>y.a-x.a);
+   window.SUPL=SL;
+   draw('ch11',{type:'bar',data:{labels:SL.map(x=>x.s),datasets:[{label:'إجمالي الساعات',data:SL.map(x=>+x.a.toFixed(1)),backgroundColor:'#3b82f6aa',yAxisID:'y'},{label:'متوسط ساعات المندوب',type:'line',data:SL.map(x=>+x.avg.toFixed(1)),borderColor:'#f59e0b',backgroundColor:'#f59e0b',tension:.3,yAxisID:'y1'}]},options:{scales:{y:{position:'left'},y1:{position:'right',grid:{display:false}}},onClick:(e,els)=>{if(els.length)showB(SL[els[0].index].s,'s')},onHover:(e,els)=>{e.native.target.style.cursor=els.length?'pointer':'default'}}});
+   $('svb').innerHTML=SL.map((x,i)=>`<tr data-k="${esc(x.s)}" style="cursor:pointer"><td>${i+1}</td><td><b style="color:#93c5fd">${esc(x.s)}</b></td><td>${NF(x.n)}</td><td>${F1(x.a)}</td><td>${F1(x.avg)}</td><td>${F1(x.avgd)}</td><td>${NF(x.o)}</td><td>${F1(x.oph)}</td></tr>`).join('')||'<tr><td colspan="8" class="sub">لا توجد بيانات</td></tr>';
+   $('svb').onclick=e=>{const tr=e.target.closest('tr');if(tr&&tr.dataset.k)showB(tr.dataset.k,'s')}}
+  const wd={},wh={};fr.forEach(r=>{const k=new Date(r.t).getDay();wd[k]=(wd[k]||0)+r.o;wh[k]=(wh[k]||0)+r.a});const WN=['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
+  D5={WN,wd,wh};drawCh5();
   extras();extras2(T,commit,oph,list);idleRiders();render();
 }
 function draw(id,cfg){
@@ -314,11 +346,11 @@ function draw(id,cfg){
   if(charts[id])charts[id].destroy();charts[id]=new Chart($(id),cfg);
 }
 /* ---------- extras ---------- */
-const li=(x,v,c)=>`<div class="li" onclick="showR('${x.id}')"><span>${x.n||x.id}<small style="color:var(--mut)"> · ${x.z}</small></span><b style="color:${c||'inherit'}">${v}</b></div>`;
+const li=(x,v,c,rk)=>`<div class="li" onclick="showR('${x.id}')"><span>${rk?`<b style="color:var(--mut);display:inline-block;min-width:28px">${rk}</b>`:''}${esc(x.n||x.id)}<small style="color:var(--mut)"> · ${esc(x.z)}</small></span><b style="color:${c||'inherit'}">${v}</b></div>`;
 function extras(){
   const A=AGG;
-  $('top').innerHTML=[...A].sort((x,y)=>y.o-x.o).slice(0,10).map(x=>li(x,NF(x.o)+' طلب','#34d399')).join('')||'—';
-  $('bot').innerHTML=A.filter(x=>x.p>0).sort((x,y)=>x.c-y.c).slice(0,10).map(x=>li(x,F1(x.c)+'%','#f87171')).join('')||'—';
+  TXD.top=[...A].sort((x,y)=>y.o-x.o);rl('top');
+  TXD.bot=A.filter(x=>x.p>0).sort((x,y)=>x.c-y.c);rl('bot');
   ALX=[];const al=(t,arr,f,ex)=>(ALX.push({t,arr,ex}),`<div class="card" style="background:#0f1626"><b>${t}</b> <span class="b ${arr.length?'r':'g'}">${arr.length}</span>${arr.slice(0,6).map(f).join('')}</div>`);
   $('al').innerHTML=al('💳 مديونية المحفظة',A.filter(x=>x.w<0).sort((x,y)=>x.w-y.w),x=>li(x,NF(x.w)+' ج','#f87171'),x=>[x.w,'ج'])
    +al('📅 عقود منتهية / خلال 7 أيام',A.filter(x=>x.left!==null&&x.left<=7).sort((x,y)=>x.left-y.left),x=>li(x,x.left<0?'منتهي':x.left+' يوم','#fbbf24'),x=>[x.left,x.left<0?'يوم (منتهي)':'يوم'])
@@ -336,7 +368,21 @@ function grp(){
   {const H=['#','الاسم','طيارين','طلبات','ساعات فعلية','الالتزام','طلب/س','طلب/طيار'];[...$('gt').rows].forEach(r=>[...r.cells].forEach((c,j)=>c.dataset.l=H[j]))}
 }
 $('gb').onchange=grp;
+$('svx').onclick=()=>{const SL=window.SUPL||[];if(!SL.length)return alert('لا توجد بيانات للتصدير');
+  const rows=SL.map((x,i)=>({'#':i+1,'المشرف':x.s,'مناديب اشتغلوا':x.n,'إجمالي الساعات':+x.a.toFixed(1),'متوسط س/مندوب':+x.avg.toFixed(1),'متوسط س/يوم عمل':+x.avgd.toFixed(1),'طلبات':x.o,'طلب/س':+x.oph.toFixed(2)}));
+  const d=new Date(),nm='ساعات_المشرفين_'+d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  if(window.XLSX){const ws=XLSX.utils.json_to_sheet(rows);ws['!cols']=[{wch:5},{wch:26},{wch:16},{wch:16},{wch:16},{wch:18},{wch:10},{wch:10}];ws['!views']=[{RTL:true}];
+   const wb=XLSX.utils.book_new();wb.Workbook={Views:[{RTL:true}]};XLSX.utils.book_append_sheet(wb,ws,'المشرفين');XLSX.writeFile(wb,nm+'.xlsx')}
+  else{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+Papa.unparse(rows)],{type:'text/csv'}));a.download=nm+'.csv';a.click()}};
 $('gx').onclick=()=>{const blob=new Blob(['\ufeff'+Papa.unparse(GR.map(x=>({الاسم:x.g,طيارين:x.n,طلبات:x.o,ساعات:x.a.toFixed(1),الالتزام:x.c.toFixed(1),طلب_ساعة:x.oph.toFixed(2)})))],{type:'text/csv'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='group.csv';a.click()};
+function showB(k,f){
+  f=f||'bt';const m={};for(const r of FR){if(r[f]!==k)continue;const x=m[r.id]||(m[r.id]={id:r.id,n:r.n,z:r.z,s:r.s,v:r.v,o:0,a:0,days:0});x.o+=r.o;x.a+=r.a;x.days++;x.n=r.n||x.n}
+  const L=Object.values(m).sort((x,y)=>y.o-x.o),to=L.reduce((t,x)=>t+x.o,0),ta=L.reduce((t,x)=>t+x.a,0);
+  $('bmt').textContent=(f==='s'?'👔 المشرف ':'🏷 باتش ')+k+' — '+L.length+' مندوب';
+  $('bms').textContent='إجمالي الساعات: '+F1(ta)+' · إجمالي الطلبات: '+NF(to)+' · متوسط طلب/ساعة: '+F1(ta?to/ta:0);
+  $('bmb').innerHTML=L.map((x,i)=>`<tr><td>${i+1}</td><td>${esc(x.id)}</td><td><b style="cursor:pointer;color:#93c5fd" onclick="showR('${esc(x.id)}')">${esc(x.n||x.id)}</b></td><td>${esc(x.z)}</td><td>${esc(x.s)}</td><td>${esc(x.v)}</td><td>${x.days}</td><td>${F1(x.a)}</td><td>${NF(x.o)}</td><td>${F1(x.a?x.o/x.a:0)}</td></tr>`).join('');
+  $('bm').style.display='block';
+}
 function showR(id){
   const rs=FR.filter(r=>r.id===id).sort((x,y)=>x.t-y.t),x=AGG.find(y=>y.id===id);if(!x)return;
   $('mt').textContent=`${x.n} · ${x.id} · ${x.z} · ${x.s}`;
@@ -345,20 +391,36 @@ function showR(id){
   draw('ch6',{type:'bar',data:{labels:rs.map(r=>new Date(r.t).toLocaleDateString('en-GB',{day:'2-digit',month:'2-digit'})),datasets:[{label:'طلبات',data:rs.map(r=>r.o),backgroundColor:'#3b82f6aa',yAxisID:'y'},{label:'ساعات فعلية',type:'line',data:rs.map(r=>r.a),borderColor:'#10b981',yAxisID:'y1'},{label:'ساعات مخططة',type:'line',data:rs.map(r=>r.p),borderColor:'#f59e0b',borderDash:[4,4],yAxisID:'y1'}]},options:{scales:{y:{position:'left'},y1:{position:'right',grid:{display:false}}}}});
 }
 /* ---------- table ---------- */
-const COLS=[['id','الكود'],['n','الاسم'],['z','المنطقة'],['s','المشرف'],['v','المركبة'],['bt','باتش'],['p','مخطط'],['a','فعلي'],['b','راحة'],['c','الالتزام'],['o','طلبات'],['oph','طلب/س'],['w','المحفظة'],['left','العقد'],['r','التقييم']];
+let VW=[],tfSrc=null;
+const TF={z:'tf_z',s:'tf_s',v:'tf_v',bt:'tf_bt'},TFL={z:'كل المناطق',s:'كل المشرفين',v:'كل المركبات',bt:'كل الباتشات'};
+function tfFill(){if(tfSrc===AGG)return;tfSrc=AGG;
+  for(const k in TF){const u=[...new Set(AGG.map(x=>x[k]).filter(Boolean))].sort((a,b)=>String(a).localeCompare(String(b),'ar',{numeric:true}));setSel(TF[k],u,TFL[k])}}
+function tfOk(){const g=i=>$(i).value,q=g('tf_q').trim().toLowerCase(),f={};for(const k in TF)f[k]=g(TF[k]);
+  const c=g('tf_c'),r=g('tf_r'),w=g('tf_w'),l=g('tf_l'),o=g('tf_o'),a=g('tf_a'),oph=g('tf_oph'),pay=g('tf_pay');
+  return x=>{for(const k in TF)if(f[k]&&x[k]!==f[k])return false;
+    if(q&&!(String(x.n).toLowerCase().includes(q)||String(x.id).toLowerCase().includes(q)))return false;
+    if(c&&!(c==='90'?x.c>=90:c==='60'?x.c>=60&&x.c<90:x.c<60))return false;
+    if(r&&rate(x)[0]!==r)return false;
+    if(w&&!(w==='neg'?x.w<0:w==='zero'?x.w===0:x.w>0))return false;
+    if(l&&!(x.left!==null&&(l==='exp'?x.left<0:l==='ok'?x.left>30:x.left>=0&&x.left<=+l)))return false;
+    if(o!==''&&!(x.o>=+o))return false;if(a!==''&&!(x.a>=+a))return false;
+    if(oph!==''&&!(x.oph>=+oph))return false;if(pay!==''&&!(x.pay>=+pay))return false;return true}}
+document.querySelectorAll('#tf select,#tf input').forEach(e=>{const h=()=>{page=0;render()};e.onchange=h;if(e.tagName==='INPUT')e.oninput=h});
+$('tf_x').onclick=()=>{document.querySelectorAll('#tf select,#tf input').forEach(e=>e.value='');page=0;render()};
+const COLS=[['id','الكود'],['n','الاسم'],['z','المنطقة'],['s','المشرف'],['v','المركبة'],['bt','باتش'],['p','مخطط'],['a','فعلي'],['avg','متوسط س/يوم'],['b','راحة'],['c','الالتزام'],['o','طلبات'],['oph','طلب/س'],['pay','قبض تقريبي'],['w','المحفظة'],['left','العقد'],['r','التقييم']];
 $('th').innerHTML='<th>#</th>'+COLS.map(c=>`<th data-k="${c[0]}">${c[1]}${c[0]===sortK?(sortD>0?' ▲':' ▼'):' ↕'}</th>`).join('');
 $('th').onclick=e=>{const k=e.target.dataset.k;if(!k||k==='r')return;sortD=sortK===k?-sortD:-1;sortK=k;$('th').innerHTML='<th>#</th>'+COLS.map(c=>`<th data-k="${c[0]}">${c[1]}${c[0]===sortK?(sortD>0?' ▲':' ▼'):' ↕'}</th>`).join('');render()};
 function rate(x){return x.c>=90&&x.oph>=1.5?['ممتاز','g']:x.c>=75?['جيد','g']:x.c>=50?['متوسط','y']:['ضعيف','r']}
 function render(){
   const k=sortK;AGG.sort((x,y)=>{let a=x[k],b=y[k];if(a==null)a=-1e9;if(b==null)b=-1e9;return(typeof a==='string'?a.localeCompare(b,'ar'):a-b)*sortD});
-  const tp=Math.max(1,Math.ceil(AGG.length/PS));page=Math.min(page,tp-1);const sl=AGG.slice(page*PS,page*PS+PS);
+  tfFill();VW=AGG.filter(tfOk());const tp=Math.max(1,Math.ceil(VW.length/PS));page=Math.min(page,tp-1);const sl=VW.slice(page*PS,page*PS+PS);
   $('tb').innerHTML=sl.map((x,i)=>{const [rt,rc]=rate(x);const cl=x.left===null?'<span class="b n">—</span>':x.left<0?`<span class="b r">منتهي (${-x.left}ي)</span>`:`<span class="b ${x.left<=7?'y':'g'}">${x.left} يوم</span>`;
-   return`<tr><td>${page*PS+i+1}</td><td>${x.id}</td><td><b style="cursor:pointer;color:#93c5fd" onclick="showR('${x.id}')">${x.n}</b></td><td>${x.z}</td><td>${x.s}</td><td>${x.v}</td><td>${x.bt}</td><td>${F1(x.p)}</td><td>${F1(x.a)}</td><td>${F1(x.b)}</td><td><span class="b ${x.c>=90?'g':x.c>=60?'y':'r'}">${F1(x.c)}%</span></td><td>${NF(x.o)}</td><td>${F1(x.oph)}</td><td style="color:${x.w<0?'#f87171':'inherit'}">${NF(x.w)}</td><td>${cl}</td><td><span class="b ${rc}">${rt}</span></td></tr>`}).join('');
+   return`<tr><td>${page*PS+i+1}</td><td>${x.id}</td><td><b style="cursor:pointer;color:#93c5fd" onclick="showR('${x.id}')">${esc(x.n)}</b></td><td>${esc(x.z)}</td><td>${esc(x.s)}</td><td>${esc(x.v)}</td><td>${esc(x.bt)}</td><td>${F1(x.p)}</td><td>${F1(x.a)}</td><td>${F1(x.avg)}</td><td>${F1(x.b)}</td><td><span class="b ${x.c>=90?'g':x.c>=60?'y':'r'}">${F1(x.c)}%</span></td><td>${NF(x.o)}</td><td>${F1(x.oph)}</td><td>${x.pay?NF(x.pay)+' ج':'—'}</td><td style="color:${x.w<0?'#f87171':'inherit'}">${NF(x.w)}</td><td>${cl}</td><td><span class="b ${rc}">${rt}</span></td></tr>`}).join('');
   const H=['#',...COLS.map(c=>c[1])];[...$('tb').rows].forEach(r=>[...r.cells].forEach((c,j)=>c.dataset.l=H[j]));
-  $('tc').textContent=NF(AGG.length)+' طيار';$('pi').textContent=(page+1)+' / '+tp;$('pp').disabled=page===0;$('pn').disabled=page>=tp-1;
+  {const sp=VW.reduce((s,x)=>s+x.pay,0);$('tc').textContent=NF(VW.length)+(VW.length!==AGG.length?' من '+NF(AGG.length):'')+' طيار'+(sp?' · إجمالي القبض التقريبي '+NF(sp)+' ج':'')}$('pi').textContent=(page+1)+' / '+tp;$('pp').disabled=page===0;$('pn').disabled=page>=tp-1;
 }
 $('pp').onclick=()=>{page--;render()};$('pn').onclick=()=>{page++;render()};
-$('exp').onclick=()=>{const h=COLS.filter(c=>c[0]!=='r').map(c=>c[1]);const rows=AGG.map(x=>COLS.filter(c=>c[0]!=='r').map(c=>x[c[0]]??''));
+$('exp').onclick=()=>{const h=COLS.filter(c=>c[0]!=='r').map(c=>c[1]);const rows=VW.map(x=>COLS.filter(c=>c[0]!=='r').map(c=>x[c[0]]??''));
   const blob=new Blob(['\ufeff'+Papa.unparse([h,...rows])],{type:'text/csv'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='pilots.csv';a.click()};
 /* ---------- refresh / upload ---------- */
 $('rf').onclick=load;
@@ -379,12 +441,18 @@ function extras2(T,commit,oph,list){
   const bs=BK.map(([l,lo,hi])=>{const g=list.filter(x=>x.p>0&&x.c>=lo&&x.c<hi),h=g.reduce((t,x)=>t+x.a,0),o=g.reduce((t,x)=>t+x.o,0);return{l,n:g.length,oph:h?o/h:0}});
   draw('ch9',{type:'bar',data:{labels:bs.map(x=>x.l),datasets:[{label:'عدد الطيارين',data:bs.map(x=>x.n),backgroundColor:['#ef4444aa','#ef4444aa','#f59e0baa','#3b82f6aa','#10b981aa','#10b981aa','#8b5cf6aa'],yAxisID:'y'},{label:'متوسط طلب/ساعة',type:'line',data:bs.map(x=>+x.oph.toFixed(2)),borderColor:'#f59e0b',backgroundColor:'#f59e0b',tension:.3,yAxisID:'y1'}]},
     options:{scales:{y:{position:'left',title:{display:true,text:'عدد الطيارين'}},y1:{position:'right',grid:{display:false},title:{display:true,text:'طلب/ساعة'}}}}});
+  // المناديب حسب ساعات الشغل (متوسط يومي، مقرّب لأقرب ساعة)
+  const HB={};list.forEach(x=>{if(!(x.wd>0&&x.a>0))return;const h=Math.min(12,Math.round(x.a/x.wd)),k=h<1?0:h,g=HB[k]||(HB[k]={n:0,o:0,a:0});g.n++;g.o+=x.o;g.a+=x.a});
+  const hk=Object.keys(HB).map(Number).sort((a,b)=>a-b),h0=hk.length?hk[0]:0,h1=hk.length?hk[hk.length-1]:0,hs=[];for(let k=h0;k<=h1;k++)hs.push(k);
+  const hl=k=>k===0?'أقل من ساعة':k===1?'ساعة':k===2?'ساعتين':k<=10?k+' ساعات':k<12?k+' ساعة':'12+ ساعة';
+  draw('ch10',{type:'bar',data:{labels:hs.map(hl),datasets:[{label:'عدد المناديب',data:hs.map(k=>HB[k]?HB[k].n:0),backgroundColor:'#3b82f6aa',yAxisID:'y'},{label:'متوسط طلب/ساعة',type:'line',data:hs.map(k=>HB[k]&&HB[k].a?+(HB[k].o/HB[k].a).toFixed(2):0),borderColor:'#f59e0b',backgroundColor:'#f59e0b',tension:.3,yAxisID:'y1'}]},
+    options:{scales:{y:{position:'left',title:{display:true,text:'عدد المناديب'}},y1:{position:'right',grid:{display:false},title:{display:true,text:'طلب/ساعة'}}}}});
   // أقل الطيارين: طلبات / ساعات / أيام عمل (بتستبعد اللي ما اشتغلش خالص عشان القايمة تبقى مفيدة)
   const wd={};FR.forEach(r=>{if(r.o>0||r.a>0)(wd[r.id]||(wd[r.id]=new Set())).add(r.t)});
   const wk=list.filter(x=>x.a>0||x.o>0);
-  $('lo1').innerHTML=wk.filter(x=>x.a>0).sort((x,y)=>x.o-y.o||y.a-x.a).slice(0,10).map(x=>li(x,NF(x.o)+' طلب','#f87171')).join('')||'—';
-  $('lo2').innerHTML=wk.filter(x=>x.a>0).sort((x,y)=>x.a-y.a).slice(0,10).map(x=>li(x,F1(x.a)+' س','#fbbf24')).join('')||'—';
-  $('lo3').innerHTML=wk.map(x=>({...x,wd:(wd[x.id]||[]).size||0})).sort((x,y)=>x.wd-y.wd||x.o-y.o).slice(0,10).map(x=>li(x,x.wd+' يوم · '+NF(x.o)+' طلب','#f87171')).join('')||'—';
+  TXD.lo1=wk.filter(x=>x.a>0).sort((x,y)=>x.o-y.o||y.a-x.a);rl('lo1');
+  TXD.lo2=wk.filter(x=>x.a>0).sort((x,y)=>x.a-y.a);rl('lo2');
+  TXD.lo3=wk.map(x=>({...x,wd:(wd[x.id]||[]).size||0})).sort((x,y)=>x.wd-y.wd||x.o-y.o);rl('lo3');
   // 4) تنبيهات إضافية
   const zero=list.filter(x=>x.days>0&&x.o===0),hb=list.filter(x=>x.b>=1&&x.b/(x.a+x.b||1)>0.25).sort((a,b)=>b.b-a.b);
   const al=(t,arr,f,ex)=>(ALX.push({t,arr,ex}),`<div class="card" style="background:#0f1626"><b>${t}</b> <span class="b ${arr.length?'r':'g'}">${arr.length}</span>${arr.slice(0,6).map(f).join('')}</div>`);
@@ -430,7 +498,7 @@ function idleRiders(){
   const inA=new Set(AGG.map(x=>x.id));
   const L=Object.values(g).map(x=>({...x,idle:Math.floor((mx-(x.work||x.first))/DAY)+(x.work?0:1)})).filter(x=>x.idle>=th).sort((a,b)=>b.idle-a.idle);
   IDLE=L;$('idN').textContent=L.length;$('idN').className='b '+(L.length?'r':'g');
-  $('idL').innerHTML=L.map(x=>`<div ${inA.has(x.id)?`onclick="showR('${x.id}')" style="cursor:pointer;`:'style="'}display:flex;justify-content:space-between;gap:8px;padding:7px 4px;border-top:1px solid var(--bd);font-size:12px"><span>${x.n||x.id}<small style="color:var(--mut)"> · ${x.z} · ${x.s}</small></span><b style="color:#f87171;white-space:nowrap">${x.idle} يوم <small style="color:var(--mut);font-weight:400">${x.work?'(آخر شغل '+fd(x.work)+')':'(مشتغلش خالص)'}</small></b></div>`).join('')||'<div class="sub" style="padding:8px">كله شغال ✅</div>';
+  $('idL').innerHTML=L.map(x=>`<div ${inA.has(x.id)?`onclick="showR('${x.id}')" style="cursor:pointer;`:'style="'}display:flex;justify-content:space-between;gap:8px;padding:7px 4px;border-top:1px solid var(--bd);font-size:12px"><span>${esc(x.n||x.id)}<small style="color:var(--mut)"> · ${esc(x.z)} · ${esc(x.s)}</small></span><b style="color:#f87171;white-space:nowrap">${x.idle} يوم <small style="color:var(--mut);font-weight:400">${x.work?'(آخر شغل '+fd(x.work)+')':'(مشتغلش خالص)'}</small></b></div>`).join('')||'<div class="sub" style="padding:8px">كله شغال ✅</div>';
 }
 $('idD').oninput=idleRiders;
 $('idX').onclick=()=>{
@@ -448,6 +516,52 @@ function drawCh1(){
     datasets:[{label:o?'طلبات':'ساعات فعلية',data:days.map(d=>o?day[d].o:+day[d].a.toFixed(1)),
       backgroundColor:o?'#3b82f6aa':'#10b98133',borderColor:o?'#3b82f6':'#10b981',fill:!o,tension:.3,pointRadius:days.length>31?0:3}]},options:{}});
 }
+var TXD={};
+const TOPN={top:10,bot:10,lo1:10,lo2:10,lo3:10};try{Object.assign(TOPN,JSON.parse(localStorage.getItem('pd_topn'))||{})}catch(e){}
+const TFM={top:x=>[NF(x.o)+' طلب','#34d399'],bot:x=>[F1(x.c)+'%','#f87171'],lo1:x=>[NF(x.o)+' طلب','#f87171'],lo2:x=>[F1(x.a)+' س','#fbbf24'],lo3:x=>[x.wd+' يوم · '+NF(x.o)+' طلب','#f87171']};
+const PGN=5,PGI={};
+function rl(k,keep){if(!keep)PGI[k]=0;const a=(TXD[k]||[]).slice(0,TOPN[k]),tp=Math.max(1,Math.ceil(a.length/PGN)),p=Math.min(PGI[k]||0,tp-1);PGI[k]=p;
+  const rows=a.slice(p*PGN,p*PGN+PGN).map((x,i)=>{const [v,c]=TFM[k](x);return li(x,v,c,p*PGN+i+1)}).join('')||'—';
+  const bs='padding:4px 14px;min-height:32px;font-size:12px',nav=tp>1?`<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px"><button class="btn" style="${bs}" ${p>=tp-1?'disabled':''} onclick="pgl('${k}',1)">التالي ◀</button><span class="sub">${p*PGN+1}–${Math.min((p+1)*PGN,a.length)} من ${a.length}</span><button class="btn" style="${bs}" ${p===0?'disabled':''} onclick="pgl('${k}',-1)">▶ السابق</button></div>`:'';
+  $(k).innerHTML=rows+nav}
+function pgl(k,d){PGI[k]=(PGI[k]||0)+d;rl(k,1)}
+document.querySelectorAll('.tn').forEach(i=>{i.value=TOPN[i.dataset.k];i.oninput=()=>{const n=Math.floor(+i.value);if(!(n>=1))return;TOPN[i.dataset.k]=n;try{localStorage.setItem('pd_topn',JSON.stringify(TOPN))}catch(e){}rl(i.dataset.k)}});
+
+const TXN={top:['أفضل_طلبات','أفضل طلبات'],bot:['أضعف_التزام','أضعف التزام'],lo1:['أقل_طلبات','أقل طلبات'],lo2:['أقل_ساعات','أقل ساعات'],lo3:['أقل_أيام_عمل','أقل أيام عمل'],ch5:['حسب_يوم_الأسبوع','يوم الأسبوع']};
+function exl(k){let rows;
+  if(k==='ch5'){if(!D5)return alert('لا توجد بيانات للتصدير');const {WN,wd,wh}=D5;rows=WN.map((n,i)=>({'اليوم':n,'طلبات':wd[i]||0,'ساعات':+(wh[i]||0).toFixed(1)}))}
+  else{const a=(TXD[k]||[]).slice(0,TOPN[k]);if(!a.length)return alert('لا توجد بيانات للتصدير');
+   rows=a.map((x,i)=>{const r={'#':i+1,'الكود':x.id,'الاسم':x.n||x.id,'المنطقة':x.z||'','المشرف':x.s||'','طلبات':x.o,'ساعات فعلية':+(+x.a).toFixed(1),'الالتزام %':+(+x.c||0).toFixed(1)};if(k==='lo3')r['أيام العمل']=x.wd;return r})}
+  const d=new Date(),nm=TXN[k][0]+'_'+d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  if(window.XLSX){const ws=XLSX.utils.json_to_sheet(rows);ws['!cols']=Object.keys(rows[0]).map(h=>({wch:Math.max(10,h.length+4,h==='الاسم'?34:h==='المنطقة'||h==='المشرف'?20:0)}));ws['!views']=[{RTL:true}];
+   const wb=XLSX.utils.book_new();wb.Workbook={Views:[{RTL:true}]};XLSX.utils.book_append_sheet(wb,ws,TXN[k][1]);XLSX.writeFile(wb,nm+'.xlsx')}
+  else{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+Papa.unparse(rows)],{type:'text/csv'}));a.download=nm+'.csv';a.click()}}
+let M5='o',D5=null;
+function setM5(m){M5=m;drawCh5()}
+function drawCh5(){
+  if(!D5)return;const {WN,wd,wh}=D5,x=M5==='x';
+  ['o','a','x'].forEach(k=>$('m5'+k).classList.toggle('on',M5===k));
+  const O={label:'طلبات',data:WN.map((_,k)=>wd[k]||0),backgroundColor:'#10b981aa',yAxisID:'y'},
+        H={label:'ساعات',data:WN.map((_,k)=>+(wh[k]||0).toFixed(1)),backgroundColor:'#3b82f6aa',yAxisID:x?'y1':'y'};
+  if(x){H.type='line';H.borderColor=H.backgroundColor='#f59e0b';H.tension=.3}
+  draw('ch5',{type:'bar',data:{labels:WN,datasets:M5==='o'?[O]:M5==='a'?[H]:[O,H]},options:x?{scales:{y:{position:'left'},y1:{position:'right',grid:{display:false}}}}:{}});
+}
+const nk=s=>String(s==null?'':s).trim().replace(/\s+/g,' ').toLowerCase(),pk=(b,v)=>nk(b)+'|'+nk(v);
+const pk3=(s,b,v)=>nk(s)+'|'+pk(b,v);
+const nmap=o=>{const r={};for(const k in(o||{})){const p=k.split('|');if(p.length!==3)continue;r[pk3(p[0],p[1],p[2])]=o[k]}return r};
+let PRC=(()=>{let l={};try{l=JSON.parse(localStorage.getItem('pd_prices'))||{}}catch(e){}return{...nmap(PRICES_EMBED),...nmap(l)}})();
+const pr=(s,b,v)=>+PRC[pk3(s,b,v)]||0;
+const supList=()=>[...new Set(scope(ALL).map(r=>r.s).filter(Boolean))].sort((a,b)=>String(a).localeCompare(String(b),'ar'));
+function drawP(){const sp=$('psS').value,rr=ALL.filter(r=>r.s===sp),lb=x=>x===''?'(بدون)':esc(x),
+  bs=[...new Set(rr.map(r=>r.bt))].sort((a,b)=>String(a).localeCompare(String(b),'ar',{numeric:true})),vs=[...new Set(rr.map(r=>r.v))].sort((a,b)=>String(a).localeCompare(String(b),'ar'));
+  $('ph').innerHTML='<tr><th>الباتش</th>'+vs.map(v=>`<th>${lb(v)}</th>`).join('')+'</tr>';
+  $('pb').innerHTML=bs.map(b=>`<tr><td><b>${lb(b)}</b></td>`+vs.map(v=>`<td><input type="number" min="0" step="any" class="pk" data-k="${esc(pk3(sp,b,v))}" value="${PRC[pk3(sp,b,v)]??''}" style="width:90px"></td>`).join('')+'</tr>').join('')}
+$('psS').onchange=drawP;
+$('prB').onclick=()=>{if(!CUR)return;if(!ALL.length)return alert('استنى لحد ما البيانات تتحمل');const ss=supList();if(!ss.length)return alert('لا يوجد مشرفين في البيانات');
+  $('psS').innerHTML=ss.map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join('');drawP();$('pm').style.display='block'};
+const mergeP=()=>{const sk=nk($('psS').value)+'|',o={};for(const k in PRC)if(!k.startsWith(sk))o[k]=PRC[k];document.querySelectorAll('.pk').forEach(i=>{if(i.value!=='')o[i.dataset.k]=+i.value});return o};
+$('ps').onclick=()=>{PRC=mergeP();try{localStorage.setItem('pd_prices',JSON.stringify(PRC))}catch(e){}$('pm').style.display='none';apply()};
+$('pc').onclick=()=>{const t='const PRICES_EMBED='+JSON.stringify(mergeP())+';';navigator.clipboard.writeText(t).then(()=>alert('تم النسخ — استبدل به سطر PRICES_EMBED في الملف'),()=>prompt('انسخ الكود:',t))};
 /* ---------- auth ---------- */
 const hp=(u,p)=>sha(u.toLowerCase()+':'+p+':pd1'),esc=s=>String(s).replace(/[&<>"']/g,c=>'&#'+c.charCodeAt(0)+';');
 const ROLE={admin:'أدمن',manager:'مدير منطقة',sup:'مشرف'};
@@ -455,13 +569,13 @@ function getU(){try{const x=JSON.parse(localStorage.getItem('pd_users'));if(Arra
 function saveU(a){try{localStorage.setItem('pd_users',JSON.stringify(a))}catch(e){}}
 function scope(rows){if(!CUR||CUR.r==='admin')return rows;const k=CUR.r==='manager'?'m':'s';return rows.filter(r=>r[k]===CUR.s)}
 function findU(u,h){return getU().find(y=>y.u.toLowerCase()===u&&y.h===h)}
-function enter(x){CUR=x;try{sessionStorage.setItem('pd_sess',x.u.toLowerCase()+'|'+x.h)}catch(e){}
-  $('lg').style.display='none';$('who').textContent='👤 '+x.n+' · '+ROLE[x.r];$('usrB').style.display=x.r==='admin'?'':'none';load().then(()=>{if(x.r==='admin'&&x.h===DEF_H){const m=$('msg');m.style.display='block';m.textContent='⚠️ كلمة مرور الأدمن الافتراضية لسه شغالة — غيّرها من 👥 المستخدمين.'}})}
+function enter(x){CUR=x;idleReset();try{sessionStorage.setItem('pd_sess',x.u.toLowerCase()+'|'+x.h)}catch(e){}
+  $('lg').style.display='none';$('who').textContent='👤 '+x.n+' · '+ROLE[x.r];$('usrB').style.display=x.r==='admin'?'':'none';$('prB').style.display='';load().then(()=>{if(x.r==='admin'&&x.h===DEF_H){const m=$('msg');m.style.display='block';m.textContent='⚠️ كلمة مرور الأدمن الافتراضية لسه شغالة — غيّرها من 👥 المستخدمين.'}})}
 function boot(){let s='';try{localStorage.removeItem('pd_sess');s=sessionStorage.getItem('pd_sess')||''}catch(e){}const [u,h]=s.split('|'),x=u&&findU(u,h);if(x)enter(x);else $('lg').style.display='flex'}
 const AR_D=t=>String(t).replace(/[٠-٩]/g,d=>'٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/[۰-۹]/g,d=>'۰۱۲۳۴۵۶۷۸۹'.indexOf(d));
-let LGBUSY=false;
+let LGBUSY=false,FAIL=0,LOCK=0;
 function doLogin(){
-  if(LGBUSY)return;
+  if(LGBUSY)return;if(Date.now()<LOCK){$('le').textContent='محاولات كتير — استنى '+Math.ceil((LOCK-Date.now())/1000)+' ثانية';return}
   const u=AR_D($('lu').value).replace(/[\u200e\u200f\u202a-\u202e\s]+/g,'').toLowerCase(),raw=$('lp').value;
   const E=$('le'),btn=$('lgB');E.textContent='';
   if(!u||!raw){E.textContent='اكتب اسم المستخدم وكلمة المرور';return}
@@ -470,7 +584,7 @@ function doLogin(){
   let x=null;
   try{for(const p of [...new Set([raw,tr,AR_D(tr)])]){x=findU(u,hp(u,p));if(x)break}}catch(err){E.textContent='حصل خطأ غير متوقع: '+err.message;return}
   if(!x){
-    E.textContent='اسم المستخدم أو كلمة المرور غير صحيحة';
+    E.textContent='اسم المستخدم أو كلمة المرور غير صحيحة';if(++FAIL>=5){LOCK=Date.now()+60000;FAIL=0}
     const h=$('lh');h.style.display='block';
     h.textContent='ملحوظة: الحسابات اللي اتعملت من جهاز تاني (كمبيوتر مثلاً) بتتحفظ على المتصفح بتاعه بس. لو الحساب جديد، اطلب من الأدمن نسخة محدثة من الملف.';
     return}
@@ -522,6 +636,16 @@ $('ng').onclick=()=>{if(!CUR||CUR.r!=='admin')return;if(!ALL.length)return alert
   if(!out.length)return alert('كل المديرين والمشرفين عندهم حسابات بالفعل');
   saveU(a);ru();const l=document.createElement('a');l.href=URL.createObjectURL(new Blob(['\ufeff'+Papa.unparse(out)],{type:'text/csv'}));l.download='credentials.csv';l.click();
   alert('تم إنشاء '+out.length+' حساب، واتحمّل ملف credentials.csv فيه كلمات المرور. احتفظ بيه لأنها مش هتتعرض تاني.')};
+let IT;function idleReset(){clearTimeout(IT);if(CUR)IT=setTimeout(()=>$('out').click(),30*60*1000)}
+['click','keydown','touchstart'].forEach(e=>addEventListener(e,idleReset,{passive:true}));
+setInterval(()=>{if(CUR&&preset&&!document.hidden)load()},10*60*1000);
+$('wa').onclick=()=>{if(!LAST)return alert('استنى لحد ما البيانات تتحمل');
+  const {T,commit,oph,list}=LAST,n3=a=>a.slice(0,3).map((x,i)=>(i+1)+'. '+(x.n||x.id)).join('\n');
+  const top=[...list].sort((a,b)=>b.o-a.o),bot=list.filter(x=>x.p>0).sort((a,b)=>a.c-b.c);
+  const s=['📊 داش بورد أداء الطيارين','📅 '+$('d1').value+' ← '+$('d2').value,'',
+   '📦 الطلبات: '+NF(T.o),'⏱ الساعات الفعلية: '+NF(T.a),'🎯 الالتزام: '+F1(commit)+'%','⚡ طلب/ساعة: '+F1(oph),'🛵 عدد الطيارين: '+NF(list.length),'',
+   '🏆 الأفضل:',n3(top),'','📉 الأضعف التزامًا:',n3(bot)].join('\n');
+  open('https://wa.me/?text='+encodeURIComponent(s),'_blank')};
 boot();
 </script>
 </body>
