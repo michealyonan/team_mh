@@ -44,7 +44,7 @@ tr:hover td{background:#18223a}
 .bar{width:220px;height:6px;background:#232e45;border-radius:9px;overflow:hidden}.bar i{display:block;height:100%;width:30%;background:var(--pr);animation:m 1.1s infinite}
 @keyframes m{0%{margin-right:-30%}100%{margin-right:100%}}
 @media(min-width:700px){.filters{grid-template-columns:repeat(4,1fr)}.kpis{grid-template-columns:repeat(4,1fr)}.cw{height:300px}}
-@media(min-width:1100px){.filters{grid-template-columns:repeat(8,1fr)}.kpis{grid-template-columns:repeat(8,1fr)}.kpi .v{font-size:20px}.charts{grid-template-columns:repeat(12,1fr)}.c8{grid-column:span 8}.c4{grid-column:span 4}}
+@media(min-width:1100px){.filters{grid-template-columns:repeat(8,1fr)}.kpis{grid-template-columns:repeat(8,1fr)}.kpi .v{font-size:20px}.charts{grid-template-columns:repeat(12,1fr)}.c6{grid-column:span 6}.c8{grid-column:span 8}.c4{grid-column:span 4}}
 .ov{position:fixed;inset:0;z-index:100;background:var(--bg);display:flex;align-items:flex-start;justify-content:center;padding:16px;overflow:auto;-webkit-overflow-scrolling:touch}
 .pw{position:relative}.pw input{padding-inline-end:46px}.eye{position:absolute;inset-inline-end:2px;top:2px;bottom:2px;width:42px;background:none;border:0;color:var(--mut);font-size:18px;cursor:pointer}
 .lb{width:100%;max-width:360px;display:grid;gap:10px;margin:auto}.lb h2{font-size:22px;font-weight:900}.lb input{width:100%;min-height:44px}
@@ -117,6 +117,7 @@ html{-webkit-text-size-adjust:100%}body{overflow-x:hidden}
 @media(min-width:700px){tbody tr:nth-child(even) td{background:#0f1626}}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
+<style>@media(max-width:699px){.tghint{display:none}#tgMs{font-size:12px!important}#tg .card h3{font-size:13px}#tg .card h3 .sub{display:block;margin-top:2px}#tgMc .row input{flex:1;max-width:none!important}#tg .cw{min-height:240px}}</style>
 </head>
 <body>
 <div class="ov" id="lg" style="display:none"><form class="lb card" id="lf" onsubmit="return false" autocomplete="on"><h2>🚀 تسجيل الدخول</h2><div class="sub">داش بورد أداء الطيارين</div><input id="lu" name="username" placeholder="اسم المستخدم" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="next" dir="ltr" style="text-align:right"><div class="pw"><input id="lp" name="password" type="password" placeholder="كلمة المرور" autocomplete="current-password" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="go" dir="ltr" style="text-align:right"><button type="button" class="eye" id="lpe" aria-label="إظهار كلمة المرور">👁</button></div><div id="le" role="alert"></div><button type="submit" class="btn pr" id="lgB" style="min-height:46px;font-size:15px">دخول</button><div class="sub" id="lh" style="display:none;line-height:1.7"></div></form></div>
@@ -124,7 +125,7 @@ html{-webkit-text-size-adjust:100%}body{overflow-x:hidden}
 <header><div class="hr">
  <div><h1>🚀 داش بورد أداء الطيارين</h1><div class="sub" id="sync">—</div></div>
  <div class="row" style="margin:0">
-  <span class="sub" id="who"></span><button class="btn" id="prB" style="display:none">💰 أسعار الباتشات</button><button class="btn" id="usrB" style="display:none">👥 المستخدمين</button><button class="btn" id="out">خروج</button>
+  <span class="sub" id="who"></span><button class="btn" id="prB" style="display:none">💰 أسعار الباتشات</button><button class="btn" id="usrB" style="display:none">👥 المستخدمين</button><button class="btn" id="tgB" style="display:none">🎯 التارجت</button><button class="btn" id="out">خروج</button>
   <button class="btn pr" id="rf">🔄 تحديث</button>
  </div></div></header>
 <main>
@@ -200,6 +201,51 @@ html{-webkit-text-size-adjust:100%}body{overflow-x:hidden}
 <div class="sub" id="gst" style="margin:10px 0 4px;font-weight:700"></div><div class="sub" style="margin:4px 0 10px">أي إضافة أو تعديل أو حذف بيتجمّع هنا الأول، ولما تدوس <b>🚀 نشر على GitHub</b> بيتحفظ في ملف <b>users.json</b> جوه الريبو وبيظهر لكل المشرفين على كل الأجهزة (بعد حوالي دقيقة). مفيش حاجة تتنسخ أو تتبدّل في الملف يدوي. أول مرة هيطلب منك GitHub Token (بيتخزن على جهازك أنت بس).</div><button class="btn pr" id="gp">🚀 نشر على GitHub</button> <button class="btn" id="ng">⚡ إنشاء حسابات لكل المديرين والمشرفين</button> <button class="btn" id="gd">💾 تحميل users.json</button> <button class="btn" id="gs">⚙️ إعداد GitHub</button> <button class="btn" id="nx">📥 تحميل ملف اليوزرات والباسوردات</button></div></div>
 <div id="bm" style="display:none;position:fixed;inset:0;background:#000c;z-index:55;overflow:auto;padding:12px" onclick="if(event.target===this)this.style.display='none'"><div class="card" style="max-width:900px;margin:auto"><div class="row"><h3 id="bmt" style="margin:0"></h3><button class="btn" style="margin-inline-start:auto" onclick="$('bm').style.display='none'">✕</button></div><div id="bms" class="sub" style="margin:8px 0"></div><div class="tw" style="max-height:65vh"><table style="min-width:0"><thead><tr><th>#</th><th>الكود</th><th>الاسم</th><th>المنطقة</th><th>المشرف</th><th>المركبة</th><th>أيام</th><th>ساعات</th><th>طلبات</th><th>طلب/س</th></tr></thead><tbody id="bmb"></tbody></table></div></div></div>
 <div id="pm" style="display:none;position:fixed;inset:0;background:#000c;z-index:70;overflow:auto;padding:12px" onclick="if(event.target===this)this.style.display='none'"><div class="card" style="max-width:820px;margin:auto"><div class="row"><h3 style="margin:0">💰 أسعار الباتشات (سعر الطلب بالجنيه) لكل مشرف</h3><button class="btn" style="margin-inline-start:auto" onclick="$('pm').style.display='none'">✕</button></div><div class="row" style="margin:10px 0"><label style="font-weight:700">👷 المشرف</label><select id="psS" style="flex:1;min-width:0"></select></div><div class="tw" style="max-height:60vh"><table style="min-width:0"><thead id="ph"></thead><tbody id="pb"></tbody></table></div><div class="sub" style="margin:10px 0">كل مشرف له أسعاره الخاصة ومفيش أي ارتباط بينه وبين باقي المشرفين. القبض التقريبي = عدد الطلبات × سعر (باتش الطيار + مركبته) حسب مشرف الطيار. الأسعار بتتحفظ على هذا الجهاز؛ علشان تتطبق على كل الأجهزة اضغط "نسخ الكود" واستبدل به سطر <b>PRICES_EMBED</b> في الملف.</div><button class="btn pr" id="ps">💾 حفظ</button> <button class="btn" id="pc">📋 نسخ كود الأسعار</button></div></div>
+<div class="ov" id="tg" style="display:none;z-index:80;padding:0;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch">
+<div id="tgW" style="width:100%;max-width:1500px;margin:0 auto;padding:0 12px 80px;display:grid;gap:12px">
+ <div class="row" style="margin:0;position:sticky;top:0;z-index:5;background:rgba(11,15,25,.96);backdrop-filter:blur(8px);padding:10px 0;border-bottom:1px solid var(--bd)"><h2 style="font-size:17px;font-weight:900">🎯 التارجت</h2><span class="sub" id="tgN"></span><button class="chip" onclick="tgGo('tgS1')">📈 الرسومات</button><button class="chip" onclick="tgGo('tgS2')">📋 الجدول</button><span style="margin-inline-start:auto;display:flex;gap:6px"><button class="btn pr" id="tgRf">🔄 تحديث</button><button class="btn" id="tgC">✕ إغلاق</button></span></div>
+ <div id="tgM" style="padding:10px;border-radius:10px;background:#f59e0b22;color:#fbbf24;font-size:13px;display:none"></div>
+ <div class="card">
+  <div class="chips" id="tgChips"></div>
+  <div class="row" style="margin-top:8px"><input type="date" id="tgd1"><span class="sub">إلى</span><input type="date" id="tgd2"></div>
+  <div class="filters" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr))">
+   <div><label>📍 المنطقة</label><select id="tgz"></select></div>
+   <div><label>🏢 المكتب (3PL)</label><select id="tgo"></select></div>
+   <div><label>🔎 بحث</label><input id="tgq" placeholder="اسم مكتب أو منطقة…"></div>
+   <div><label>&nbsp;</label><button class="btn" id="tgX" style="width:100%">✕ مسح الفلاتر</button></div>
+  </div>
+ </div>
+  <div class="card" id="tgMc" style="display:none">
+   <div>
+    <div class="row" style="margin-bottom:8px"><h3 style="margin:0">⚖️ مقارنة تواريخ من اختيارك</h3><input type="date" id="tgsd" style="max-width:170px"><button class="btn pr" id="tgsa">➕ إضافة</button><button class="btn" id="tgsm">🔁 نفس اليوم في آخر 6 شهور</button><button class="btn" id="tgsc">✕ مسح الكل</button></div>
+    <div class="sub" style="margin-bottom:6px">اختار أي تواريخ تحب (من أي شهر) وهتتقارن جنب بعض. اضغط على التاريخ لحذفه. (بيتأثر بفلتر المنطقة/المكتب/البحث)</div>
+    <div class="chips" id="tgsch" style="margin-bottom:8px"></div>
+    <div id="tgsb" style="display:none">
+     <div class="cw" style="height:280px"><canvas id="tgm2"></canvas></div>
+     <div class="tw" style="max-height:50vh;margin-top:8px"><table style="min-width:0"><thead id="tgsh1"></thead><tbody id="tgst1"></tbody></table></div>
+     <div class="row" style="margin:12px 0 6px"><h3 style="margin:0">🔎 التفصيل حسب</h3><button class="chip on" id="tgsz">📍 منطقة</button><button class="chip" id="tgso">🏢 مكتب</button></div>
+     <div class="tw" style="max-height:60vh"><table style="min-width:0"><thead id="tgsh2"></thead><tbody id="tgst2"></tbody></table></div>
+    </div>
+   </div>
+  </div>
+ <div class="kpis" id="tgK" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))"></div>
+ <div class="charts" id="tgS1">
+  <div class="card c8"><h3>📈 التارجت اليومي (إجمالي)</h3><div class="cw"><canvas id="tg1"></canvas></div></div>
+  <div class="card c4"><h3>🍩 توزيع التارجت حسب المنطقة</h3><div class="cw"><canvas id="tg2"></canvas></div></div>
+  <div class="card c6"><h3>📍 أعلى المناطق <span class="sub">(اضغط على منطقة للفلترة)</span></h3><div class="cw" style="height:340px"><canvas id="tg3"></canvas></div></div>
+  <div class="card c6"><h3>🏢 أعلى المكاتب <span class="sub">(اضغط على مكتب للفلترة)</span></h3><div class="cw" style="height:340px"><canvas id="tg4"></canvas></div></div>
+  <div class="card c4"><h3>📆 متوسط التارجت حسب يوم الأسبوع</h3><div class="cw"><canvas id="tg5"></canvas></div></div>
+  <div class="card c8"><h3>🧩 توزيع أكبر المكاتب داخل أعلى المناطق</h3><div class="cw"><canvas id="tg7"></canvas></div></div>
+  <div class="card c6"><div class="row" style="margin-bottom:6px"><h3 style="margin:0">📊 متوسط التارجت/يوم</h3><span style="margin-inline-start:auto;display:flex;gap:6px"><button class="chip on" id="tgAz" onclick="tgAvSet('z')">📍 منطقة</button><button class="chip" id="tgAo" onclick="tgAvSet('o')">🏢 مكتب</button></span></div><div class="cw" style="height:340px"><canvas id="tg8"></canvas></div></div>
+  <div class="card c6"><h3>🥇 المناطق — المكتب رانك 1 <span class="sub">(أعلى مكتب في كل منطقة)</span></h3><div class="cw" style="height:340px"><canvas id="tg9"></canvas></div></div>
+  <div class="card c12" id="tgCmp" style="grid-column:1/-1;display:none"><h3>⚖️ Normal Target مقابل Average (حسب المنطقة)</h3><div class="cw"><canvas id="tg6"></canvas></div></div>
+ </div>
+ <div class="card" id="tgS2"><div class="row"><h3 style="margin:0">📋 تفاصيل التارجت (مكتب × منطقة)</h3><button class="btn" id="tgE" style="margin-inline-start:auto">⬇ تصدير Excel</button></div>
+  <div class="tw" style="max-height:75vh"><table style="min-width:760px"><thead><tr id="tgH"></tr></thead><tbody id="tgT"></tbody></table></div>
+  <div class="pg"><button class="btn" id="tgPp">‹</button><span id="tgPi"></span><button class="btn" id="tgPn">›</button></div></div>
+</div></div>
+<div id="tgpm" style="display:none;position:fixed;inset:0;z-index:120;background:#000d;align-items:center;justify-content:center;padding:16px" onclick="if(event.target===this)this.style.display='none'"><div class="card" style="width:100%;max-width:320px;display:grid;gap:10px"><h3 style="margin:0">🔒 التارجت</h3><span class="sub">اكتب الباسورد عشان تفتح صفحة التارجت</span><div class="pw"><input type="password" id="tgpi" placeholder="الباسورد" autocomplete="off" style="width:100%;min-height:44px"><button type="button" class="eye" id="tgpe2">👁</button></div><div id="tgpe" style="color:#f87171;font-size:12px;min-height:16px"></div><div class="row" style="margin:0"><button class="btn pr" id="tgpok" style="flex:1">فتح</button><button class="btn" id="tgpc" style="flex:1">إلغاء</button></div></div></div>
+<button class="btn pr" id="tgUp" style="display:none;position:fixed;z-index:90;bottom:calc(16px + env(safe-area-inset-bottom));inset-inline-start:16px;width:46px;height:46px;border-radius:50%;font-size:18px">⬆</button>
 <script>
 const PRICES_EMBED={};
 const USERS_EMBED=[{"u":"admin","n":"الأدمن","r":"admin","s":"","h":"a366ec9615ed195b78768736633787676a77e6db9efc93a7a1f8d2379ed6d0ce"},{"u":"mgr1","n":"احمد كمال","r":"manager","s":"احمد كمال","h":"005da9f69677c1365c899aca0c13f0492010afeddbb1b9f79a8bb8db0161b606"},{"u":"mgr2","n":"اقاليم","r":"manager","s":"اقاليم","h":"3334661ce4b431df4b813a5aff2250e2bfc000c88ee7238c83274dc0f0a4179d"},{"u":"mgr3","n":"المشرف اقاله","r":"manager","s":"المشرف اقاله","h":"01f6afd79167837ab9093ff286708497f8fa785e86a8cc4c5844c314b113941a"},{"u":"mgr4","n":"ايهاب","r":"manager","s":"ايهاب","h":"1efc4a2fdfa3fef4f33386e2e29aee7d00bd8b73a68b1c034533d9aa7482c518"},{"u":"mgr5","n":"حماده","r":"manager","s":"حماده","h":"7d8303edbc0d302d9588dc3cf95925afbb821b424edab5278f5749098cc7b62f"},{"u":"mgr6","n":"راتب","r":"manager","s":"راتب","h":"01fa8ea6c1ea81e88dabce8a5c317fae433eef67f7f4136b3d8117f08625b106"},{"u":"mgr7","n":"عادل نسيم","r":"manager","s":"عادل نسيم","h":"73c43117d54e01640c6d6aa47f1866e0c36141e91fd3b7c9b793225153dffb09"},{"u":"mgr8","n":"علاء النجار","r":"manager","s":"علاء النجار","h":"ca89c3b6a9d7e562507190a198421d615ca66238c1672b0c763c9ed150965329"},{"u":"mgr9","n":"مايكل","r":"manager","s":"مايكل","h":"3b8b90ff1834d05b8fc7519fcace5f61b932585061e8e70e1529ece4ea895b92"},{"u":"mgr10","n":"محمود حلاوه","r":"manager","s":"محمود حلاوه","h":"0c630c9cf2ee35953b8f63b94b996e9cb31f0f459faebe7fdb7e58dc39c1ec92"},{"u":"mgr11","n":"blal","r":"manager","s":"blal","h":"307c678ff6d6de90aac3226b6b62e4a0db1e0ff14099eaa6610a9bf89c6b7737"},{"u":"mgr12","n":"Blal","r":"manager","s":"Blal","h":"206b0ef07e732a309e97595b8153f1438b49d2637ee7c1b922443fd0b8672dbe"},{"u":"sup1","n":"ابطال المعادى","r":"sup","s":"ابطال المعادى","h":"4991b22315f6cdc83d2cda7bc85473c3ee2155d53a3b2d8213fb7e0bed2c6f3f"},{"u":"sup2","n":"ابو اسر","r":"sup","s":"ابو اسر","h":"c13b18170dc361f2a2bd859b3cd27bd24873822e0015ee27f912973ed14b9ef0"},{"u":"sup3","n":"ابو مكة تجمعات","r":"sup","s":"ابو مكة تجمعات","h":"30543c8d8f53db3f9924ca005e73205c6d4e6db326410eebc3524a603a794c8d"},{"u":"sup4","n":"ابو يارا","r":"sup","s":"ابو يارا","h":"d1423065c9f7167e7b0f030ea860e014b1bf0812864d383d243136b336635c0c"},{"u":"sup5","n":"ابو يونس","r":"sup","s":"ابو يونس","h":"d30d0a55eacf8fefe45ccf8f62cca08886b7921da1b0471af35e1323521ec93b"},{"u":"sup6","n":"احمد اسماعيل","r":"sup","s":"احمد اسماعيل","h":"8b7a11dbfaf7da6d4eb329344d8c7d2f2383c7dfe4dbf9f47c33d3c3df63523d"},{"u":"sup7","n":"احمد اسماعيل مشرف رحاب","r":"sup","s":"احمد اسماعيل مشرف رحاب","h":"90d7fac2d4ee4cd474da8ec9936ae74c4550694e24ef473217781d6db6788ae9"},{"u":"sup8","n":"احمد السيد حسين","r":"sup","s":"احمد السيد حسين","h":"6f06eef62689909393a53cecd5757e7c3d6fed2762a370559217df5c2608c0cc"},{"u":"sup9","n":"أحمد جمال","r":"sup","s":"أحمد جمال","h":"84d54cf7a0843eb97ce682bc17ddc4db0bcd5ebdf342d1447fd9d814010a1e69"},{"u":"sup10","n":"احمد صبحي","r":"sup","s":"احمد صبحي","h":"b8658b900570c99c442654dec70bee9c156c177e0fe470ccca8cf96eb6cf02fd"},{"u":"sup11","n":"احمد طلعت","r":"sup","s":"احمد طلعت","h":"7b4b0f818af5924cadf105bc66050f2dfa8747fd856c8a80388f9df05e18b72d"},{"u":"sup12","n":"احمد عبده الغردقه","r":"sup","s":"احمد عبده الغردقه","h":"764d2ea6ad85811d07daf4336eb41ca40d9fbc9957c71953efbf3d52f94890da"},{"u":"sup13","n":"احمد علي","r":"sup","s":"احمد علي","h":"26aa30382f84345e621dab06b7bc80dbc44bea44da9fe87a627b90f6fe585b73"},{"u":"sup14","n":"احمد عماد","r":"sup","s":"احمد عماد","h":"196db655bb5d630bd51440b5340155a524c2e6b1fb1741ee8dce7b2706d1a7d9"},{"u":"sup15","n":"احمد عماد السويس","r":"sup","s":"احمد عماد السويس","h":"cec4fa8fe0c089f64f2457c9aa0aafc8483f5c509663ca8dcbdf866e500dd820"},{"u":"sup16","n":"احمد عمر","r":"sup","s":"احمد عمر","h":"393f1293a8222b24092cebe638eae9b036ee7bdb12b89f2f6ec2ff534cb529f6"},{"u":"sup17","n":"أحمد فتحي","r":"sup","s":"أحمد فتحي","h":"2f1dc9a2872ab1f244beb0d213579224f89e551bf4e152f46e2a59a13f3c3d2b"},{"u":"sup18","n":"احمد فتحي","r":"sup","s":"احمد فتحي","h":"3787877bab0f8a54b86453282df866a00ae79b2ac009b0f74749a1523e166560"},{"u":"sup19","n":"احمد ناصر","r":"sup","s":"احمد ناصر","h":"c6f40ab437b800275dc39e4da0cd4fad310a286fce29aa7eeee46eceb5a2ceac"},{"u":"sup20","n":"احمد يونس","r":"sup","s":"احمد يونس","h":"a181768138836259d9d382a811fb3cfe56661337c4420c8ec99809cc2fe4901d"},{"u":"sup21","n":"اساف عاصم","r":"sup","s":"اساف عاصم","h":"65d02fa13bbfdc3752225b2d134e1f95db5892d9e80d3107c2f6eaf4e96d056f"},{"u":"sup22","n":"اسامه طه","r":"sup","s":"اسامه طه","h":"0dcdcdb80c32ea4e2d32a73153b4bd94c7bdc4d47c4d6bd264fc156fd55fd6f5"},{"u":"sup23","n":"اسلام ابوزيد","r":"sup","s":"اسلام ابوزيد","h":"e1cae0b976796fe4dbe00d7e6f1b88d217a39632207b8b5ba11ecbdf35908641"},{"u":"sup24","n":"اسلام اكتوبر","r":"sup","s":"اسلام اكتوبر","h":"d6cbdbfb7737c944e831bf625316bda75de5c06c881e2f6f737114c335f6ec0b"},{"u":"sup25","n":"اسلام السوهاجي","r":"sup","s":"اسلام السوهاجي","h":"8d38267c3c46e44dacabe92305555b951b0a5a7a1f76e4a0e8cc61f0869e9c68"},{"u":"sup26","n":"اسلام رضا","r":"sup","s":"اسلام رضا","h":"efd1c1be5e49f12142a5fcefdd8b4ae37d95655248f9e62eade36eb90cfb5e9e"},{"u":"sup27","n":"اسلام عاطف تجمعات","r":"sup","s":"اسلام عاطف تجمعات","h":"8d4d19deaa28999b4854ec1c7969e2790c461ea905e417878f76ea5c7474d035"},{"u":"sup28","n":"إسلام منصورة","r":"sup","s":"إسلام منصورة","h":"8e43fd9d91ceb1f5d58953565834e1cc87777ca4b5558939f4096a0acc44f909"},{"u":"sup29","n":"اسماء نادر","r":"sup","s":"اسماء نادر","h":"0478a3494be6bd7295b76b628746c68bcd0ee2fec463765cad2975c5de212350"},{"u":"sup30","n":"اسماعيل جابر","r":"sup","s":"اسماعيل جابر","h":"b9d8450632297e6602dff1aa4cf0259d99a2f721ebb0ab14a9cbb0bd65ef4a9a"},{"u":"sup31","n":"الخضري","r":"sup","s":"الخضري","h":"b5a6402affa33e3ce06d3ea48aefeb724a60ab781fc7c821e3eadb5fc1e2de64"},{"u":"sup32","n":"الديب","r":"sup","s":"الديب","h":"e358158c2d3c07d15baf93b7f2e83c013f6159d49f89c080969b8635355147f5"},{"u":"sup33","n":"السقا","r":"sup","s":"السقا","h":"966170f69881cfb1ba7f41bfbf4b9a61dc1a68b3a5608cdf973d373251ed341f"},{"u":"sup34","n":"أنطونيوس","r":"sup","s":"أنطونيوس","h":"30bbf6f2d2725d8ff8d6a71556e3c2d190a0253db86e845a22706778a9a7ea0f"},{"u":"sup35","n":"اوزو","r":"sup","s":"اوزو","h":"8506169216596d3e8aff56eedc73a5c70a75acf51e45d18e3a1cf774dd68d493"},{"u":"sup36","n":"باولو","r":"sup","s":"باولو","h":"5ef81242791ce6c3ad010316d2b1ce7059a06ee73a7ebb7f528b6a8b86dc505b"},{"u":"sup37","n":"بطيخه","r":"sup","s":"بطيخه","h":"2051f70ec9a6643ee8289282f8d899f4326659ef8a607f4ff8321a4570afe35a"},{"u":"sup38","n":"بكر","r":"sup","s":"بكر","h":"dc75e9605a468bde8a809f01370439c96e6a06e70b35215727681f272b420b27"},{"u":"sup39","n":"بهيج احمد","r":"sup","s":"بهيج احمد","h":"f076b5819cb74aed7875be7a028c4f3494592d064cf1d9ec2e65335755d5d6ab"},{"u":"sup40","n":"تريكه","r":"sup","s":"تريكه","h":"95e952ca86c3a7381b024fe4ccdfe33c94cf75d3b86c3e7391d417ff571ee9e4"},{"u":"sup41","n":"تونه","r":"sup","s":"تونه","h":"4de2b42a543ce4f6e85ac6b4aca4ea0b3641e3830258f1f48d0a6405866711f8"},{"u":"sup42","n":"جابر عبدالحارث","r":"sup","s":"جابر عبدالحارث","h":"0884f122766d445f80f36fe410d433709b2ff44627ed478edd3a82cd5e3d612a"},{"u":"sup43","n":"جمال مصطفى","r":"sup","s":"جمال مصطفى","h":"7fd4c0b0ccb42446631fa050169b129415c3e0aae06079bf126b36e239071f74"},{"u":"sup44","n":"جمعه الجوهري","r":"sup","s":"جمعه الجوهري","h":"5065913ff43952382d80b1e05e8f35844f627aafa8ea9fc4367790d613cef905"},{"u":"sup45","n":"حازم زكريا","r":"sup","s":"حازم زكريا","h":"da54d370a524a843226cf800a6b1c15f3e11b16fe97cf68f9a8e9e29d08e6aa8"},{"u":"sup46","n":"حازم محمد","r":"sup","s":"حازم محمد","h":"bfca2f6555a6f9bf4a0d6a443de7a17b5b6b428f6f7dc88ff186883620bfab0f"},{"u":"sup47","n":"حربى","r":"sup","s":"حربى","h":"2d311728ce8899c70e8a8c2671ab83f84e8da03be306f94be22a2869c51e3787"},{"u":"sup48","n":"حسن الشروق","r":"sup","s":"حسن الشروق","h":"924bc3f33a90f504712a57f2a72787d06c6ea36cbc2bf46983d5b15bb2648b1b"},{"u":"sup49","n":"حسن سليمان","r":"sup","s":"حسن سليمان","h":"7dfbedffd7edd940602cfa00e389bdfef7ab96aa527ed324b928655c1b36de64"},{"u":"sup50","n":"حسين الإسماعيلية","r":"sup","s":"حسين الإسماعيلية","h":"853e7e9325289236f175992e77fc04de6e586278b69b6b46da9627d66f9b507e"},{"u":"sup51","n":"خالد عبد المعبود","r":"sup","s":"خالد عبد المعبود","h":"82406de24fa8b58d2e528844521735d30cd3adfc853500bb79bcce5a71ece0f9"},{"u":"sup52","n":"خالد عبدالمعبود","r":"sup","s":"خالد عبدالمعبود","h":"e88a717683646b8a76e1716b8054d7938dd29f513aaaaf5bdea90068d1e68b31"},{"u":"sup53","n":"رؤف الخواجة","r":"sup","s":"رؤف الخواجة","h":"b1496e70ec1fbc0bd24332bfd8b250b9496c317ef6a058aab611df8096b2cb57"},{"u":"sup54","n":"رضا حسني","r":"sup","s":"رضا حسني","h":"1c742676953301ca90f1a9d62851c88178c4d2f78c7925684be8bcde90809f80"},{"u":"sup55","n":"رضوان ابراهيم","r":"sup","s":"رضوان ابراهيم","h":"6e148bb3a282f9b6fce66f735884783e1a31caa76263bc0ac7637e17c447b5af"},{"u":"sup56","n":"زياد بدر","r":"sup","s":"زياد بدر","h":"a5447d2fc4469bbe3470420743f4f8ec0475e1eb4491d9801c2853ea575def1d"},{"u":"sup57","n":"سامح حسن","r":"sup","s":"سامح حسن","h":"a32d52791eb1a4b21e1ee3ce37e84f0874e7a71dcff83b3c7ffc5d29bba7d2fb"},{"u":"sup58","n":"سعودي","r":"sup","s":"سعودي","h":"52103f0ce859c00e2527dd024a860e86896c8be7a18b06af5f8f219618ab5b1a"},{"u":"sup59","n":"سليمان مصر الجديده","r":"sup","s":"سليمان مصر الجديده","h":"c2ce68339cd77fcf5490fdecc32bf213500fddc3260c7a98cd4cf92b1f2ac989"},{"u":"sup60","n":"سماره شبرا","r":"sup","s":"سماره شبرا","h":"cfc373011adc4ebc96b6bb2f50de026098d46ca511eaf2d9e98c6ec672d82a8f"},{"u":"sup61","n":"سيد الاسماعيلية","r":"sup","s":"سيد الاسماعيلية","h":"887e6e76835a34a69880d00d11dd4685851d220ea1e0baf188f5f461f3f083d8"},{"u":"sup62","n":"سيد الغردقه","r":"sup","s":"سيد الغردقه","h":"e9bb6adc2a763fbd3255629af2486cf2bece807eea8aa5edb859122ff0a4a59f"},{"u":"sup63","n":"سيف الاسلام مقطم","r":"sup","s":"سيف الاسلام مقطم","h":"ecb08f9e7fa47880420c4ff517837c972794fec665ccea92017eeebf7bc0b6a9"},{"u":"sup64","n":"شريف بكري التجمعات","r":"sup","s":"شريف بكري التجمعات","h":"1e98f6adf0bb886da7fb972acd2251049e90c2853a031473fbd977bbeb5575b1"},{"u":"sup65","n":"شريف عيسي","r":"sup","s":"شريف عيسي","h":"7bc6d28bef5a15aec8406d62c9bd47b5c8e1eb722eb828b82d8c79cffbe77890"},{"u":"sup66","n":"شهاب نبيشى","r":"sup","s":"شهاب نبيشى","h":"30fa70259e2a1154ece7aa12f98d1f1764bdaaaa33d7589e350a0145675ab905"},{"u":"sup67","n":"شيكا","r":"sup","s":"شيكا","h":"46c7138ffd900a9c84b81ac360f05204e5245871318b449cbacce2019d350119"},{"u":"sup68","n":"شيكو","r":"sup","s":"شيكو","h":"ac75ad6acf38fb1699e53b96ef10a3924c2ce80ed3e54a3c2a4256308d6738b8"},{"u":"sup69","n":"صابر البندارى","r":"sup","s":"صابر البندارى","h":"6c620c6dcf2a818a6936405a7e43336d6c70515ad789dbbb3fda638f1c9853f6"},{"u":"sup70","n":"صبحي العاشر","r":"sup","s":"صبحي العاشر","h":"e173d0e6b4d928eca88deb71ba9a369a7fb2722a7142a4b45b8ef711305f8625"},{"u":"sup71","n":"صبرى","r":"sup","s":"صبرى","h":"46c13fb28e900c15fe245041f3d2e154b8b0447801a117048e5b4747093bf8c5"},{"u":"sup72","n":"طه احمد","r":"sup","s":"طه احمد","h":"afb31454679bd441e78638114bcc73603c6291b4962d1447530a6f0acbaec275"},{"u":"sup73","n":"عادل اسكندريه","r":"sup","s":"عادل اسكندريه","h":"6acba6a75e6776b01ea5d1603efa39cbeae828b96789af19df4166298cd6a8b7"},{"u":"sup74","n":"عادل التجمع","r":"sup","s":"عادل التجمع","h":"712bcdc2faf8b455cd969868fe8e52aa3e375a493d24565a0f9c8bf4681ddc52"},{"u":"sup75","n":"عادل الخولي","r":"sup","s":"عادل الخولي","h":"86dcc83ceeb1c62a471dbdae105b361cc9b60f593d2b2140e6f1df897413d24a"},{"u":"sup76","n":"عباد الله","r":"sup","s":"عباد الله","h":"38341d2377a2dcb0ce6e41a187d588977c3546db0beb245c40b059d9c46d463f"},{"u":"sup77","n":"عبد الرحمن عبد الباسط التجمع","r":"sup","s":"عبد الرحمن عبد الباسط التجمع","h":"539099981f1aed1597b0e89dd56c52c24dea30559bf4a75edeb06a4c0ca22650"},{"u":"sup78","n":"عبد الرحمن محمد الرحاب","r":"sup","s":"عبد الرحمن محمد الرحاب","h":"461fd3a932d3ad7ce4f4eb8056e396f51717e60949aa040b61c4a182d01fb8af"},{"u":"sup79","n":"عبد العظيم محمود","r":"sup","s":"عبد العظيم محمود","h":"8ea4aa6b7fc7d9b0e0ae684262861895c287c13f21421b3010a08e215d6f6949"},{"u":"sup80","n":"عبدالرحمن اسكندريه","r":"sup","s":"عبدالرحمن اسكندريه","h":"6ac3275787a2e913921cbc41a979d0733341b35661fc2695ab389147d8fd1289"},{"u":"sup81","n":"عبدالله رمضان","r":"sup","s":"عبدالله رمضان","h":"e3e9cd4480ed77ce1b57b67186ff91424a0e7311cc4a3f9f58d98c1ba0382ac7"},{"u":"sup82","n":"عصام سامي الزقازيق","r":"sup","s":"عصام سامي الزقازيق","h":"5962d5310eccaa60cf97b58a71648d4e452a1af0bbc9b5decca2006e1e87fc9b"},{"u":"sup83","n":"على","r":"sup","s":"على","h":"5a48363031047a69a037ac7d61082a89f79468184b8e45d07309fa3490d89ab6"},{"u":"sup84","n":"علي ابو العلا المنيا","r":"sup","s":"علي ابو العلا المنيا","h":"2cb246202a9c30d08b383fa5ce525c3c633f630f169b72212ee24dd3cc47f721"},{"u":"sup85","n":"علي شعبان اكتوبر","r":"sup","s":"علي شعبان اكتوبر","h":"e188f74bb8681572749d4661eca6d725c6e3479ed098c1ae4f2c3bc42e063ebf"},{"u":"sup86","n":"على كزبر","r":"sup","s":"على كزبر","h":"2e7eb61090e4b1a7b0f86f663ae443b490a2cbd92528c67909494d3de8ba141b"},{"u":"sup87","n":"عليان عبدالمولي","r":"sup","s":"عليان عبدالمولي","h":"f6310fa428b965c61b8727e8af0d67f2ba8d3b357b85acd74fca82480ef50d3e"},{"u":"sup88","n":"عماد جمال","r":"sup","s":"عماد جمال","h":"4622043cc5c2874267cd4cec85119589819431dcd62fe1008fd713628779635a"},{"u":"sup89","n":"عمر عبد الحليم","r":"sup","s":"عمر عبد الحليم","h":"fe58fefc99c4a85dc644ecbe63914efe090a93fe0afd8e4ff6ce0792eec24fa6"},{"u":"sup90","n":"عمر ممدوح","r":"sup","s":"عمر ممدوح","h":"5fbccb7150b12fd84735884d6552c1ab78a88ecf88cc841ee7b3c114f3ea20ee"},{"u":"sup91","n":"عمرو خالد","r":"sup","s":"عمرو خالد","h":"aeeb356e38c3c0cb281e2dac0a875e9d2bb135eb0ec603be4312052c361b96cf"},{"u":"sup92","n":"عمرو مسعد","r":"sup","s":"عمرو مسعد","h":"51592830bef646da32d1df9e49210faf6b5c3a7fa759fa8ff6337ac74744312c"},{"u":"sup93","n":"عيد محمد","r":"sup","s":"عيد محمد","h":"81d141a8d5a578dcd93302ac1ce16d65091c84f4a410955b8e792e98b77cd1ed"},{"u":"sup94","n":"فهد البطل","r":"sup","s":"فهد البطل","h":"f6667b3928808e18331c5dcb40e4abf01d07bbf701d79d063544e0e284ee09c1"},{"u":"sup95","n":"كابو","r":"sup","s":"كابو","h":"b9357535b48a7d7128b8a47507ed99c472c3e1676eee7027b7f0a1850c4b7ed5"},{"u":"sup96","n":"كريم التركي","r":"sup","s":"كريم التركي","h":"eacc8535a3ca0da5fae97dc6c701a3f8c1714426d4ea71705f4c24b9a0bf8164"},{"u":"sup97","n":"كريم شعبان اكتوبر","r":"sup","s":"كريم شعبان اكتوبر","h":"397f37343c1e6440d985ff6326e0b50f866aa355507db7c13b6f0dff89b9252d"},{"u":"sup98","n":"كريم نبيل","r":"sup","s":"كريم نبيل","h":"f759036befbe0e9ed6156198cb68bde33995562d848997bb723c7f2cf5b135fa"},{"u":"sup99","n":"كمال الرحاب","r":"sup","s":"كمال الرحاب","h":"04476d5dfc4d6c5ce34302aa4400cecf30acfcf797047e0271b867faa29afcd8"},{"u":"sup100","n":"ليل","r":"sup","s":"ليل","h":"dd0408bd27c278cff767a2bf8e6d1ec5a53b6e90052d35dd0e2a66528cb768b4"},{"u":"sup101","n":"ماستر لاين","r":"sup","s":"ماستر لاين","h":"d3cdde0cda1bccad67c5196b819971cdaae60a9247921477985c81d1f2a2d7ce"},{"u":"sup102","n":"مايكل ممدوح","r":"sup","s":"مايكل ممدوح","h":"26e61f70fa637c39efcb152a35f74d1b5671bd39ee93c91a7b5e3004c7acf5c6"},{"u":"sup103","n":"مجدي","r":"sup","s":"مجدي","h":"75992951f59bc47e8e8f915f3daf639bb8cd77dfd62e837fb4b6ba376fd7000e"},{"u":"sup104","n":"محمد السعيد المنصورة","r":"sup","s":"محمد السعيد المنصورة","h":"54d6f5c9f5b6b1bf383f3f88a51815ad7036f706c72242177c7f5f54bb3e5dc4"},{"u":"sup105","n":"محمد العمده","r":"sup","s":"محمد العمده","h":"bf30422dfc17bd369206a026dde2b02a242aab3a8f60530c0212a6220fcc1588"},{"u":"sup107","n":"محمد خصوصي","r":"sup","s":"محمد خصوصي","h":"c38e417f842f36e6832dd4d3f1c8593f85f3564b0ef40572e3e85924fd6c706b"},{"u":"sup108","n":"محمد دياب","r":"sup","s":"محمد دياب","h":"dd59b6d0691bd9d4bec76953e4b1072b8d58a58af607b80723b3011d06e1506a"},{"u":"sup109","n":"محمد رجب","r":"sup","s":"محمد رجب","h":"6a58a634acb8a5ad1a80fda82fe85e4beb5c6fa28897a2dc1c00e913998ef1f2"},{"u":"sup110","n":"محمد رمضان","r":"sup","s":"محمد رمضان","h":"69a4ce30a144ac3b4f224575eb6c8f102c0dd9be199e2370bc7a6859ed051fab"},{"u":"sup111","n":"محمد سامح","r":"sup","s":"محمد سامح","h":"43e640e70de66d49ae05b08754981462cfffc2241e15e378d160fe3f829f2f63"},{"u":"sup112","n":"محمد سعيد","r":"sup","s":"محمد سعيد","h":"658adf53262ef89a318c8f0013784e2216cd403aca45085b517f1697abb47220"},{"u":"sup113","n":"محمد شعبان حلوان","r":"sup","s":"محمد شعبان حلوان","h":"83824d2cc8213aeb25e77b076e2b817ceeb9c097703547964be5ba3bd74c11b4"},{"u":"sup114","n":"محمد شوقى","r":"sup","s":"محمد شوقى","h":"4f0a2da8d5192da5139d086b1aad682a4008624bdfc8b138bb961c6b8ea45d6f"},{"u":"sup115","n":"محمد طلعت الغردقه","r":"sup","s":"محمد طلعت الغردقه","h":"014e3197dd663ea165e8543a83ed97e1f67bd741990538c559dcb5f565e65bbd"},{"u":"sup116","n":"محمد عبد البر الرحاب","r":"sup","s":"محمد عبد البر الرحاب","h":"0a115785904b507eb17b4716866bfbe7de8723cc0f3e849d4e00248ee51fb263"},{"u":"sup117","n":"محمد عبداللطيف","r":"sup","s":"محمد عبداللطيف","h":"1bc2077db40c08438aa681f507186ff116757ccea0e5a766ca64d843668da1e4"},{"u":"sup118","n":"محمد عبدالله","r":"sup","s":"محمد عبدالله","h":"891eab74909440dc6ce0113eb86053e6f75275c683824a3e276152b7f202af5f"},{"u":"sup119","n":"محمد عبده","r":"sup","s":"محمد عبده","h":"0663c386354a103623a070cd75366be1519bf7270c22e8f40b2465085b1b31cd"},{"u":"sup120","n":"محمد مصباح","r":"sup","s":"محمد مصباح","h":"096d6897a904792a2e709c056889fe205630fef5d6b2b2eb9afc2837b6079344"},{"u":"sup121","n":"محمود بيومى","r":"sup","s":"محمود بيومى","h":"d91f0c725a985e948af3354965ec4d0983e46328341ff620253a7818b5e2e844"},{"u":"sup122","n":"محمود كوكا","r":"sup","s":"محمود كوكا","h":"21b73893ae9b43938385d738a67a9484b7434346bb8b5c7cc19032d8df67596d"},{"u":"sup123","n":"محمود يونس","r":"sup","s":"محمود يونس","h":"519b92cbe9e77e0ff6b86ccaa55868be0b7a0e504f4925a71f7d714746df721b"},{"u":"sup124","n":"مصطفي فزاع","r":"sup","s":"مصطفي فزاع","h":"7ecb0b2698ec10659b57dfdea071901801471160aa5a215967342d3a8564f683"},{"u":"sup125","n":"مصطفي محمد","r":"sup","s":"مصطفي محمد","h":"d81f42db18f129daeb2ac5d313c21e10b7889f9dabebcd763f0e27c8694dc49a"},{"u":"sup126","n":"معاذ طنطا","r":"sup","s":"معاذ طنطا","h":"64c95792aa4d24626040b5d22f00f85537b017d938d5a4ef4c709eba91c393c5"},{"u":"sup127","n":"ممدوح محي الدين","r":"sup","s":"ممدوح محي الدين","h":"6cc59c3ce7cb600faf61ca8fbacaa46fd94231ce29af4a05f7c1b09fc960ebf7"},{"u":"sup128","n":"هيرو","r":"sup","s":"هيرو","h":"57945b0044eb737452f260c3ec1e33e4cf449440114dfc9c910cff587875500e"},{"u":"sup129","n":"يسرى حامد","r":"sup","s":"يسرى حامد","h":"030cd31e053f959e00d1658c390284c96e557cb8c1c766739537bef7b8396677"},{"u":"sup130","n":"يوسف السيد","r":"sup","s":"يوسف السيد","h":"92b9fb73df02b2c36cc65f6353397490622352a13c9584c00dc1471cf8ee0f95"},{"u":"sup131","n":"يوسف عبدالله","r":"sup","s":"يوسف عبدالله","h":"9d5d76907e8dc55c2fb6ae42b763d8aaeb257cd0a274813e4660817b047873c3"},{"u":"sup132","n":"SM","r":"sup","s":"SM","h":"e6555b590cb14bf045ba2e023d7e70596b8a5bfed9ba715356cdadd44f1135a3"},{"u":"1","n":"محمد حسن اسكندريه","r":"sup","s":"محمد حسن اسكندريه","h":"f13fd5cbc603fddab2e5cf32720724fb36b74c341de8df9a988d1c21bcbcf65f"}];/* admin / admin123 — غيّرها */
@@ -572,7 +618,7 @@ function gstat(){const e=$('gst');if(e)e.textContent=DRAFT?'⚠️ فيه تعد
 function scope(rows){if(!CUR||CUR.r==='admin')return rows;const k=CUR.r==='manager'?'m':'s';return rows.filter(r=>r[k]===CUR.s)}
 function findU(u,h){return USERS.find(y=>y.u.toLowerCase()===u&&y.h===h)||(DRAFT&&DRAFT.find(y=>y.u.toLowerCase()===u&&y.h===h))}
 function enter(x){CUR=x;idleReset();try{sessionStorage.setItem('pd_sess',x.u.toLowerCase()+'|'+x.h)}catch(e){}
-  $('lg').style.display='none';$('who').textContent='👤 '+x.n+' · '+ROLE[x.r];$('usrB').style.display=x.r==='admin'?'':'none';$('prB').style.display='';load().then(()=>{if(x.r==='admin'&&x.h===DEF_H){const m=$('msg');m.style.display='block';m.textContent='⚠️ كلمة مرور الأدمن الافتراضية لسه شغالة — غيّرها من 👥 المستخدمين.'}})}
+  $('lg').style.display='none';$('who').textContent='👤 '+x.n+' · '+ROLE[x.r];$('usrB').style.display=x.r==='admin'?'':'none';$('tgB').style.display=x.r==='admin'?'':'none';$('prB').style.display='';load().then(()=>{if(x.r==='admin'&&x.h===DEF_H){const m=$('msg');m.style.display='block';m.textContent='⚠️ كلمة مرور الأدمن الافتراضية لسه شغالة — غيّرها من 👥 المستخدمين.'}})}
 let USERS=USERS_EMBED,DRAFT=null,VAULT=PW_EMBED;
 async function loadUsers(){
   try{const r=await fetch('users.json?_='+Date.now(),{cache:'no-store'});if(r.ok){const d=await r.json();if(d&&Array.isArray(d.users)&&d.users.length){USERS=d.users;if(d.vault)VAULT=d.vault}}}catch(e){}
@@ -694,6 +740,213 @@ $('ng').onclick=()=>{if(!CUR||CUR.r!=='admin')return;if(!ALL.length)return alert
   alert('تم إنشاء '+out.length+' حساب، واتحمّل ملف credentials.csv فيه كلمات المرور. احتفظ بيه لأنها مش هتتعرض تاني.')};
 let IT;function idleReset(){clearTimeout(IT);if(CUR)IT=setTimeout(()=>$('out').click(),30*60*1000)}
 ['click','keydown','touchstart'].forEach(e=>addEventListener(e,idleReset,{passive:true}));
+/* ================= 🎯 التارجت (أدمن فقط) — تابة "تارجت المكاتب" A:J ================= */
+const TGGID='1428075881';
+let TGR=[],TGF=[],TGP=[],tgSort='t',tgDir=-1,tgPg=0,TGPS=25,TGH=false;
+const tgNum=v=>{const n=parseFloat(String(v==null?'':v).replace(/[,%\s]/g,''));return isNaN(n)?0:n};
+const tgPct=v=>{if(v===''||v==null)return 0;const s=String(v),n=tgNum(s);return typeof v==='number'||!s.includes('%')?(n<=2?n*100:n):n};
+const TGPAL=['#3b82f6','#10b981','#f59e0b','#8b5cf6','#06b6d4','#ef4444','#ec4899','#84cc16','#14b8a6','#f97316','#6366f1','#a3a3a3'];
+function tgIngest(arr){const out=[];
+  for(let i=1;i<arr.length;i++){const r=arr[i],d=pd(r[4]),o=String(r[1]==null?'':r[1]).trim(),z=String(r[2]==null?'':r[2]).trim();
+    if(!d||!(o||z))continue;
+    out.push({o,z,t:tgNum(r[3]),d,av:tgNum(r[5]),ap:tgPct(r[6]),nt:tgNum(r[7]),rk:tgNum(r[8]),mx:tgNum(r[9])})}
+  TGR=out;return out.length}
+function tgJsonp(){return new Promise((ok,no)=>{
+  const sc=document.createElement('script'),tm=setTimeout(()=>no('انتهت المهلة'),120000);
+  window.__gt=r=>{clearTimeout(tm);sc.remove();if(!r||r.status==='error'||!r.table)return no('رد جوجل: خطأ');
+    const rows=[[]];for(const x of r.table.rows){const a=[];for(let i=0;i<10;i++){const c=x.c&&x.c[i];let v=c&&c.v!=null?c.v:'';
+      if(typeof v==='string'){const m=v.match(/^Date\((\d+),(\d+),(\d+)/);if(m)v=m[3]+'-'+(+m[2]+1)+'-'+m[1]}a.push(v)}rows.push(a)}ok(rows)};
+  sc.onerror=()=>{clearTimeout(tm);no('فشل تحميل السكربت')};
+  sc.src=`https://docs.google.com/spreadsheets/d/${SID}/gviz/tq?gid=${TGGID}&headers=1&tqx=out:json;responseHandler:__gt`;document.head.appendChild(sc)})}
+async function tgFetch(){
+  const B=`https://docs.google.com/spreadsheets/d/${SID}/`,urls=[B+`gviz/tq?tqx=out:csv&gid=${TGGID}`,B+`gviz/tq?tqx=out:csv&sheet=${encodeURIComponent('تارجت المكاتب')}`,B+`export?format=csv&gid=${TGGID}`];
+  for(const u of urls){try{const r=await fetch(u);if(!r.ok)continue;const t=await r.text();if(t.trim().startsWith('<'))continue;
+    if(tgIngest(Papa.parse(t,{skipEmptyLines:true}).data))return true}catch(e){}}
+  try{if(tgIngest(await tgJsonp()))return true}catch(e){}
+  return false}
+async function tgReload(){
+  const m=$('tgM');m.style.display='block';m.textContent='⏳ جارٍ سحب تابة "تارجت المكاتب"…';$('tgRf').disabled=true;
+  const ok=await tgFetch();$('tgRf').disabled=false;
+  if(!ok){m.textContent='⚠️ تعذّر سحب التابة. تأكد إن الشيت عام (Anyone with the link) وإن اسم التابة "تارجت المكاتب".';return}
+  m.style.display='none';tgFillZ();tgFillO();tgPreset('all')}
+const tgU=(k,rows)=>[...new Set(rows.map(r=>r[k]).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'en'));
+function tgSetSel(id,list,all){const s=$(id),c=s.value;s.innerHTML=`<option value="">${all}</option>`+list.map(x=>`<option>${esc(x)}</option>`).join('');if(list.includes(c))s.value=c}
+function tgFillZ(){tgSetSel('tgz',tgU('z',TGR),'كل المناطق')}
+function tgFillO(){const z=$('tgz').value;tgSetSel('tgo',tgU('o',z?TGR.filter(r=>r.z===z):TGR),'كل المكاتب')}
+function tgPreset(p){tgCdMan=false;
+  const mx=TGR.reduce((a,r)=>r.d>a?r.d:a,0),mn=TGR.reduce((a,r)=>!a||r.d<a?r.d:a,0),M=new Date(mx);let a=mn,b=mx;
+  if(p==='day')a=mx;else if(p==='7')a=mx-6*DAY;else if(p==='30')a=mx-29*DAY;
+  else if(p==='month')a=new Date(M.getFullYear(),M.getMonth(),1).getTime();
+  else if(p==='last'){a=new Date(M.getFullYear(),M.getMonth()-1,1).getTime();b=new Date(M.getFullYear(),M.getMonth(),0).getTime()}
+  $('tgd1').value=ds(Math.max(a,mn));$('tgd2').value=ds(b);
+  document.querySelectorAll('#tgChips .chip[data-p]').forEach(c=>c.classList.toggle('on',c.dataset.p===p));tgApply()}
+[['day','📅 آخر تاريخ'],['7','آخر 7 أيام'],['30','آخر 30 يوم'],['month','هذا الشهر'],['last','الشهر الماضي'],['all','كل الفترة']].forEach(([p,t])=>{
+  const b=document.createElement('button');b.className='chip';b.dataset.p=p;b.textContent=t;b.onclick=()=>tgPreset(p);$('tgChips').appendChild(b)});
+['tgd1','tgd2'].forEach(i=>$(i).onchange=()=>{document.querySelectorAll('#tgChips .chip[data-p]').forEach(c=>c.classList.remove('on'));tgApply()});
+$('tgz').onchange=()=>{$('tgo').value='';tgFillO();tgApply()};$('tgo').onchange=tgApply;
+let tgqt;$('tgq').oninput=()=>{clearTimeout(tgqt);tgqt=setTimeout(tgApply,250)};
+$('tgX').onclick=()=>{$('tgz').value='';$('tgq').value='';tgFillO();tgPreset('all')};
+$('tgRf').onclick=tgReload;
+const tgGo=id=>{const e=$(id),o=$('tg');if(e)o.scrollTo({top:e.offsetTop-60,behavior:'smooth'})};
+function tgOpen(v){$('tg').style.display=v?'block':'none';$('tgUp').style.display='none';document.body.style.overflow=v?'hidden':'';if(v)$('tg').scrollTop=0}
+$('tg').addEventListener('scroll',()=>{$('tgUp').style.display=$('tg').scrollTop>400?'block':'none'},{passive:true});
+$('tgUp').onclick=()=>$('tg').scrollTo({top:0,behavior:'smooth'});
+addEventListener('keydown',e=>{if(e.key==='Escape'&&$('tg').style.display==='block')tgOpen(false)});
+$('tgC').onclick=()=>tgOpen(false);
+let TGOK=false;const TGPH='6764dcfccb3e47b4736c503ab7e3cf8402b100cf3bb5474157594218869e2f4c';
+const tgSha=async t=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(t)))].map(b=>b.toString(16).padStart(2,'0')).join('');
+async function tgShow(){tgOpen(true);if(!TGR.length)await tgReload()}
+async function tgCheck(){const v=$('tgpi').value;let ok=false;try{ok=(await tgSha('tgpw|'+v))===TGPH}catch(e){}
+  if(!ok){$('tgpe').textContent='❌ الباسورد غلط';$('tgpi').select();return}
+  TGOK=true;$('tgpm').style.display='none';$('tgpi').value='';tgShow()}
+$('tgB').onclick=()=>{if(!CUR||CUR.r!=='admin')return;if(TGOK)return tgShow();
+  $('tgpi').value='';$('tgpe').textContent='';$('tgpm').style.display='flex';setTimeout(()=>$('tgpi').focus(),50)};
+$('tgpok').onclick=tgCheck;$('tgpc').onclick=()=>$('tgpm').style.display='none';
+$('tgpi').onkeydown=e=>{if(e.key==='Enter')tgCheck()};
+$('tgpe2').onclick=()=>{const i=$('tgpi');i.type=i.type==='password'?'text':'password'};
+$('out').addEventListener('click',()=>{TGOK=false;tgOpen(false)});
+
+/* --- مقارنة اليوم بالشهور السابقة --- */
+const AM=['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];let tgCdMan=false;
+function tgCmpDraw(){if($('tgMc').style.display==='none'||!TGR.length)return;tgSelDraw()}
+
+/* --- مقارنة تواريخ يختارها المستخدم --- */
+let tgSel=[],tgSelBy='z';
+const tgDt=d=>new Date(d+'T00:00:00');
+const tgDfH=(a,b)=>b?`<b style="color:${a>=b?'#34d399':'#f87171'}">${a>=b?'▲':'▼'} ${F1(Math.abs(a-b)/b*100)}%</b>`:'—';
+function tgSelAdd(d){if(d&&!tgSel.includes(d))tgSel.push(d)}
+function tgSelDraw(){
+  if(!$('tgsd').value&&TGR.length)$('tgsd').value=$('tgd2').value||ds(TGR.reduce((m,r)=>r.d>m?r.d:m,0));
+  const box=$('tgsb');
+  const days=[...tgSel].sort();
+  $('tgsch').innerHTML=days.map(d=>`<button class="chip on" data-d="${d}" title="اضغط للحذف">${fd(tgDt(d))} ✕</button>`).join('');
+  if(!days.length){box.style.display='none';return}
+  box.style.display='';
+  const z=$('tgz').value,o=$('tgo').value,q=$('tgq').value.trim().toLowerCase();
+  const rows=TGR.filter(r=>(!z||r.z===z)&&(!o||r.o===o)&&(!q||(r.o+' '+r.z).toLowerCase().includes(q))&&days.includes(ds(r.d)));
+  const D={};days.forEach(d=>D[d]={t:0,o:new Set,z:new Set});
+  const G={};
+  for(const r of rows){const d=ds(r.d),x=D[d];x.t+=r.t;x.o.add(r.o);x.z.add(r.z);
+    const k=tgSelBy==='z'?r.z:r.o,g=G[k]||(G[k]={k,z:r.z,sum:0,v:{}});g.v[d]=(g.v[d]||0)+r.t;g.sum+=r.t}
+  const last=D[days[days.length-1]].t;
+  $('tgsh1').innerHTML='<tr><th>التاريخ</th><th>اليوم</th><th>إجمالي التارجت</th><th>الفرق عن اللي قبله</th><th>الفرق عن أحدث تاريخ</th><th>مكاتب</th><th>مناطق</th></tr>';
+  $('tgst1').innerHTML=days.map((d,i)=>{const x=D[d],prev=i?D[days[i-1]].t:0,isL=i===days.length-1;
+    return`<tr><td><b>${fd(tgDt(d))}</b></td><td>${tgDt(d).toLocaleDateString('ar-EG',{weekday:'long'})}</td><td><b style="color:#93c5fd">${NF(x.t)}</b></td><td>${i?tgDfH(x.t,prev):'—'}</td><td>${isL?'—':tgDfH(last,x.t).replace(/▲|▼/,m=>m==='▲'?'▼':'▲')}</td><td>${x.o.size}</td><td>${x.z.size}</td></tr>`}).join('');
+  dr('tgm2',{type:'bar',data:{labels:days.map(d=>fd(tgDt(d))),datasets:[{label:'إجمالي التارجت',data:days.map(d=>D[d].t),backgroundColor:days.map((d,i)=>i===days.length-1?'#3b82f6':'#8b5cf6aa')}]},options:{plugins:{legend:{display:false}}}});
+  $('tgsz').classList.toggle('on',tgSelBy==='z');$('tgso').classList.toggle('on',tgSelBy==='o');
+  const gl=Object.values(G).sort((a,b)=>b.sum-a.sum),first=days[0],ld=days[days.length-1];
+  $('tgsh2').innerHTML='<tr><th>#</th><th>'+(tgSelBy==='z'?'المنطقة':'المكتب')+'</th>'+days.map(d=>`<th>${fd(tgDt(d))}</th>`).join('')+(days.length>1?'<th>الفرق (أحدث ÷ أقدم)</th>':'')+'</tr>';
+  $('tgst2').innerHTML=gl.map((g,i)=>`<tr><td>${i+1}</td><td><b>${esc(g.k)}</b>${tgSelBy==='o'?`<small style="color:var(--mut)"> · ${esc(g.z)}</small>`:''}</td>`+days.map(d=>`<td>${g.v[d]!=null?NF(g.v[d]):'—'}</td>`).join('')+(days.length>1?`<td>${tgDfH(g.v[ld]||0,g.v[first]||0)}</td>`:'')+'</tr>').join('')||`<tr><td colspan="${days.length+3}" class="sub">لا توجد بيانات للتواريخ دي</td></tr>`;
+}
+$('tgsa').onclick=()=>{tgSelAdd($('tgsd').value);tgSelDraw()};
+$('tgsd').onkeydown=e=>{if(e.key==='Enter'){tgSelAdd($('tgsd').value);tgSelDraw()}};
+$('tgsc').onclick=()=>{tgSel=[];tgSelDraw()};
+$('tgsm').onclick=()=>{const v=$('tgsd').value;if(!v)return;const b=tgDt(v),dd=b.getDate();
+  for(let k=0;k<6;k++){const x=new Date(b.getFullYear(),b.getMonth()-k,dd);if(x.getDate()===dd)tgSelAdd(ds(x))}tgSelDraw()};
+$('tgsch').onclick=e=>{const d=e.target.closest('[data-d]');if(!d)return;tgSel=tgSel.filter(x=>x!==d.dataset.d);tgSelDraw()};
+$('tgsz').onclick=()=>{tgSelBy='z';tgSelDraw()};
+$('tgso').onclick=()=>{tgSelBy='o';tgSelDraw()};
+{const b=document.createElement('button');b.className='chip';b.id='tgCmpB';b.textContent='⚖️ مقارنة';
+ b.onclick=()=>{const c=$('tgMc'),show=c.style.display==='none';c.style.display=show?'':'none';b.classList.toggle('on',show);if(show){tgCmpDraw();setTimeout(()=>tgGo('tgMc'),50)}};
+ $('tgChips').appendChild(b)}
+
+/* --- أرقام التارجت على الرسومات --- */
+const tgNF=v=>Number.isInteger(v)?NF(v):F1(v);
+const tgMob=()=>innerWidth<700;
+const tgLF=v=>tgMob()&&Math.abs(v)>=10000?String(+(v/1000).toFixed(Math.abs(v)>=100000?0:1))+'K':tgNF(v);
+const tgLbl={id:'tgLbl',afterDatasetsDraw(ch){
+  const c=ch.ctx,ty=ch.config.type,hz=ch.options.indexAxis==='y',sc=ch.options.scales||{},st=!!(sc.x&&sc.x.stacked),mb=tgMob(),bx=[];
+  c.save();c.font='700 '+(mb?9:11)+'px Cairo';c.fillStyle='#f3f5f9';
+  const put=(t,x,y,al,bl)=>{const w=c.measureText(t).width,h=mb?11:13,x0=al==='center'?x-w/2:x,y0=bl==='middle'?y-h/2:y-h;
+    if(x0<0||x0+w>ch.width)return;
+    for(const q of bx)if(x0<q[2]+3&&x0+w+3>q[0]&&y0<q[3]+1&&y0+h+1>q[1])return;
+    bx.push([x0,y0,x0+w,y0+h]);c.textAlign=al;c.textBaseline=bl;c.fillText(t,x,y)};
+  ch.data.datasets.forEach((d,i)=>{if(!ch.isDatasetVisible(i))return;const m=ch.getDatasetMeta(i),n=m.data.length,step=ty==='line'?Math.ceil(n/(mb?6:14)):1;
+    m.data.forEach((el,j)=>{const v=d.data[j];if(!v||(step>1&&j%step))return;const t=tgLF(v);
+      if(ty==='doughnut'||ty==='pie'){if(el.endAngle-el.startAngle<(mb?.4:.25))return;const p=el.tooltipPosition();put(t,p.x,p.y,'center','middle')}
+      else if(ty==='line')put(t,el.x,el.y-6,'center','bottom');
+      else if(st){if(Math.abs(el.base-el.y)<14)return;put(t,el.x,(el.y+el.base)/2,'center','middle')}
+      else if(hz)put(t,el.x+5,el.y,'left','middle');
+      else put(t,el.x,el.y-4,'center','bottom')})});
+  c.restore()}};
+function dr(id,cfg){cfg.plugins=[tgLbl];const o=cfg.options=cfg.options||{},hz=o.indexAxis==='y',mb=tgMob();
+  o.layout={padding:{top:22,right:hz?(mb?40:46):10}};
+  if(mb&&cfg.type!=='doughnut'&&cfg.type!=='pie'){const ax=hz?'y':'x',cut=l=>{l=String(l);return l.length>13?l.slice(0,12)+'…':l};
+    o.scales=o.scales||{};o.scales[ax]=Object.assign({},o.scales[ax],{ticks:Object.assign({},(o.scales[ax]||{}).ticks,{autoSkip:false,maxRotation:hz?0:55,callback:function(v){const l=this.getLabelForValue(v);return Array.isArray(l)?l.map(cut):cut(l)}})})}
+  draw(id,cfg)}
+let TGA={z:[],o:[]},tgAm='z';
+function tgDrawAvg(){const a=TGA[tgAm];$('tgAz').classList.toggle('on',tgAm==='z');$('tgAo').classList.toggle('on',tgAm==='o');
+  dr('tg8',{type:'bar',data:{labels:a.map(x=>x[0]),datasets:[{label:'متوسط التارجت/يوم',data:a.map(x=>+x[1].toFixed(1)),backgroundColor:(tgAm==='z'?'#06b6d4':'#ec4899')+'aa'}]},options:{indexAxis:'y',plugins:{legend:{display:false}}}})}
+function tgAvSet(m){tgAm=m;tgDrawAvg()}
+
+function tgApply(){
+  if(!CUR||CUR.r!=='admin')return;
+  const a=$('tgd1').value?new Date($('tgd1').value).setHours(0,0,0,0):0,b=$('tgd2').value?new Date($('tgd2').value).setHours(0,0,0,0):1e15,
+        z=$('tgz').value,o=$('tgo').value,q=$('tgq').value.trim().toLowerCase();
+  TGF=TGR.filter(r=>r.d>=a&&r.d<=b&&(!z||r.z===z)&&(!o||r.o===o)&&(!q||(r.o+' '+r.z).toLowerCase().includes(q)));
+  const day={},zn={},of={},pr={};let T=0;const dset=new Set;
+  for(const r of TGF){T+=r.t;dset.add(r.d);day[r.d]=(day[r.d]||0)+r.t;zn[r.z]=(zn[r.z]||0)+r.t;of[r.o]=(of[r.o]||0)+r.t;
+    const k=r.z+'|'+r.o,x=pr[k]||(pr[k]={z:r.z,o:r.o,t:0,ds:new Set,mxd:0,mnd:Infinity,as:0,an:0,ps:0,pn:0,ns:0,nn:0,mx:0});
+    x.t+=r.t;x.ds.add(r.d);(x.dt||(x.dt={}))[r.d]=(x.dt[r.d]||0)+r.t;if(r.av){x.as+=r.av;x.an++}if(r.ap){x.ps+=r.ap;x.pn++}if(r.nt){x.ns+=r.nt;x.nn++}if(r.mx>x.mx)x.mx=r.mx}
+  const zt=zn;TGP=Object.values(pr).map(x=>({z:x.z,o:x.o,t:x.t,days:x.ds.size,avg:x.ds.size?x.t/x.ds.size:0,mxd:Math.max(0,...Object.values(x.dt||{})),mnd:Object.values(x.dt||{}).length?Math.min(...Object.values(x.dt)):0,share:zt[x.z]?x.t/zt[x.z]*100:0,
+    av:x.an?x.as/x.an:0,ap:x.pn?x.ps/x.pn:0,nt:x.nn?x.ns/x.nn:0,mx:x.mx}));
+  const byZ={};TGP.forEach(x=>(byZ[x.z]||(byZ[x.z]=[])).push(x));for(const k in byZ)byZ[k].sort((p,q)=>q.t-p.t).forEach((x,i)=>x.rk=i+1);
+  TGH=TGF.some(r=>r.av||r.ap||r.nt||r.mx);
+  const days=dset.size,zk=Object.keys(zn).sort((x,y)=>zn[y]-zn[x]),ok=Object.keys(of).sort((x,y)=>of[y]-of[x]);
+  // KPIs
+  const K=[['🎯 إجمالي التارجت',NF(T),'في الفترة المختارة','--c:var(--pr)'],['📅 أيام',NF(days),'يوم فيه تارجت','--c:var(--ok)'],['📊 متوسط التارجت/يوم',NF(days?T/days:0),'كل المكاتب','--c:var(--wa)'],
+    ['🏢 المكاتب (3PL)',NF(ok.length),'مكتب','--c:var(--pu)'],['📍 المناطق',NF(zk.length),'منطقة','--c:var(--cy)'],['🥇 أعلى منطقة',zk[0]||'—',zk[0]?NF(zn[zk[0]])+' تارجت':'','--c:#14b8a6'],
+    ['🏆 أعلى مكتب',ok[0]||'—',ok[0]?NF(of[ok[0]])+' تارجت':'','--c:#f43f5e'],['📈 متوسط تارجت/مكتب',NF(TGP.length?T/TGP.length:0),'لكل (مكتب × منطقة)','--c:#f59e0b']];
+  if(TGH){const av=TGF.filter(r=>r.av),ap=TGF.filter(r=>r.ap),nt=TGF.filter(r=>r.nt);
+    K.push(['📌 متوسط Average',F1(av.length?av.reduce((s,r)=>s+r.av,0)/av.length:0),'من عمود Average','--c:var(--ok)'],['% متوسط Average %',F1(ap.length?ap.reduce((s,r)=>s+r.ap,0)/ap.length:0)+'%','من عمود Average %','--c:var(--wa)'],['🎚 متوسط Normal Target',F1(nt.length?nt.reduce((s,r)=>s+r.nt,0)/nt.length:0),'من عمود Normal Target','--c:var(--pu)'])}
+  $('tgK').innerHTML=K.map(k=>`<div class="kpi" style="${k[3]}"><div class="l">${k[0]}</div><div class="v" style="${String(k[1]).length>9?'font-size:15px':''}">${esc(k[1])}</div><div class="s">${k[2]}</div></div>`).join('');
+  $('tgN').textContent=NF(TGF.length)+' سجل · آخر تاريخ: '+(TGR.length?fd(TGR.reduce((m,r)=>r.d>m?r.d:m,0)):'—');
+  // charts
+  const ds_=Object.keys(day).map(Number).sort((x,y)=>x-y);
+  dr('tg1',{type:'line',data:{labels:ds_.map(d=>new Date(d).toLocaleDateString('en-GB',{day:'2-digit',month:'2-digit'})),datasets:[{label:'إجمالي التارجت',data:ds_.map(d=>day[d]),borderColor:'#3b82f6',backgroundColor:'#3b82f633',fill:true,tension:.3,pointRadius:ds_.length>31?0:3}]},options:{}});
+  const z8=zk.slice(0,8),oth=zk.slice(8).reduce((s,k)=>s+zn[k],0);
+  dr('tg2',{type:'doughnut',data:{labels:[...z8,...(oth?['أخرى']:[])],datasets:[{data:[...z8.map(k=>zn[k]),...(oth?[oth]:[])],backgroundColor:TGPAL}]},options:{scales:{}}});
+  const z12=zk.slice(0,12);
+  dr('tg3',{type:'bar',data:{labels:z12,datasets:[{label:'التارجت',data:z12.map(k=>zn[k]),backgroundColor:'#8b5cf6aa'}]},options:{indexAxis:'y',onClick:(e,els)=>{if(els.length){$('tgz').value=z12[els[0].index];tgFillO();tgApply()}},onHover:(e,els)=>{e.native.target.style.cursor=els.length?'pointer':'default'},plugins:{legend:{display:false}}}});
+  const o12=ok.slice(0,12);
+  dr('tg4',{type:'bar',data:{labels:o12,datasets:[{label:'التارجت',data:o12.map(k=>of[k]),backgroundColor:'#10b981aa'}]},options:{indexAxis:'y',onClick:(e,els)=>{if(els.length){$('tgo').value=o12[els[0].index];tgApply()}},onHover:(e,els)=>{e.native.target.style.cursor=els.length?'pointer':'default'},plugins:{legend:{display:false}}}});
+  const wt={},wc={};ds_.forEach(d=>{const k=new Date(d).getDay();wt[k]=(wt[k]||0)+day[d];wc[k]=(wc[k]||0)+1});const WN=['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
+  dr('tg5',{type:'bar',data:{labels:WN,datasets:[{label:'متوسط التارجت/يوم',data:WN.map((_,k)=>wc[k]?Math.round(wt[k]/wc[k]):0),backgroundColor:'#f59e0baa'}]},options:{plugins:{legend:{display:false}}}});
+  // توزيع المكاتب داخل أعلى المناطق (Stacked)
+  const o6=ok.slice(0,6),zz=zk.slice(0,8),mp={};TGF.forEach(r=>{mp[r.z+'|'+r.o]=(mp[r.z+'|'+r.o]||0)+r.t});
+  dr('tg7',{type:'bar',data:{labels:zz,datasets:[...o6.map((o,i)=>({label:o,data:zz.map(z=>mp[z+'|'+o]||0),backgroundColor:TGPAL[i]+'cc'})),{label:'باقي المكاتب',data:zz.map(z=>zn[z]-o6.reduce((s,o)=>s+(mp[z+'|'+o]||0),0)),backgroundColor:'#64748bcc'}]},options:{scales:{x:{stacked:true},y:{stacked:true,grid:{color:'#232e45'}}}}});
+  // متوسط التارجت/يوم (منطقة / مكتب) + المناطق رانك 1
+  const zd={},od={};TGF.forEach(r=>{(zd[r.z]||(zd[r.z]=new Set)).add(r.d);(od[r.o]||(od[r.o]=new Set)).add(r.d)});
+  TGA={z:zk.map(k=>[k,zn[k]/(zd[k].size||1)]).sort((p,q)=>q[1]-p[1]).slice(0,12),o:ok.map(k=>[k,of[k]/(od[k].size||1)]).sort((p,q)=>q[1]-p[1]).slice(0,12)};
+  tgDrawAvg();
+  const r1=TGP.filter(x=>x.rk===1).sort((p,q)=>q.t-p.t);
+  $('tg9').parentElement.style.height=Math.max(340,r1.length*40+40)+'px';
+  dr('tg9',{type:'bar',data:{labels:r1.map(x=>[x.z,x.o]),datasets:[{label:'التارجت',data:r1.map(x=>x.t),backgroundColor:'#f59e0baa'}]},options:{indexAxis:'y',plugins:{legend:{display:false},tooltip:{callbacks:{afterLabel:c=>'حصته من المنطقة: '+F1(r1[c.dataIndex].share)+'%'}}}}});
+  // مقارنة Normal Target / Average (لو الأعمدة دي فيها بيانات)
+  $('tgCmp').style.display=TGH?'':'none';
+  if(TGH){const g={};TGP.forEach(x=>{const y=g[x.z]||(g[x.z]={t:0,as:0,an:0,ns:0,nn:0});y.t+=x.t;if(x.av){y.as+=x.av;y.an++}if(x.nt){y.ns+=x.nt;y.nn++}});
+    const ck=zk.slice(0,12);
+    dr('tg6',{type:'bar',data:{labels:ck,datasets:[{label:'Normal Target (متوسط)',data:ck.map(k=>+(g[k].nn?g[k].ns/g[k].nn:0).toFixed(1)),backgroundColor:'#8b5cf6aa'},{label:'Average (متوسط)',data:ck.map(k=>+(g[k].an?g[k].as/g[k].an:0).toFixed(1)),backgroundColor:'#10b981aa'}]},options:{}})}
+  tgCmpDraw();
+  tgPg=0;tgRender()}
+
+const TGCOLS=()=>[['rk','#'],['z','المنطقة'],['o','المكتب (3PL)'],['t','إجمالي التارجت'],['days','أيام'],['avg','متوسط/يوم'],['mxd','أعلى يوم'],['mnd','أقل يوم'],['share','حصته من المنطقة'],['rk','الترتيب في المنطقة'],
+  ...(TGH?[['av','Average'],['ap','Average %'],['nt','Normal Target'],['mx','Max']]:[])].filter((c,i)=>i!==0);
+function tgDrawTH(){$('tgH').innerHTML='<th>#</th>'+TGCOLS().map(c=>`<th data-k="${c[0]}">${c[1]}${c[0]===tgSort?(tgDir>0?' ▲':' ▼'):' ↕'}</th>`).join('')}
+$('tgH').onclick=e=>{const k=e.target.dataset.k;if(!k)return;tgDir=tgSort===k?-tgDir:(k==='z'||k==='o'||k==='rk'?1:-1);tgSort=k;tgPg=0;tgRender()};
+function tgRender(){
+  const k=tgSort;TGP.sort((x,y)=>{let a=x[k],b=y[k];if(a==null)a=-1e9;if(b==null)b=-1e9;return(typeof a==='string'?a.localeCompare(b,'en'):a-b)*tgDir});
+  tgDrawTH();const tp=Math.max(1,Math.ceil(TGP.length/TGPS));tgPg=Math.min(tgPg,tp-1);const sl=TGP.slice(tgPg*TGPS,tgPg*TGPS+TGPS);
+  $('tgT').innerHTML=sl.map((x,i)=>`<tr><td>${tgPg*TGPS+i+1}</td><td>${esc(x.z)}</td><td><b>${esc(x.o)}</b></td><td><b style="color:#93c5fd">${NF(x.t)}</b></td><td>${x.days}</td><td>${NF(x.avg)}</td><td>${NF(x.mxd)}</td><td>${NF(x.mnd)}</td><td><span class="b ${x.share>=30?'g':x.share>=10?'y':'n'}">${F1(x.share)}%</span></td><td>${x.rk}</td>${TGH?`<td>${x.av?F1(x.av):'—'}</td><td>${x.ap?F1(x.ap)+'%':'—'}</td><td>${x.nt?F1(x.nt):'—'}</td><td>${x.mx?NF(x.mx):'—'}</td>`:''}</tr>`).join('')||'<tr><td colspan="14" class="sub">لا توجد بيانات</td></tr>';
+  $('tgPi').textContent=(tgPg+1)+' / '+tp+' · '+NF(TGP.length)+' صف';$('tgPp').disabled=tgPg===0;$('tgPn').disabled=tgPg>=tp-1}
+$('tgPp').onclick=()=>{tgPg--;tgRender()};$('tgPn').onclick=()=>{tgPg++;tgRender()};
+$('tgE').onclick=()=>{if(!TGP.length)return alert('لا توجد بيانات للتصدير');
+  const rows=TGP.map((x,i)=>{const r={'#':i+1,'المنطقة':x.z,'المكتب':x.o,'إجمالي التارجت':x.t,'أيام':x.days,'متوسط/يوم':+x.avg.toFixed(1),'أعلى يوم':x.mxd,'أقل يوم':x.mnd,'حصته من المنطقة %':+x.share.toFixed(1),'الترتيب في المنطقة':x.rk};
+    if(TGH){r['Average']=+x.av.toFixed(2);r['Average %']=+x.ap.toFixed(1);r['Normal Target']=+x.nt.toFixed(1);r['Max']=x.mx}return r});
+  const d=new Date(),nm='تارجت_المكاتب_'+ds(d.getTime());
+  if(window.XLSX){const ws=XLSX.utils.json_to_sheet(rows);ws['!views']=[{RTL:true}];const wb=XLSX.utils.book_new();wb.Workbook={Views:[{RTL:true}]};XLSX.utils.book_append_sheet(wb,ws,'التارجت');XLSX.writeFile(wb,nm+'.xlsx')}
+  else dlCSV(rows,nm+'.csv')};
+
 boot();
 </script>
 </body>
