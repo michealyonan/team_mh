@@ -118,6 +118,68 @@ html{-webkit-text-size-adjust:100%}body{overflow-x:hidden}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 <style>@media(max-width:699px){.tghint{display:none}#tgMs{font-size:12px!important}#tg .card h3{font-size:13px}#tg .card h3 .sub{display:block;margin-top:2px}#tgMc .row input{flex:1;max-width:none!important}#tg .cw{min-height:240px}}</style>
+<style>
+@media(max-width:699px){
+ #as{padding:0!important}
+ #as>div{padding:0 8px calc(24px + env(safe-area-inset-bottom))!important;gap:9px!important}
+ #as>div>.row:first-child{
+  display:grid!important;grid-template-columns:1fr auto;gap:6px!important;
+  padding:8px 0!important
+ }
+ #as>div>.row:first-child h2{font-size:16px!important}
+ #asN{grid-column:1/-1;grid-row:2;font-size:11px}
+ #as>div>.row:first-child .chip{min-height:40px;padding:7px 10px}
+ #as>div>.row:first-child>span:last-child{
+  grid-column:1/-1;grid-row:4;display:grid!important;
+  grid-template-columns:repeat(3,minmax(0,1fr));gap:6px!important;margin:0!important
+ }
+ #as>div>.row:first-child>span:last-child .btn{min-width:0;width:100%;min-height:42px;padding:6px;font-size:12px}
+ #as>div>.card,#as>div>.kpis,#asCharts{min-width:0}
+ #as .card{padding:10px;border-radius:12px}
+ #asChips{gap:6px;scroll-snap-type:x proximity}
+ #asChips .chip{min-height:42px;padding:8px 13px;scroll-snap-align:start}
+ #as .filters{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:7px;margin-top:8px!important}
+ #as .filters>div{min-width:0}
+ #as .filters label{min-height:18px;font-size:11px}
+ #as .filters input,#as .filters select,#asX{width:100%;min-width:0;min-height:44px;padding:7px;font-size:16px}
+ #asX{font-size:13px}
+ #asK{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:7px}
+ #asK .kpi{padding:9px;min-height:92px}
+ #asK .kpi .l{font-size:11px;line-height:1.4}
+ #asK .kpi .v{font-size:19px;line-height:1.35;overflow-wrap:anywhere}
+ #asK .kpi .s{font-size:10px;line-height:1.4}
+ #asCharts{grid-template-columns:minmax(0,1fr)!important;gap:9px}
+ #asCharts>.card{grid-column:1/-1!important}
+ #as .cw{height:240px;min-height:0}
+ #asCharts #as3,#asCharts #as4,#asCharts #as5{height:300px}
+ #asSummary>.row{display:flex;align-items:stretch;gap:6px!important}
+ #asSummary>.row h3{flex:1 1 100%;font-size:14px}
+ #asSummary>.row>.sub{flex:1 1 100%;font-size:11px}
+ #asSummary>.row>span:last-child{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr));width:100%;gap:5px!important;margin:0!important}
+ #asSummary .chip{min-width:0;min-height:42px;padding:6px 4px;font-size:12px}
+ #asSummary .tw{max-height:55vh;overflow:auto;overscroll-behavior:contain}
+ #asSummary table{min-width:0!important;font-size:11px}
+ #asSummary th,#asSummary td{padding:7px 5px}
+ #asTable>.row{display:grid;grid-template-columns:1fr auto;gap:6px}
+ #asTable>.row h3{font-size:14px}
+ #asCount{grid-column:1/-1}
+ #asTable>.row #asPrev{grid-column:1;grid-row:3}
+ #asTable>.row #asPage{grid-column:2;grid-row:3;align-self:center}
+ #asTable>.row #asNext{grid-column:3;grid-row:3}
+ #asTable>.row .btn{min-height:42px}
+ #asTable .tw{max-height:62vh;overflow:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+ #asTable table{min-width:980px!important}
+ #asTable th,#asTable td{padding:8px 7px}
+}
+@media(max-width:380px){
+ #as>div{padding-inline:6px!important}
+ #as>div>.row:first-child>span:last-child .btn{font-size:11px}
+ #asK .kpi .v{font-size:17px}
+ #as .filters{grid-template-columns:minmax(0,1fr)!important}
+ #asCharts .cw{height:220px}
+ #asSummary .chip{font-size:11px}
+}
+</style>
 </head>
 <body>
 <div class="ov" id="lg" style="display:none"><form class="lb card" id="lf" onsubmit="return false" autocomplete="on"><h2>🚀 تسجيل الدخول</h2><div class="sub">داش بورد أداء الطيارين</div><input id="lu" name="username" placeholder="اسم المستخدم" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="next" dir="ltr" style="text-align:right"><div class="pw"><input id="lp" name="password" type="password" placeholder="كلمة المرور" autocomplete="current-password" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="go" dir="ltr" style="text-align:right"><button type="button" class="eye" id="lpe" aria-label="إظهار كلمة المرور">👁</button></div><div id="le" role="alert"></div><button type="submit" class="btn pr" id="lgB" style="min-height:46px;font-size:15px">دخول</button><div class="sub" id="lh" style="display:none;line-height:1.7"></div></form></div>
@@ -125,7 +187,7 @@ html{-webkit-text-size-adjust:100%}body{overflow-x:hidden}
 <header><div class="hr">
  <div><h1>🚀 داش بورد أداء الطيارين</h1><div class="sub" id="sync">—</div></div>
  <div class="row" style="margin:0">
-  <span class="sub" id="who"></span><button class="btn" id="prB" style="display:none">💰 أسعار الباتشات</button><button class="btn" id="usrB" style="display:none">👥 المستخدمين</button><button class="btn" id="tgB" style="display:none">🎯 التارجت</button><button class="btn" id="out">خروج</button>
+  <span class="sub" id="who"></span><button class="btn" id="prB" style="display:none">💰 أسعار الباتشات</button><button class="btn" id="usrB" style="display:none">👥 المستخدمين</button><button class="btn" id="tgB" style="display:none">🎯 التارجت</button><button class="btn" id="asB" style="display:none">🗓️ ان اصين</button><button class="btn" id="out">خروج</button>
   <button class="btn pr" id="rf">🔄 تحديث</button>
  </div></div></header>
 <main>
@@ -173,7 +235,7 @@ html{-webkit-text-size-adjust:100%}body{overflow-x:hidden}
  </div>
  <div class="card"><div class="row"><h3 style="margin:0">🛌 طيارين بدون شغل</h3><span class="b r" id="idN">0</span><span class="sub">من</span><input type="number" id="idD" value="10" min="1" max="90" style="width:70px;min-height:34px"><span class="sub">يوم أو أكتر (بدون طلبات)</span><button class="btn" id="idX" style="margin-inline-start:auto">⬇ تصدير CSV</button></div><div id="idL" style="max-height:320px;overflow:auto"></div></div>
  <div class="charts">
-  <div class="card c8"><h3>👷 أداء المشرفين (الطلبات + الالتزام %)</h3><div class="cw"><canvas id="ch7"></canvas></div></div>
+  <div class="card c8"><div class="row" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px"><h3 style="margin:0">👷 أداء المشرفين + الالتزام %</h3><span style="margin-inline-start:auto;display:flex;gap:6px"><button class="chip on" id="supOrders" onclick="setSupMetric('o')">📦 أوردرات</button><button class="chip" id="supHours" onclick="setSupMetric('a')">⏱ ساعات</button></span></div><div class="cw"><canvas id="ch7"></canvas></div></div>
   <div class="card c4"><h3>⭐ توزيع تقييم الطيارين</h3><div class="cw"><canvas id="ch8"></canvas></div></div>
   <div class="card c12" style="grid-column:1/-1"><h3>🎯 الالتزام مقابل الإنتاجية <span class="sub">(الطيارين مقسمين حسب نسبة الالتزام، والخط = متوسط الإنتاجية لكل شريحة)</span></h3><div class="cw"><canvas id="ch9"></canvas></div></div>
   <div class="card c12" style="grid-column:1/-1"><h3>⏱ المناديب حسب ساعات الشغل <span class="sub">(متوسط ساعات المندوب في اليوم اللي اشتغل فيه، والخط = متوسط الإنتاجية)</span></h3><div class="cw"><canvas id="ch10"></canvas></div></div>
@@ -199,7 +261,7 @@ html{-webkit-text-size-adjust:100%}body{overflow-x:hidden}
 <div class="fm"><input id="nu" placeholder="اسم المستخدم" autocapitalize="off"><input id="nn" placeholder="الاسم الظاهر"><select id="nr"><option value="sup">مشرف</option><option value="manager">مدير منطقة</option><option value="admin">أدمن</option></select><select id="nz" title="فلتر بالمنطقة"></select><select id="ns"></select><input id="np" type="text" placeholder="كلمة المرور (فاضية = تفضل زي ما هي)"><button class="btn pr" id="na">➕ إضافة / تحديث</button></div>
 <input id="us" placeholder="🔍 ابحث بالمشرف أو الاسم أو المستخدم أو المنطقة..." style="width:100%;margin:10px 0"><div class="tw rt3" style="max-height:45vh"><table style="min-width:600px"><thead><tr><th>الاسم</th><th>المستخدم</th><th>الدور</th><th>مرتبط بـ</th><th>كلمة المرور</th><th></th></tr></thead><tbody id="ut"></tbody></table></div>
 <div class="sub" id="gst" style="margin:10px 0 4px;font-weight:700"></div><div class="sub" style="margin:4px 0 10px">أي إضافة أو تعديل أو حذف بيتجمّع هنا الأول، ولما تدوس <b>🚀 نشر على GitHub</b> بيتحفظ في ملف <b>users.json</b> جوه الريبو وبيظهر لكل المشرفين على كل الأجهزة (بعد حوالي دقيقة). مفيش حاجة تتنسخ أو تتبدّل في الملف يدوي. أول مرة هيطلب منك GitHub Token (بيتخزن على جهازك أنت بس).</div><button class="btn pr" id="gp">🚀 نشر على GitHub</button> <button class="btn" id="ng">⚡ إنشاء حسابات لكل المديرين والمشرفين</button> <button class="btn" id="gd">💾 تحميل users.json</button> <button class="btn" id="gs">⚙️ إعداد GitHub</button> <button class="btn" id="nx">📥 تحميل ملف اليوزرات والباسوردات</button></div></div>
-<div id="bm" style="display:none;position:fixed;inset:0;background:#000c;z-index:55;overflow:auto;padding:12px" onclick="if(event.target===this)this.style.display='none'"><div class="card" style="max-width:900px;margin:auto"><div class="row"><h3 id="bmt" style="margin:0"></h3><button class="btn" style="margin-inline-start:auto" onclick="$('bm').style.display='none'">✕</button></div><div id="bms" class="sub" style="margin:8px 0"></div><div class="tw" style="max-height:65vh"><table style="min-width:0"><thead><tr><th>#</th><th>الكود</th><th>الاسم</th><th>المنطقة</th><th>المشرف</th><th>المركبة</th><th>أيام</th><th>ساعات</th><th>طلبات</th><th>طلب/س</th></tr></thead><tbody id="bmb"></tbody></table></div></div></div>
+<div id="bm" style="display:none;position:fixed;inset:0;background:#000c;z-index:55;overflow:auto;padding:12px" onclick="if(event.target===this)this.style.display='none'"><div class="card" style="max-width:1100px;margin:auto"><div class="row"><h3 id="bmt" style="margin:0"></h3><button class="btn pr" id="bmx" onclick="exportDrillExcel()">⬇ تصدير Excel</button><button class="btn" style="margin-inline-start:auto" onclick="$('bm').style.display='none'">✕</button></div><div id="bms" class="sub" style="margin:8px 0"></div><div class="tw" style="max-height:65vh"><table style="min-width:0"><thead id="bmh"><tr><th>#</th><th>الكود</th><th>الاسم</th><th>المنطقة</th><th>المشرف</th><th>المركبة</th><th>أيام</th><th>ساعات مخططة</th><th>ساعات فعلية</th><th>طلبات</th><th>الالتزام</th><th>طلب/س</th></tr></thead><tbody id="bmb"></tbody></table></div></div></div>
 <div id="pm" style="display:none;position:fixed;inset:0;background:#000c;z-index:70;overflow:auto;padding:12px" onclick="if(event.target===this)this.style.display='none'"><div class="card" style="max-width:820px;margin:auto"><div class="row"><h3 style="margin:0">💰 أسعار الباتشات (سعر الطلب بالجنيه) لكل مشرف</h3><button class="btn" style="margin-inline-start:auto" onclick="$('pm').style.display='none'">✕</button></div><div class="row" style="margin:10px 0"><label style="font-weight:700">👷 المشرف</label><select id="psS" style="flex:1;min-width:0"></select></div><div class="tw" style="max-height:60vh"><table style="min-width:0"><thead id="ph"></thead><tbody id="pb"></tbody></table></div><div class="sub" style="margin:10px 0">كل مشرف له أسعاره الخاصة ومفيش أي ارتباط بينه وبين باقي المشرفين. القبض التقريبي = عدد الطلبات × سعر (باتش الطيار + مركبته) حسب مشرف الطيار. الأسعار بتتحفظ على هذا الجهاز؛ علشان تتطبق على كل الأجهزة اضغط "نسخ الكود" واستبدل به سطر <b>PRICES_EMBED</b> في الملف.</div><button class="btn pr" id="ps">💾 حفظ</button> <button class="btn" id="pc">📋 نسخ كود الأسعار</button></div></div>
 <div class="ov" id="tg" style="display:none;z-index:80;padding:0;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch">
 <div id="tgW" style="width:100%;max-width:1500px;margin:0 auto;padding:0 12px 80px;display:grid;gap:12px">
@@ -246,6 +308,50 @@ html{-webkit-text-size-adjust:100%}body{overflow-x:hidden}
 </div></div>
 <div id="tgpm" style="display:none;position:fixed;inset:0;z-index:120;background:#000d;align-items:center;justify-content:center;padding:16px" onclick="if(event.target===this)this.style.display='none'"><div class="card" style="width:100%;max-width:320px;display:grid;gap:10px"><h3 style="margin:0">🔒 التارجت</h3><span class="sub">اكتب الباسورد عشان تفتح صفحة التارجت</span><div class="pw"><input type="password" id="tgpi" placeholder="الباسورد" autocomplete="off" style="width:100%;min-height:44px"><button type="button" class="eye" id="tgpe2">👁</button></div><div id="tgpe" style="color:#f87171;font-size:12px;min-height:16px"></div><div class="row" style="margin:0"><button class="btn pr" id="tgpok" style="flex:1">فتح</button><button class="btn" id="tgpc" style="flex:1">إلغاء</button></div></div></div>
 <button class="btn pr" id="tgUp" style="display:none;position:fixed;z-index:90;bottom:calc(16px + env(safe-area-inset-bottom));inset-inline-start:16px;width:46px;height:46px;border-radius:50%;font-size:18px">⬆</button>
+<div class="ov" id="as" style="display:none;z-index:85;padding:0;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch">
+ <div style="width:100%;max-width:1500px;margin:0 auto;padding:0 12px 80px;display:grid;gap:12px">
+  <div class="row" style="margin:0;position:sticky;top:0;z-index:5;background:rgba(11,15,25,.96);backdrop-filter:blur(8px);padding:10px 0;border-bottom:1px solid var(--bd)">
+   <h2 style="font-size:17px;font-weight:900">🗓️ ان اصين</h2><span class="sub" id="asN"></span>
+   <button class="chip" onclick="asGo('asCharts')">📊 الرسومات</button><button class="chip" onclick="asGo('asTable')">📋 الجدول</button>
+   <span style="margin-inline-start:auto;display:flex;gap:6px"><button class="btn" id="asE">⬇ تصدير</button><button class="btn pr" id="asRf">🔄 تحديث</button><button class="btn" id="asC">✕ إغلاق</button></span>
+  </div>
+  <div id="asM" style="padding:10px;border-radius:10px;background:#f59e0b22;color:#fbbf24;font-size:13px;display:none"></div>
+  <div class="card">
+   <div class="chips" id="asChips"></div>
+   <div class="filters" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr));margin-top:8px">
+    <div><label>📅 من تاريخ</label><input type="date" id="asD1"></div>
+    <div><label>📅 إلى تاريخ</label><input type="date" id="asD2"></div>
+    <div><label>👔 المدير</label><select id="asManager"></select></div>
+    <div><label>👷 المشرف</label><select id="asSup"></select></div>
+    <div><label>📍 المدينة</label><select id="asCity"></select></div>
+    <div><label>🏢 المقر</label><select id="asOffice"></select></div>
+    <div><label>✅ حالة الاختيار</label><select id="asStatus"><option value="">كل الحالات</option><option value="selected">مختار في يوم واحد على الأقل</option><option value="not-selected">غير مختار في الأيام المحددة</option><option value="active">نشط فقط</option></select></div>
+    <div><label>🔎 بحث بالاسم أو الكود</label><input id="asQ" placeholder="ابحث عن مندوب…"></div>
+    <div><label>&nbsp;</label><button class="btn" id="asX" style="width:100%">✕ مسح الفلاتر</button></div>
+   </div>
+  </div>
+  <div class="kpis" id="asK" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))"></div>
+  <div class="charts" id="asCharts">
+   <div class="card c8"><h3>📈 الاختيارات حسب اليوم</h3><div class="cw"><canvas id="as1"></canvas></div></div>
+   <div class="card c4"><h3>🍩 حالة الاختيار</h3><div class="cw"><canvas id="as2"></canvas></div></div>
+   <div class="card c12" style="grid-column:1/-1"><h3>👷 أكثر المشرفين اختيارًا</h3><div class="cw"><canvas id="as3"></canvas></div></div>
+   <div class="card c6"><h3>📍 الاختيارات حسب المنطقة</h3><div class="cw"><canvas id="as4"></canvas></div></div>
+   <div class="card c6"><h3>🏢 الاختيارات حسب المقر</h3><div class="cw"><canvas id="as5"></canvas></div></div>
+  </div>
+  <div class="card" id="asSummary">
+   <div class="row" style="margin-bottom:8px"><h3 style="margin:0">📊 ملخص الاختيارات</h3><span class="sub">عدد حالات مختار ومش مختار حسب المجموعة</span><span style="margin-inline-start:auto;display:flex;gap:6px">
+    <button class="chip on" data-as-group="city" onclick="asSetGroup('city')">📍 المناطق</button>
+    <button class="chip" data-as-group="office" onclick="asSetGroup('office')">🏢 المقرات</button>
+    <button class="chip" data-as-group="sup" onclick="asSetGroup('sup')">👷 المشرفين</button>
+   </span></div>
+   <div class="tw" style="max-height:50vh"><table style="min-width:600px"><thead id="asGroupH"></thead><tbody id="asGroupT"></tbody></table></div>
+  </div>
+  <div class="card" id="asTable">
+   <div class="row"><h3 style="margin:0">📋 تفاصيل المندوبين</h3><span class="sub" id="asCount"></span><button class="btn" id="asPrev" style="margin-inline-start:auto">‹ السابق</button><span class="sub" id="asPage"></span><button class="btn" id="asNext">التالي ›</button></div>
+   <div class="tw" style="max-height:70vh"><table style="min-width:1000px"><thead id="asH"></thead><tbody id="asT"></tbody></table></div>
+  </div>
+ </div>
+</div>
 <script>
 const PRICES_EMBED={};
 const USERS_EMBED=[{"u":"admin","n":"الأدمن","r":"admin","s":"","h":"a366ec9615ed195b78768736633787676a77e6db9efc93a7a1f8d2379ed6d0ce"},{"u":"mgr1","n":"احمد كمال","r":"manager","s":"احمد كمال","h":"005da9f69677c1365c899aca0c13f0492010afeddbb1b9f79a8bb8db0161b606"},{"u":"mgr2","n":"اقاليم","r":"manager","s":"اقاليم","h":"3334661ce4b431df4b813a5aff2250e2bfc000c88ee7238c83274dc0f0a4179d"},{"u":"mgr3","n":"المشرف اقاله","r":"manager","s":"المشرف اقاله","h":"01f6afd79167837ab9093ff286708497f8fa785e86a8cc4c5844c314b113941a"},{"u":"mgr4","n":"ايهاب","r":"manager","s":"ايهاب","h":"1efc4a2fdfa3fef4f33386e2e29aee7d00bd8b73a68b1c034533d9aa7482c518"},{"u":"mgr5","n":"حماده","r":"manager","s":"حماده","h":"7d8303edbc0d302d9588dc3cf95925afbb821b424edab5278f5749098cc7b62f"},{"u":"mgr6","n":"راتب","r":"manager","s":"راتب","h":"01fa8ea6c1ea81e88dabce8a5c317fae433eef67f7f4136b3d8117f08625b106"},{"u":"mgr7","n":"عادل نسيم","r":"manager","s":"عادل نسيم","h":"73c43117d54e01640c6d6aa47f1866e0c36141e91fd3b7c9b793225153dffb09"},{"u":"mgr8","n":"علاء النجار","r":"manager","s":"علاء النجار","h":"ca89c3b6a9d7e562507190a198421d615ca66238c1672b0c763c9ed150965329"},{"u":"mgr9","n":"مايكل","r":"manager","s":"مايكل","h":"3b8b90ff1834d05b8fc7519fcace5f61b932585061e8e70e1529ece4ea895b92"},{"u":"mgr10","n":"محمود حلاوه","r":"manager","s":"محمود حلاوه","h":"0c630c9cf2ee35953b8f63b94b996e9cb31f0f459faebe7fdb7e58dc39c1ec92"},{"u":"mgr11","n":"blal","r":"manager","s":"blal","h":"307c678ff6d6de90aac3226b6b62e4a0db1e0ff14099eaa6610a9bf89c6b7737"},{"u":"mgr12","n":"Blal","r":"manager","s":"Blal","h":"206b0ef07e732a309e97595b8153f1438b49d2637ee7c1b922443fd0b8672dbe"},{"u":"sup1","n":"ابطال المعادى","r":"sup","s":"ابطال المعادى","h":"4991b22315f6cdc83d2cda7bc85473c3ee2155d53a3b2d8213fb7e0bed2c6f3f"},{"u":"sup2","n":"ابو اسر","r":"sup","s":"ابو اسر","h":"c13b18170dc361f2a2bd859b3cd27bd24873822e0015ee27f912973ed14b9ef0"},{"u":"sup3","n":"ابو مكة تجمعات","r":"sup","s":"ابو مكة تجمعات","h":"30543c8d8f53db3f9924ca005e73205c6d4e6db326410eebc3524a603a794c8d"},{"u":"sup4","n":"ابو يارا","r":"sup","s":"ابو يارا","h":"d1423065c9f7167e7b0f030ea860e014b1bf0812864d383d243136b336635c0c"},{"u":"sup5","n":"ابو يونس","r":"sup","s":"ابو يونس","h":"d30d0a55eacf8fefe45ccf8f62cca08886b7921da1b0471af35e1323521ec93b"},{"u":"sup6","n":"احمد اسماعيل","r":"sup","s":"احمد اسماعيل","h":"8b7a11dbfaf7da6d4eb329344d8c7d2f2383c7dfe4dbf9f47c33d3c3df63523d"},{"u":"sup7","n":"احمد اسماعيل مشرف رحاب","r":"sup","s":"احمد اسماعيل مشرف رحاب","h":"90d7fac2d4ee4cd474da8ec9936ae74c4550694e24ef473217781d6db6788ae9"},{"u":"sup8","n":"احمد السيد حسين","r":"sup","s":"احمد السيد حسين","h":"6f06eef62689909393a53cecd5757e7c3d6fed2762a370559217df5c2608c0cc"},{"u":"sup9","n":"أحمد جمال","r":"sup","s":"أحمد جمال","h":"84d54cf7a0843eb97ce682bc17ddc4db0bcd5ebdf342d1447fd9d814010a1e69"},{"u":"sup10","n":"احمد صبحي","r":"sup","s":"احمد صبحي","h":"b8658b900570c99c442654dec70bee9c156c177e0fe470ccca8cf96eb6cf02fd"},{"u":"sup11","n":"احمد طلعت","r":"sup","s":"احمد طلعت","h":"7b4b0f818af5924cadf105bc66050f2dfa8747fd856c8a80388f9df05e18b72d"},{"u":"sup12","n":"احمد عبده الغردقه","r":"sup","s":"احمد عبده الغردقه","h":"764d2ea6ad85811d07daf4336eb41ca40d9fbc9957c71953efbf3d52f94890da"},{"u":"sup13","n":"احمد علي","r":"sup","s":"احمد علي","h":"26aa30382f84345e621dab06b7bc80dbc44bea44da9fe87a627b90f6fe585b73"},{"u":"sup14","n":"احمد عماد","r":"sup","s":"احمد عماد","h":"196db655bb5d630bd51440b5340155a524c2e6b1fb1741ee8dce7b2706d1a7d9"},{"u":"sup15","n":"احمد عماد السويس","r":"sup","s":"احمد عماد السويس","h":"cec4fa8fe0c089f64f2457c9aa0aafc8483f5c509663ca8dcbdf866e500dd820"},{"u":"sup16","n":"احمد عمر","r":"sup","s":"احمد عمر","h":"393f1293a8222b24092cebe638eae9b036ee7bdb12b89f2f6ec2ff534cb529f6"},{"u":"sup17","n":"أحمد فتحي","r":"sup","s":"أحمد فتحي","h":"2f1dc9a2872ab1f244beb0d213579224f89e551bf4e152f46e2a59a13f3c3d2b"},{"u":"sup18","n":"احمد فتحي","r":"sup","s":"احمد فتحي","h":"3787877bab0f8a54b86453282df866a00ae79b2ac009b0f74749a1523e166560"},{"u":"sup19","n":"احمد ناصر","r":"sup","s":"احمد ناصر","h":"c6f40ab437b800275dc39e4da0cd4fad310a286fce29aa7eeee46eceb5a2ceac"},{"u":"sup20","n":"احمد يونس","r":"sup","s":"احمد يونس","h":"a181768138836259d9d382a811fb3cfe56661337c4420c8ec99809cc2fe4901d"},{"u":"sup21","n":"اساف عاصم","r":"sup","s":"اساف عاصم","h":"65d02fa13bbfdc3752225b2d134e1f95db5892d9e80d3107c2f6eaf4e96d056f"},{"u":"sup22","n":"اسامه طه","r":"sup","s":"اسامه طه","h":"0dcdcdb80c32ea4e2d32a73153b4bd94c7bdc4d47c4d6bd264fc156fd55fd6f5"},{"u":"sup23","n":"اسلام ابوزيد","r":"sup","s":"اسلام ابوزيد","h":"e1cae0b976796fe4dbe00d7e6f1b88d217a39632207b8b5ba11ecbdf35908641"},{"u":"sup24","n":"اسلام اكتوبر","r":"sup","s":"اسلام اكتوبر","h":"d6cbdbfb7737c944e831bf625316bda75de5c06c881e2f6f737114c335f6ec0b"},{"u":"sup25","n":"اسلام السوهاجي","r":"sup","s":"اسلام السوهاجي","h":"8d38267c3c46e44dacabe92305555b951b0a5a7a1f76e4a0e8cc61f0869e9c68"},{"u":"sup26","n":"اسلام رضا","r":"sup","s":"اسلام رضا","h":"efd1c1be5e49f12142a5fcefdd8b4ae37d95655248f9e62eade36eb90cfb5e9e"},{"u":"sup27","n":"اسلام عاطف تجمعات","r":"sup","s":"اسلام عاطف تجمعات","h":"8d4d19deaa28999b4854ec1c7969e2790c461ea905e417878f76ea5c7474d035"},{"u":"sup28","n":"إسلام منصورة","r":"sup","s":"إسلام منصورة","h":"8e43fd9d91ceb1f5d58953565834e1cc87777ca4b5558939f4096a0acc44f909"},{"u":"sup29","n":"اسماء نادر","r":"sup","s":"اسماء نادر","h":"0478a3494be6bd7295b76b628746c68bcd0ee2fec463765cad2975c5de212350"},{"u":"sup30","n":"اسماعيل جابر","r":"sup","s":"اسماعيل جابر","h":"b9d8450632297e6602dff1aa4cf0259d99a2f721ebb0ab14a9cbb0bd65ef4a9a"},{"u":"sup31","n":"الخضري","r":"sup","s":"الخضري","h":"b5a6402affa33e3ce06d3ea48aefeb724a60ab781fc7c821e3eadb5fc1e2de64"},{"u":"sup32","n":"الديب","r":"sup","s":"الديب","h":"e358158c2d3c07d15baf93b7f2e83c013f6159d49f89c080969b8635355147f5"},{"u":"sup33","n":"السقا","r":"sup","s":"السقا","h":"966170f69881cfb1ba7f41bfbf4b9a61dc1a68b3a5608cdf973d373251ed341f"},{"u":"sup34","n":"أنطونيوس","r":"sup","s":"أنطونيوس","h":"30bbf6f2d2725d8ff8d6a71556e3c2d190a0253db86e845a22706778a9a7ea0f"},{"u":"sup35","n":"اوزو","r":"sup","s":"اوزو","h":"8506169216596d3e8aff56eedc73a5c70a75acf51e45d18e3a1cf774dd68d493"},{"u":"sup36","n":"باولو","r":"sup","s":"باولو","h":"5ef81242791ce6c3ad010316d2b1ce7059a06ee73a7ebb7f528b6a8b86dc505b"},{"u":"sup37","n":"بطيخه","r":"sup","s":"بطيخه","h":"2051f70ec9a6643ee8289282f8d899f4326659ef8a607f4ff8321a4570afe35a"},{"u":"sup38","n":"بكر","r":"sup","s":"بكر","h":"dc75e9605a468bde8a809f01370439c96e6a06e70b35215727681f272b420b27"},{"u":"sup39","n":"بهيج احمد","r":"sup","s":"بهيج احمد","h":"f076b5819cb74aed7875be7a028c4f3494592d064cf1d9ec2e65335755d5d6ab"},{"u":"sup40","n":"تريكه","r":"sup","s":"تريكه","h":"95e952ca86c3a7381b024fe4ccdfe33c94cf75d3b86c3e7391d417ff571ee9e4"},{"u":"sup41","n":"تونه","r":"sup","s":"تونه","h":"4de2b42a543ce4f6e85ac6b4aca4ea0b3641e3830258f1f48d0a6405866711f8"},{"u":"sup42","n":"جابر عبدالحارث","r":"sup","s":"جابر عبدالحارث","h":"0884f122766d445f80f36fe410d433709b2ff44627ed478edd3a82cd5e3d612a"},{"u":"sup43","n":"جمال مصطفى","r":"sup","s":"جمال مصطفى","h":"7fd4c0b0ccb42446631fa050169b129415c3e0aae06079bf126b36e239071f74"},{"u":"sup44","n":"جمعه الجوهري","r":"sup","s":"جمعه الجوهري","h":"5065913ff43952382d80b1e05e8f35844f627aafa8ea9fc4367790d613cef905"},{"u":"sup45","n":"حازم زكريا","r":"sup","s":"حازم زكريا","h":"da54d370a524a843226cf800a6b1c15f3e11b16fe97cf68f9a8e9e29d08e6aa8"},{"u":"sup46","n":"حازم محمد","r":"sup","s":"حازم محمد","h":"bfca2f6555a6f9bf4a0d6a443de7a17b5b6b428f6f7dc88ff186883620bfab0f"},{"u":"sup47","n":"حربى","r":"sup","s":"حربى","h":"2d311728ce8899c70e8a8c2671ab83f84e8da03be306f94be22a2869c51e3787"},{"u":"sup48","n":"حسن الشروق","r":"sup","s":"حسن الشروق","h":"924bc3f33a90f504712a57f2a72787d06c6ea36cbc2bf46983d5b15bb2648b1b"},{"u":"sup49","n":"حسن سليمان","r":"sup","s":"حسن سليمان","h":"7dfbedffd7edd940602cfa00e389bdfef7ab96aa527ed324b928655c1b36de64"},{"u":"sup50","n":"حسين الإسماعيلية","r":"sup","s":"حسين الإسماعيلية","h":"853e7e9325289236f175992e77fc04de6e586278b69b6b46da9627d66f9b507e"},{"u":"sup51","n":"خالد عبد المعبود","r":"sup","s":"خالد عبد المعبود","h":"82406de24fa8b58d2e528844521735d30cd3adfc853500bb79bcce5a71ece0f9"},{"u":"sup52","n":"خالد عبدالمعبود","r":"sup","s":"خالد عبدالمعبود","h":"e88a717683646b8a76e1716b8054d7938dd29f513aaaaf5bdea90068d1e68b31"},{"u":"sup53","n":"رؤف الخواجة","r":"sup","s":"رؤف الخواجة","h":"b1496e70ec1fbc0bd24332bfd8b250b9496c317ef6a058aab611df8096b2cb57"},{"u":"sup54","n":"رضا حسني","r":"sup","s":"رضا حسني","h":"1c742676953301ca90f1a9d62851c88178c4d2f78c7925684be8bcde90809f80"},{"u":"sup55","n":"رضوان ابراهيم","r":"sup","s":"رضوان ابراهيم","h":"6e148bb3a282f9b6fce66f735884783e1a31caa76263bc0ac7637e17c447b5af"},{"u":"sup56","n":"زياد بدر","r":"sup","s":"زياد بدر","h":"a5447d2fc4469bbe3470420743f4f8ec0475e1eb4491d9801c2853ea575def1d"},{"u":"sup57","n":"سامح حسن","r":"sup","s":"سامح حسن","h":"a32d52791eb1a4b21e1ee3ce37e84f0874e7a71dcff83b3c7ffc5d29bba7d2fb"},{"u":"sup58","n":"سعودي","r":"sup","s":"سعودي","h":"52103f0ce859c00e2527dd024a860e86896c8be7a18b06af5f8f219618ab5b1a"},{"u":"sup59","n":"سليمان مصر الجديده","r":"sup","s":"سليمان مصر الجديده","h":"c2ce68339cd77fcf5490fdecc32bf213500fddc3260c7a98cd4cf92b1f2ac989"},{"u":"sup60","n":"سماره شبرا","r":"sup","s":"سماره شبرا","h":"cfc373011adc4ebc96b6bb2f50de026098d46ca511eaf2d9e98c6ec672d82a8f"},{"u":"sup61","n":"سيد الاسماعيلية","r":"sup","s":"سيد الاسماعيلية","h":"887e6e76835a34a69880d00d11dd4685851d220ea1e0baf188f5f461f3f083d8"},{"u":"sup62","n":"سيد الغردقه","r":"sup","s":"سيد الغردقه","h":"e9bb6adc2a763fbd3255629af2486cf2bece807eea8aa5edb859122ff0a4a59f"},{"u":"sup63","n":"سيف الاسلام مقطم","r":"sup","s":"سيف الاسلام مقطم","h":"ecb08f9e7fa47880420c4ff517837c972794fec665ccea92017eeebf7bc0b6a9"},{"u":"sup64","n":"شريف بكري التجمعات","r":"sup","s":"شريف بكري التجمعات","h":"1e98f6adf0bb886da7fb972acd2251049e90c2853a031473fbd977bbeb5575b1"},{"u":"sup65","n":"شريف عيسي","r":"sup","s":"شريف عيسي","h":"7bc6d28bef5a15aec8406d62c9bd47b5c8e1eb722eb828b82d8c79cffbe77890"},{"u":"sup66","n":"شهاب نبيشى","r":"sup","s":"شهاب نبيشى","h":"30fa70259e2a1154ece7aa12f98d1f1764bdaaaa33d7589e350a0145675ab905"},{"u":"sup67","n":"شيكا","r":"sup","s":"شيكا","h":"46c7138ffd900a9c84b81ac360f05204e5245871318b449cbacce2019d350119"},{"u":"sup68","n":"شيكو","r":"sup","s":"شيكو","h":"ac75ad6acf38fb1699e53b96ef10a3924c2ce80ed3e54a3c2a4256308d6738b8"},{"u":"sup69","n":"صابر البندارى","r":"sup","s":"صابر البندارى","h":"6c620c6dcf2a818a6936405a7e43336d6c70515ad789dbbb3fda638f1c9853f6"},{"u":"sup70","n":"صبحي العاشر","r":"sup","s":"صبحي العاشر","h":"e173d0e6b4d928eca88deb71ba9a369a7fb2722a7142a4b45b8ef711305f8625"},{"u":"sup71","n":"صبرى","r":"sup","s":"صبرى","h":"46c13fb28e900c15fe245041f3d2e154b8b0447801a117048e5b4747093bf8c5"},{"u":"sup72","n":"طه احمد","r":"sup","s":"طه احمد","h":"afb31454679bd441e78638114bcc73603c6291b4962d1447530a6f0acbaec275"},{"u":"sup73","n":"عادل اسكندريه","r":"sup","s":"عادل اسكندريه","h":"6acba6a75e6776b01ea5d1603efa39cbeae828b96789af19df4166298cd6a8b7"},{"u":"sup74","n":"عادل التجمع","r":"sup","s":"عادل التجمع","h":"712bcdc2faf8b455cd969868fe8e52aa3e375a493d24565a0f9c8bf4681ddc52"},{"u":"sup75","n":"عادل الخولي","r":"sup","s":"عادل الخولي","h":"86dcc83ceeb1c62a471dbdae105b361cc9b60f593d2b2140e6f1df897413d24a"},{"u":"sup76","n":"عباد الله","r":"sup","s":"عباد الله","h":"38341d2377a2dcb0ce6e41a187d588977c3546db0beb245c40b059d9c46d463f"},{"u":"sup77","n":"عبد الرحمن عبد الباسط التجمع","r":"sup","s":"عبد الرحمن عبد الباسط التجمع","h":"539099981f1aed1597b0e89dd56c52c24dea30559bf4a75edeb06a4c0ca22650"},{"u":"sup78","n":"عبد الرحمن محمد الرحاب","r":"sup","s":"عبد الرحمن محمد الرحاب","h":"461fd3a932d3ad7ce4f4eb8056e396f51717e60949aa040b61c4a182d01fb8af"},{"u":"sup79","n":"عبد العظيم محمود","r":"sup","s":"عبد العظيم محمود","h":"8ea4aa6b7fc7d9b0e0ae684262861895c287c13f21421b3010a08e215d6f6949"},{"u":"sup80","n":"عبدالرحمن اسكندريه","r":"sup","s":"عبدالرحمن اسكندريه","h":"6ac3275787a2e913921cbc41a979d0733341b35661fc2695ab389147d8fd1289"},{"u":"sup81","n":"عبدالله رمضان","r":"sup","s":"عبدالله رمضان","h":"e3e9cd4480ed77ce1b57b67186ff91424a0e7311cc4a3f9f58d98c1ba0382ac7"},{"u":"sup82","n":"عصام سامي الزقازيق","r":"sup","s":"عصام سامي الزقازيق","h":"5962d5310eccaa60cf97b58a71648d4e452a1af0bbc9b5decca2006e1e87fc9b"},{"u":"sup83","n":"على","r":"sup","s":"على","h":"5a48363031047a69a037ac7d61082a89f79468184b8e45d07309fa3490d89ab6"},{"u":"sup84","n":"علي ابو العلا المنيا","r":"sup","s":"علي ابو العلا المنيا","h":"2cb246202a9c30d08b383fa5ce525c3c633f630f169b72212ee24dd3cc47f721"},{"u":"sup85","n":"علي شعبان اكتوبر","r":"sup","s":"علي شعبان اكتوبر","h":"e188f74bb8681572749d4661eca6d725c6e3479ed098c1ae4f2c3bc42e063ebf"},{"u":"sup86","n":"على كزبر","r":"sup","s":"على كزبر","h":"2e7eb61090e4b1a7b0f86f663ae443b490a2cbd92528c67909494d3de8ba141b"},{"u":"sup87","n":"عليان عبدالمولي","r":"sup","s":"عليان عبدالمولي","h":"f6310fa428b965c61b8727e8af0d67f2ba8d3b357b85acd74fca82480ef50d3e"},{"u":"sup88","n":"عماد جمال","r":"sup","s":"عماد جمال","h":"4622043cc5c2874267cd4cec85119589819431dcd62fe1008fd713628779635a"},{"u":"sup89","n":"عمر عبد الحليم","r":"sup","s":"عمر عبد الحليم","h":"fe58fefc99c4a85dc644ecbe63914efe090a93fe0afd8e4ff6ce0792eec24fa6"},{"u":"sup90","n":"عمر ممدوح","r":"sup","s":"عمر ممدوح","h":"5fbccb7150b12fd84735884d6552c1ab78a88ecf88cc841ee7b3c114f3ea20ee"},{"u":"sup91","n":"عمرو خالد","r":"sup","s":"عمرو خالد","h":"aeeb356e38c3c0cb281e2dac0a875e9d2bb135eb0ec603be4312052c361b96cf"},{"u":"sup92","n":"عمرو مسعد","r":"sup","s":"عمرو مسعد","h":"51592830bef646da32d1df9e49210faf6b5c3a7fa759fa8ff6337ac74744312c"},{"u":"sup93","n":"عيد محمد","r":"sup","s":"عيد محمد","h":"81d141a8d5a578dcd93302ac1ce16d65091c84f4a410955b8e792e98b77cd1ed"},{"u":"sup94","n":"فهد البطل","r":"sup","s":"فهد البطل","h":"f6667b3928808e18331c5dcb40e4abf01d07bbf701d79d063544e0e284ee09c1"},{"u":"sup95","n":"كابو","r":"sup","s":"كابو","h":"b9357535b48a7d7128b8a47507ed99c472c3e1676eee7027b7f0a1850c4b7ed5"},{"u":"sup96","n":"كريم التركي","r":"sup","s":"كريم التركي","h":"eacc8535a3ca0da5fae97dc6c701a3f8c1714426d4ea71705f4c24b9a0bf8164"},{"u":"sup97","n":"كريم شعبان اكتوبر","r":"sup","s":"كريم شعبان اكتوبر","h":"397f37343c1e6440d985ff6326e0b50f866aa355507db7c13b6f0dff89b9252d"},{"u":"sup98","n":"كريم نبيل","r":"sup","s":"كريم نبيل","h":"f759036befbe0e9ed6156198cb68bde33995562d848997bb723c7f2cf5b135fa"},{"u":"sup99","n":"كمال الرحاب","r":"sup","s":"كمال الرحاب","h":"04476d5dfc4d6c5ce34302aa4400cecf30acfcf797047e0271b867faa29afcd8"},{"u":"sup100","n":"ليل","r":"sup","s":"ليل","h":"dd0408bd27c278cff767a2bf8e6d1ec5a53b6e90052d35dd0e2a66528cb768b4"},{"u":"sup101","n":"ماستر لاين","r":"sup","s":"ماستر لاين","h":"d3cdde0cda1bccad67c5196b819971cdaae60a9247921477985c81d1f2a2d7ce"},{"u":"sup102","n":"مايكل ممدوح","r":"sup","s":"مايكل ممدوح","h":"26e61f70fa637c39efcb152a35f74d1b5671bd39ee93c91a7b5e3004c7acf5c6"},{"u":"sup103","n":"مجدي","r":"sup","s":"مجدي","h":"75992951f59bc47e8e8f915f3daf639bb8cd77dfd62e837fb4b6ba376fd7000e"},{"u":"sup104","n":"محمد السعيد المنصورة","r":"sup","s":"محمد السعيد المنصورة","h":"54d6f5c9f5b6b1bf383f3f88a51815ad7036f706c72242177c7f5f54bb3e5dc4"},{"u":"sup105","n":"محمد العمده","r":"sup","s":"محمد العمده","h":"bf30422dfc17bd369206a026dde2b02a242aab3a8f60530c0212a6220fcc1588"},{"u":"sup107","n":"محمد خصوصي","r":"sup","s":"محمد خصوصي","h":"c38e417f842f36e6832dd4d3f1c8593f85f3564b0ef40572e3e85924fd6c706b"},{"u":"sup108","n":"محمد دياب","r":"sup","s":"محمد دياب","h":"dd59b6d0691bd9d4bec76953e4b1072b8d58a58af607b80723b3011d06e1506a"},{"u":"sup109","n":"محمد رجب","r":"sup","s":"محمد رجب","h":"6a58a634acb8a5ad1a80fda82fe85e4beb5c6fa28897a2dc1c00e913998ef1f2"},{"u":"sup110","n":"محمد رمضان","r":"sup","s":"محمد رمضان","h":"69a4ce30a144ac3b4f224575eb6c8f102c0dd9be199e2370bc7a6859ed051fab"},{"u":"sup111","n":"محمد سامح","r":"sup","s":"محمد سامح","h":"43e640e70de66d49ae05b08754981462cfffc2241e15e378d160fe3f829f2f63"},{"u":"sup112","n":"محمد سعيد","r":"sup","s":"محمد سعيد","h":"658adf53262ef89a318c8f0013784e2216cd403aca45085b517f1697abb47220"},{"u":"sup113","n":"محمد شعبان حلوان","r":"sup","s":"محمد شعبان حلوان","h":"83824d2cc8213aeb25e77b076e2b817ceeb9c097703547964be5ba3bd74c11b4"},{"u":"sup114","n":"محمد شوقى","r":"sup","s":"محمد شوقى","h":"4f0a2da8d5192da5139d086b1aad682a4008624bdfc8b138bb961c6b8ea45d6f"},{"u":"sup115","n":"محمد طلعت الغردقه","r":"sup","s":"محمد طلعت الغردقه","h":"014e3197dd663ea165e8543a83ed97e1f67bd741990538c559dcb5f565e65bbd"},{"u":"sup116","n":"محمد عبد البر الرحاب","r":"sup","s":"محمد عبد البر الرحاب","h":"0a115785904b507eb17b4716866bfbe7de8723cc0f3e849d4e00248ee51fb263"},{"u":"sup117","n":"محمد عبداللطيف","r":"sup","s":"محمد عبداللطيف","h":"1bc2077db40c08438aa681f507186ff116757ccea0e5a766ca64d843668da1e4"},{"u":"sup118","n":"محمد عبدالله","r":"sup","s":"محمد عبدالله","h":"891eab74909440dc6ce0113eb86053e6f75275c683824a3e276152b7f202af5f"},{"u":"sup119","n":"محمد عبده","r":"sup","s":"محمد عبده","h":"0663c386354a103623a070cd75366be1519bf7270c22e8f40b2465085b1b31cd"},{"u":"sup120","n":"محمد مصباح","r":"sup","s":"محمد مصباح","h":"096d6897a904792a2e709c056889fe205630fef5d6b2b2eb9afc2837b6079344"},{"u":"sup121","n":"محمود بيومى","r":"sup","s":"محمود بيومى","h":"d91f0c725a985e948af3354965ec4d0983e46328341ff620253a7818b5e2e844"},{"u":"sup122","n":"محمود كوكا","r":"sup","s":"محمود كوكا","h":"21b73893ae9b43938385d738a67a9484b7434346bb8b5c7cc19032d8df67596d"},{"u":"sup123","n":"محمود يونس","r":"sup","s":"محمود يونس","h":"519b92cbe9e77e0ff6b86ccaa55868be0b7a0e504f4925a71f7d714746df721b"},{"u":"sup124","n":"مصطفي فزاع","r":"sup","s":"مصطفي فزاع","h":"7ecb0b2698ec10659b57dfdea071901801471160aa5a215967342d3a8564f683"},{"u":"sup125","n":"مصطفي محمد","r":"sup","s":"مصطفي محمد","h":"d81f42db18f129daeb2ac5d313c21e10b7889f9dabebcd763f0e27c8694dc49a"},{"u":"sup126","n":"معاذ طنطا","r":"sup","s":"معاذ طنطا","h":"64c95792aa4d24626040b5d22f00f85537b017d938d5a4ef4c709eba91c393c5"},{"u":"sup127","n":"ممدوح محي الدين","r":"sup","s":"ممدوح محي الدين","h":"6cc59c3ce7cb600faf61ca8fbacaa46fd94231ce29af4a05f7c1b09fc960ebf7"},{"u":"sup128","n":"هيرو","r":"sup","s":"هيرو","h":"57945b0044eb737452f260c3ec1e33e4cf449440114dfc9c910cff587875500e"},{"u":"sup129","n":"يسرى حامد","r":"sup","s":"يسرى حامد","h":"030cd31e053f959e00d1658c390284c96e557cb8c1c766739537bef7b8396677"},{"u":"sup130","n":"يوسف السيد","r":"sup","s":"يوسف السيد","h":"92b9fb73df02b2c36cc65f6353397490622352a13c9584c00dc1471cf8ee0f95"},{"u":"sup131","n":"يوسف عبدالله","r":"sup","s":"يوسف عبدالله","h":"9d5d76907e8dc55c2fb6ae42b763d8aaeb257cd0a274813e4660817b047873c3"},{"u":"sup132","n":"SM","r":"sup","s":"SM","h":"e6555b590cb14bf045ba2e023d7e70596b8a5bfed9ba715356cdadd44f1135a3"},{"u":"1","n":"محمد حسن اسكندريه","r":"sup","s":"محمد حسن اسكندريه","h":"f13fd5cbc603fddab2e5cf32720724fb36b74c341de8df9a988d1c21bcbcf65f"}];/* admin / admin123 — غيّرها */
@@ -357,8 +463,15 @@ function apply(){
   AGG=list;page=0;
   const ids=new Set(list.map(x=>x.id)),commit=T.p?T.a/T.p*100:0,oph=T.a?T.o/T.a:0,neg=list.filter(x=>x.w<0).length,exs=list.filter(x=>x.left!==null&&x.left<=7).length;
   $('cnt').textContent=NF(fr.length)+' سجل';
+  let svTxt='ساعة';
+  {const cs=(CUR&&CUR.r==='sup')?CUR.s:s;
+   if(cs){const zc={};fr.forEach(r=>{if(r.s===cs&&r.z)zc[r.z]=(zc[r.z]||0)+1});
+    const zz=z||Object.keys(zc).sort((x,y)=>zc[y]-zc[x])[0];
+    if(zz){const g={};for(const r of ALL)if(r.t>=a&&r.t<=b&&r.z===zz&&r.s){const x=g[r.s]||(g[r.s]={a:0,d:new Set});x.a+=r.a;if(r.a>0||r.o>0)x.d.add(r.t)}
+     const arr=Object.entries(g).map(([k,x])=>({k,v:x.d.size?x.a/x.d.size:0})).sort((x,y)=>y.v-x.v),i=arr.findIndex(x=>x.k===cs);
+     if(i>=0)svTxt='ساعة<br><b style="color:#5eead4">👷 المشرف: '+F1(arr[i].v)+' س/يوم</b><br>🏅 الترتيب '+(i+1)+' من '+arr.length+' في '+esc(zz)}}}
   const K=[['📦 الطلبات',NF(T.o),'مكتملة','--c:var(--pr)'],['⏱ ساعات فعلية',NF(T.a),'من '+NF(T.p)+' مخطط','--c:var(--ok)'],['🎯 الالتزام',F1(commit)+'%','فعلي/مخطط','--c:var(--wa)'],['⚡ الإنتاجية',F1(oph),'طلب/ساعة','--c:var(--pu)'],
-   ['🛵 الطيارين',NF(list.length),'عاملين','--c:var(--cy)'],['⌛ متوسط ساعات/طيار',F1(list.length?T.a/list.length:0),'ساعة','--c:#14b8a6'],['☕ الاستراحة',NF(T.b),'ساعة','--c:#f43f5e'],['⚠️ تنبيهات',neg+' / '+exs,'مديونية / عقد ≤7 أيام','--c:var(--bad)']];
+   ['🛵 الطيارين',NF(list.length),'عاملين','--c:var(--cy)'],['⌛ متوسط ساعات/طيار',F1(list.length?T.a/list.length:0),svTxt,'--c:#14b8a6'],['☕ الاستراحة',NF(T.b),'ساعة','--c:#f43f5e'],['⚠️ تنبيهات',neg+' / '+exs,'مديونية / عقد ≤7 أيام','--c:var(--bad)']];
   [[0,T.o,P.o],[1,T.a,P.a],[2,commit,P.p?P.a/P.p*100:0],[3,oph,P.a?P.o/P.a:0]].forEach(([i,c,p])=>{if(p){const d=(c-p)/p*100;K[i][2]=(d>=0?'▲ ':'▼ ')+Math.abs(d).toFixed(1)+'% عن الفترة السابقة'}});
   $('kpis').innerHTML=K.map(k=>`<div class="kpi" style="${k[3]}"><div class="l">${k[0]}</div><div class="v">${k[1]}</div><div class="s">${k[2]}</div></div>`).join('');
   // charts
@@ -398,7 +511,7 @@ function extras(){
   $('al').innerHTML=al('💳 مديونية المحفظة',A.filter(x=>x.w<0).sort((x,y)=>x.w-y.w),x=>li(x,NF(x.w)+' ج','#f87171'),x=>[x.w,'ج'])
    +al('📅 عقود منتهية / خلال 7 أيام',A.filter(x=>x.left!==null&&x.left<=7).sort((x,y)=>x.left-y.left),x=>li(x,x.left<0?'منتهي':x.left+' يوم','#fbbf24'),x=>[x.left,x.left<0?'يوم (منتهي)':'يوم'])
    +al('🎯 التزام أقل من 50%',A.filter(x=>x.p>0&&x.c<50).sort((x,y)=>x.c-y.c),x=>li(x,F1(x.c)+'%','#f87171'),x=>[+x.c.toFixed(1),'% التزام'])
-   +al('⚠️ ساعات بدون طلبات',A.filter(x=>x.a>=4&&x.o===0).sort((x,y)=>y.a-x.a),x=>li(x,F1(x.a)+' س','#fbbf24'),x=>[+x.a.toFixed(1),'ساعة فعلية'])
+   +al('🚫 ساعات عمل بدون طلبات',A.filter(x=>x.a>0&&x.o===0).sort((x,y)=>y.a-x.a),x=>li(x,F1(x.a)+' س','#f87171'),x=>[+x.a.toFixed(1),'ساعة عمل'])
    +al('⏱ ساعات فعلية أكبر من المخطط 25%',A.filter(x=>x.p>0&&x.a>x.p*1.25),x=>li(x,F1(x.a)+'/'+F1(x.p),'#60a5fa'),x=>[+x.a.toFixed(1),'ساعة فعلية (المخطط '+F1(x.p)+')']);
   grp();
 }
@@ -418,12 +531,32 @@ $('svx').onclick=()=>{const SL=window.SUPL||[];if(!SL.length)return alert('لا 
    const wb=XLSX.utils.book_new();wb.Workbook={Views:[{RTL:true}]};XLSX.utils.book_append_sheet(wb,ws,'المشرفين');XLSX.writeFile(wb,nm+'.xlsx')}
   else{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+Papa.unparse(rows)],{type:'text/csv'}));a.download=nm+'.csv';a.click()}};
 $('gx').onclick=()=>{const blob=new Blob(['\ufeff'+Papa.unparse(GR.map(x=>({الاسم:x.g,طيارين:x.n,طلبات:x.o,ساعات:x.a.toFixed(1),الالتزام:x.c.toFixed(1),طلب_ساعة:x.oph.toFixed(2)})))],{type:'text/csv'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='group.csv';a.click()};
+let DRILL_ROWS=[];
+function drillExportRow(x,i){return{'#':i,'الكود':x.id,'الاسم':x.n||x.id,'المنطقة':x.z||'','المشرف':x.s||'','المركبة':x.v||'','أيام':x.wd||x.days||0,'ساعات مخططة':+x.p.toFixed(1),'ساعات فعلية':+x.a.toFixed(1),'طلبات':x.o,'الالتزام %':+((x.p?x.a/x.p*100:x.c)||0).toFixed(1),'طلب/ساعة':+(x.a?x.o/x.a:0).toFixed(2)}}
+function renderDrillRows(rows){
+  DRILL_ROWS=rows.map((x,i)=>drillExportRow(x,i+1));
+  $('bmb').innerHTML=rows.map((x,i)=>`<tr><td>${i+1}</td><td>${esc(x.id)}</td><td><b style="cursor:pointer;color:#93c5fd" onclick="showR('${esc(x.id)}')">${esc(x.n||x.id)}</b></td><td>${esc(x.z)}</td><td>${esc(x.s)}</td><td>${esc(x.v)}</td><td>${x.wd||x.days||0}</td><td>${F1(x.p)}</td><td>${F1(x.a)}</td><td>${NF(x.o)}</td><td>${F1(x.p?x.a/x.p*100:x.c||0)}%</td><td>${F1(x.a?x.o/x.a:0)}</td></tr>`).join('');
+}
+function showChartRiders(title,rows){
+  const sorted=[...rows].sort((a,b)=>b.o-a.o),orders=sorted.reduce((n,x)=>n+x.o,0),hours=sorted.reduce((n,x)=>n+x.a,0);
+  $('bmt').textContent=title+' — '+sorted.length+' مندوب';
+  $('bms').textContent='إجمالي الساعات: '+F1(hours)+' · إجمالي الطلبات: '+NF(orders)+' · متوسط طلب/ساعة: '+F1(hours?orders/hours:0);
+  renderDrillRows(sorted);
+  $('bm').style.display='block';
+}
+function exportDrillExcel(){
+  if(!DRILL_ROWS.length)return alert('لا توجد بيانات للتصدير');
+  const d=new Date(),nm='تفاصيل_المناديب_'+d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  if(window.XLSX){const ws=XLSX.utils.json_to_sheet(DRILL_ROWS);ws['!cols']=Object.keys(DRILL_ROWS[0]).map(h=>({wch:Math.max(10,h.length+4,h==='الاسم'?30:0)}));ws['!views']=[{RTL:true}];
+    const wb=XLSX.utils.book_new();wb.Workbook={Views:[{RTL:true}]};XLSX.utils.book_append_sheet(wb,ws,'المناديب');XLSX.writeFile(wb,nm+'.xlsx')}
+  else{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+Papa.unparse(DRILL_ROWS)],{type:'text/csv'}));a.download=nm+'.csv';a.click()}
+}
 function showB(k,f){
-  f=f||'bt';const m={};for(const r of FR){if(r[f]!==k)continue;const x=m[r.id]||(m[r.id]={id:r.id,n:r.n,z:r.z,s:r.s,v:r.v,o:0,a:0,days:0});x.o+=r.o;x.a+=r.a;x.days++;x.n=r.n||x.n}
+  f=f||'bt';const m={};for(const r of FR){if(r[f]!==k)continue;const x=m[r.id]||(m[r.id]={id:r.id,n:r.n,z:r.z,s:r.s,v:r.v,o:0,a:0,p:0,days:0});x.o+=r.o;x.a+=r.a;x.p+=r.p;x.days++;x.n=r.n||x.n}
   const L=Object.values(m).sort((x,y)=>y.o-x.o),to=L.reduce((t,x)=>t+x.o,0),ta=L.reduce((t,x)=>t+x.a,0);
   $('bmt').textContent=(f==='s'?'👔 المشرف ':'🏷 باتش ')+k+' — '+L.length+' مندوب';
   $('bms').textContent='إجمالي الساعات: '+F1(ta)+' · إجمالي الطلبات: '+NF(to)+' · متوسط طلب/ساعة: '+F1(ta?to/ta:0);
-  $('bmb').innerHTML=L.map((x,i)=>`<tr><td>${i+1}</td><td>${esc(x.id)}</td><td><b style="cursor:pointer;color:#93c5fd" onclick="showR('${esc(x.id)}')">${esc(x.n||x.id)}</b></td><td>${esc(x.z)}</td><td>${esc(x.s)}</td><td>${esc(x.v)}</td><td>${x.days}</td><td>${F1(x.a)}</td><td>${NF(x.o)}</td><td>${F1(x.a?x.o/x.a:0)}</td></tr>`).join('');
+  renderDrillRows(L);
   $('bm').style.display='block';
 }
 function showR(id){
@@ -471,26 +604,35 @@ $('rf').onclick=load;
 
 /* ---------- إضافات جديدة ---------- */
 let LAST=null;
+let SUP_METRIC='o',SUP_DATA=[];
+function setSupMetric(metric){SUP_METRIC=metric;drawSup()}
+function drawSup(){
+  $('supOrders').classList.toggle('on',SUP_METRIC==='o');
+  $('supHours').classList.toggle('on',SUP_METRIC==='a');
+  const key=SUP_METRIC,label=key==='o'?'أوردرات':'ساعات فعلية';
+  const top=[...SUP_DATA].sort((a,b)=>b[key]-a[key]).slice(0,12);
+  draw('ch7',{type:'bar',data:{labels:top.map(x=>x.s),datasets:[{label,data:top.map(x=>key==='a'?+x[key].toFixed(1):x[key]),backgroundColor:'#3b82f6aa',yAxisID:'y'},{label:'الالتزام %',type:'line',data:top.map(x=>+(x.p?x.a/x.p*100:0).toFixed(1)),borderColor:'#f59e0b',yAxisID:'y1'}]},options:{scales:{y:{position:'left'},y1:{position:'right',grid:{display:false}}},onClick:(e,els)=>{const hit=els.find(x=>x.datasetIndex===0);if(hit)showChartRiders('أداء المشرف '+top[hit.index].s,top[hit.index].riders)},onHover:(e,els)=>{e.native.target.style.cursor=els.some(x=>x.datasetIndex===0)?'pointer':'default'}}});
+}
 function extras2(T,commit,oph,list){
   LAST={T,commit,oph,list};
   // 1) أداء المشرفين
-  const sg={};list.forEach(x=>{if(!x.s)return;const g=sg[x.s]||(sg[x.s]={o:0,a:0,p:0,n:0});g.o+=x.o;g.a+=x.a;g.p+=x.p;g.n++});
-  const sk=Object.keys(sg).sort((a,b)=>sg[b].o-sg[a].o).slice(0,12);
-  draw('ch7',{type:'bar',data:{labels:sk,datasets:[{label:'طلبات',data:sk.map(k=>sg[k].o),backgroundColor:'#3b82f6aa',yAxisID:'y'},{label:'الالتزام %',type:'line',data:sk.map(k=>+(sg[k].p?sg[k].a/sg[k].p*100:0).toFixed(1)),borderColor:'#f59e0b',yAxisID:'y1'}]},options:{scales:{y:{position:'left'},y1:{position:'right',grid:{display:false}}}}});
+  const sg={};list.forEach(x=>{if(!x.s)return;const g=sg[x.s]||(sg[x.s]={o:0,a:0,p:0,n:0,riders:[]});g.o+=x.o;g.a+=x.a;g.p+=x.p;g.n++;g.riders.push(x)});
+  SUP_DATA=Object.entries(sg).map(([s,x])=>({s,...x}));
+  drawSup();
   // 2) توزيع التقييم
   const rc={'ممتاز':0,'جيد':0,'متوسط':0,'ضعيف':0};list.forEach(x=>{rc[rate(x)[0]]++});
   draw('ch8',{type:'doughnut',data:{labels:Object.keys(rc),datasets:[{data:Object.values(rc),backgroundColor:['#10b981','#3b82f6','#f59e0b','#ef4444']}]},options:{scales:{}}});
   // 3) الالتزام مقابل الإنتاجية (شرائح بدل نقط متفرقة)
   const BK=[['أقل من 25%',0,25],['25–50%',25,50],['50–75%',50,75],['75–90%',75,90],['90–100%',90,100],['100–120%',100,120],['أكتر من 120%',120,1e9]];
-  const bs=BK.map(([l,lo,hi])=>{const g=list.filter(x=>x.p>0&&x.c>=lo&&x.c<hi),h=g.reduce((t,x)=>t+x.a,0),o=g.reduce((t,x)=>t+x.o,0);return{l,n:g.length,oph:h?o/h:0}});
+  const bs=BK.map(([l,lo,hi])=>{const rows=list.filter(x=>x.p>0&&x.c>=lo&&x.c<hi),h=rows.reduce((t,x)=>t+x.a,0),o=rows.reduce((t,x)=>t+x.o,0);return{l,rows,n:rows.length,oph:h?o/h:0}});
   draw('ch9',{type:'bar',data:{labels:bs.map(x=>x.l),datasets:[{label:'عدد الطيارين',data:bs.map(x=>x.n),backgroundColor:['#ef4444aa','#ef4444aa','#f59e0baa','#3b82f6aa','#10b981aa','#10b981aa','#8b5cf6aa'],yAxisID:'y'},{label:'متوسط طلب/ساعة',type:'line',data:bs.map(x=>+x.oph.toFixed(2)),borderColor:'#f59e0b',backgroundColor:'#f59e0b',tension:.3,yAxisID:'y1'}]},
-    options:{scales:{y:{position:'left',title:{display:true,text:'عدد الطيارين'}},y1:{position:'right',grid:{display:false},title:{display:true,text:'طلب/ساعة'}}}}});
+    options:{scales:{y:{position:'left',title:{display:true,text:'عدد الطيارين'}},y1:{position:'right',grid:{display:false},title:{display:true,text:'طلب/ساعة'}}},onClick:(e,els)=>{const hit=els.find(x=>x.datasetIndex===0);if(hit)showChartRiders('الالتزام مقابل الإنتاجية — '+bs[hit.index].l,bs[hit.index].rows)},onHover:(e,els)=>{e.native.target.style.cursor=els.some(x=>x.datasetIndex===0)?'pointer':'default'}}});
   // المناديب حسب ساعات الشغل (متوسط يومي، مقرّب لأقرب ساعة)
-  const HB={};list.forEach(x=>{if(!(x.wd>0&&x.a>0))return;const h=Math.min(12,Math.round(x.a/x.wd)),k=h<1?0:h,g=HB[k]||(HB[k]={n:0,o:0,a:0});g.n++;g.o+=x.o;g.a+=x.a});
+  const HB={};list.forEach(x=>{if(!(x.wd>0&&x.a>0))return;const h=Math.min(12,Math.round(x.a/x.wd)),k=h<1?0:h,g=HB[k]||(HB[k]={n:0,o:0,a:0,rows:[]});g.n++;g.o+=x.o;g.a+=x.a;g.rows.push(x)});
   const hk=Object.keys(HB).map(Number).sort((a,b)=>a-b),h0=hk.length?hk[0]:0,h1=hk.length?hk[hk.length-1]:0,hs=[];for(let k=h0;k<=h1;k++)hs.push(k);
   const hl=k=>k===0?'أقل من ساعة':k===1?'ساعة':k===2?'ساعتين':k<=10?k+' ساعات':k<12?k+' ساعة':'12+ ساعة';
   draw('ch10',{type:'bar',data:{labels:hs.map(hl),datasets:[{label:'عدد المناديب',data:hs.map(k=>HB[k]?HB[k].n:0),backgroundColor:'#3b82f6aa',yAxisID:'y'},{label:'متوسط طلب/ساعة',type:'line',data:hs.map(k=>HB[k]&&HB[k].a?+(HB[k].o/HB[k].a).toFixed(2):0),borderColor:'#f59e0b',backgroundColor:'#f59e0b',tension:.3,yAxisID:'y1'}]},
-    options:{scales:{y:{position:'left',title:{display:true,text:'عدد المناديب'}},y1:{position:'right',grid:{display:false},title:{display:true,text:'طلب/ساعة'}}}}});
+    options:{scales:{y:{position:'left',title:{display:true,text:'عدد المناديب'}},y1:{position:'right',grid:{display:false},title:{display:true,text:'طلب/ساعة'}}},onClick:(e,els)=>{const hit=els.find(x=>x.datasetIndex===0);if(hit)showChartRiders('المناديب حسب ساعات الشغل — '+hl(hs[hit.index]),HB[hs[hit.index]].rows)},onHover:(e,els)=>{e.native.target.style.cursor=els.some(x=>x.datasetIndex===0)?'pointer':'default'}}});
   // أقل الطيارين: طلبات / ساعات / أيام عمل (بتستبعد اللي ما اشتغلش خالص عشان القايمة تبقى مفيدة)
   const wd={};FR.forEach(r=>{if(r.o>0||r.a>0)(wd[r.id]||(wd[r.id]=new Set())).add(r.t)});
   const wk=list.filter(x=>x.a>0||x.o>0);
@@ -498,10 +640,9 @@ function extras2(T,commit,oph,list){
   TXD.lo2=wk.filter(x=>x.a>0).sort((x,y)=>x.a-y.a);rl('lo2');
   TXD.lo3=wk.map(x=>({...x,wd:(wd[x.id]||[]).size||0})).sort((x,y)=>x.wd-y.wd||x.o-y.o);rl('lo3');
   // 4) تنبيهات إضافية
-  const zero=list.filter(x=>x.days>0&&x.o===0),hb=list.filter(x=>x.b>=1&&x.b/(x.a+x.b||1)>0.25).sort((a,b)=>b.b-a.b);
+  const hb=list.filter(x=>x.b>=1&&x.b/(x.a+x.b||1)>0.25).sort((a,b)=>b.b-a.b);
   const al=(t,arr,f,ex)=>(ALX.push({t,arr,ex}),`<div class="card" style="background:#0f1626"><b>${t}</b> <span class="b ${arr.length?'r':'g'}">${arr.length}</span>${arr.slice(0,6).map(f).join('')}</div>`);
   $('al').insertAdjacentHTML('beforeend',
-    al('🚫 اشتغلوا وصفر طلبات',zero,x=>li(x,x.days+' يوم','#f87171'),x=>[x.days,'يوم شغل'])+
     al('☕ راحة عالية (>25% من وقتهم)',hb,x=>li(x,F1(x.b)+' س','#fbbf24'),x=>[+x.b.toFixed(1),'ساعة راحة'])+
     (pw=>(ALX.push({t:'💰 أعلى محافظ موجبة',arr:pw,ex:x=>[x.w,'ج']}),`<div class="card" style="background:#0f1626"><b>💰 أعلى محافظ موجبة</b> <span class="b g">${pw.length}</span>${pw.slice(0,10).map(x=>li(x,NF(x.w)+' ج','#34d399')).join('')}</div>`))(list.filter(x=>x.w>0).sort((x,y)=>y.w-x.w)));
 }
@@ -618,7 +759,7 @@ function gstat(){const e=$('gst');if(e)e.textContent=DRAFT?'⚠️ فيه تعد
 function scope(rows){if(!CUR||CUR.r==='admin')return rows;const k=CUR.r==='manager'?'m':'s';return rows.filter(r=>r[k]===CUR.s)}
 function findU(u,h){return USERS.find(y=>y.u.toLowerCase()===u&&y.h===h)||(DRAFT&&DRAFT.find(y=>y.u.toLowerCase()===u&&y.h===h))}
 function enter(x){CUR=x;idleReset();try{sessionStorage.setItem('pd_sess',x.u.toLowerCase()+'|'+x.h)}catch(e){}
-  $('lg').style.display='none';$('who').textContent='👤 '+x.n+' · '+ROLE[x.r];$('usrB').style.display=x.r==='admin'?'':'none';$('tgB').style.display=x.r==='admin'?'':'none';$('prB').style.display='';load().then(()=>{if(x.r==='admin'&&x.h===DEF_H){const m=$('msg');m.style.display='block';m.textContent='⚠️ كلمة مرور الأدمن الافتراضية لسه شغالة — غيّرها من 👥 المستخدمين.'}})}
+  $('lg').style.display='none';$('who').textContent='👤 '+x.n+' · '+ROLE[x.r];$('usrB').style.display=x.r==='admin'?'':'none';$('tgB').style.display=x.r==='admin'?'':'none';$('asB').style.display='';$('prB').style.display='';load().then(()=>{if(x.r==='admin'&&x.h===DEF_H){const m=$('msg');m.style.display='block';m.textContent='⚠️ كلمة مرور الأدمن الافتراضية لسه شغالة — غيّرها من 👥 المستخدمين.'}})}
 let USERS=USERS_EMBED,DRAFT=null,VAULT=PW_EMBED;
 async function loadUsers(){
   try{const r=await fetch('users.json?_='+Date.now(),{cache:'no-store'});if(r.ok){const d=await r.json();if(d&&Array.isArray(d.users)&&d.users.length){USERS=d.users;if(d.vault)VAULT=d.vault}}}catch(e){}
@@ -946,6 +1087,232 @@ $('tgE').onclick=()=>{if(!TGP.length)return alert('لا توجد بيانات ل
   const d=new Date(),nm='تارجت_المكاتب_'+ds(d.getTime());
   if(window.XLSX){const ws=XLSX.utils.json_to_sheet(rows);ws['!views']=[{RTL:true}];const wb=XLSX.utils.book_new();wb.Workbook={Views:[{RTL:true}]};XLSX.utils.book_append_sheet(wb,ws,'التارجت');XLSX.writeFile(wb,nm+'.xlsx')}
   else dlCSV(rows,nm+'.csv')};
+
+/* ---------- 🗓️ ان اصين ---------- */
+const AS_GID='1908066150',AS_TAB='ان اصين';
+let AS_ROWS=[],AS_DATES=[],AS_FILTERED=[],AS_PAGE=0,AS_PAGE_SIZE=50,AS_DAY_KEYS=[],AS_GROUP='city',AS_GROUP_DATA=[];
+const asDateKey=v=>{
+  const s=String(v==null?'':v).trim(),m=s.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
+  if(m)return m[3]+'-'+String(+m[1]).padStart(2,'0')+'-'+String(+m[2]).padStart(2,'0');
+  const y=s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  return y?y[1]+'-'+String(+y[2]).padStart(2,'0')+'-'+String(+y[3]).padStart(2,'0'):''
+};
+const asDateLabel=d=>new Date(d+'T00:00:00').toLocaleDateString('ar-EG',{weekday:'short',day:'numeric',month:'short'});
+const asParseRows=arr=>{
+  if(!Array.isArray(arr)||arr.length<2)throw new Error('التابة فاضية أو مفيهاش صفوف بيانات.');
+  const heads=arr[0].map(v=>String(v==null?'':v).trim()),cols=heads.map((h,i)=>({i,d:asDateKey(h)})).filter(x=>x.d);
+  if(!cols.length)throw new Error('ملقتش أعمدة تواريخ في أول صف من التابة.');
+  const col=(test,fallback)=>{const i=heads.findIndex(h=>test(h.toLowerCase()));return i<0?fallback:i};
+  const ci={id:col(h=>/^id$|كود/.test(h),0),name:col(h=>/employee name|اسم المندوب|اسم الموظف|الاسم/.test(h),1),
+    sup:col(h=>/^s v$|مشرف/.test(h),2),manager:col(h=>/مدير/.test(h),3),city:col(h=>/city|مدينة|منطقة/.test(h),4),
+    status:col(h=>/^status$|الحالة/.test(h),6),office:col(h=>/مقر|office/.test(h),heads.length-2),
+    hours:col(h=>/الساعات المختاره|الساعات المختارة|ساعات مختارة/.test(h),heads.length-1)};
+  const rows=[];
+  for(let i=1;i<arr.length;i++){
+    const r=arr[i]||[],id=String(r[ci.id]||'').trim(),name=String(r[ci.name]||'').trim();
+    if(!id&&!name)continue;
+    const shifts={};for(const c of cols)shifts[c.d]=String(r[c.i]||'').trim();
+    rows.push({id,name,sup:String(r[ci.sup]||'').trim(),manager:String(r[ci.manager]||'').trim(),
+      city:String(r[ci.city]||'').trim(),status:String(r[ci.status]||'').trim(),
+      office:String(r[ci.office]||'').trim(),hours:String(r[ci.hours]||'').trim(),shifts});
+  }
+  if(!rows.length)throw new Error('اتحملت التابة لكن مفيش صفوف فيها كود أو اسم مندوب.');
+  AS_DATES=cols.map(x=>x.d).sort();AS_DATES=[...new Set(AS_DATES)];AS_ROWS=rows;
+};
+function asJsonp(){
+  return new Promise((resolve,reject)=>{
+    const script=document.createElement('script'),name='__asSheetResponse',timeout=setTimeout(()=>finish(new Error('انتهت مهلة الاتصال بجوجل.')),45000);
+    const finish=(err,value)=>{clearTimeout(timeout);script.remove();try{delete window[name]}catch(e){window[name]=undefined}if(err)reject(err);else resolve(value)};
+    window[name]=r=>{
+      if(!r||r.status==='error'||!r.table)return finish(new Error('جوجل رجّع خطأ أثناء قراءة التابة.'));
+      const rows=[(r.table.cols||[]).map(c=>c&&c.label||'')];
+      for(const row of r.table.rows||[])rows.push((r.table.cols||[]).map((_,i)=>{
+        const c=row.c&&row.c[i];if(!c)return '';
+        const v=c.f!=null?c.f:c.v;
+        if(typeof v==='string'){const m=v.match(/^Date\((\d+),(\d+),(\d+)/);if(m)return String(+m[2]+1)+'/'+String(+m[3])+'/'+m[1]}
+        return v==null?'':v;
+      }));
+      finish(null,rows);
+    };
+    script.onerror=()=>finish(new Error('فشل تحميل بيانات التابة من Google Sheets.'));
+    script.src=`https://docs.google.com/spreadsheets/d/${SID}/gviz/tq?gid=${AS_GID}&headers=1&tqx=out:json;responseHandler:${name}`;
+    document.head.appendChild(script);
+  });
+}
+async function asFetch(){
+  const base=`https://docs.google.com/spreadsheets/d/${SID}/`,urls=[
+    base+`gviz/tq?tqx=out:csv&gid=${AS_GID}`,
+    base+`gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(AS_TAB)}`,
+    base+`export?format=csv&gid=${AS_GID}`
+  ],errors=[];
+  for(const url of urls){
+    try{
+      const r=await fetch(url,{cache:'no-store'});if(!r.ok){errors.push('HTTP '+r.status);continue}
+      const text=await r.text();if(text.trim().startsWith('<')){errors.push('الشيت طلب تسجيل دخول أو صلاحية');continue}
+      const data=Papa.parse(text,{skipEmptyLines:true}).data;asParseRows(data);return;
+    }catch(e){errors.push(e.message||'تعذّر قراءة CSV')}
+  }
+  try{asParseRows(await asJsonp());return}catch(e){errors.push(e.message||'تعذّر الاتصال')}
+  throw new Error([...new Set(errors)].join(' · ')||'تأكد إن الشيت متاح للعرض بالرابط.');
+}
+function asScopedRows(){
+  if(!CUR||CUR.r==='admin')return AS_ROWS;
+  const key=CUR.r==='manager'?'manager':'sup';
+  return AS_ROWS.filter(r=>r[key]===CUR.s);
+}
+function asSetSelect(id,values,label){
+  const select=$(id),previous=select.value;select.innerHTML='';
+  const all=document.createElement('option');all.value='';all.textContent=label;select.appendChild(all);
+  [...new Set(values.filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ar')).forEach(value=>{
+    const option=document.createElement('option');option.value=value;option.textContent=value;select.appendChild(option);
+  });
+  if([...select.options].some(o=>o.value===previous))select.value=previous;
+}
+const asIsSelected=v=>{const s=String(v||'').trim().toLowerCase().replace(/\s+/g,'');return !!s&&((s.includes('مختار')&&!s.includes('مش'))||s==='selected'||s==='yes'||s==='true')};
+const asIsNotSelected=v=>{const s=String(v||'').trim().toLowerCase().replace(/\s+/g,'');return s.includes('مشمختار')||s==='notselected'||s==='no'||s==='false'};
+function asFillFilters(){
+  const rows=asScopedRows();
+  asSetSelect('asManager',rows.map(r=>r.manager),'كل المديرين');
+  asSetSelect('asSup',rows.map(r=>r.sup),'كل المشرفين');
+  asSetSelect('asCity',rows.map(r=>r.city),'كل المدن');
+  asSetSelect('asOffice',rows.map(r=>r.office),'كل المقرات');
+}
+function asDateChips(){
+  const root=$('asChips'),last=AS_DATES[AS_DATES.length-1],first=AS_DATES[0];
+  root.innerHTML='';
+  const localDateKey=offset=>{
+    const date=new Date();date.setDate(date.getDate()+offset);
+    return date.getFullYear()+'-'+String(date.getMonth()+1).padStart(2,'0')+'-'+String(date.getDate()).padStart(2,'0');
+  };
+  [[localDateKey(0),localDateKey(0),'النهارده'],[localDateKey(1),localDateKey(1),'بكرة'],
+    [first,last,'كل الأيام'],[AS_DATES[Math.max(0,AS_DATES.length-7)],last,'آخر 7 أيام'],[last,last,'آخر يوم']].forEach(([a,b,label])=>{
+    const button=document.createElement('button');button.className='chip';button.textContent=label;
+    button.onclick=()=>{$('asD1').value=a||'';$('asD2').value=b||'';AS_PAGE=0;asRender()};
+    root.appendChild(button);
+  });
+}
+function asHours(v){
+  const m=String(v||'').trim().match(/^(\d{1,3}):([0-5]\d)$/);return m?+m[1]+(+m[2])/60:0;
+}
+function asRender(){
+  if(!AS_ROWS.length)return;
+  const first=AS_DATES[0],last=AS_DATES[AS_DATES.length-1];
+  const from=$('asD1').value||first,to=$('asD2').value||last;
+  const days=AS_DATES.filter(d=>d>=from&&d<=to);AS_DAY_KEYS=days;
+  const manager=$('asManager').value,sup=$('asSup').value,city=$('asCity').value,office=$('asOffice').value,
+    status=$('asStatus').value,q=$('asQ').value.trim().toLowerCase();
+  let rows=asScopedRows().filter(r=>(!manager||r.manager===manager)&&(!sup||r.sup===sup)&&(!city||r.city===city)&&(!office||r.office===office)&&
+    (!q||(r.id+' '+r.name+' '+r.sup+' '+r.manager+' '+r.city+' '+r.office).toLowerCase().includes(q)));
+  rows=rows.filter(r=>{
+    const chosen=days.some(d=>asIsSelected(r.shifts[d]));
+    if(status==='selected'&&!chosen)return false;
+    if(status==='not-selected'&&chosen)return false;
+    if(status==='active'&&!/active|نشط/i.test(r.status))return false;
+    return true;
+  });
+  AS_FILTERED=rows;AS_PAGE=Math.min(AS_PAGE,Math.max(0,Math.ceil(rows.length/AS_PAGE_SIZE)-1));
+  let chosen=0,notChosen=0,unknown=0;const byDay=days.map(d=>({d,yes:0,no:0,unknown:0}));
+  const supervisors={},byCity={},byOffice={};
+  for(const r of rows){
+    let y=0,n=0;
+    for(const point of byDay){const value=r.shifts[point.d];if(asIsSelected(value)){point.yes++;y++}else if(asIsNotSelected(value)){point.no++;n++}else point.unknown++}
+    chosen+=y;notChosen+=n;unknown+=Math.max(0,days.length-y-n);
+    if(r.sup){const g=supervisors[r.sup]||(supervisors[r.sup]={yes:0,total:0});g.yes+=y;g.total+=y+n}
+    for(const group of [byCity,byOffice]){
+      const key=group===byCity?r.city:r.office;if(!key)continue;
+      const g=group[key]||(group[key]={yes:0,no:0});
+      g.yes+=y;g.no+=n;
+    }
+  }
+  const availability=chosen+notChosen?chosen/(chosen+notChosen)*100:0,hours=rows.reduce((sum,r)=>sum+asHours(r.hours),0);
+  $('asK').innerHTML=[
+    ['👥 المندوبون',NF(rows.length),'حسب الفلاتر','--c:var(--pr)'],
+    ['✅ مختار',NF(chosen),'اختيارات مندوب × يوم','--c:var(--ok)'],
+    ['⏳ مش مختار',NF(notChosen),'اختيارات مندوب × يوم','--c:var(--bad)'],
+    ['📋 إجمالي الحالات المسجلة',NF(chosen+notChosen),'مختار + مش مختار؛ بدون الخانات الفارغة','--c:var(--cy)'],
+    ['📊 نسبة الاختيار',F1(availability)+'%','من الحالات المحددة','--c:var(--wa)'],
+    ['⏱ ساعات اليوم المختارة',F1(hours),'إجمالي الساعات المسجلة لليوم فقط','--c:var(--pu)'],
+    ['❔ بدون حالة',NF(unknown),'خانات فاضية أو غير معروفة','--c:var(--cy)']
+  ].map(k=>`<div class="kpi" style="${k[3]}"><div class="l">${k[0]}</div><div class="v">${k[1]}</div><div class="s">${k[2]}</div></div>`).join('');
+  $('asN').textContent=NF(AS_ROWS.length)+' مندوب في الشيت · '+NF(rows.length)+' بعد الفلترة';
+  $('asCount').textContent=NF(rows.length)+' نتيجة';
+  const labels=days.map(asDateLabel);
+  draw('as1',{type:'bar',data:{labels,datasets:[
+    {label:'مختار',data:byDay.map(x=>x.yes),backgroundColor:'#10b981cc',stack:'shift'},
+    {label:'مش مختار',data:byDay.map(x=>x.no),backgroundColor:'#ef4444aa',stack:'shift'},
+    {label:'بدون حالة',data:byDay.map(x=>x.unknown),backgroundColor:'#64748b99',stack:'shift'}
+  ]},options:{scales:{x:{stacked:true},y:{stacked:true,beginAtZero:true}},onClick:(e,els)=>{if(!els.length)return;const d=days[els[0].index];$('asD1').value=d;$('asD2').value=d;asRender()}}});
+  draw('as2',{type:'doughnut',data:{labels:['مختار','مش مختار','بدون حالة'],datasets:[{data:[chosen,notChosen,unknown],backgroundColor:['#10b981','#ef4444','#64748b']}]},options:{scales:{}}});
+  const top=Object.entries(supervisors).sort((a,b)=>b[1].yes-a[1].yes).slice(0,12);
+  draw('as3',{type:'bar',data:{labels:top.map(x=>x[0]),datasets:[{label:'اختيارات مؤكدة',data:top.map(x=>x[1].yes),backgroundColor:'#8b5cf6cc'},{label:'أيام بحالة معروفة',data:top.map(x=>Math.max(0,x[1].total-x[1].yes)),backgroundColor:'#3b82f688'}]},options:{indexAxis:'y',scales:{x:{stacked:true},y:{stacked:true}},onClick:(e,els)=>{if(!els.length)return;$('asSup').value=top[els[0].index][0];asRender()}}});
+  const groupRows=field=>{
+    const groups={};
+    for(const r of rows){
+      const name=r[field]||'غير محدد',g=groups[name]||(groups[name]={name,selected:0,notSelected:0,unknown:0,riders:0});
+      g.riders++;
+      for(const d of days){const value=r.shifts[d];if(asIsSelected(value))g.selected++;else if(asIsNotSelected(value))g.notSelected++;else g.unknown++}
+    }
+    return Object.values(groups).map(g=>({...g,total:g.selected+g.notSelected+g.unknown})).sort((a,b)=>b.total-a.total||a.name.localeCompare(b.name,'ar'));
+  };
+  const drawGroups=(id,groups,filterId)=>{const ranked=Object.entries(groups).map(([name,x])=>({name,...x,total:x.yes+x.no})).sort((a,b)=>b.total-a.total);
+    draw(id,{type:'bar',data:{labels:ranked.map(x=>x.name),datasets:[
+      {label:'مختار',data:ranked.map(x=>x.yes),backgroundColor:'#10b981cc'},
+      {label:'مش مختار',data:ranked.map(x=>x.no),backgroundColor:'#ef4444aa'},
+      {label:'الإجمالي المسجل',data:ranked.map(x=>x.total),backgroundColor:'#3b82f688'}
+    ]},options:{indexAxis:'y',scales:{x:{beginAtZero:true}},onClick:(e,els)=>{if(!els.length)return;$(filterId).value=ranked[els[0].index].name;AS_PAGE=0;asRender()}}});
+  };
+  drawGroups('as4',byCity,'asCity');drawGroups('as5',byOffice,'asOffice');
+  AS_GROUP_DATA={city:groupRows('city'),office:groupRows('office'),sup:groupRows('sup')};asRenderGroupTable();
+  $('asH').innerHTML='<tr>'+['#','الكود','اسم المندوب','المدير','المشرف','المدينة','المقر','الحالة',...days.map(asDateLabel),'ساعات اليوم المختارة'].map(x=>`<th>${esc(x)}</th>`).join('')+'</tr>';
+  const start=AS_PAGE*AS_PAGE_SIZE,shown=rows.slice(start,start+AS_PAGE_SIZE);
+  $('asT').innerHTML=shown.map((r,i)=>`<tr><td>${start+i+1}</td><td>${esc(r.id)}</td><td><b>${esc(r.name)}</b></td><td>${esc(r.manager||'—')}</td><td>${esc(r.sup||'—')}</td><td>${esc(r.city||'—')}</td><td>${esc(r.office||'—')}</td><td>${esc(r.status||'—')}</td>${days.map(d=>{const v=r.shifts[d],cls=asIsSelected(v)?'g':asIsNotSelected(v)?'r':'n';return`<td><span class="b ${cls}">${esc(v||'—')}</span></td>`}).join('')}<td>${esc(r.hours||'—')}</td></tr>`).join('')||`<tr><td colspan="${9+days.length}" class="sub">مفيش نتائج مطابقة للفلاتر</td></tr>`;
+  const pageCount=Math.max(1,Math.ceil(rows.length/AS_PAGE_SIZE));
+  $('asPage').textContent=(AS_PAGE+1)+' / '+pageCount;$('asPrev').disabled=AS_PAGE===0;$('asNext').disabled=AS_PAGE>=pageCount-1;
+}
+function asSetGroup(group){
+  if(!['city','office','sup'].includes(group))return;
+  AS_GROUP=group;
+  document.querySelectorAll('[data-as-group]').forEach(button=>button.classList.toggle('on',button.dataset.asGroup===group));
+  asRenderGroupTable();
+}
+function asRenderGroupTable(){
+  const titles={city:'المنطقة',office:'المقر',sup:'المشرف'},title=titles[AS_GROUP],groups=AS_GROUP_DATA[AS_GROUP]||[];
+  $('asGroupH').innerHTML='<tr>'+['#',title,'عدد المندوبين','مختار','مش مختار'].map(x=>`<th>${x}</th>`).join('')+'</tr>';
+  $('asGroupT').innerHTML=groups.map((g,i)=>`<tr><td>${i+1}</td><td><b>${esc(g.name)}</b></td><td>${NF(g.riders)}</td><td><span class="b g">${NF(g.selected)}</span></td><td><span class="b r">${NF(g.notSelected)}</span></td></tr>`).join('')||'<tr><td colspan="5" class="sub">مفيش بيانات للمجموعة دي</td></tr>';
+}
+async function asReload(){
+  const message=$('asM'),button=$('asRf');button.disabled=true;message.style.display='block';message.textContent='⏳ جارٍ سحب بيانات التابة…';
+  try{
+    await asFetch();asFillFilters();asDateChips();
+    $('asD1').value=AS_DATES[0]||'';$('asD2').value=AS_DATES[AS_DATES.length-1]||'';
+    AS_PAGE=0;message.style.display='none';asRender();
+  }catch(e){message.textContent='⚠️ تعذّر تحميل بيانات التابة: '+e.message+(AS_ROWS.length?' · البيانات السابقة ما زالت معروضة.':' · تأكد إن الشيت متاح لمن لديه الرابط.') }
+  finally{button.disabled=false}
+}
+function asOpen(){
+  $('as').style.display='block';document.body.style.overflow='hidden';
+  if(!AS_ROWS.length)asReload();else asRender();
+}
+function asClose(){$('as').style.display='none';document.body.style.overflow=''}
+function asGo(id){const e=$(id);if(e)$('as').scrollTo({top:e.offsetTop-60,behavior:'smooth'})}
+function asExport(){
+  if(!AS_FILTERED.length)return alert('مفيش بيانات للتصدير بعد الفلترة.');
+  const days=AS_DAY_KEYS,rows=AS_FILTERED.map(r=>{
+    const x={'الكود':r.id,'اسم المندوب':r.name,'المدير':r.manager,'المشرف':r.sup,'المدينة':r.city,'المقر':r.office,'الحالة':r.status};
+    days.forEach(d=>x[asDateLabel(d)]=r.shifts[d]||'');x['ساعات اليوم المختارة']=r.hours;return x;
+  });
+  const name='ان_اصين_'+new Date().toISOString().slice(0,10);
+  if(window.XLSX){const ws=XLSX.utils.json_to_sheet(rows);ws['!views']=[{RTL:true}];const wb=XLSX.utils.book_new();wb.Workbook={Views:[{RTL:true}]};XLSX.utils.book_append_sheet(wb,ws,'ان اصين');XLSX.writeFile(wb,name+'.xlsx')}
+  else dlCSV(rows,name+'.csv');
+}
+$('asB').onclick=asOpen;$('asC').onclick=asClose;$('asRf').onclick=asReload;$('asE').onclick=asExport;
+$('as').addEventListener('click',e=>{if(e.target===$('as'))asClose()});
+addEventListener('keydown',e=>{if(e.key==='Escape'&&$('as').style.display==='block')asClose()});
+['asD1','asD2','asManager','asSup','asCity','asOffice','asStatus'].forEach(id=>$(id).onchange=()=>{AS_PAGE=0;asRender()});
+let asQT;$('asQ').oninput=()=>{clearTimeout(asQT);asQT=setTimeout(()=>{AS_PAGE=0;asRender()},200)};
+$('asX').onclick=()=>{['asManager','asSup','asCity','asOffice','asStatus','asQ'].forEach(id=>$(id).value='');if(AS_DATES.length){$('asD1').value=AS_DATES[0];$('asD2').value=AS_DATES[AS_DATES.length-1]}AS_PAGE=0;asRender()};
+$('asPrev').onclick=()=>{if(AS_PAGE>0){AS_PAGE--;asRender()}};
+$('asNext').onclick=()=>{if((AS_PAGE+1)*AS_PAGE_SIZE<AS_FILTERED.length){AS_PAGE++;asRender()}};
 
 boot();
 </script>
