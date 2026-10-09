@@ -24,6 +24,7 @@ main{max-width:1500px;margin:auto;padding:12px;display:grid;gap:12px}
 .chip.on{background:var(--pr);color:#fff;border-color:var(--pr)}
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px}
 .filters{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.filterPanel.collapsed #mainFilters{display:none}
 .filters label{font-size:11px;color:var(--mut);display:block;margin-bottom:3px}
 .filters select,.filters input{width:100%}
 .kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
@@ -110,6 +111,10 @@ html{-webkit-text-size-adjust:100%}body{overflow-x:hidden}
  #ms{grid-template-columns:repeat(2,1fr)}
  #msg{font-size:12px}
  .sub{font-size:12px}
+ #filterPanel>.row{align-items:center}
+ #filterToggle,#filterClear{min-height:40px}
+ #al .card>div:first-child{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+ #al .card>div:first-child .chip{min-height:36px}
 }
 
 :focus-visible{outline:2px solid var(--pr);outline-offset:2px}
@@ -195,7 +200,14 @@ html{-webkit-text-size-adjust:100%}body{overflow-x:hidden}
  <div class="card">
   <div class="chips" id="chips"></div>
   <div class="row" style="margin-top:8px"><input type="date" id="d1"><span class="sub">إلى</span><input type="date" id="d2"><span class="sub" id="cnt" style="margin-inline-start:auto"></span></div>
-  <div class="filters">
+  <div id="filterPanel">
+  <div class="row" style="margin:8px 0 6px">
+   <b style="font-size:13px">🔎 الفلاتر <span class="sub" id="filterCount"></span></b>
+   <button class="chip" id="filterToggle" type="button" aria-controls="mainFilters" aria-expanded="true">إخفاء الفلاتر</button>
+   <button class="chip" id="filterClear" type="button">مسح الفلاتر</button>
+  </div>
+  <div class="filters" id="mainFilters">
+   <div><label>🗺️ مجموعة المناطق</label><select id="mainZoneGroup"></select></div>
    <div><label>👔 المدير</label><select id="fm"></select></div>
    <div><label>📍 المنطقة</label><select id="fz"></select></div>
    <div><label>👷 المشرف</label><select id="fs"></select></div>
@@ -204,6 +216,7 @@ html{-webkit-text-size-adjust:100%}body{overflow-x:hidden}
    <div><label>📅 انتهاء العقد</label><select id="fc"><option value="">الكل</option><option value="exp">منتهي</option><option value="7">خلال 7 أيام</option><option value="14">خلال 14 يوم</option><option value="30">خلال 30 يوم</option><option value="60">خلال 60 يوم</option></select></div>
    <div><label>💳 المحفظة</label><select id="fw"><option value="">الكل</option><option value="neg">مديونية (&lt;0)</option><option value="zero">صفر</option><option value="pos">موجب</option></select></div>
    <div><label>🔎 بحث (اسم/كود)</label><input id="q" placeholder="ابحث…"></div>
+  </div>
   </div>
  </div>
  <div class="kpis" id="kpis"></div>
@@ -239,6 +252,7 @@ html{-webkit-text-size-adjust:100%}body{overflow-x:hidden}
   <div class="card c4"><h3>⭐ توزيع تقييم الطيارين</h3><div class="cw"><canvas id="ch8"></canvas></div></div>
   <div class="card c12" style="grid-column:1/-1"><h3>🎯 الالتزام مقابل الإنتاجية <span class="sub">(الطيارين مقسمين حسب نسبة الالتزام، والخط = متوسط الإنتاجية لكل شريحة)</span></h3><div class="cw"><canvas id="ch9"></canvas></div></div>
   <div class="card c12" style="grid-column:1/-1"><h3>⏱ المناديب حسب ساعات الشغل <span class="sub">(متوسط ساعات المندوب في اليوم اللي اشتغل فيه، والخط = متوسط الإنتاجية)</span></h3><div class="cw"><canvas id="ch10"></canvas></div></div>
+  <div class="card c6"><h3>🧭 خريطة الإنتاجية <span class="sub">(كل نقطة مندوب: ساعات العمل اليومية مقابل الطلبات/ساعة · اضغط لعرض التفاصيل)</span></h3><div class="cw"><canvas id="ch12"></canvas></div></div>
   <div class="card c12" style="grid-column:1/-1"><h3 style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">👔 ساعات المشرفين <button class="btn" id="svx" style="margin-inline-start:auto">⬇ تصدير Excel</button><span class="sub" style="flex-basis:100%">(الأعمدة = إجمالي الساعات الفعلية، الخط البرتقالي = متوسط ساعات المندوب، الخط الأخضر = عدد المناديب اللي اشتغلوا · اضغط على مشرف لعرض مناديبه)</span></h3><div class="cw"><canvas id="ch11"></canvas></div><div class="tw" style="max-height:340px;margin-top:8px"><table style="min-width:0"><thead><tr><th>#</th><th>المشرف</th><th>مناديب اشتغلوا</th><th>متوسط مناديب/يوم</th><th>إجمالي الساعات</th><th>عدد الأيام</th><th>متوسط ساعات المشرف/يوم</th><th>متوسط س/مندوب</th><th>متوسط س/يوم عمل</th><th>طلبات</th><th>طلب/س</th></tr></thead><tbody id="svb"></tbody></table></div></div>
  </div>
  <div class="card">
@@ -271,6 +285,7 @@ html{-webkit-text-size-adjust:100%}body{overflow-x:hidden}
   <div class="chips" id="tgChips"></div>
   <div class="row" style="margin-top:8px"><input type="date" id="tgd1"><span class="sub">إلى</span><input type="date" id="tgd2"></div>
   <div class="filters" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr))">
+   <div><label>🗺️ مجموعة المناطق</label><select id="tgGroup"></select></div>
    <div><label>📍 المنطقة</label><select id="tgz"></select></div>
    <div><label>🏢 المكتب (3PL)</label><select id="tgo"></select></div>
    <div><label>🔎 بحث</label><input id="tgq" placeholder="اسم مكتب أو منطقة…"></div>
@@ -279,6 +294,8 @@ html{-webkit-text-size-adjust:100%}body{overflow-x:hidden}
  </div>
   <div class="card" id="tgMc" style="display:none">
    <div>
+    <div class="row" style="margin-bottom:8px"><h3 style="margin:0">⚖️ المقارنة</h3><button class="chip on" id="tgDateMode">📅 مقارنة التواريخ</button><button class="chip" id="tgMonthMode">📊 مقارنة الشهور</button></div>
+    <div id="tgDatePanel">
     <div class="row" style="margin-bottom:8px"><h3 style="margin:0">⚖️ مقارنة تواريخ من اختيارك</h3><input type="date" id="tgsd" style="max-width:170px"><button class="btn pr" id="tgsa">➕ إضافة</button><button class="btn" id="tgsm">🔁 نفس اليوم في آخر 6 شهور</button><button class="btn" id="tgsc">✕ مسح الكل</button></div>
     <div class="sub" style="margin-bottom:6px">اختار أي تواريخ تحب (من أي شهر) وهتتقارن جنب بعض. اضغط على التاريخ لحذفه. (بيتأثر بفلتر المنطقة/المكتب/البحث)</div>
     <div class="chips" id="tgsch" style="margin-bottom:8px"></div>
@@ -287,6 +304,29 @@ html{-webkit-text-size-adjust:100%}body{overflow-x:hidden}
      <div class="tw" style="max-height:50vh;margin-top:8px"><table style="min-width:0"><thead id="tgsh1"></thead><tbody id="tgst1"></tbody></table></div>
      <div class="row" style="margin:12px 0 6px"><h3 style="margin:0">🔎 التفصيل حسب</h3><button class="chip on" id="tgsz">📍 منطقة</button><button class="chip" id="tgso">🏢 مكتب</button></div>
      <div class="tw" style="max-height:60vh"><table style="min-width:0"><thead id="tgsh2"></thead><tbody id="tgst2"></tbody></table></div>
+    </div>
+   </div>
+   </div>
+   <div id="tgMonthPanel" style="display:none">
+    <div class="filters" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr));margin-bottom:10px">
+     <div><label>📅 الشهور (يمكن اختيار أكثر من شهر)</label><div style="position:relative">
+      <button class="btn" id="tgMonthsToggle" type="button" aria-haspopup="listbox" aria-expanded="false" style="width:100%;text-align:start">اختار الشهور ▾</button>
+      <div id="tgMonthsMenu" class="card" style="display:none;position:absolute;z-index:20;top:calc(100% + 4px);inset-inline:0;padding:8px;box-shadow:0 8px 24px #0008">
+       <div class="row" style="margin:0 0 6px"><button class="chip" id="tgMonthAll" type="button">تحديد الكل</button><button class="chip" id="tgMonthClear" type="button">مسح</button></div>
+       <div id="tgMonthOptions" role="listbox" aria-multiselectable="true" style="display:grid;gap:4px;max-height:220px;overflow:auto"></div>
+      </div>
+     </div></div>
+    </div>
+    <div class="sub" style="margin:-4px 0 10px">المقارنة تتبع فلتر مجموعة المناطق والمنطقة والمكتب أعلى صفحة التارجت. آخر 6 شهور محددة تلقائيًا.</div>
+    <div class="row" style="align-items:flex-start;gap:8px;flex-wrap:wrap"><div><b>📊 التارجت الشهري لكل زون</b><div class="sub" id="tgMonthChartHint" style="margin-top:4px">رسم مستقل لكل زون يوضح التارجت والشهور. يظهر الـRank فقط عند اختيار منطقة أو مكتب من الفلاتر.</div></div><button class="btn" id="tgMonthCaptureGroup" style="margin-inline-start:auto">🗺️📸 تنزيل صور كل المجموعات والزونات</button><button class="btn" id="tgMonthCaptureCombined">📸 صورة واحدة لكل المناطق الظاهرة</button><button class="btn" id="tgMonthCaptureAll">📸 تنزيل صور كل الزونات الظاهرة</button><button class="btn pr" id="tgMonthExport">⬇ Excel</button></div>
+    <div id="tgMonthCaptureStatus" class="sub" role="status" aria-live="polite" style="display:none;margin:-4px 0 8px"></div>
+    <div id="tgMonthEmpty" class="sub" style="display:none;padding:12px">اختار شهرًا واحدًا على الأقل، وتأكد من وجود بيانات للمجموعة المختارة.</div>
+    <div id="tgMonthResults">
+     <div id="tgMonthCharts" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:12px;margin-top:10px"></div>
+     <div class="row" style="margin:12px 0 6px"><h3 style="margin:0">📋 مقارنة الزونات — الشهور جنب بعض</h3><button class="btn" id="tgMonthTableExport" style="margin-inline-start:auto">⬇ Excel الجدول</button></div>
+     <div class="tw" style="max-height:55vh"><table style="min-width:900px"><thead id="tgMonthHead"></thead><tbody id="tgMonthBody"></tbody></table></div>
+     <div class="row" style="margin:14px 0 6px"><h3 style="margin:0">🏢 إجمالي تارجت المكاتب — الشهور جنب بعض</h3><button class="btn" id="tgOfficeTableExport">⬇ Excel الجدول</button></div>
+     <div class="tw" style="max-height:55vh"><table style="min-width:900px"><thead id="tgOfficeHead"></thead><tbody id="tgOfficeBody"></tbody></table></div>
     </div>
    </div>
   </div>
@@ -321,7 +361,8 @@ html{-webkit-text-size-adjust:100%}body{overflow-x:hidden}
    <div class="filters" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr));margin-top:8px">
     <div><label>📅 من تاريخ</label><input type="date" id="asD1"></div>
     <div><label>📅 إلى تاريخ</label><input type="date" id="asD2"></div>
-    <div><label>👔 المدير</label><select id="asManager"></select></div>
+     <div><label>🗺️ مجموعة المناطق</label><select id="asZoneGroup"></select></div>
+     <div><label>👔 المدير</label><select id="asManager"></select></div>
     <div><label>👷 المشرف</label><select id="asSup"></select></div>
     <div><label>📍 المدينة</label><select id="asCity"></select></div>
     <div><label>🏢 المقر</label><select id="asOffice"></select></div>
@@ -386,6 +427,14 @@ function pd(s){
 }
 const ds=t=>{const x=new Date(t);return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0')};
 const fd=t=>t?new Date(t).toLocaleDateString('en-GB'):'—';
+const fdt=t=>t?new Date(+t).toLocaleString('ar-EG',{dateStyle:'short',timeStyle:'short'}):'غير متوفر';
+const SYNC_KEY='pd_last_data_sync';let LAST_SYNC=0;
+function lastSync(){try{return localStorage.getItem(SYNC_KEY)||LAST_SYNC||null}catch(e){return LAST_SYNC||null}}
+function setSyncStatus(state,detail){
+  const cached=lastSync();
+  const stateText=state==='online'?'✅ مباشر':state==='refreshing'?'🔄 جارٍ التحديث':state==='stale'?'⚠️ نسخة محفوظة':'⚠️ غير متصل';
+  $('sync').textContent=stateText+' · آخر تحديث ناجح: '+fdt(cached)+(detail?' · '+detail:'');
+}
 
 function ingest(arr){
   const out=[];
@@ -401,34 +450,55 @@ function jsonp(){return new Promise((ok,no)=>{
   sc.onerror=()=>{clearTimeout(tm);no('فشل تحميل السكربت من جوجل (إنترنت/الشيت غير عام)')};
   sc.src=`https://docs.google.com/spreadsheets/d/${SID}/gviz/tq?gid=0&headers=1&tqx=out:json;responseHandler:__gv`;document.head.appendChild(sc)})}
 async function load(){
-  $('msg').style.display='none';let cached=false;if(!ROWS.length){const c=await idb('get');if(c&&c.length){ALL=c;ROWS=scope(c);cached=true;done();$('sync').textContent+=' · نسخة محفوظة، جارٍ التحديث…'}}if(!cached)$('load').style.display='flex';
+  $('msg').style.display='none';let cached=false;if(!ROWS.length){const c=await idb('get');if(c&&c.length){ALL=c;ROWS=scope(c);cached=true;done(false);setSyncStatus('refreshing','نعرض نسخة محفوظة مؤقتًا')}}
+  const hadData=ROWS.length>0;
+  if(!hadData)$('load').style.display='flex';else setSyncStatus('refreshing','البيانات الحالية ظاهرة أثناء التحديث');
   const errs=[];
   for(const u of URLS){
-    try{const ac=new AbortController(),tm=setTimeout(()=>ac.abort(),180000);
-      const r=await fetch(u,{signal:ac.signal});clearTimeout(tm);
+    const ac=new AbortController(),tm=setTimeout(()=>ac.abort(),180000);
+    try{
+      const r=await fetch(u,{signal:ac.signal});
       if(!r.ok){errs.push('HTTP '+r.status);continue}
       const txt=await r.text();if(txt.trim().startsWith('<')){errs.push('الشيت غير عام (طلب تسجيل دخول)');continue}
       $('lt').textContent='معالجة البيانات…';await new Promise(r=>setTimeout(r));
-      const n=ingest(Papa.parse(txt,{skipEmptyLines:true}).data);if(n){idb('put',ALL);done();return}
+      const n=ingest(Papa.parse(txt,{skipEmptyLines:true}).data);if(n){idb('put',ALL);done(true);return}
       errs.push('تم التحميل لكن لا توجد صفوف بتواريخ صالحة');
     }catch(e){errs.push(e.name==='AbortError'?'انتهت المهلة (الملف كبير)':'تم حظر الطلب (CORS/شبكة) — '+location.protocol)}
+    finally{clearTimeout(tm)}
   }
-  try{$('lt').textContent='محاولة السحب بطريقة بديلة (تعمل من file:// أيضًا)…';const n=ingest(await jsonp());if(n){idb('put',ALL);done();return}errs.push('لا توجد صفوف صالحة')}catch(e){errs.push(String(e))}
+  try{$('lt').textContent='محاولة السحب بطريقة بديلة (تعمل من file:// أيضًا)…';const n=ingest(await jsonp());if(n){idb('put',ALL);done(true);return}errs.push('لا توجد صفوف صالحة')}catch(e){errs.push(String(e))}
   $('load').style.display='none';
-  if(cached)return;const m=$('msg');m.style.display='block';
-  m.innerHTML='⚠️ تعذّر سحب الشيت.<br><small>السبب: '+[...new Set(errs)].join(' | ')+'</small><br><small>افتح الملف من متصفح عادي (Chrome) أو من استضافة، وليس من معاينة داخل الشات. أو حمّل CSV يدويًا بزر 📂 CSV.</small>';
+  const m=$('msg');m.style.display='block';
+  if(hadData){setSyncStatus('stale',cached?'تعذّر الاتصال؛ نعرض نسخة محفوظة':'فشل التحديث؛ نعرض آخر بيانات محمّلة');m.textContent='⚠️ تعذّر تحديث البيانات من Google Sheets. البيانات المعروضة آخر تحديث ناجح لها '+fdt(lastSync())+'. الأسباب: '+[...new Set(errs)].join(' | ');return}
+  setSyncStatus('offline');m.textContent='⚠️ تعذّر سحب الشيت. الأسباب: '+[...new Set(errs)].join(' | ')+' · افتح الملف في Chrome أو من الاستضافة، أو حمّل CSV يدويًا.';
 }
-function done(){
-  {const mx=ROWS.reduce((m,r)=>r.t>m?r.t:m,0);$('sync').textContent='آخر تحديث للبيانات: '+(mx?fd(mx):'—')+' · '+NF(ROWS.length)+' سجل'}
+function done(fresh){
+  if(fresh){LAST_SYNC=Date.now();try{localStorage.setItem(SYNC_KEY,String(LAST_SYNC))}catch(e){}setSyncStatus('online',NF(ROWS.length)+' سجل')}
   $('load').style.display='none';if(!ROWS.length){const m=$('msg');m.style.display='block';m.textContent='لا توجد بيانات مرتبطة بحسابك.'}fillOpts();setPreset(preset,true);
 }
 /* ---------- filters ---------- */
+const TG_ZONE_GROUPS={
+  'اكتوبر':['Smart village','October wahat','October palm hills','October'],
+  'التجمعات':['Madinaty','Shorouk city','Obour city'],
+  'مدينه نصر':['Nasr city','Ain shams','Heliopolis'],
+  'الجيزه':['Hadayek el ahram','Giza','Cairo_city_centre'],
+  'تجمعات2':['Tagammoa north','Tagammoa south','Tagammoa golden square','El rehab city'],
+  'وسط البلد':['Mohandiseen','Shobra','Hadayek el qobba'],
+  'المعادي':['Mokattam','Helwan','Maadi'],
+  'اقاليم':['Tanta','Zagazig','Suez','10th of ramadan','Ismalia city','Mansoura','Minya'],
+  Alexandria:['Alexandria'],
+  Hurgada:['Hurgada']
+};
+const tgZoneNorm=z=>String(z||'').trim().toLocaleLowerCase('en').replace(/[_\s]+/g,' ');
+const tgGroupHasZone=(group,z)=>!group||(TG_ZONE_GROUPS[group]||[]).some(name=>tgZoneNorm(name)===tgZoneNorm(z));
+const tgGroupOptions=()=>'<option value="">كل المجموعات</option>'+Object.keys(TG_ZONE_GROUPS).map(group=>`<option value="${group}">${group}</option>`).join('');
+['mainZoneGroup','asZoneGroup'].forEach(id=>{if($(id))$(id).innerHTML=tgGroupOptions()});
 function uniq(k,rows){return [...new Set(rows.map(r=>r[k]).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ar'))}
 function setSel(id,list,all){const s=$(id),c=s.value;s.innerHTML=`<option value="">${all}</option>`+list.map(x=>`<option>${x}</option>`).join('');if(list.includes(c))s.value=c}
 function fillOpts(){
-  const m=$('fm').value,z=$('fz').value;
+  const m=$('fm').value,z=$('fz').value,group=$('mainZoneGroup').value;
   setSel('fm',uniq('m',ROWS),'كل المديرين');$('fm').value=m;
-  const r1=m?ROWS.filter(r=>r.m===m):ROWS;setSel('fz',uniq('z',r1),'كل المناطق');
+  const r1=(m?ROWS.filter(r=>r.m===m):ROWS).filter(r=>tgGroupHasZone(group,r.z));setSel('fz',uniq('z',r1),'كل المناطق');
   const r2=z?r1.filter(r=>r.z===z):r1;setSel('fs',uniq('s',r2),'كل المشرفين');
   setSel('fv',uniq('v',ROWS),'كل المركبات');setSel('fb',uniq('bt',ROWS).sort((a,b)=>a-b),'كل الباتشات');
 }
@@ -445,13 +515,27 @@ function setPreset(p,silent){
   const b=document.createElement('button');b.className='chip';b.dataset.p=p;b.textContent=t;b.onclick=()=>setPreset(p);$('chips').appendChild(b)});
 ['d1','d2'].forEach(i=>$(i).onchange=()=>{preset='';document.querySelectorAll('.chip').forEach(c=>c.classList.remove('on'));apply()});
 ['fm','fz','fs'].forEach(i=>$(i).onchange=()=>{if(i==='fm')$('fz').value='';if(i!=='fs')$('fs').value='';fillOpts();apply()});
+ $('mainZoneGroup').onchange=()=>{$('fz').value='';$('fs').value='';fillOpts();apply()};
 ['fv','fb','fc','fw'].forEach(i=>$(i).onchange=apply);
 let qt;$('q').oninput=()=>{clearTimeout(qt);qt=setTimeout(apply,250)};
+function updateFilterControls(){
+  const active=['mainZoneGroup','fm','fz','fs','fv','fb','fc','fw'].filter(id=>$(id).value).length+($('q').value.trim()?1:0);
+  $('filterCount').textContent=active?'· '+active+' نشط':'· بدون فلاتر';
+  $('filterToggle').textContent=$('filterPanel').classList.contains('collapsed')?'إظهار الفلاتر':'إخفاء الفلاتر';
+  $('filterToggle').setAttribute('aria-expanded',String(!$('filterPanel').classList.contains('collapsed')));
+}
+$('filterToggle').onclick=()=>{$('filterPanel').classList.toggle('collapsed');updateFilterControls()};
+$('filterClear').onclick=()=>{$('mainZoneGroup').value='';$('fm').value='';$('fz').value='';$('fs').value='';$('fv').value='';$('fb').value='';$('fc').value='';$('fw').value='';$('q').value='';fillOpts();apply()};
+if(matchMedia('(max-width: 699px)').matches)$('filterPanel').classList.add('collapsed');
+updateFilterControls();
 
 function apply(){
   const a=new Date($('d1').value).setHours(0,0,0,0),b=new Date($('d2').value).setHours(0,0,0,0);
-  const m=$('fm').value,z=$('fz').value,s=$('fs').value,v=$('fv').value,bt=$('fb').value,q=$('q').value.trim().toLowerCase();
-  const ok=r=>(!m||r.m===m)&&(!z||r.z===z)&&(!s||r.s===s)&&(!v||r.v===v)&&(!bt||r.bt===bt)&&(!q||r.n.toLowerCase().includes(q)||r.id.toLowerCase().includes(q));const fr=ROWS.filter(r=>r.t>=a&&r.t<=b&&ok(r));FR=fr;const len=b-a+DAY,P={o:0,a:0,p:0};for(const r of ROWS)if(r.t>=a-len&&r.t<a&&ok(r)){P.o+=r.o;P.a+=r.a;P.p+=r.p}
+  const m=$('fm').value,z=$('fz').value,s=$('fs').value,v=$('fv').value,bt=$('fb').value,q=$('q').value.trim().toLowerCase(),group=$('mainZoneGroup').value;
+  const ok=r=>tgGroupHasZone(group,r.z)&&(!m||r.m===m)&&(!z||r.z===z)&&(!s||r.s===s)&&(!v||r.v===v)&&(!bt||r.bt===bt)&&(!q||r.n.toLowerCase().includes(q)||r.id.toLowerCase().includes(q));
+  const len=b-a+DAY,P={o:0,a:0,p:0},fr=[];
+  for(const r of ROWS){if(ok(r)){if(r.t>=a&&r.t<=b)fr.push(r);else if(r.t>=a-len&&r.t<a){P.o+=r.o;P.a+=r.a;P.p+=r.p}}}
+  FR=fr;
   const day={},zn={},vh={},bh={},rd={};let T={o:0,a:0,p:0,b:0};
   const add=(M,k,r)=>{const x=M[k]||(M[k]={o:0,a:0,p:0,b:0,rs:new Set});x.o+=r.o;x.a+=r.a;x.p+=r.p;x.b+=r.b;x.rs.add(r.id)};
   for(const r of fr){T.o+=r.o;T.a+=r.a;T.p+=r.p;T.b+=r.b;add(day,r.t,r);if(r.z)add(zn,r.z,r);if(r.v)add(vh,r.v,r);if(r.bt)add(bh,r.bt,r);
@@ -474,6 +558,7 @@ function apply(){
    ['🛵 الطيارين',NF(list.length),'عاملين','--c:var(--cy)'],['⌛ متوسط ساعات/طيار',F1(list.length?T.a/list.length:0),svTxt,'--c:#14b8a6'],['☕ الاستراحة',NF(T.b),'ساعة','--c:#f43f5e'],['⚠️ تنبيهات',neg+' / '+exs,'مديونية / عقد ≤7 أيام','--c:var(--bad)']];
   [[0,T.o,P.o],[1,T.a,P.a],[2,commit,P.p?P.a/P.p*100:0],[3,oph,P.a?P.o/P.a:0]].forEach(([i,c,p])=>{if(p){const d=(c-p)/p*100;K[i][2]=(d>=0?'▲ ':'▼ ')+Math.abs(d).toFixed(1)+'% عن الفترة السابقة'}});
   $('kpis').innerHTML=K.map(k=>`<div class="kpi" style="${k[3]}"><div class="l">${k[0]}</div><div class="v">${k[1]}</div><div class="s">${k[2]}</div></div>`).join('');
+  updateFilterControls();
   // charts
   const days=Object.keys(day).map(Number).sort((x,y)=>x-y);
   D1={days,day};drawCh1();
@@ -499,20 +584,24 @@ function draw(id,cfg){
   Chart.defaults.font.family='Cairo';Chart.defaults.font.size=innerWidth<700?10:12;Chart.defaults.color='#8b97b0';
   cfg.options=Object.assign({responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{boxWidth:10}}}},cfg.options);
   if(cfg.options.scales&&cfg.options.scales.y)for(const k in cfg.options.scales)cfg.options.scales[k].grid=cfg.options.scales[k].grid||{color:'#232e45'};
-  if(charts[id])charts[id].destroy();charts[id]=new Chart($(id),cfg);
+  if(charts[id]){const chart=charts[id];chart.config.type=cfg.type;chart.config.data=cfg.data;chart.config.options=cfg.options;chart.update('none')}
+  else charts[id]=new Chart($(id),cfg);
 }
 /* ---------- extras ---------- */
 const li=(x,v,c,rk)=>`<div class="li" onclick="showR('${x.id}')"><span>${rk?`<b style="color:var(--mut);display:inline-block;min-width:28px">${rk}</b>`:''}${esc(x.n||x.id)}<small style="color:var(--mut)"> · ${esc(x.z)}</small></span><b style="color:${c||'inherit'}">${v}</b></div>`;
+function alertCard(t,arr,f,ex,limit=6){
+  const i=ALX.push({t,arr,ex})-1;
+  return `<div class="card" style="background:#0f1626"><div><b>${t}</b> <span class="b ${arr.length?'r':'g'}">${arr.length}</span><button class="chip" onclick="showAlertRows(${i})" ${arr.length?'':'disabled'}>عرض القائمة</button></div>${arr.slice(0,limit).map(f).join('')}</div>`;
+}
 function extras(){
   const A=AGG;
   TXD.top=[...A].sort((x,y)=>y.o-x.o);rl('top');
   TXD.bot=A.filter(x=>x.p>0).sort((x,y)=>x.c-y.c);rl('bot');
-  ALX=[];const al=(t,arr,f,ex)=>(ALX.push({t,arr,ex}),`<div class="card" style="background:#0f1626"><b>${t}</b> <span class="b ${arr.length?'r':'g'}">${arr.length}</span>${arr.slice(0,6).map(f).join('')}</div>`);
-  $('al').innerHTML=al('💳 مديونية المحفظة',A.filter(x=>x.w<0).sort((x,y)=>x.w-y.w),x=>li(x,NF(x.w)+' ج','#f87171'),x=>[x.w,'ج'])
-   +al('📅 عقود منتهية / خلال 7 أيام',A.filter(x=>x.left!==null&&x.left<=7).sort((x,y)=>x.left-y.left),x=>li(x,x.left<0?'منتهي':x.left+' يوم','#fbbf24'),x=>[x.left,x.left<0?'يوم (منتهي)':'يوم'])
-   +al('🎯 التزام أقل من 50%',A.filter(x=>x.p>0&&x.c<50).sort((x,y)=>x.c-y.c),x=>li(x,F1(x.c)+'%','#f87171'),x=>[+x.c.toFixed(1),'% التزام'])
-   +al('🚫 ساعات عمل بدون طلبات',A.filter(x=>x.a>0&&x.o===0).sort((x,y)=>y.a-x.a),x=>li(x,F1(x.a)+' س','#f87171'),x=>[+x.a.toFixed(1),'ساعة عمل'])
-   +al('⏱ ساعات فعلية أكبر من المخطط 25%',A.filter(x=>x.p>0&&x.a>x.p*1.25),x=>li(x,F1(x.a)+'/'+F1(x.p),'#60a5fa'),x=>[+x.a.toFixed(1),'ساعة فعلية (المخطط '+F1(x.p)+')']);
+  ALX=[];$('al').innerHTML=alertCard('💳 مديونية المحفظة',A.filter(x=>x.w<0).sort((x,y)=>x.w-y.w),x=>li(x,NF(x.w)+' ج','#f87171'),x=>[x.w,'ج'])
+   +alertCard('📅 عقود منتهية / خلال 7 أيام',A.filter(x=>x.left!==null&&x.left<=7).sort((x,y)=>x.left-y.left),x=>li(x,x.left<0?'منتهي':x.left+' يوم','#fbbf24'),x=>[x.left,x.left<0?'يوم (منتهي)':'يوم'])
+   +alertCard('🎯 التزام أقل من 50%',A.filter(x=>x.p>0&&x.c<50).sort((x,y)=>x.c-y.c),x=>li(x,F1(x.c)+'%','#f87171'),x=>[+x.c.toFixed(1),'% التزام'])
+   +alertCard('🚫 ساعات عمل بدون طلبات',A.filter(x=>x.a>0&&x.o===0).sort((x,y)=>y.a-x.a),x=>li(x,F1(x.a)+' س','#f87171'),x=>[+x.a.toFixed(1),'ساعة عمل'])
+   +alertCard('⏱ ساعات فعلية أكبر من المخطط 25%',A.filter(x=>x.p>0&&x.a>x.p*1.25),x=>li(x,F1(x.a)+'/'+F1(x.p),'#60a5fa'),x=>[+x.a.toFixed(1),'ساعة فعلية (المخطط '+F1(x.p)+')']);
   grp();
 }
 function grp(){
@@ -543,6 +632,11 @@ function showChartRiders(title,rows){
   $('bms').textContent='إجمالي الساعات: '+F1(hours)+' · إجمالي الطلبات: '+NF(orders)+' · متوسط طلب/ساعة: '+F1(hours?orders/hours:0);
   renderDrillRows(sorted);
   $('bm').style.display='block';
+}
+function showAlertRows(index){
+  const alert=ALX[index];
+  if(!alert||!alert.arr.length)return;
+  showChartRiders(alert.t,alert.arr);
 }
 function exportDrillExcel(){
   if(!DRILL_ROWS.length)return alert('لا توجد بيانات للتصدير');
@@ -633,6 +727,30 @@ function extras2(T,commit,oph,list){
   const hl=k=>k===0?'أقل من ساعة':k===1?'ساعة':k===2?'ساعتين':k<=10?k+' ساعات':k<12?k+' ساعة':'12+ ساعة';
   draw('ch10',{type:'bar',data:{labels:hs.map(hl),datasets:[{label:'عدد المناديب',data:hs.map(k=>HB[k]?HB[k].n:0),backgroundColor:'#3b82f6aa',yAxisID:'y'},{label:'متوسط طلب/ساعة',type:'line',data:hs.map(k=>HB[k]&&HB[k].a?+(HB[k].o/HB[k].a).toFixed(2):0),borderColor:'#f59e0b',backgroundColor:'#f59e0b',tension:.3,yAxisID:'y1'}]},
     options:{scales:{y:{position:'left',title:{display:true,text:'عدد المناديب'}},y1:{position:'right',grid:{display:false},title:{display:true,text:'طلب/ساعة'}}},onClick:(e,els)=>{const hit=els.find(x=>x.datasetIndex===0);if(hit)showChartRiders('المناديب حسب ساعات الشغل — '+hl(hs[hit.index]),HB[hs[hit.index]].rows)},onHover:(e,els)=>{e.native.target.style.cursor=els.some(x=>x.datasetIndex===0)?'pointer':'default'}}});
+  const productivityGroups=[
+    {label:'التزام أقل من 60%',color:'#ef4444',rows:[]},
+    {label:'التزام من 60% إلى 90%',color:'#f59e0b',rows:[]},
+    {label:'التزام 90% فأكثر',color:'#10b981',rows:[]}
+  ];
+  for(const x of list)if(x.a>0){
+    const group=x.c<60?0:x.c<90?1:2;
+    productivityGroups[group].rows.push({x:+x.avg.toFixed(2),y:+x.oph.toFixed(2),rider:x});
+  }
+  draw('ch12',{type:'scatter',data:{datasets:productivityGroups.map(g=>({
+    label:g.label,data:g.rows,backgroundColor:g.color+'bb',borderColor:g.color,
+    pointRadius:4,pointHoverRadius:7,hitRadius:8
+  }))},options:{
+    scales:{
+      x:{beginAtZero:true,title:{display:true,text:'متوسط ساعات العمل في يوم العمل'}},
+      y:{beginAtZero:true,title:{display:true,text:'طلبات لكل ساعة'}}
+    },
+    plugins:{tooltip:{callbacks:{label:ctx=>{
+      const x=ctx.raw.rider;
+      return `${x.n||x.id} · ${ctx.raw.x} ساعة/يوم · ${ctx.raw.y} طلب/ساعة · ${F1(x.c)}% التزام`;
+    }}}},
+    onClick:(e,els)=>{const hit=els[0];if(hit){const x=productivityGroups[hit.datasetIndex].rows[hit.index].rider;showR(x.id)}},
+    onHover:(e,els)=>{e.native.target.style.cursor=els.length?'pointer':'default'}
+  }});
   // أقل الطيارين: طلبات / ساعات / أيام عمل (بتستبعد اللي ما اشتغلش خالص عشان القايمة تبقى مفيدة)
   const wd={};FR.forEach(r=>{if(r.o>0||r.a>0)(wd[r.id]||(wd[r.id]=new Set())).add(r.t)});
   const wk=list.filter(x=>x.a>0||x.o>0);
@@ -641,10 +759,9 @@ function extras2(T,commit,oph,list){
   TXD.lo3=wk.map(x=>({...x,wd:(wd[x.id]||[]).size||0})).sort((x,y)=>x.wd-y.wd||x.o-y.o);rl('lo3');
   // 4) تنبيهات إضافية
   const hb=list.filter(x=>x.b>=1&&x.b/(x.a+x.b||1)>0.25).sort((a,b)=>b.b-a.b);
-  const al=(t,arr,f,ex)=>(ALX.push({t,arr,ex}),`<div class="card" style="background:#0f1626"><b>${t}</b> <span class="b ${arr.length?'r':'g'}">${arr.length}</span>${arr.slice(0,6).map(f).join('')}</div>`);
   $('al').insertAdjacentHTML('beforeend',
-    al('☕ راحة عالية (>25% من وقتهم)',hb,x=>li(x,F1(x.b)+' س','#fbbf24'),x=>[+x.b.toFixed(1),'ساعة راحة'])+
-    (pw=>(ALX.push({t:'💰 أعلى محافظ موجبة',arr:pw,ex:x=>[x.w,'ج']}),`<div class="card" style="background:#0f1626"><b>💰 أعلى محافظ موجبة</b> <span class="b g">${pw.length}</span>${pw.slice(0,10).map(x=>li(x,NF(x.w)+' ج','#34d399')).join('')}</div>`))(list.filter(x=>x.w>0).sort((x,y)=>y.w-x.w)));
+    alertCard('☕ راحة عالية (>25% من وقتهم)',hb,x=>li(x,F1(x.b)+' س','#fbbf24'),x=>[+x.b.toFixed(1),'ساعة راحة'])+
+    alertCard('💰 أعلى محافظ موجبة',list.filter(x=>x.w>0).sort((x,y)=>y.w-x.w),x=>li(x,NF(x.w)+' ج','#34d399'),x=>[x.w,'ج'],10));
 }
 /* ---------- تصدير مركز التنبيهات ---------- */
 let ALX=[];
@@ -672,10 +789,10 @@ $('alGo').onclick=()=>{
 let IDLE=[];
 function idleRiders(){
   if(!ROWS.length)return;
-  const m=$('fm').value,z=$('fz').value,sp=$('fs').value,v=$('fv').value,bt=$('fb').value,q=$('q').value.trim().toLowerCase(),
+  const m=$('fm').value,z=$('fz').value,sp=$('fs').value,v=$('fv').value,bt=$('fb').value,q=$('q').value.trim().toLowerCase(),group=$('mainZoneGroup').value,
         th=Math.max(1,+$('idD').value||10),mx=ROWS.reduce((a,r)=>r.t>a?r.t:a,0),g={};
   for(const r of ROWS){
-    if((m&&r.m!==m)||(z&&r.z!==z)||(sp&&r.s!==sp)||(v&&r.v!==v)||(bt&&r.bt!==bt)||(q&&!r.n.toLowerCase().includes(q)&&!r.id.toLowerCase().includes(q)))continue;
+    if(!tgGroupHasZone(group,r.z)||(m&&r.m!==m)||(z&&r.z!==z)||(sp&&r.s!==sp)||(v&&r.v!==v)||(bt&&r.bt!==bt)||(q&&!r.n.toLowerCase().includes(q)&&!r.id.toLowerCase().includes(q)))continue;
     const x=g[r.id]||(g[r.id]={id:r.id,n:r.n,z:r.z,s:r.s,first:r.t,work:0});
     if(r.t<x.first)x.first=r.t;if(r.t>=(x.last||0)){x.last=r.t;x.n=r.n||x.n;x.z=r.z;x.s=r.s}
     if((r.o>0||r.a>0)&&r.t>x.work)x.work=r.t;
@@ -759,7 +876,7 @@ function gstat(){const e=$('gst');if(e)e.textContent=DRAFT?'⚠️ فيه تعد
 function scope(rows){if(!CUR||CUR.r==='admin')return rows;const k=CUR.r==='manager'?'m':'s';return rows.filter(r=>r[k]===CUR.s)}
 function findU(u,h){return USERS.find(y=>y.u.toLowerCase()===u&&y.h===h)||(DRAFT&&DRAFT.find(y=>y.u.toLowerCase()===u&&y.h===h))}
 function enter(x){CUR=x;idleReset();try{sessionStorage.setItem('pd_sess',x.u.toLowerCase()+'|'+x.h)}catch(e){}
-  $('lg').style.display='none';$('who').textContent='👤 '+x.n+' · '+ROLE[x.r];$('usrB').style.display=x.r==='admin'?'':'none';$('tgB').style.display=x.r==='admin'?'':'none';$('asB').style.display='';$('prB').style.display='';load().then(()=>{if(x.r==='admin'&&x.h===DEF_H){const m=$('msg');m.style.display='block';m.textContent='⚠️ كلمة مرور الأدمن الافتراضية لسه شغالة — غيّرها من 👥 المستخدمين.'}})}
+  $('lg').style.display='none';$('who').textContent='👤 '+x.n+' · '+ROLE[x.r];$('usrB').style.display=x.r==='admin'?'':'none';$('tgB').style.display=x.r==='admin'?'':'none';$('asB').style.display='';$('prB').style.display='';load().then(()=>{if(x.r==='admin'&&x.h===DEF_H){const m=$('msg');m.style.display='block';m.textContent='⚠️ كلمة مرور الأدمن الافتراضية لسه شغالة — غيّره من 👥 المستخدمين.'}})}
 let USERS=USERS_EMBED,DRAFT=null,VAULT=PW_EMBED;
 async function loadUsers(){
   try{const r=await fetch('users.json?_='+Date.now(),{cache:'no-store'});if(r.ok){const d=await r.json();if(d&&Array.isArray(d.users)&&d.users.length){USERS=d.users;if(d.vault)VAULT=d.vault}}}catch(e){}
@@ -884,16 +1001,20 @@ let IT;function idleReset(){clearTimeout(IT);if(CUR)IT=setTimeout(()=>$('out').c
 /* ================= 🎯 التارجت (أدمن فقط) — تابة "تارجت المكاتب" A:J ================= */
 const TGGID='1428075881';
 let TGR=[],TGF=[],TGP=[],tgSort='t',tgDir=-1,tgPg=0,TGPS=25,TGH=false;
+let TG_DATA_READY=false,TG_RELOAD_PROMISE=null;
 const tgNum=v=>{const n=parseFloat(String(v==null?'':v).replace(/[,%\s]/g,''));return isNaN(n)?0:n};
 const tgPct=v=>{if(v===''||v==null)return 0;const s=String(v),n=tgNum(s);return typeof v==='number'||!s.includes('%')?(n<=2?n*100:n):n};
 const TGPAL=['#3b82f6','#10b981','#f59e0b','#8b5cf6','#06b6d4','#ef4444','#ec4899','#84cc16','#14b8a6','#f97316','#6366f1','#a3a3a3'];
+const tgZonesForGroup=(rows=TGR,group=$('tgGroup').value)=>tgU('z',rows.filter(r=>tgGroupHasZone(group,r.z)));
+const tgZoneAllowed=z=>tgGroupHasZone($('tgGroup').value,z)&&(!$('tgz').value||$('tgz').value===z);
+const tgMonthZonesForGroup=(rows=TGR)=>tgZonesForGroup(rows,$('tgGroup').value);
 function tgIngest(arr){const out=[];
   for(let i=1;i<arr.length;i++){const r=arr[i],d=pd(r[4]),o=String(r[1]==null?'':r[1]).trim(),z=String(r[2]==null?'':r[2]).trim();
     if(!d||!(o||z))continue;
     out.push({o,z,t:tgNum(r[3]),d,av:tgNum(r[5]),ap:tgPct(r[6]),nt:tgNum(r[7]),rk:tgNum(r[8]),mx:tgNum(r[9])})}
   TGR=out;return out.length}
 function tgJsonp(){return new Promise((ok,no)=>{
-  const sc=document.createElement('script'),tm=setTimeout(()=>no('انتهت المهلة'),120000);
+  const sc=document.createElement('script'),tm=setTimeout(()=>{sc.remove();no('انتهت المهلة بعد 30 ثانية')},30000);
   window.__gt=r=>{clearTimeout(tm);sc.remove();if(!r||r.status==='error'||!r.table)return no('رد جوجل: خطأ');
     const rows=[[]];for(const x of r.table.rows){const a=[];for(let i=0;i<10;i++){const c=x.c&&x.c[i];let v=c&&c.v!=null?c.v:'';
       if(typeof v==='string'){const m=v.match(/^Date\((\d+),(\d+),(\d+)/);if(m)v=m[3]+'-'+(+m[2]+1)+'-'+m[1]}a.push(v)}rows.push(a)}ok(rows)};
@@ -901,19 +1022,69 @@ function tgJsonp(){return new Promise((ok,no)=>{
   sc.src=`https://docs.google.com/spreadsheets/d/${SID}/gviz/tq?gid=${TGGID}&headers=1&tqx=out:json;responseHandler:__gt`;document.head.appendChild(sc)})}
 async function tgFetch(){
   const B=`https://docs.google.com/spreadsheets/d/${SID}/`,urls=[B+`gviz/tq?tqx=out:csv&gid=${TGGID}`,B+`gviz/tq?tqx=out:csv&sheet=${encodeURIComponent('تارجت المكاتب')}`,B+`export?format=csv&gid=${TGGID}`];
-  for(const u of urls){try{const r=await fetch(u);if(!r.ok)continue;const t=await r.text();if(t.trim().startsWith('<'))continue;
-    if(tgIngest(Papa.parse(t,{skipEmptyLines:true}).data))return true}catch(e){}}
-  try{if(tgIngest(await tgJsonp()))return true}catch(e){}
-  return false}
-async function tgReload(){
-  const m=$('tgM');m.style.display='block';m.textContent='⏳ جارٍ سحب تابة "تارجت المكاتب"…';$('tgRf').disabled=true;
-  const ok=await tgFetch();$('tgRf').disabled=false;
-  if(!ok){m.textContent='⚠️ تعذّر سحب التابة. تأكد إن الشيت عام (Anyone with the link) وإن اسم التابة "تارجت المكاتب".';return}
-  m.style.display='none';tgFillZ();tgFillO();tgPreset('all')}
+  const controllers=urls.map(()=>new AbortController()),timers=controllers.map(controller=>setTimeout(()=>controller.abort(),30000));
+  try{
+    const rows=await Promise.any(urls.map(async(url,index)=>{
+      const response=await fetch(url,{signal:controllers[index].signal});
+      if(!response.ok)throw new Error('HTTP '+response.status);
+      const text=await response.text();
+      if(text.trim().startsWith('<'))throw new Error('الشيت يتطلب تسجيل دخول');
+      const parsed=Papa.parse(text,{skipEmptyLines:true}).data;
+      const result=[];for(let i=1;i<parsed.length;i++){const r=parsed[i],d=pd(r[4]),o=String(r[1]==null?'':r[1]).trim(),z=String(r[2]==null?'':r[2]).trim();if(!d||!(o||z))continue;result.push({o,z,t:tgNum(r[3]),d,av:tgNum(r[5]),ap:tgPct(r[6]),nt:tgNum(r[7]),rk:tgNum(r[8]),mx:tgNum(r[9])})}
+      if(!result.length)throw new Error('ملف CSV لا يحتوي على صفوف تارجت صالحة');
+      return result;
+    }));
+    controllers.forEach(controller=>controller.abort());
+    TGR=rows;TG_DATA_READY=true;
+    await tgCache('put',{rows,savedAt:Date.now()});
+    return true;
+  }catch(error){
+    try{const rows=await tgJsonp(),count=tgIngest(rows);if(count){TG_DATA_READY=true;await tgCache('put',{rows:TGR,savedAt:Date.now()});return true}}
+    catch(jsonpError){console.error('Target sheet refresh failed:',jsonpError)}
+    console.error('Target CSV refresh failed:',error);
+    return false;
+  }finally{timers.forEach(clearTimeout)}
+}
+function tgCache(mode,value){
+  return new Promise(resolve=>{
+    let request;
+    try{request=indexedDB.open('pd',1)}catch(error){resolve(null);return}
+    request.onupgradeneeded=()=>{if(!request.result.objectStoreNames.contains('s'))request.result.createObjectStore('s')};
+    request.onerror=()=>resolve(null);
+    request.onsuccess=()=>{
+      const db=request.result;
+      if(!db.objectStoreNames.contains('s')){db.close();resolve(null);return}
+      try{
+        const tx=db.transaction('s',mode==='get'?'readonly':'readwrite'),store=tx.objectStore('s');
+        const operation=mode==='get'?store.get('targetRows'):store.put(value,'targetRows');
+        operation.onsuccess=()=>resolve(operation.result||null);
+        operation.onerror=()=>resolve(null);
+        tx.oncomplete=()=>db.close();tx.onerror=()=>{db.close();resolve(null)};
+      }catch(error){db.close();resolve(null)}
+    };
+  });
+}
+async function tgReload(background=false){
+  if(TG_RELOAD_PROMISE)return TG_RELOAD_PROMISE;
+  TG_RELOAD_PROMISE=(async()=>{
+    const m=$('tgM');m.style.display='block';
+    m.textContent=background?'🔄 بنعرض البيانات المحفوظة ونجددها في الخلفية…':'⏳ جارٍ تحديث بيانات التارجت…';
+    $('tgRf').disabled=true;
+    const wasReady=TG_DATA_READY;
+    try{
+      const ok=await tgFetch();
+      if(!ok){m.textContent=TG_DATA_READY?'⚠️ تعذّر التحديث؛ ما زلنا نعرض آخر نسخة محفوظة.':'⚠️ تعذّر سحب تارجت المكاتب. تأكد من اتصال الإنترنت ومن إتاحة الشيت.';return false}
+      tgFillZ();tgFillO();
+      if(!wasReady)tgPreset('all');else{tgApply();tgCmpDraw()}
+      m.style.display='none';return true;
+    }finally{$('tgRf').disabled=false}
+  })().finally(()=>{TG_RELOAD_PROMISE=null});
+  return TG_RELOAD_PROMISE;
+}
 const tgU=(k,rows)=>[...new Set(rows.map(r=>r[k]).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'en'));
 function tgSetSel(id,list,all){const s=$(id),c=s.value;s.innerHTML=`<option value="">${all}</option>`+list.map(x=>`<option>${esc(x)}</option>`).join('');if(list.includes(c))s.value=c}
 function tgFillZ(){tgSetSel('tgz',tgU('z',TGR),'كل المناطق')}
-function tgFillO(){const z=$('tgz').value;tgSetSel('tgo',tgU('o',z?TGR.filter(r=>r.z===z):TGR),'كل المكاتب')}
+function tgFillO(){tgSetSel('tgo',tgU('o',TGR),'كل المكاتب')}
 function tgPreset(p){tgCdMan=false;
   const mx=TGR.reduce((a,r)=>r.d>a?r.d:a,0),mn=TGR.reduce((a,r)=>!a||r.d<a?r.d:a,0),M=new Date(mx);let a=mn,b=mx;
   if(p==='day')a=mx;else if(p==='7')a=mx-6*DAY;else if(p==='30')a=mx-29*DAY;
@@ -924,9 +1095,13 @@ function tgPreset(p){tgCdMan=false;
 [['day','📅 آخر تاريخ'],['7','آخر 7 أيام'],['30','آخر 30 يوم'],['month','هذا الشهر'],['last','الشهر الماضي'],['all','كل الفترة']].forEach(([p,t])=>{
   const b=document.createElement('button');b.className='chip';b.dataset.p=p;b.textContent=t;b.onclick=()=>tgPreset(p);$('tgChips').appendChild(b)});
 ['tgd1','tgd2'].forEach(i=>$(i).onchange=()=>{document.querySelectorAll('#tgChips .chip[data-p]').forEach(c=>c.classList.remove('on'));tgApply()});
-$('tgz').onchange=()=>{$('tgo').value='';tgFillO();tgApply()};$('tgo').onchange=tgApply;
+tgSetSel('tgGroup',Object.keys(TG_ZONE_GROUPS),'كل المجموعات');
+$('tgGroup').onchange=()=>{
+ tgFillZ();tgFillO();tgApply();tgCmpDraw();
+};
+$('tgz').onchange=()=>{tgFillO();tgApply();tgCmpDraw()};$('tgo').onchange=()=>{tgApply();tgCmpDraw()};
 let tgqt;$('tgq').oninput=()=>{clearTimeout(tgqt);tgqt=setTimeout(tgApply,250)};
-$('tgX').onclick=()=>{$('tgz').value='';$('tgq').value='';tgFillO();tgPreset('all')};
+$('tgX').onclick=()=>{$('tgGroup').value='';$('tgz').value='';$('tgo').value='';$('tgq').value='';tgFillZ();tgFillO();tgPreset('all')};
 $('tgRf').onclick=tgReload;
 const tgGo=id=>{const e=$(id),o=$('tg');if(e)o.scrollTo({top:e.offsetTop-60,behavior:'smooth'})};
 function tgOpen(v){$('tg').style.display=v?'block':'none';$('tgUp').style.display='none';document.body.style.overflow=v?'hidden':'';if(v)$('tg').scrollTop=0}
@@ -936,7 +1111,18 @@ addEventListener('keydown',e=>{if(e.key==='Escape'&&$('tg').style.display==='blo
 $('tgC').onclick=()=>tgOpen(false);
 let TGOK=false;const TGPH='6764dcfccb3e47b4736c503ab7e3cf8402b100cf3bb5474157594218869e2f4c';
 const tgSha=async t=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(t)))].map(b=>b.toString(16).padStart(2,'0')).join('');
-async function tgShow(){tgOpen(true);if(!TGR.length)await tgReload()}
+async function tgShow(){
+  tgOpen(true);
+  if(TG_DATA_READY){if(!TG_RELOAD_PROMISE)tgReload(true);return}
+  const cached=await tgCache('get');
+  if(cached&&Array.isArray(cached.rows)&&cached.rows.length){
+    TGR=cached.rows;TG_DATA_READY=true;tgFillZ();tgFillO();tgPreset('all');
+    $('tgM').style.display='block';
+    $('tgM').textContent='✅ عرضنا النسخة المحفوظة'+(cached.savedAt?' · '+fdt(cached.savedAt):'')+'؛ جارٍ تحديثها في الخلفية…';
+    tgReload(true);return;
+  }
+  await tgReload(false);
+}
 async function tgCheck(){const v=$('tgpi').value;let ok=false;try{ok=(await tgSha('tgpw|'+v))===TGPH}catch(e){}
   if(!ok){$('tgpe').textContent='❌ الباسورد غلط';$('tgpi').select();return}
   TGOK=true;$('tgpm').style.display='none';$('tgpi').value='';tgShow()}
@@ -949,7 +1135,373 @@ $('out').addEventListener('click',()=>{TGOK=false;tgOpen(false)});
 
 /* --- مقارنة اليوم بالشهور السابقة --- */
 const AM=['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];let tgCdMan=false;
-function tgCmpDraw(){if($('tgMc').style.display==='none'||!TGR.length)return;tgSelDraw()}
+function tgCmpDraw(){if($('tgMc').style.display==='none'||!TGR.length)return;if($('tgMonthPanel').style.display!=='none')tgMonthInit();else tgSelDraw()}
+
+let tgMonthKeys=[],tgMonthZones=[],tgMonthOffices=[],tgMonthMonthsSel=new Set(),tgMonthReady=false,tgMonthChartIds=[];
+const tgMonthKey=d=>{const x=new Date(d);return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')};
+const tgMonthLabel=k=>{const [y,m]=k.split('-').map(Number);return new Date(y,m-1,1).toLocaleDateString('ar-EG',{month:'long',year:'numeric'})};
+const tgMonthMean=(sum,count)=>count?sum/count:null;
+function tgMonthPickerSync(){
+  const selected=tgMonthKeys.filter(m=>tgMonthMonthsSel.has(m));
+  $('tgMonthsToggle').textContent=selected.length?`${selected.length} شهور مختارة ▾`:'اختار الشهور ▾';
+  $('tgMonthsToggle').setAttribute('aria-expanded',String($('tgMonthsMenu').style.display!=='none'));
+  $('tgMonthOptions').innerHTML=tgMonthKeys.slice().reverse().map(m=>`<button type="button" role="option" aria-selected="${tgMonthMonthsSel.has(m)}" data-month="${m}" class="chip ${tgMonthMonthsSel.has(m)?'on':''}" style="width:100%;text-align:start">${tgMonthLabel(m)}</button>`).join('');
+}
+const tgMonthChange=(value,previous,hasPrevious)=>{
+  if(!hasPrevious)return '<span class="b n">—</span>';
+  if(!previous)return value?'<span class="b g">↑ جديد</span>':'<span class="b n">0</span>';
+  const delta=value-previous,pct=delta/previous*100,up=delta>=0;
+  return `<span class="b ${up?'g':'r'}">${up?'▲':'▼'} ${Math.abs(pct).toFixed(1)}% (${up?'+':'−'}${NF(Math.abs(delta))})</span>`;
+};
+function tgMonthInit(){
+  if(!TGR.length)return;
+  const months=[...new Set(TGR.map(r=>tgMonthKey(r.d)).filter(Boolean))].sort();
+  const zones=tgMonthZonesForGroup();
+  const zoneSet=new Set(zones);
+  const offices=[...new Set(TGR.filter(r=>zoneSet.has(String(r.z||'').trim())).map(r=>String(r.o||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ar'));
+  const changed=months.join('|')!==tgMonthKeys.join('|')||zones.join('|')!==tgMonthZones.join('|')||offices.join('|')!==tgMonthOffices.join('|');
+  const first=!tgMonthReady;tgMonthKeys=months;tgMonthZones=zones;tgMonthOffices=offices;
+  if(first)tgMonthMonthsSel=new Set(months.slice(-6));
+  else if(changed)tgMonthMonthsSel=new Set([...tgMonthMonthsSel].filter(x=>months.includes(x)));
+  tgMonthReady=true;
+  tgMonthPickerSync();
+  tgMonthDraw();
+}
+function tgMonthDraw(){
+  if(!tgMonthReady)return;
+  const months=tgMonthKeys.filter(m=>tgMonthMonthsSel.has(m)).sort(),groupZones=tgMonthZones;
+  const selectedZone=$('tgz').value,selectedOffice=$('tgo').value,showRank=!!(selectedZone||selectedOffice);
+  const matchesGroup=r=>groupZones.some(z=>tgZoneNorm(z)===tgZoneNorm(r.z))
+    &&tgGroupHasZone($('tgGroup').value,r.z);
+  const filteredRows=TGR.filter(r=>matchesGroup(r)&&(!selectedZone||tgZoneNorm(r.z)===tgZoneNorm(selectedZone))&&(!selectedOffice||r.o===selectedOffice));
+  const zones=[...new Set(filteredRows.map(r=>r.z).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ar'));
+  const officesChosen=[...new Set(filteredRows.map(r=>r.o).filter(Boolean))];
+  const empty=!months.length||!zones.length||!officesChosen.length;
+  $('tgMonthEmpty').style.display=empty?'block':'none';$('tgMonthResults').style.display=empty?'none':'';
+  window.TG_MONTH_EXPORT=null;
+  for(const id of tgMonthChartIds){if(charts[id]){charts[id].destroy();delete charts[id]}}
+  tgMonthChartIds=[];
+  $('tgMonthCharts').replaceChildren();
+  $('tgMonthChartHint').textContent=showRank
+    ?(selectedOffice?'كل رسم لزون واحدة: الأعمدة للتارجت حسب الشهر، والخط لرتبة المكتب المختار من آخر سجل شهري.':'كل رسم لزون واحدة: الأعمدة للتارجت حسب الشهر، والخط لمتوسط رتب مكاتب المنطقة.')
+    :'كل رسم لزون واحدة ويعرض التارجت حسب الشهر فقط. لا يظهر Rank على مستوى مجموعة المناطق.';
+  if(empty)return;
+  const chosenMonths=new Set(months),chosenZones=new Set(zones),chosenOffices=new Set(officesChosen),summary={},offices={};
+  for(const z of zones)summary[z]={z,totalTarget:0,average:0,averageN:0,months:{}};
+  for(const z of zones)for(const m of months)summary[z].months[m]={target:0,average:0,averageN:0,averagePct:0,averagePctN:0,ranks:{},hasData:false};
+  for(const r of filteredRows){
+    const m=tgMonthKey(r.d),z=String(r.z||'').trim(),oName=String(r.o||'').trim();
+    if(!chosenMonths.has(m)||!chosenZones.has(z)||!chosenOffices.has(oName))continue;
+    const s=summary[z],sm=s.months[m],key=m+'|'+z+'|'+oName,target=+r.t||0;
+    sm.hasData=true;sm.target+=target;s.totalTarget+=target;
+    if(+r.av){sm.average+=+r.av;sm.averageN++;s.average+=+r.av;s.averageN++}
+    if(+r.ap){sm.averagePct+=+r.ap;sm.averagePctN++}
+    if(+r.rk){
+      const previous=sm.ranks[oName];
+      if(!previous||r.d>=previous.date)sm.ranks[oName]={office:oName,date:r.d,rank:+r.rk};
+    }
+    const officeKey=m+'|'+oName;
+    const office=offices[officeKey]||(offices[officeKey]={m,o:oName,target:0,average:0,averageN:0,averagePct:0,averagePctN:0,ranks:{}});
+    office.target+=target;
+    if(+r.av){office.average+=+r.av;office.averageN++}
+    if(+r.ap){office.averagePct+=+r.ap;office.averagePctN++}
+    if(+r.rk&&(!office.ranks[z]||r.d>=office.ranks[z].date))office.ranks[z]={zone:z,date:r.d,rank:+r.rk};
+  }
+  for(const z of zones)for(const m of months){
+    const sm=summary[z].months[m];sm.average=tgMonthMean(sm.average,sm.averageN);sm.averagePct=tgMonthMean(sm.averagePct,sm.averagePctN);
+  }
+  const rows=Object.values(summary).filter(s=>months.some(m=>s.months[m].hasData)).map(s=>({...s,
+    average:tgMonthMean(s.average,s.averageN)})).sort((a,b)=>a.z.localeCompare(b.z,'ar'));
+  const officeRows=Object.values(offices).map(o=>({...o,average:tgMonthMean(o.average,o.averageN),
+    averagePct:tgMonthMean(o.averagePct,o.averagePctN)}))
+    .sort((a,b)=>a.m.localeCompare(b.m)||a.o.localeCompare(b.o,'ar'));
+  const officePivots={};
+  for(const x of officeRows){
+    const office=officePivots[x.o]||(officePivots[x.o]={o:x.o,totalTarget:0,average:0,averageN:0,months:{}});
+    office.totalTarget+=x.target;office.average+=(x.average||0)*x.averageN;office.averageN+=x.averageN;
+    office.months[x.m]=x;
+  }
+  const officePivotRows=Object.values(officePivots).map(x=>({...x,average:tgMonthMean(x.average,x.averageN)}))
+    .sort((a,b)=>a.o.localeCompare(b.o,'ar'));
+  const rankDetails={};
+  for(const z of zones)for(const m of months){
+    rankDetails[m]||(rankDetails[m]={});
+    rankDetails[m][z]=Object.values(summary[z].months[m].ranks).sort((a,b)=>a.rank-b.rank||a.office.localeCompare(b.office,'ar'));
+  }
+  $('tgMonthCharts').innerHTML=rows.map((x,i)=>`<section class="card" data-zone-card="${i}" style="min-width:0;padding:12px"><div class="row" style="justify-content:space-between;gap:6px;margin-bottom:8px"><h4 style="margin:0;font-size:14px">${esc(x.z)}${selectedOffice?' · '+esc(selectedOffice):''}</h4><button type="button" class="btn" data-capture-zone="${i}" data-html2canvas-ignore style="min-height:30px;padding:4px 8px;font-size:12px">📸 تصوير الكارت</button></div><div class="cw" style="height:280px"><canvas id="tgMonthZoneChart${i}"></canvas></div></section>`).join('');
+  rows.forEach((row,i)=>{
+    const zone=row.z,color=TGPAL[i%TGPAL.length],id='tgMonthZoneChart'+i;
+    tgMonthChartIds.push(id);
+    const datasets=[{label:'إجمالي التارجت',data:months.map(m=>row.months[m].target),backgroundColor:color+'bb',borderColor:color,borderWidth:1,borderRadius:4,maxBarThickness:56}];
+    if(showRank)datasets.push({type:'line',label:selectedOffice?'Rank المكتب آخر الشهر':'متوسط Rank المكاتب',data:months.map(m=>{const details=rankDetails[m][zone];return selectedOffice?(details.find(x=>x.office===selectedOffice)?.rank??null):(details.length?details.reduce((sum,x)=>sum+x.rank,0)/details.length:null)}),borderColor:'#f59e0b',backgroundColor:'#f59e0b',pointRadius:4,pointHoverRadius:6,tension:.2,yAxisID:'yRank',spanGaps:true});
+    dr(id,{type:'bar',data:{labels:months.map(tgMonthLabel),datasets},options:{
+      interaction:{mode:'nearest',intersect:false},
+      plugins:{legend:{display:showRank,position:'bottom'},tooltip:{callbacks:{
+        label(context){return context.dataset.yAxisID==='yRank'?'Rank: '+F1(context.parsed.y):'التارجت: '+NF(context.parsed.y)},
+        afterBody(items){
+          if(!showRank||!items.length)return[];
+          const month=months[items[0].dataIndex],details=rankDetails[month][zone]||[];
+          const selected=selectedOffice?details.filter(x=>x.office===selectedOffice):details;
+          return selected.length?['Rank آخر سجل بالشهر: '+selected.map(x=>x.office+' #'+F1(x.rank)+' ('+new Date(x.date).toLocaleDateString('ar-EG')+')').join(' · ')]:['لا يوجد Rank مسجل لهذا الشهر'];
+        }
+      }}},
+      scales:{x:{grid:{display:false}},y:{beginAtZero:true,title:{display:true,text:'إجمالي التارجت'}},...(showRank?{yRank:{position:'right',reverse:true,beginAtZero:false,title:{display:true,text:'Rank (الأقل أفضل)'},grid:{drawOnChartArea:false},ticks:{precision:0}}}:{})}
+    }});
+  });
+  const metricHeaders=()=>'<th>إجمالي التارجت</th><th>Average</th>';
+  $('tgMonthHead').innerHTML='<tr><th>الزون</th>'+months.map(m=>`<th colspan="2">${tgMonthLabel(m)}</th>`).join('')+'</tr><tr><th></th>'+months.map(metricHeaders).join('')+'</tr>';
+  $('tgMonthBody').innerHTML=rows.map(x=>`<tr><td><b>${esc(x.z)}</b></td>`+months.map(m=>{const v=x.months[m];return`<td>${v.hasData?NF(v.target):'—'}</td><td>${v.average==null?'—':F1(v.average)}</td>`}).join('')+'</tr>').join('');
+  $('tgOfficeHead').innerHTML='<tr><th>المكتب (3PL)</th>'+months.map(m=>`<th colspan="2">${tgMonthLabel(m)}</th>`).join('')+'</tr><tr><th></th>'+months.map(metricHeaders).join('')+'</tr>';
+  $('tgOfficeBody').innerHTML=officePivotRows.map(x=>`<tr><td><b>${esc(x.o)}</b></td>`+months.map(m=>{const v=x.months[m];return`<td>${v?NF(v.target):'—'}</td><td>${v&&v.average!=null?F1(v.average):'—'}</td>`}).join('')+'</tr>').join('')||'<tr><td colspan="'+(1+months.length*2)+'" class="sub">لا توجد بيانات تارجت للمكاتب والشهور المختارة.</td></tr>';
+  window.TG_MONTH_EXPORT={rows,officeRows,officePivotRows,months,showRank};
+}
+let TG_SCREENSHOT_LIB_PROMISE=null,TG_SCREENSHOT_ZIP_PROMISE=null,TG_SCREENSHOT_BUSY=false;
+function tgLoadScreenshotLibrary(){
+  if(typeof window.html2canvas==='function')return Promise.resolve(window.html2canvas);
+  if(TG_SCREENSHOT_LIB_PROMISE)return TG_SCREENSHOT_LIB_PROMISE;
+  TG_SCREENSHOT_LIB_PROMISE=new Promise((resolve,reject)=>{
+    const script=document.createElement('script'),timeout=setTimeout(()=>{
+      script.remove();TG_SCREENSHOT_LIB_PROMISE=null;reject(new Error('انتهت مهلة تحميل أداة تصوير الكروت.'));
+    },30000);
+    script.src='https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
+    script.onload=()=>{clearTimeout(timeout);if(typeof window.html2canvas==='function')resolve(window.html2canvas);else{TG_SCREENSHOT_LIB_PROMISE=null;reject(new Error('أداة تصوير الكروت لم تعمل بعد التحميل.'))}};
+    script.onerror=()=>{clearTimeout(timeout);script.remove();TG_SCREENSHOT_LIB_PROMISE=null;reject(new Error('تعذّر تحميل أداة التصوير. تأكد من اتصال الإنترنت ثم حاول مرة أخرى.'))};
+    document.head.appendChild(script);
+  });
+  return TG_SCREENSHOT_LIB_PROMISE;
+}
+function tgLoadZipLibrary(){
+  if(typeof window.JSZip==='function')return Promise.resolve(window.JSZip);
+  if(TG_SCREENSHOT_ZIP_PROMISE)return TG_SCREENSHOT_ZIP_PROMISE;
+  TG_SCREENSHOT_ZIP_PROMISE=new Promise((resolve,reject)=>{
+    const script=document.createElement('script'),timeout=setTimeout(()=>{
+      script.remove();TG_SCREENSHOT_ZIP_PROMISE=null;reject(new Error('انتهت مهلة تحميل أداة تجميع صور الزونات.'));
+    },30000);
+    script.src='https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js';
+    script.onload=()=>{clearTimeout(timeout);if(typeof window.JSZip==='function')resolve(window.JSZip);else{TG_SCREENSHOT_ZIP_PROMISE=null;reject(new Error('أداة تجميع الصور لم تعمل بعد التحميل.'))}};
+    script.onerror=()=>{clearTimeout(timeout);script.remove();TG_SCREENSHOT_ZIP_PROMISE=null;reject(new Error('تعذّر تحميل أداة تجميع الصور. تأكد من اتصال الإنترنت ثم حاول مرة أخرى.'))};
+    document.head.appendChild(script);
+  });
+  return TG_SCREENSHOT_ZIP_PROMISE;
+}
+async function tgMonthCardPng(card,capture){
+  const charts=[...card.querySelectorAll('canvas')].map(canvas=>Chart.getChart(canvas)).filter(Boolean);
+  const originalDpr=charts.map(chart=>chart.options.devicePixelRatio);
+  try{
+    const captureDpr=Math.min(4,Math.max(3,(window.devicePixelRatio||1)*2));
+    charts.forEach(chart=>{chart.options.devicePixelRatio=captureDpr;chart.resize();chart.update('none')});
+    await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+    const canvas=await capture(card,{backgroundColor:'#0b0f19',scale:3,useCORS:true,logging:false});
+    return await new Promise((resolve,reject)=>canvas.toBlob(blob=>blob?resolve(blob):reject(new Error('لم يتم إنشاء صورة الكارت.')),'image/png'));
+  }finally{
+    charts.forEach((chart,index)=>{chart.options.devicePixelRatio=originalDpr[index];chart.resize();chart.update('none')});
+  }
+}
+async function tgMonthCapture(element,filename,button){
+  if(TG_SCREENSHOT_BUSY)return;
+  const status=$('tgMonthCaptureStatus');
+  if(!element||!element.isConnected)return;
+  TG_SCREENSHOT_BUSY=true;if(button)button.disabled=true;
+  status.style.display='block';status.textContent='⏳ جارٍ تجهيز الصورة…';
+  try{
+    const capture=await tgLoadScreenshotLibrary();
+    if(document.fonts&&document.fonts.ready)await document.fonts.ready;
+    const blob=await tgMonthCardPng(element,capture);
+    const url=URL.createObjectURL(blob),link=document.createElement('a');
+    link.href=url;link.download=filename;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+    status.textContent='✅ تم تنزيل الصورة.';
+  }catch(error){
+    status.textContent='⚠️ '+(error&&error.message?error.message:String(error));
+  }finally{
+    TG_SCREENSHOT_BUSY=false;if(button)button.disabled=false;
+  }
+}
+$('tgMonthCaptureAll').onclick=async e=>{
+  if(TG_SCREENSHOT_BUSY)return;
+  const button=e.currentTarget,cards=[...$('tgMonthCharts').querySelectorAll('[data-zone-card]')],status=$('tgMonthCaptureStatus');
+  if(!cards.length){status.style.display='block';status.textContent='لا توجد كروت زونات لتصويرها.';return}
+  TG_SCREENSHOT_BUSY=true;button.disabled=true;status.style.display='block';
+  try{
+    const [capture,Zip]=await Promise.all([tgLoadScreenshotLibrary(),tgLoadZipLibrary()]);
+    if(document.fonts&&document.fonts.ready)await document.fonts.ready;
+    const zip=new Zip();
+    for(let i=0;i<cards.length;i++){
+      const zone=cards[i].querySelector('h4')?.textContent||'زون '+(i+1);
+      status.textContent='⏳ تصوير '+zone+' ('+(i+1)+' من '+cards.length+')…';
+      const blob=await tgMonthCardPng(cards[i],capture);
+      const safeZone=zone.replace(/[\\/:*?"<>|]+/g,'_').trim()||'زون';
+      zip.file(String(i+1).padStart(2,'0')+'_'+safeZone+'.png',blob);
+    }
+    status.textContent='⏳ جارٍ تجهيز ملف الصور…';
+    const blob=await zip.generateAsync({type:'blob'});
+    const url=URL.createObjectURL(blob),link=document.createElement('a');
+    link.href=url;link.download='صور_زونات_التارجت_'+ds(Date.now())+'.zip';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+    status.textContent='✅ تم تنزيل ملف ZIP بداخله '+cards.length+' صورة منفصلة، صورة لكل زون.';
+  }catch(error){
+    status.textContent='⚠️ '+(error&&error.message?error.message:String(error));
+  }finally{
+    TG_SCREENSHOT_BUSY=false;button.disabled=false;
+  }
+};
+$('tgMonthCaptureGroup').onclick=async e=>{
+  if(TG_SCREENSHOT_BUSY)return;
+  const button=e.currentTarget,status=$('tgMonthCaptureStatus');
+  const months=tgMonthKeys.filter(m=>tgMonthMonthsSel.has(m)).sort();
+  if(!months.length){status.style.display='block';status.textContent='اختار شهرًا واحدًا على الأقل قبل تصوير الزونات.';return}
+  const zoneEntries=Object.entries(TG_ZONE_GROUPS)
+    .flatMap(([group,zones])=>zones.map(zone=>({group,zone})))
+    .filter(({zone})=>TGR.some(row=>tgZoneNorm(row.z)===tgZoneNorm(zone)));
+  if(!zoneEntries.length){status.style.display='block';status.textContent='لا توجد زونات ببيانات تارجت للتصوير.';return}
+  TG_SCREENSHOT_BUSY=true;button.disabled=true;status.style.display='block';
+  let stage=null,chartIds=[];
+  try{
+    const [capture,Zip]=await Promise.all([tgLoadScreenshotLibrary(),tgLoadZipLibrary()]);
+    if(document.fonts&&document.fonts.ready)await document.fonts.ready;
+    const zoneTargets={};
+    for(const {group,zone} of zoneEntries){
+      const key=group+'|'+zone;
+      zoneTargets[key]=Object.fromEntries(months.map(month=>[month,0]));
+      for(const row of TGR){
+        if(tgZoneNorm(row.z)!==tgZoneNorm(zone))continue;
+        const month=tgMonthKey(row.d);
+        if(Object.prototype.hasOwnProperty.call(zoneTargets[key],month))zoneTargets[key][month]+=+row.t||0;
+      }
+    }
+    stage=document.createElement('div');
+    stage.setAttribute('aria-hidden','true');
+    Object.assign(stage.style,{position:'fixed',left:'-10000px',top:'0',width:'900px',padding:'0',background:'#0b0f19',zIndex:'-1'});
+    stage.innerHTML=zoneEntries.map(({group,zone},index)=>`<section class="card" data-group-zone-card style="width:900px;height:470px;margin:0 0 12px;padding:20px;background:#121a2b;border:1px solid #232e45;border-radius:14px"><h3 style="margin:0 0 12px;color:#f3f5f9;font:700 20px Cairo,system-ui,sans-serif">${esc(group)} · ${esc(zone)}</h3><div style="height:390px"><canvas id="tgGroupCaptureChart${index}"></canvas></div></section>`).join('');
+    document.body.appendChild(stage);
+    zoneEntries.forEach(({group,zone},index)=>{
+      const id='tgGroupCaptureChart'+index,color=TGPAL[index%TGPAL.length];
+      chartIds.push(id);
+      dr(id,{type:'bar',data:{labels:months.map(tgMonthLabel),datasets:[{label:'إجمالي التارجت',data:months.map(month=>zoneTargets[group+'|'+zone][month]),backgroundColor:color+'bb',borderColor:color,borderWidth:1,borderRadius:4,maxBarThickness:72}]},options:{
+        responsive:false,maintainAspectRatio:false,animation:false,
+        plugins:{legend:{display:false},tooltip:{enabled:false}},
+        scales:{x:{grid:{display:false},ticks:{color:'#8b97b0',font:{family:'Cairo',size:13}}},y:{beginAtZero:true,title:{display:true,text:'إجمالي التارجت',color:'#8b97b0',font:{family:'Cairo',size:13}},grid:{color:'#232e45'},ticks:{color:'#8b97b0',font:{family:'Cairo',size:12}}}}
+      }});
+    });
+    await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+    const zip=new Zip();
+    for(let i=0;i<zoneEntries.length;i++){
+      const {group,zone}=zoneEntries[i];
+      status.textContent='⏳ تصوير '+group+' · '+zone+' ('+(i+1)+' من '+zoneEntries.length+')…';
+      const blob=await tgMonthCardPng(stage.querySelectorAll('[data-group-zone-card]')[i],capture);
+      const safeGroup=group.replace(/[\\/:*?"<>|]+/g,'_'),safeZone=zone.replace(/[\\/:*?"<>|]+/g,'_');
+      zip.file(safeGroup+'/'+String(i+1).padStart(2,'0')+'_'+safeZone+'.png',blob);
+    }
+    status.textContent='⏳ جارٍ تجهيز صور كل المجموعات…';
+    const blob=await zip.generateAsync({type:'blob'}),url=URL.createObjectURL(blob),link=document.createElement('a');
+    link.href=url;link.download='صور_كل_زونات_التارجت_'+ds(Date.now())+'.zip';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+    status.textContent='✅ تم تنزيل '+zoneEntries.length+' صورة منفصلة لكل الزونات في جميع المجموعات، مرتبة بمجلد لكل مجموعة، حسب الشهور المختارة.';
+  }catch(error){
+    status.textContent='⚠️ '+(error&&error.message?error.message:String(error));
+  }finally{
+    chartIds.forEach(id=>{if(charts[id]){charts[id].destroy();delete charts[id]}});
+    if(stage)stage.remove();
+    TG_SCREENSHOT_BUSY=false;button.disabled=false;
+  }
+};
+$('tgMonthCaptureCombined').onclick=async e=>{
+  if(TG_SCREENSHOT_BUSY)return;
+  const button=e.currentTarget,status=$('tgMonthCaptureStatus');
+  const chartsContainer=$('tgMonthCharts'),cards=[...chartsContainer.querySelectorAll('[data-zone-card]')];
+  if(!cards.length){status.style.display='block';status.textContent='لا توجد مناطق ظاهرة لتصويرها.';return}
+  TG_SCREENSHOT_BUSY=true;button.disabled=true;status.style.display='block';
+  let charts=[];
+  const originalDpr=[];
+  try{
+    const capture=await tgLoadScreenshotLibrary();
+    if(document.fonts&&document.fonts.ready)await document.fonts.ready;
+    charts=[...chartsContainer.querySelectorAll('canvas')].map(canvas=>Chart.getChart(canvas)).filter(Boolean);
+    charts.forEach((chart,index)=>{originalDpr[index]=chart.options.devicePixelRatio;chart.options.devicePixelRatio=2;chart.resize();chart.update('none')});
+    await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+    status.textContent='⏳ تصوير '+cards.length+' منطقة معًا في صورة واحدة…';
+    const canvas=await capture(chartsContainer,{backgroundColor:'#0b0f19',scale:1.5,useCORS:true,logging:false});
+    const blob=await new Promise((resolve,reject)=>canvas.toBlob(image=>image?resolve(image):reject(new Error('لم يتم إنشاء الصورة المجمعة.')),'image/png'));
+    const url=URL.createObjectURL(blob),link=document.createElement('a');
+    link.href=url;link.download='لقطة_المناطق_الظاهرة_'+ds(Date.now())+'.png';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+    status.textContent='✅ تم تنزيل صورة واحدة تضم '+cards.length+' منطقة ظاهرة، بنفس الفلاتر والشهور المختارة.';
+  }catch(error){
+    status.textContent='⚠️ '+(error&&error.message?error.message:String(error));
+  }finally{
+    charts.forEach((chart,index)=>{chart.options.devicePixelRatio=originalDpr[index];chart.resize();chart.update('none')});
+    TG_SCREENSHOT_BUSY=false;button.disabled=false;
+  }
+};
+$('tgMonthCharts').onclick=e=>{
+  const button=e.target.closest('button[data-capture-zone]');if(!button)return;
+  const card=button.closest('[data-zone-card]'),zone=card&&card.querySelector('h4')?.textContent||'زون';
+  const filename='تارجت_'+zone.replace(/[\\/:*?"<>|]+/g,'_')+'.png';
+  tgMonthCapture(card,filename,button);
+};
+function tgMonthExportTable(){
+  const data=window.TG_MONTH_EXPORT;if(!data||!data.rows.length)return alert('اختار شهرًا ومجموعة مناطق فيها بيانات أولًا');
+  if(!window.XLSX)return alert('مكتبة Excel غير متاحة حاليًا');
+  const sheetRows=data.rows.map(x=>{
+    const row={'الزون':x.z};
+    data.months.forEach((m,i)=>{
+      const v=x.months[m],label=tgMonthLabel(m);
+      const ranks=Object.values(v.ranks).sort((a,b)=>a.office.localeCompare(b.office,'ar'));
+      row[label+' — إجمالي التارجت']=v.hasData?v.target:'';
+      row[label+' — Average']=v.average==null?'':+v.average.toFixed(2);
+    });
+    return row;
+  });
+  const ws=XLSX.utils.json_to_sheet(sheetRows);ws['!views']=[{RTL:true}];
+  const wb=XLSX.utils.book_new();wb.Workbook={Views:[{RTL:true}]};XLSX.utils.book_append_sheet(wb,ws,'مقارنة الزونات');
+  XLSX.writeFile(wb,'جدول_مقارنة_الزونات_'+ds(Date.now())+'.xlsx');
+}
+$('tgMonthTableExport').onclick=tgMonthExportTable;
+function tgOfficeMonthExportTable(){
+  const data=window.TG_MONTH_EXPORT;if(!data||!data.officePivotRows.length)return alert('اختار شهرًا ومجموعة مناطق فيها بيانات أولًا');
+  if(!window.XLSX)return alert('مكتبة Excel غير متاحة حاليًا');
+  const sheetRows=data.officePivotRows.map(x=>{
+    const row={'المكتب (3PL)':x.o};
+    data.months.forEach(m=>{const v=x.months[m],label=tgMonthLabel(m);row[label+' — إجمالي التارجت']=v?v.target:'';row[label+' — Average']=v&&v.average!=null?+v.average.toFixed(2):''});
+    return row;
+  });
+  const ws=XLSX.utils.json_to_sheet(sheetRows);ws['!views']=[{RTL:true}];
+  const wb=XLSX.utils.book_new();wb.Workbook={Views:[{RTL:true}]};XLSX.utils.book_append_sheet(wb,ws,'إجمالي تارجت المكاتب');
+  XLSX.writeFile(wb,'إجمالي_تارجت_المكاتب_'+ds(Date.now())+'.xlsx');
+}
+$('tgOfficeTableExport').onclick=tgOfficeMonthExportTable;
+function tgMonthSetMode(monthly){
+  $('tgDatePanel').style.display=monthly?'none':'';
+  $('tgMonthPanel').style.display=monthly?'':'none';
+  $('tgDateMode').classList.toggle('on',!monthly);$('tgMonthMode').classList.toggle('on',monthly);
+  if(monthly)tgMonthInit();
+}
+$('tgDateMode').onclick=()=>tgMonthSetMode(false);
+$('tgMonthMode').onclick=()=>tgMonthSetMode(true);
+$('tgMonthsToggle').onclick=()=>{
+  $('tgMonthsMenu').style.display=$('tgMonthsMenu').style.display==='none'?'':'none';
+  tgMonthPickerSync();
+};
+$('tgMonthOptions').onclick=e=>{
+  const option=e.target.closest('button[data-month]');if(!option)return;
+  const month=option.dataset.month;
+  tgMonthMonthsSel.has(month)?tgMonthMonthsSel.delete(month):tgMonthMonthsSel.add(month);
+  tgMonthPickerSync();tgMonthDraw();
+};
+$('tgMonthAll').onclick=()=>{tgMonthMonthsSel=new Set(tgMonthKeys);tgMonthPickerSync();tgMonthDraw()};
+$('tgMonthClear').onclick=()=>{tgMonthMonthsSel.clear();tgMonthPickerSync();tgMonthDraw()};
+document.addEventListener('click',e=>{
+  if(!e.target.closest('#tgMonthsMenu')&&!e.target.closest('#tgMonthsToggle')&&$('tgMonthsMenu').style.display!=='none'){
+    $('tgMonthsMenu').style.display='none';tgMonthPickerSync();
+  }
+});
+$('tgMonthExport').onclick=()=>{
+  const data=window.TG_MONTH_EXPORT;if(!data||!data.rows.length)return alert('اختار شهرًا ومجموعة مناطق فيها بيانات أولًا');
+  if(!window.XLSX)return alert('مكتبة Excel غير متاحة حاليًا');
+  const summary=data.rows.map(x=>{const row={'الزون':x.z};
+    data.months.forEach(m=>{const v=x.months[m],label=tgMonthLabel(m),ranks=Object.values(v.ranks).sort((a,b)=>a.office.localeCompare(b.office,'ar'));row[label+' — إجمالي التارجت']=v.hasData?v.target:'';row[label+' — Average']=v.average==null?'':+v.average.toFixed(2);row[label+' — Rank']=ranks.map(r=>r.rank).join(' · ')});
+    return row});
+  const details=data.officePivotRows.map(x=>{const row={'المكتب (3PL)':x.o};
+    data.months.forEach(m=>{const v=x.months[m],label=tgMonthLabel(m),ranks=v?Object.values(v.ranks).sort((a,b)=>a.rank-b.rank):[];row[label+' — إجمالي التارجت']=v?v.target:'';row[label+' — Average']=v&&v.average!=null?+v.average.toFixed(2):'';row[label+' — Rank']=ranks.map(r=>r.rank).join(' · ')});
+    return row});
+  const wb=XLSX.utils.book_new(),ws1=XLSX.utils.json_to_sheet(summary),ws2=XLSX.utils.json_to_sheet(details);ws1['!views']=[{RTL:true}];ws2['!views']=[{RTL:true}];XLSX.utils.book_append_sheet(wb,ws1,'مقارنة الشهور');XLSX.utils.book_append_sheet(wb,ws2,'تفصيل المكاتب');XLSX.writeFile(wb,'مقارنة_الشهور_'+ds(Date.now())+'.xlsx')
+};
 
 /* --- مقارنة تواريخ يختارها المستخدم --- */
 let tgSel=[],tgSelBy='z';
@@ -964,7 +1516,7 @@ function tgSelDraw(){
   if(!days.length){box.style.display='none';return}
   box.style.display='';
   const z=$('tgz').value,o=$('tgo').value,q=$('tgq').value.trim().toLowerCase();
-  const rows=TGR.filter(r=>(!z||r.z===z)&&(!o||r.o===o)&&(!q||(r.o+' '+r.z).toLowerCase().includes(q))&&days.includes(ds(r.d)));
+  const rows=TGR.filter(r=>tgZoneAllowed(r.z)&&(!o||r.o===o)&&(!q||(r.o+' '+r.z).toLowerCase().includes(q))&&days.includes(ds(r.d)));
   const D={};days.forEach(d=>D[d]={t:0,o:new Set,z:new Set});
   const G={};
   for(const r of rows){const d=ds(r.d),x=D[d];x.t+=r.t;x.o.add(r.o);x.z.add(r.z);
@@ -1023,8 +1575,8 @@ function tgAvSet(m){tgAm=m;tgDrawAvg()}
 function tgApply(){
   if(!CUR||CUR.r!=='admin')return;
   const a=$('tgd1').value?new Date($('tgd1').value).setHours(0,0,0,0):0,b=$('tgd2').value?new Date($('tgd2').value).setHours(0,0,0,0):1e15,
-        z=$('tgz').value,o=$('tgo').value,q=$('tgq').value.trim().toLowerCase();
-  TGF=TGR.filter(r=>r.d>=a&&r.d<=b&&(!z||r.z===z)&&(!o||r.o===o)&&(!q||(r.o+' '+r.z).toLowerCase().includes(q)));
+        o=$('tgo').value,q=$('tgq').value.trim().toLowerCase();
+  TGF=TGR.filter(r=>r.d>=a&&r.d<=b&&tgZoneAllowed(r.z)&&(!o||r.o===o)&&(!q||(r.o+' '+r.z).toLowerCase().includes(q)));
   const day={},zn={},of={},pr={};let T=0;const dset=new Set;
   for(const r of TGF){T+=r.t;dset.add(r.d);day[r.d]=(day[r.d]||0)+r.t;zn[r.z]=(zn[r.z]||0)+r.t;of[r.o]=(of[r.o]||0)+r.t;
     const k=r.z+'|'+r.o,x=pr[k]||(pr[k]={z:r.z,o:r.o,t:0,ds:new Set,mxd:0,mnd:Infinity,as:0,an:0,ps:0,pn:0,ns:0,nn:0,mx:0});
@@ -1171,7 +1723,7 @@ function asSetSelect(id,values,label){
 const asIsSelected=v=>{const s=String(v||'').trim().toLowerCase().replace(/\s+/g,'');return !!s&&((s.includes('مختار')&&!s.includes('مش'))||s==='selected'||s==='yes'||s==='true')};
 const asIsNotSelected=v=>{const s=String(v||'').trim().toLowerCase().replace(/\s+/g,'');return s.includes('مشمختار')||s==='notselected'||s==='no'||s==='false'};
 function asFillFilters(){
-  const rows=asScopedRows();
+  const rows=asScopedRows().filter(r=>tgGroupHasZone($('asZoneGroup').value,r.city));
   asSetSelect('asManager',rows.map(r=>r.manager),'كل المديرين');
   asSetSelect('asSup',rows.map(r=>r.sup),'كل المشرفين');
   asSetSelect('asCity',rows.map(r=>r.city),'كل المدن');
@@ -1201,7 +1753,7 @@ function asRender(){
   const days=AS_DATES.filter(d=>d>=from&&d<=to);AS_DAY_KEYS=days;
   const manager=$('asManager').value,sup=$('asSup').value,city=$('asCity').value,office=$('asOffice').value,
     status=$('asStatus').value,q=$('asQ').value.trim().toLowerCase();
-  let rows=asScopedRows().filter(r=>(!manager||r.manager===manager)&&(!sup||r.sup===sup)&&(!city||r.city===city)&&(!office||r.office===office)&&
+  let rows=asScopedRows().filter(r=>tgGroupHasZone($('asZoneGroup').value,r.city)&&(!manager||r.manager===manager)&&(!sup||r.sup===sup)&&(!city||r.city===city)&&(!office||r.office===office)&&
     (!q||(r.id+' '+r.name+' '+r.sup+' '+r.manager+' '+r.city+' '+r.office).toLowerCase().includes(q)));
   rows=rows.filter(r=>{
     const chosen=days.some(d=>asIsSelected(r.shifts[d]));
@@ -1309,8 +1861,9 @@ $('asB').onclick=asOpen;$('asC').onclick=asClose;$('asRf').onclick=asReload;$('a
 $('as').addEventListener('click',e=>{if(e.target===$('as'))asClose()});
 addEventListener('keydown',e=>{if(e.key==='Escape'&&$('as').style.display==='block')asClose()});
 ['asD1','asD2','asManager','asSup','asCity','asOffice','asStatus'].forEach(id=>$(id).onchange=()=>{AS_PAGE=0;asRender()});
+$('asZoneGroup').onchange=()=>{$('asCity').value='';$('asOffice').value='';asFillFilters();AS_PAGE=0;asRender()};
 let asQT;$('asQ').oninput=()=>{clearTimeout(asQT);asQT=setTimeout(()=>{AS_PAGE=0;asRender()},200)};
-$('asX').onclick=()=>{['asManager','asSup','asCity','asOffice','asStatus','asQ'].forEach(id=>$(id).value='');if(AS_DATES.length){$('asD1').value=AS_DATES[0];$('asD2').value=AS_DATES[AS_DATES.length-1]}AS_PAGE=0;asRender()};
+$('asX').onclick=()=>{$('asZoneGroup').value='';['asManager','asSup','asCity','asOffice','asStatus','asQ'].forEach(id=>$(id).value='');asFillFilters();if(AS_DATES.length){$('asD1').value=AS_DATES[0];$('asD2').value=AS_DATES[AS_DATES.length-1]}AS_PAGE=0;asRender()};
 $('asPrev').onclick=()=>{if(AS_PAGE>0){AS_PAGE--;asRender()}};
 $('asNext').onclick=()=>{if((AS_PAGE+1)*AS_PAGE_SIZE<AS_FILTERED.length){AS_PAGE++;asRender()}};
 
