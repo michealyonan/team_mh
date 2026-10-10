@@ -103,6 +103,18 @@ html{-webkit-text-size-adjust:100%}body{overflow-x:hidden}
  .rt td:nth-child(3)::before{display:none}
  .rt tr:hover td{background:none}
 }
+function asSetNameSelect(id,values,label){
+  const select=$(id),previous=select.value,names=new Map();
+  values.map(value=>String(value||'').trim()).filter(Boolean).forEach(name=>{
+    const key=nameMatchKey(name);if(!names.has(key))names.set(key,name);
+  });
+  select.innerHTML='';
+  const all=document.createElement('option');all.value='';all.textContent=label;select.appendChild(all);
+  [...names.entries()].sort((a,b)=>a[1].localeCompare(b[1],'ar')).forEach(([key,name])=>{
+    const option=document.createElement('option');option.value=name;option.textContent=name;select.appendChild(option);
+  });
+  if([...select.options].some(option=>nameMatchKey(option.value)===nameMatchKey(previous)))select.value=[...select.options].find(option=>nameMatchKey(option.value)===nameMatchKey(previous)).value;
+}
 
 .card,.kpi,.charts>*,main>*{min-width:0}
 .li{display:flex;justify-content:space-between;gap:8px;padding:7px 4px;border-top:1px solid var(--bd);cursor:pointer;font-size:12px}
@@ -538,6 +550,11 @@ function done(fresh){
   $('load').style.display='none';if(!ROWS.length){const m=$('msg');m.style.display='block';m.textContent='لا توجد بيانات مرتبطة بحسابك.'}fillOpts();setPreset(preset,true);
 }
 /* ---------- filters ---------- */
+const nameMatchKey=value=>String(value||'').normalize('NFKC')
+  .replace(/[\u064B-\u065F\u0670\u0640]/g,'')
+  .replace(/[أإآٱ]/g,'ا').replace(/ى/g,'ي')
+  .replace(/[\u200e\u200f\u202a-\u202e]/g,'')
+  .replace(/\s+/g,' ').trim().toLocaleLowerCase('ar');
 const TG_ZONE_GROUPS={
   'اكتوبر':['Smart village','October wahat','October palm hills','October'],
   'التجمعات':['Madinaty','Shorouk city','Obour city'],
@@ -555,12 +572,27 @@ const tgGroupHasZone=(group,z)=>!group||(TG_ZONE_GROUPS[group]||[]).some(name=>t
 const tgGroupOptions=()=>'<option value="">كل المجموعات</option>'+Object.keys(TG_ZONE_GROUPS).map(group=>`<option value="${group}">${group}</option>`).join('');
 ['mainZoneGroup','asZoneGroup'].forEach(id=>{if($(id))$(id).innerHTML=tgGroupOptions()});
 function uniq(k,rows){return [...new Set(rows.map(r=>r[k]).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ar'))}
-function setSel(id,list,all){const s=$(id),c=s.value;s.innerHTML=`<option value="">${all}</option>`+list.map(x=>`<option>${x}</option>`).join('');if(list.includes(c))s.value=c}
+function uniqName(k,rows){
+  const names=new Map();
+  rows.map(r=>String(r[k]||'').trim()).filter(Boolean).forEach(name=>{
+    const key=nameMatchKey(name);if(!names.has(key))names.set(key,name);
+  });
+  return [...names.values()].sort((a,b)=>a.localeCompare(b,'ar'));
+}
+function setSel(id,list,all){
+  const s=$(id),current=s.value;
+  s.innerHTML=`<option value="">${all}</option>`+list.map(x=>`<option>${x}</option>`).join('');
+  if(list.includes(current))s.value=current;
+  else if(['fm','fs'].includes(id)){
+    const equivalent=list.find(value=>nameMatchKey(value)===nameMatchKey(current));
+    if(equivalent)s.value=equivalent;
+  }
+}
 function fillOpts(){
   const m=$('fm').value,z=$('fz').value,group=$('mainZoneGroup').value;
-  setSel('fm',uniq('m',ROWS),'كل المديرين');$('fm').value=m;
-  const r1=(m?ROWS.filter(r=>r.m===m):ROWS).filter(r=>tgGroupHasZone(group,r.z));setSel('fz',uniq('z',r1),'كل المناطق');
-  const r2=z?r1.filter(r=>r.z===z):r1;setSel('fs',uniq('s',r2),'كل المشرفين');
+  setSel('fm',uniqName('m',ROWS),'كل المديرين');$('fm').value=m;
+  const r1=(m?ROWS.filter(r=>nameMatchKey(r.m)===nameMatchKey(m)):ROWS).filter(r=>tgGroupHasZone(group,r.z));setSel('fz',uniq('z',r1),'كل المناطق');
+  const r2=z?r1.filter(r=>r.z===z):r1;setSel('fs',uniqName('s',r2),'كل المشرفين');
   setSel('fv',uniq('v',ROWS),'كل المركبات');setSel('fb',uniq('bt',ROWS).sort((a,b)=>a-b),'كل الباتشات');
 }
 function setPreset(p,silent){
@@ -593,7 +625,7 @@ updateFilterControls();
 function apply(){
   const a=new Date($('d1').value).setHours(0,0,0,0),b=new Date($('d2').value).setHours(0,0,0,0);
   const m=$('fm').value,z=$('fz').value,s=$('fs').value,v=$('fv').value,bt=$('fb').value,q=$('q').value.trim().toLowerCase(),group=$('mainZoneGroup').value;
-  const ok=r=>tgGroupHasZone(group,r.z)&&(!m||r.m===m)&&(!z||r.z===z)&&(!s||r.s===s)&&(!v||r.v===v)&&(!bt||r.bt===bt)&&(!q||r.n.toLowerCase().includes(q)||r.id.toLowerCase().includes(q));
+  const ok=r=>tgGroupHasZone(group,r.z)&&(!m||nameMatchKey(r.m)===nameMatchKey(m))&&(!z||r.z===z)&&(!s||nameMatchKey(r.s)===nameMatchKey(s))&&(!v||r.v===v)&&(!bt||r.bt===bt)&&(!q||r.n.toLowerCase().includes(q)||r.id.toLowerCase().includes(q));
   const len=b-a+DAY,P={o:0,a:0,p:0},fr=[];
   for(const r of ROWS){if(ok(r)){if(r.t>=a&&r.t<=b)fr.push(r);else if(r.t>=a-len&&r.t<a){P.o+=r.o;P.a+=r.a;P.p+=r.p}}}
   FR=fr;
@@ -610,10 +642,10 @@ function apply(){
   $('cnt').textContent=NF(fr.length)+' سجل';
   let svTxt='ساعة';
   {const cs=(CUR&&CUR.r==='sup')?CUR.s:s;
-   if(cs){const zc={};fr.forEach(r=>{if(r.s===cs&&r.z)zc[r.z]=(zc[r.z]||0)+1});
+   if(cs){const supervisorKey=nameMatchKey(cs),zc={};fr.forEach(r=>{if(nameMatchKey(r.s)===supervisorKey&&r.z)zc[r.z]=(zc[r.z]||0)+1});
     const zz=z||Object.keys(zc).sort((x,y)=>zc[y]-zc[x])[0];
-    if(zz){const g={};for(const r of ALL)if(r.t>=a&&r.t<=b&&r.z===zz&&r.s){const x=g[r.s]||(g[r.s]={a:0,d:new Set});x.a+=r.a;if(r.a>0||r.o>0)x.d.add(r.t)}
-     const arr=Object.entries(g).map(([k,x])=>({k,v:x.d.size?x.a/x.d.size:0})).sort((x,y)=>y.v-x.v),i=arr.findIndex(x=>x.k===cs);
+    if(zz){const g={};for(const r of ALL)if(r.t>=a&&r.t<=b&&r.z===zz&&r.s){const key=nameMatchKey(r.s),x=g[key]||(g[key]={k:r.s,a:0,d:new Set});x.a+=r.a;if(r.a>0||r.o>0)x.d.add(r.t)}
+     const arr=Object.values(g).map(x=>({k:x.k,v:x.d.size?x.a/x.d.size:0})).sort((x,y)=>y.v-x.v),i=arr.findIndex(x=>nameMatchKey(x.k)===supervisorKey);
      if(i>=0)svTxt='ساعة<br><b style="color:#5eead4">👷 المشرف: '+F1(arr[i].v)+' س/يوم</b><br>🏅 الترتيب '+(i+1)+' من '+arr.length+' في '+esc(zz)}}}
   const remaining=T.p-T.a,reservedNote=remaining>=0?'متبقي '+NF(remaining)+' ساعة':'تجاوز المحجوز '+NF(-remaining)+' ساعة';
   const K=[['📦 الطلبات',NF(T.o),'مكتملة','--c:var(--pr)'],['⏱ ساعات فعلية',NF(T.a),'من '+NF(T.p)+' محجوز','--c:var(--ok)'],['🗓️ ساعات محجوزة',NF(T.p),reservedNote,'--c:#a78bfa'],['🎯 الالتزام',F1(commit)+'%','فعلي/محجوز','--c:var(--wa)'],['⚡ الإنتاجية',F1(oph),'طلب/ساعة','--c:var(--pu)'],
@@ -874,7 +906,7 @@ function setPW(u,p){const b=getPW();if(p==null)delete b[u.toLowerCase()];else b[
 function dlCSV(rows,name){const l=document.createElement('a');l.href=URL.createObjectURL(new Blob(['\ufeff'+Papa.unparse(rows)],{type:'text/csv'}));l.download=name;l.click()}
 function saveU(a){DRAFT=a;try{localStorage.setItem('pd_draft',JSON.stringify(a))}catch(e){}gstat()}
 function gstat(){const e=$('gst');if(e)e.textContent=DRAFT?'⚠️ فيه تعديلات لسه متنشرتش — اضغط 🚀 نشر على GitHub':'✅ كل التعديلات منشورة'}
-function scope(rows){if(!CUR||CUR.r==='admin')return rows;const k=CUR.r==='manager'?'m':'s';return rows.filter(r=>r[k]===CUR.s)}
+function scope(rows){if(!CUR||CUR.r==='admin')return rows;const k=CUR.r==='manager'?'m':'s',userName=nameMatchKey(CUR.s);return rows.filter(r=>nameMatchKey(r[k])===userName)}
 function findU(u,h){return USERS.find(y=>y.u.toLowerCase()===u&&y.h===h)||(DRAFT&&DRAFT.find(y=>y.u.toLowerCase()===u&&y.h===h))}
 function enter(x){CUR=x;idleReset();try{sessionStorage.setItem('pd_sess',x.u.toLowerCase()+'|'+x.h)}catch(e){}
   $('lg').style.display='none';$('who').textContent='👤 '+x.n+' · '+ROLE[x.r];$('usrB').style.display=x.r==='admin'?'':'none';$('tgB').style.display=x.r==='admin'?'':'none';$('asB').style.display='';$('prB').style.display='';$('queriesB').style.display='';load().then(()=>{if(x.r==='admin'&&x.h===DEF_H){const m=$('msg');m.style.display='block';m.textContent='⚠️ كلمة مرور الأدمن الافتراضية لسه شغالة — غيّره من 👥 المستخدمين.'}})}
@@ -1728,7 +1760,8 @@ async function asFetch(){
 function asScopedRows(){
   if(!CUR||CUR.r==='admin')return AS_ROWS;
   const key=CUR.r==='manager'?'manager':'sup';
-  return AS_ROWS.filter(r=>r[key]===CUR.s);
+  const userName=nameMatchKey(CUR.s);
+  return AS_ROWS.filter(r=>nameMatchKey(r[key])===userName);
 }
 function asSetSelect(id,values,label){
   const select=$(id),previous=select.value;select.innerHTML='';
@@ -1742,8 +1775,8 @@ const asIsSelected=v=>{const s=String(v||'').trim().toLowerCase().replace(/\s+/g
 const asIsNotSelected=v=>{const s=String(v||'').trim().toLowerCase().replace(/\s+/g,'');return s.includes('مشمختار')||s==='notselected'||s==='no'||s==='false'};
 function asFillFilters(){
   const rows=asScopedRows().filter(r=>tgGroupHasZone($('asZoneGroup').value,r.city));
-  asSetSelect('asManager',rows.map(r=>r.manager),'كل المديرين');
-  asSetSelect('asSup',rows.map(r=>r.sup),'كل المشرفين');
+  asSetNameSelect('asManager',rows.map(r=>r.manager),'كل المديرين');
+  asSetNameSelect('asSup',rows.map(r=>r.sup),'كل المشرفين');
   asSetSelect('asCity',rows.map(r=>r.city),'كل المدن');
   asSetSelect('asOffice',rows.map(r=>r.office),'كل المقرات');
 }
@@ -1771,7 +1804,7 @@ function asRender(){
   const days=AS_DATES.filter(d=>d>=from&&d<=to);AS_DAY_KEYS=days;
   const manager=$('asManager').value,sup=$('asSup').value,city=$('asCity').value,office=$('asOffice').value,
     status=$('asStatus').value,q=$('asQ').value.trim().toLowerCase();
-  let rows=asScopedRows().filter(r=>tgGroupHasZone($('asZoneGroup').value,r.city)&&(!manager||r.manager===manager)&&(!sup||r.sup===sup)&&(!city||r.city===city)&&(!office||r.office===office)&&
+  let rows=asScopedRows().filter(r=>tgGroupHasZone($('asZoneGroup').value,r.city)&&(!manager||nameMatchKey(r.manager)===nameMatchKey(manager))&&(!sup||nameMatchKey(r.sup)===nameMatchKey(sup))&&(!city||r.city===city)&&(!office||r.office===office)&&
     (!q||(r.id+' '+r.name+' '+r.sup+' '+r.manager+' '+r.city+' '+r.office).toLowerCase().includes(q)));
   rows=rows.filter(r=>{
     const chosen=days.some(d=>asIsSelected(r.shifts[d]));
