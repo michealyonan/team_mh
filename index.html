@@ -2047,25 +2047,21 @@ function queryDateValue(value){
   if(date.getFullYear()!==year||date.getMonth()!==month-1||date.getDate()!==day)return'';
   return year+'-'+String(month).padStart(2,'0')+'-'+String(day).padStart(2,'0');
 }
+function queryHeaderKey(value){
+  return String(value||'').normalize('NFKC').replace(/[\u064B-\u065F\u0670\u0640]/g,'')
+    .replace(/[أإآٱ]/g,'ا').replace(/ى/g,'ي').replace(/[\u200e\u200f\u202a-\u202e]/g,'')
+    .toLocaleLowerCase('ar').replace(/[^a-z0-9\u0621-\u064a]/g,'');
+}
 function queryUpdateFilters(data){
-  const dateIndex=data.headers.findIndex(header=>/timestamp|date|تاريخ|التاريخ/i.test(header));
-  const supervisorIndex=data.headers.findIndex(header=>/مشرف|supervisor/i.test(header));
-  const officeIndex=data.headers.findIndex(header=>/إسم مكتب طلبات\s*الذي سيتم حضور المحاضره من خلاله/i.test(header));
+  const headerKeys=data.headers.map(queryHeaderKey);
+  const dateIndex=headerKeys.findIndex(header=>/timestamp|date|تاريخ/.test(header));
+  const supervisorIndex=headerKeys.findIndex(header=>/مشرف|supervisor/.test(header));
+  const requestedOfficeIndex=headerKeys.findIndex(header=>header.includes('مكتبطلبات')&&header.includes('حضورالمحاضره'));
+  const officeIndex=requestedOfficeIndex>=0?requestedOfficeIndex:
+    headerKeys.findIndex(header=>/^(?:اسم)?المكتب/.test(header)||/^(?:اسم)?مكتب/.test(header)||header.includes('مكتبالطلبات'));
   for(const id of ['queryDateFrom','queryDateTo']){
     $(id).disabled=dateIndex<0;
     $(id).title=dateIndex<0?'التاريخ غير متاح في هذه التابة':'';
-  }
-  const select=$('querySupervisor'),previous=select.value;
-  $('querySupervisorFilter').style.display=supervisorIndex<0?'none':'';
-  select.innerHTML='<option value="">كل المشرفين</option>';
-  if(supervisorIndex<0){
-    select.disabled=true;select.options[0].textContent='المشرف غير موجود في التابة';
-  }else{
-    const supervisors=[...new Set(data.rows.map(row=>String(row[supervisorIndex]||'').trim()).filter(Boolean))]
-      .sort((a,b)=>a.localeCompare(b,'ar'));
-    supervisors.forEach(name=>{const option=document.createElement('option');option.value=name;option.textContent=name;select.appendChild(option)});
-    select.disabled=false;
-    if(supervisors.includes(previous))select.value=previous;
   }
   const officeSelect=$('queryOffice'),previousOffice=officeSelect.value;
   officeSelect.innerHTML='<option value="">كل المكاتب</option>';
@@ -2078,6 +2074,22 @@ function queryUpdateFilters(data){
     officeSelect.disabled=false;
     if(offices.includes(previousOffice))officeSelect.value=previousOffice;
   }else officeSelect.disabled=true;
+  const select=$('querySupervisor'),previous=select.value;
+  $('querySupervisorFilter').style.display=supervisorIndex<0?'none':'';
+  select.innerHTML='<option value="">كل المشرفين</option>';
+  if(supervisorIndex<0){
+    select.disabled=true;select.options[0].textContent='المشرف غير موجود في التابة';
+  }else{
+    const selectedOffice=officeSelect.value;
+    const supervisorRows=selectedOffice&&officeIndex>=0
+      ?data.rows.filter(row=>String(row[officeIndex]||'').trim()===selectedOffice.trim())
+      :data.rows;
+    const supervisors=[...new Set(supervisorRows.map(row=>String(row[supervisorIndex]||'').trim()).filter(Boolean))]
+      .sort((a,b)=>a.localeCompare(b,'ar'));
+    supervisors.forEach(name=>{const option=document.createElement('option');option.value=name;option.textContent=name;select.appendChild(option)});
+    select.disabled=false;
+    if(supervisors.includes(previous))select.value=previous;
+  }
   return{dateIndex,supervisorIndex:supervisorIndex<0?-1:supervisorIndex,officeIndex};
 }
 function queryOpen(){
@@ -2147,7 +2159,8 @@ function queryExport(){
 $('queriesB').onclick=queryOpen;$('queryClose').onclick=queryClose;$('queryRefresh').onclick=()=>QUERY_ACTIVE&&querySet(QUERY_ACTIVE,true);
 $('queryTabs').onclick=e=>{const button=e.target.closest('[data-query-sheet]');if(button)querySet(button.dataset.querySheet)};
 $('querySearch').oninput=()=>{QUERY_PAGE=0;queryRender()};
-['queryDateFrom','queryDateTo','querySupervisor','queryOffice'].forEach(id=>$(id).onchange=()=>{QUERY_PAGE=0;queryRender()});
+['queryDateFrom','queryDateTo','querySupervisor'].forEach(id=>$(id).onchange=()=>{QUERY_PAGE=0;queryRender()});
+$('queryOffice').onchange=()=>{$('querySupervisor').value='';QUERY_PAGE=0;queryRender()};
 $('queryPrev').onclick=()=>{if(QUERY_PAGE>0){QUERY_PAGE--;queryRender()}};
 $('queryNext').onclick=()=>{if((QUERY_PAGE+1)*QUERY_PAGE_SIZE<QUERY_FILTERED.length){QUERY_PAGE++;queryRender()}};
 $('queryExport').onclick=queryExport;
