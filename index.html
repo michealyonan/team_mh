@@ -136,18 +136,6 @@ html{-webkit-text-size-adjust:100%}body{overflow-x:hidden}
  .rt td:nth-child(3)::before{display:none}
  .rt tr:hover td{background:none}
 }
-function asSetNameSelect(id,values,label){
-  const select=$(id),previous=select.value,names=new Map();
-  values.map(value=>String(value||'').trim()).filter(Boolean).forEach(name=>{
-    const key=nameMatchKey(name);if(!names.has(key))names.set(key,name);
-  });
-  select.innerHTML='';
-  const all=document.createElement('option');all.value='';all.textContent=label;select.appendChild(all);
-  [...names.entries()].sort((a,b)=>a[1].localeCompare(b[1],'ar')).forEach(([key,name])=>{
-    const option=document.createElement('option');option.value=name;option.textContent=name;select.appendChild(option);
-  });
-  if([...select.options].some(option=>nameMatchKey(option.value)===nameMatchKey(previous)))select.value=[...select.options].find(option=>nameMatchKey(option.value)===nameMatchKey(previous)).value;
-}
 
 .card,.kpi,.charts>*,main>*{min-width:0}
 .li{display:flex;justify-content:space-between;gap:8px;padding:7px 4px;border-top:1px solid var(--bd);cursor:pointer;font-size:12px}
@@ -1814,6 +1802,19 @@ function asSetSelect(id,values,label){
     const option=document.createElement('option');option.value=value;option.textContent=value;select.appendChild(option);
   });
   if([...select.options].some(o=>o.value===previous))select.value=previous;
+}
+function asSetNameSelect(id,values,label){
+  const select=$(id),previous=select.value,names=new Map();
+  values.map(value=>String(value||'').trim()).filter(Boolean).forEach(name=>{
+    const key=nameMatchKey(name);if(!names.has(key))names.set(key,name);
+  });
+  select.innerHTML='';
+  const all=document.createElement('option');all.value='';all.textContent=label;select.appendChild(all);
+  [...names.entries()].sort((a,b)=>a[1].localeCompare(b[1],'ar')).forEach(([,name])=>{
+    const option=document.createElement('option');option.value=name;option.textContent=name;select.appendChild(option);
+  });
+  const matchingOption=[...select.options].find(option=>nameMatchKey(option.value)===nameMatchKey(previous));
+  if(matchingOption)select.value=matchingOption.value;
 }
 const asIsSelected=v=>{const s=String(v||'').trim().toLowerCase().replace(/\s+/g,'');return !!s&&((s.includes('مختار')&&!s.includes('مش'))||s==='selected'||s==='yes'||s==='true')};
 const asIsNotSelected=v=>{const s=String(v||'').trim().toLowerCase().replace(/\s+/g,'');return s.includes('مشمختار')||s==='notselected'||s==='no'||s==='false'};
