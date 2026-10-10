@@ -56,7 +56,40 @@ tr:hover td{background:#18223a}
 #queryTable{max-height:68vh}
 #queryTable table{min-width:900px}
 #queryTable td{max-width:300px;overflow-wrap:anywhere;white-space:normal}
-@media(max-width:699px){#queries>.queries-wrap{padding-inline:8px}#queries .queries-head{gap:6px}#queryTable{max-height:65vh}}
+@media(max-width:699px){
+ #queries>.queries-wrap{min-width:0;padding:0 8px calc(18px + env(safe-area-inset-bottom))}
+ #queries .queries-head{gap:6px;padding:8px 0}
+ #queries .queries-head h2{font-size:16px!important}
+ #queryCount{margin-inline-start:auto}
+ #queries .queries-head>span:last-child{width:100%;margin-inline-start:0!important;display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px!important}
+ #queries .queries-head>span:last-child .btn{min-width:0;padding:7px 4px;font-size:11px;white-space:normal}
+ #queries .card{min-width:0;padding:9px}
+ #queryTabs{margin-inline:-2px}
+ #queryFilters{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+ #queryFilters>div{min-width:0}
+ #queryFilters label{min-height:30px;line-height:1.45}
+ #queryFilters input,#queryFilters select{min-width:0;padding-inline:7px;font-size:12px}
+ #querySearchRow{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+ #querySearch{grid-column:1/-1;width:100%;min-width:0!important}
+ #queryPage{grid-column:1/-1;text-align:center;order:3}
+ #queryPrev,#queryNext{width:100%;min-width:0;padding-inline:5px}
+ #queryTable{max-height:none;overflow:visible}
+ #queryTable table{min-width:0;width:100%;border-collapse:separate;border-spacing:0 8px}
+ #queryTable thead{display:none}
+ #queryTable tbody{display:block}
+ #queryTable tbody tr{display:block;margin:0 0 9px;padding:5px 9px;border:1px solid var(--bd);border-radius:10px;background:var(--bg)}
+ #queryTable tbody td{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;max-width:none;padding:7px 2px;border-top:1px solid var(--bd);text-align:left;overflow-wrap:anywhere;word-break:break-word}
+ #queryTable tbody td:first-child{border-top:0}
+ #queryTable tbody td:before{content:attr(data-label);flex:0 0 38%;color:var(--mut);font-size:11px;font-weight:700;text-align:right}
+ #queryTable tbody td[colspan]{display:block;text-align:center}
+ #queryTable tbody td[colspan]:before{content:none}
+}
+@media(max-width:380px){
+ #queries .queries-head>span:last-child{grid-template-columns:1fr 1fr}
+ #queries .queries-head>span:last-child #queryClose{grid-column:1/-1}
+ #queryFilters{grid-template-columns:1fr}
+ #queryFilters label{min-height:0}
+}
 @media(min-width:700px){.filters{grid-template-columns:repeat(4,1fr)}.kpis{grid-template-columns:repeat(4,1fr)}.cw{height:300px}}
 @media(min-width:1100px){.filters{grid-template-columns:repeat(8,1fr)}.kpis{grid-template-columns:repeat(8,1fr)}.kpi .v{font-size:20px}.charts{grid-template-columns:repeat(12,1fr)}.c6{grid-column:span 6}.c8{grid-column:span 8}.c4{grid-column:span 4}}
 .ov{position:fixed;inset:0;z-index:100;background:var(--bg);display:flex;align-items:flex-start;justify-content:center;padding:16px;overflow:auto;-webkit-overflow-scrolling:touch}
@@ -455,7 +488,7 @@ html[data-theme="light"] .btn.pr{border-color:var(--pr)}
     <div id="querySupervisorFilter"><label for="querySupervisor">👷 المشرف</label><select id="querySupervisor"><option value="">كل المشرفين</option></select></div>
     <div id="queryOfficeFilter"><label for="queryOffice">🏢 إسم مكتب طلبات الذي سيتم حضور المحاضره من خلاله</label><select id="queryOffice"><option value="">كل المكاتب</option></select></div>
    </div>
-   <div class="row" style="margin:0"><input id="querySearch" placeholder="🔎 بحث في كل أعمدة التابة" style="flex:1;min-width:220px"><span class="sub" id="queryPage"></span><button class="btn" id="queryPrev">‹ السابق</button><button class="btn" id="queryNext">التالي ›</button></div>
+   <div class="row" id="querySearchRow" style="margin:0"><input id="querySearch" placeholder="🔎 بحث في كل أعمدة التابة" style="flex:1;min-width:220px"><span class="sub" id="queryPage"></span><button class="btn" id="queryPrev">‹ السابق</button><button class="btn" id="queryNext">التالي ›</button></div>
   </div>
   <div id="queryMessage" role="status" aria-live="polite"></div>
   <div class="card"><div class="tw" id="queryTable"><table><thead id="queryHead"></thead><tbody id="queryBody"></tbody></table></div></div>
@@ -509,10 +542,21 @@ function setSyncStatus(state,detail){
   $('sync').textContent=stateText+' · '+dataDate+(cached?' · آخر سحب ناجح: '+fdt(cached):'')+(detail?' · '+detail:'');
 }
 
+function vehicleFromRiderName(name){
+  const riderName=String(name||'').trim();
+  if(/(?:^|[^A-Z0-9])WLK(?:$|[^A-Z0-9])/i.test(riderName))return'WLK';
+  if(/(?:^|[^A-Z0-9])BC(?:$|[^A-Z0-9])/i.test(riderName))return'عجلة';
+  return'مكنة';
+}
+function normalizeVehicleRows(rows){
+  for(const row of rows)row.v=vehicleFromRiderName(row.n);
+  return rows;
+}
 function ingest(arr){
   const out=[];
   for(let i=1;i<arr.length;i++){const r=arr[i],t=pd(r[5]);if(!t)continue;
-   out.push({id:String(r[0]).trim(),p:+r[1]||0,a:+r[2]||0,b:+r[3]||0,o:parseInt(r[4])||0,t,s:(r[6]||'').trim(),n:(r[8]||'').trim(),v:(r[9]||'').trim(),z:(r[10]||'').trim(),m:(r[11]||'').trim(),w:parseFloat(String(r[12]||0).replace(/,/g,''))||0,bt:String(r[13]||'').trim(),e:pd(r[14])});}
+   const name=(r[8]||'').trim();
+   out.push({id:String(r[0]).trim(),p:+r[1]||0,a:+r[2]||0,b:+r[3]||0,o:parseInt(r[4])||0,t,s:(r[6]||'').trim(),n:name,v:vehicleFromRiderName(name),z:(r[10]||'').trim(),m:(r[11]||'').trim(),w:parseFloat(String(r[12]||0).replace(/,/g,''))||0,bt:String(r[13]||'').trim(),e:pd(r[14])});}
   ALL=out;ROWS=scope(out);return out.length;
 }
 function jsonp(){return new Promise((ok,no)=>{
@@ -523,7 +567,7 @@ function jsonp(){return new Promise((ok,no)=>{
   sc.onerror=()=>{clearTimeout(tm);no('فشل تحميل السكربت من جوجل (إنترنت/الشيت غير عام)')};
   sc.src=`https://docs.google.com/spreadsheets/d/${SID}/gviz/tq?gid=0&headers=1&tqx=out:json;responseHandler:__gv`;document.head.appendChild(sc)})}
 async function load(){
-  $('msg').style.display='none';let cached=false;if(!ROWS.length){const c=await idb('get');if(c&&c.length){ALL=c;ROWS=scope(c);cached=true;done(false);setSyncStatus('refreshing','نعرض نسخة محفوظة مؤقتًا')}}
+  $('msg').style.display='none';let cached=false;if(!ROWS.length){const c=await idb('get');if(c&&c.length){ALL=normalizeVehicleRows(c);ROWS=scope(ALL);cached=true;done(false);setSyncStatus('refreshing','نعرض نسخة محفوظة مؤقتًا')}}
   const hadData=ROWS.length>0;
   if(!hadData)$('load').style.display='flex';else setSyncStatus('refreshing','البيانات الحالية ظاهرة أثناء التحديث');
   const errs=[];
@@ -2086,7 +2130,7 @@ function queryRender(){
   QUERY_PAGE=Math.min(QUERY_PAGE,pageCount-1);
   const start=QUERY_PAGE*QUERY_PAGE_SIZE,shown=QUERY_FILTERED.slice(start,start+QUERY_PAGE_SIZE);
   $('queryHead').innerHTML='<tr>'+data.headers.map(header=>`<th>${esc(header)}</th>`).join('')+'</tr>';
-  $('queryBody').innerHTML=shown.map(row=>'<tr>'+row.map(value=>`<td>${esc(value)}</td>`).join('')+'</tr>').join('')||
+  $('queryBody').innerHTML=shown.map(row=>'<tr>'+row.map((value,index)=>`<td data-label="${esc(data.headers[index]||'')}">${esc(value)}</td>`).join('')+'</tr>').join('')||
     `<tr><td colspan="${data.headers.length}" class="sub">مفيش نتائج مطابقة للبحث</td></tr>`;
   $('queryCount').textContent=NF(QUERY_FILTERED.length)+' نتيجة من '+NF(data.rows.length)+' سجل';
   $('queryPage').textContent=(QUERY_FILTERED.length?start+1:0)+'–'+Math.min(start+QUERY_PAGE_SIZE,QUERY_FILTERED.length)+' من '+NF(QUERY_FILTERED.length)+' · صفحة '+(QUERY_PAGE+1)+' / '+pageCount;
