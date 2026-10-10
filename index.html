@@ -88,10 +88,7 @@ html{-webkit-text-size-adjust:100%}body{overflow-x:hidden}
  .li{padding:12px 4px!important;font-size:13px!important}
  .ov{padding:14px 12px calc(14px + env(safe-area-inset-bottom))}
  .lb{margin-top:8vh}
- /* لوحة تصدير التنبيهات */
- #alC label{width:100%;padding:6px 0;font-size:14px}#alC input,#alSep{width:20px;height:20px;min-height:0}
- #alP .row .btn{flex:1 1 40%}#alGo{flex:1 1 100%!important;margin:0!important;order:9;min-height:46px}
- #idX,#gx,#exp,#alX{min-height:42px}
+ #idX,#gx,#exp{min-height:42px}
  #idX{margin-inline-start:0!important;width:100%}
  .row>h3{flex:1 1 auto}
  /* جدول التحليل المجمع وجدول المستخدمين → كروت */
@@ -223,23 +220,12 @@ html{-webkit-text-size-adjust:100%}body{overflow-x:hidden}
  <div class="charts">
   <div class="card c4"><h3 style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">🏆 أفضل <input type="number" min="1" class="tn" data-k="top" value="10" title="كام عايز تعرض؟" style="width:62px;min-height:28px;padding:2px 6px;font-size:13px"> طيارين (طلبات)<button class="btn" style="margin-inline-start:auto;padding:4px 10px;min-height:30px;font-size:12px" onclick="exl('top')">⬇ Excel</button></h3><div id="top"></div></div>
   <div class="card c4"><h3 style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">📉 أضعف <input type="number" min="1" class="tn" data-k="bot" value="10" title="كام عايز تعرض؟" style="width:62px;min-height:28px;padding:2px 6px;font-size:13px"> (أقل التزام)<button class="btn" style="margin-inline-start:auto;padding:4px 10px;min-height:30px;font-size:12px" onclick="exl('bot')">⬇ Excel</button></h3><div id="bot"></div></div>
-  <div class="card c4"><h3 style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">🐌 أقل <input type="number" min="1" class="tn" data-k="lo1" value="10" title="كام عايز تعرض؟" style="width:62px;min-height:28px;padding:2px 6px;font-size:13px"> في الطلبات <span class="sub">(اللي اشتغلوا فعلاً)</span><button class="btn" style="margin-inline-start:auto;padding:4px 10px;min-height:30px;font-size:12px" onclick="exl('lo1')">⬇ Excel</button></h3><div id="lo1"></div></div>
-  <div class="card c4"><h3 style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">⏳ أقل <input type="number" min="1" class="tn" data-k="lo2" value="10" title="كام عايز تعرض؟" style="width:62px;min-height:28px;padding:2px 6px;font-size:13px"> في الساعات <span class="sub">(اللي اشتغلوا فعلاً)</span><button class="btn" style="margin-inline-start:auto;padding:4px 10px;min-height:30px;font-size:12px" onclick="exl('lo2')">⬇ Excel</button></h3><div id="lo2"></div></div>
+  <div class="card c4"><h3 style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">🐌 أقل <input type="number" min="1" class="tn" data-k="lo1" value="10" title="كام عايز تعرض؟" style="width:62px;min-height:28px;padding:2px 6px;font-size:13px"> في الطلبات<button class="btn" style="margin-inline-start:auto;padding:4px 10px;min-height:30px;font-size:12px" onclick="exl('lo1')">⬇ Excel</button></h3><div id="lo1"></div></div>
+  <div class="card c4"><h3 style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">⏳ أقل <input type="number" min="1" class="tn" data-k="lo2" value="10" title="كام عايز تعرض؟" style="width:62px;min-height:28px;padding:2px 6px;font-size:13px"> في الساعات<button class="btn" style="margin-inline-start:auto;padding:4px 10px;min-height:30px;font-size:12px" onclick="exl('lo2')">⬇ Excel</button></h3><div id="lo2"></div></div>
   <div class="card c4"><h3 style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">📆 أقل <input type="number" min="1" class="tn" data-k="lo3" value="10" title="كام عايز تعرض؟" style="width:62px;min-height:28px;padding:2px 6px;font-size:13px"> في أيام العمل<button class="btn" style="margin-inline-start:auto;padding:4px 10px;min-height:30px;font-size:12px" onclick="exl('lo3')">⬇ Excel</button></h3><div id="lo3"></div></div>
-  <div class="card c4"><div class="row" style="margin-bottom:6px"><h3 style="margin:0">📆 حسب يوم الأسبوع</h3><span style="margin-inline-start:auto;display:flex;gap:6px"><button class="chip on" id="m5o" onclick="setM5('o')">📦 طلبات</button><button class="chip" id="m5a" onclick="setM5('a')">⏱ ساعات</button><button class="chip" id="m5x" onclick="setM5('x')">🔀 مكس</button><button class="chip" onclick="exl('ch5')">⬇ Excel</button></span></div><div class="cw"><canvas id="ch5"></canvas></div></div>
+  <div class="card c4"><div class="row" style="margin-bottom:6px"><h3 style="margin:0">📆 حسب التاريخ</h3><span style="margin-inline-start:auto;display:flex;gap:6px"><button class="chip on" id="m5o" onclick="setM5('o')">📦 طلبات</button><button class="chip" id="m5a" onclick="setM5('a')">⏱ ساعات</button><button class="chip" id="m5x" onclick="setM5('x')">🔀 مكس</button><button class="chip" onclick="exl('ch5')">⬇ Excel</button></span></div><div class="cw"><canvas id="ch5"></canvas></div></div>
  </div>
  <div class="card"><div class="row"><h3 style="margin:0">📊 تحليل مجمّع حسب</h3><select id="gb"><option value="m">مدير المنطقة</option><option value="z">المنطقة</option><option value="s">المشرف</option><option value="bt">الباتش</option><option value="v">المركبة</option></select><button class="btn" id="gx" style="margin-inline-start:auto">⬇ CSV</button></div><div class="tw rt2"><table style="min-width:620px"><thead id="gh"></thead><tbody id="gt"></tbody></table></div></div>
- <div class="card"><div class="row"><h3 style="margin:0">🚨 مركز التنبيهات</h3><button class="btn" id="alX" style="margin-inline-start:auto">⬇ تصدير CSV</button></div>
-  <div id="alP" style="display:none;margin:10px 0;padding:12px;border:1px solid var(--bd);border-radius:10px;background:#0f1626">
-   <div class="sub" style="margin-bottom:8px">اختار التنبيهات اللي عاوز تصدّرها (بيتصدّر كل الأسماء مش أول 6 بس):</div>
-   <div id="alC" style="display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px"></div>
-   <div class="row" style="margin-top:12px;gap:8px;flex-wrap:wrap">
-    <button class="btn" id="alAll">تحديد الكل</button><button class="btn" id="alNone">إلغاء الكل</button>
-    <label style="font-size:12px;display:flex;align-items:center;gap:5px;cursor:pointer"><input type="checkbox" id="alSep"> كل تنبيه في ملف منفصل</label>
-    <button class="btn pr" id="alGo" style="margin-inline-start:auto">⬇ تصدير المحدد</button>
-   </div>
-  </div>
-  <div class="filters" style="grid-template-columns:repeat(auto-fit,minmax(240px,1fr))" id="al"></div></div>
  <div class="charts">
   <div class="card c8"><div class="row" style="margin-bottom:6px"><h3 style="margin:0">📈 المسار اليومي</h3><span style="margin-inline-start:auto;display:flex;gap:6px"><button class="chip on" id="m1o" onclick="setM1('o')">📦 طلبات</button><button class="chip" id="m1a" onclick="setM1('a')">⏱ ساعات</button></span></div><div class="cw"><canvas id="ch1"></canvas></div></div>
   <div class="card c4"><h3>🛵 المركبات (الطلبات)</h3><div class="cw"><canvas id="ch2"></canvas></div></div>
@@ -250,9 +236,7 @@ html{-webkit-text-size-adjust:100%}body{overflow-x:hidden}
  <div class="charts">
   <div class="card c8"><div class="row" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px"><h3 style="margin:0">👷 أداء المشرفين + الالتزام %</h3><span style="margin-inline-start:auto;display:flex;gap:6px"><button class="chip on" id="supOrders" onclick="setSupMetric('o')">📦 أوردرات</button><button class="chip" id="supHours" onclick="setSupMetric('a')">⏱ ساعات</button></span></div><div class="cw"><canvas id="ch7"></canvas></div></div>
   <div class="card c4"><h3>⭐ توزيع تقييم الطيارين</h3><div class="cw"><canvas id="ch8"></canvas></div></div>
-  <div class="card c12" style="grid-column:1/-1"><h3>🎯 الالتزام مقابل الإنتاجية <span class="sub">(الطيارين مقسمين حسب نسبة الالتزام، والخط = متوسط الإنتاجية لكل شريحة)</span></h3><div class="cw"><canvas id="ch9"></canvas></div></div>
   <div class="card c12" style="grid-column:1/-1"><h3>⏱ المناديب حسب ساعات الشغل <span class="sub">(متوسط ساعات المندوب في اليوم اللي اشتغل فيه، والخط = متوسط الإنتاجية)</span></h3><div class="cw"><canvas id="ch10"></canvas></div></div>
-  <div class="card c6"><h3>🧭 خريطة الإنتاجية <span class="sub">(كل نقطة مندوب: ساعات العمل اليومية مقابل الطلبات/ساعة · اضغط لعرض التفاصيل)</span></h3><div class="cw"><canvas id="ch12"></canvas></div></div>
   <div class="card c12" style="grid-column:1/-1"><h3 style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">👔 ساعات المشرفين <button class="btn" id="svx" style="margin-inline-start:auto">⬇ تصدير Excel</button><span class="sub" style="flex-basis:100%">(الأعمدة = إجمالي الساعات الفعلية، الخط البرتقالي = متوسط ساعات المندوب، الخط الأخضر = عدد المناديب اللي اشتغلوا · اضغط على مشرف لعرض مناديبه)</span></h3><div class="cw"><canvas id="ch11"></canvas></div><div class="tw" style="max-height:340px;margin-top:8px"><table style="min-width:0"><thead><tr><th>#</th><th>المشرف</th><th>مناديب اشتغلوا</th><th>متوسط مناديب/يوم</th><th>إجمالي الساعات</th><th>عدد الأيام</th><th>متوسط ساعات المشرف/يوم</th><th>متوسط س/مندوب</th><th>متوسط س/يوم عمل</th><th>طلبات</th><th>طلب/س</th></tr></thead><tbody id="svb"></tbody></table></div></div>
  </div>
  <div class="card">
@@ -421,9 +405,14 @@ const DAY=864e5, NF=n=>Math.round(n).toLocaleString('en'), F1=n=>(+n).toFixed(1)
 
 function pd(s){
   if(!s)return 0;s=String(s).trim().split(' ')[0];let d,m,y,p;
-  if(s.includes('/')){p=s.split('/');m=+p[0];d=+p[1];y=+p[2];if(m>12&&d<=12){[m,d]=[d,m]}}
-  else{p=s.split('-');if(p.length<3)return 0;if(p[0].length===4){y=+p[0];m=+p[1];d=+p[2]}else{d=+p[0];m=+p[1];y=+p[2]}}
-  if(!y||!m||!d||m>12||d>31)return 0;return new Date(y,m-1,d).getTime();
+  if(s.includes('/')||s.includes('-')){
+    p=s.split(/[/-]/);if(p.length<3)return 0;
+    if(p[0].length===4){y=+p[0];m=+p[1];d=+p[2]}
+    else{d=+p[0];m=+p[1];y=+p[2]}
+  }else return 0;
+  if(!y||!m||!d||m>12||d>31)return 0;
+  const date=new Date(y,m-1,d);
+  return date.getFullYear()===y&&date.getMonth()===m-1&&date.getDate()===d?date.getTime():0;
 }
 const ds=t=>{const x=new Date(t);return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0')};
 const fd=t=>t?new Date(t).toLocaleDateString('en-GB'):'—';
@@ -433,7 +422,9 @@ function lastSync(){try{return localStorage.getItem(SYNC_KEY)||LAST_SYNC||null}c
 function setSyncStatus(state,detail){
   const cached=lastSync();
   const stateText=state==='online'?'✅ مباشر':state==='refreshing'?'🔄 جارٍ التحديث':state==='stale'?'⚠️ نسخة محفوظة':'⚠️ غير متصل';
-  $('sync').textContent=stateText+' · آخر تحديث ناجح: '+fdt(cached)+(detail?' · '+detail:'');
+  const latestDataDate=ALL.reduce((latest,row)=>Math.max(latest,row.t||0),0);
+  const dataDate=latestDataDate?'📅 أحدث تاريخ بيانات: '+new Date(latestDataDate).toLocaleDateString('ar-EG'):'📅 تاريخ البيانات: غير متوفر';
+  $('sync').textContent=stateText+' · '+dataDate+(cached?' · آخر سحب ناجح: '+fdt(cached):'')+(detail?' · '+detail:'');
 }
 
 function ingest(arr){
@@ -555,7 +546,7 @@ function apply(){
      const arr=Object.entries(g).map(([k,x])=>({k,v:x.d.size?x.a/x.d.size:0})).sort((x,y)=>y.v-x.v),i=arr.findIndex(x=>x.k===cs);
      if(i>=0)svTxt='ساعة<br><b style="color:#5eead4">👷 المشرف: '+F1(arr[i].v)+' س/يوم</b><br>🏅 الترتيب '+(i+1)+' من '+arr.length+' في '+esc(zz)}}}
   const K=[['📦 الطلبات',NF(T.o),'مكتملة','--c:var(--pr)'],['⏱ ساعات فعلية',NF(T.a),'من '+NF(T.p)+' مخطط','--c:var(--ok)'],['🎯 الالتزام',F1(commit)+'%','فعلي/مخطط','--c:var(--wa)'],['⚡ الإنتاجية',F1(oph),'طلب/ساعة','--c:var(--pu)'],
-   ['🛵 الطيارين',NF(list.length),'عاملين','--c:var(--cy)'],['⌛ متوسط ساعات/طيار',F1(list.length?T.a/list.length:0),svTxt,'--c:#14b8a6'],['☕ الاستراحة',NF(T.b),'ساعة','--c:#f43f5e'],['⚠️ تنبيهات',neg+' / '+exs,'مديونية / عقد ≤7 أيام','--c:var(--bad)']];
+   ['🛵 الطيارين',NF(list.length),'عاملين','--c:var(--cy)'],['⌛ متوسط ساعات/طيار',F1(list.length?T.a/list.length:0),svTxt,'--c:#14b8a6'],['☕ الاستراحة',NF(T.b),'ساعة','--c:#f43f5e']];
   [[0,T.o,P.o],[1,T.a,P.a],[2,commit,P.p?P.a/P.p*100:0],[3,oph,P.a?P.o/P.a:0]].forEach(([i,c,p])=>{if(p){const d=(c-p)/p*100;K[i][2]=(d>=0?'▲ ':'▼ ')+Math.abs(d).toFixed(1)+'% عن الفترة السابقة'}});
   $('kpis').innerHTML=K.map(k=>`<div class="kpi" style="${k[3]}"><div class="l">${k[0]}</div><div class="v">${k[1]}</div><div class="s">${k[2]}</div></div>`).join('');
   updateFilterControls();
@@ -576,8 +567,8 @@ function apply(){
    draw('ch11',{type:'bar',data:{labels:SL.map(x=>x.s),datasets:[{label:'إجمالي الساعات',data:SL.map(x=>+x.a.toFixed(1)),backgroundColor:'#3b82f6aa',yAxisID:'y'},{label:'متوسط ساعات المندوب',type:'line',data:SL.map(x=>+x.avg.toFixed(1)),borderColor:'#f59e0b',backgroundColor:'#f59e0b',tension:.3,yAxisID:'y1'},{label:'عدد المناديب',type:'line',data:SL.map(x=>x.n),borderColor:'#22c55e',backgroundColor:'#22c55e',borderDash:[5,3],tension:.3,pointRadius:2,yAxisID:'y2'}]},options:{scales:{y:{position:'left'},y1:{position:'right',grid:{display:false},ticks:{color:'#f59e0b'}},y2:{position:'right',grid:{display:false},ticks:{color:'#22c55e',precision:0},beginAtZero:true}},onClick:(e,els)=>{if(els.length)showB(SL[els[0].index].s,'s')},onHover:(e,els)=>{e.native.target.style.cursor=els.length?'pointer':'default'}}});
    $('svb').innerHTML=SL.map((x,i)=>`<tr data-k="${esc(x.s)}" style="cursor:pointer"><td>${i+1}</td><td><b style="color:#93c5fd">${esc(x.s)}</b></td><td>${NF(x.n)}</td><td>${F1(x.adr)}</td><td>${F1(x.a)}</td><td>${NF(x.nd)}</td><td>${F1(x.ad)}</td><td>${F1(x.avg)}</td><td>${F1(x.avgd)}</td><td>${NF(x.o)}</td><td>${F1(x.oph)}</td></tr>`).join('')||'<tr><td colspan="11" class="sub">لا توجد بيانات</td></tr>';
    $('svb').onclick=e=>{const tr=e.target.closest('tr');if(tr&&tr.dataset.k)showB(tr.dataset.k,'s')}}
-  const wd={},wh={};fr.forEach(r=>{const k=new Date(r.t).getDay();wd[k]=(wd[k]||0)+r.o;wh[k]=(wh[k]||0)+r.a});const WN=['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
-  D5={WN,wd,wh};drawCh5();
+  const byDate={};fr.forEach(r=>{const date=ds(r.t),day=byDate[date]||(byDate[date]={o:0,a:0});day.o+=r.o;day.a+=r.a});
+  D5=Object.entries(byDate).sort(([a],[b])=>a.localeCompare(b)).map(([date,values])=>({date,...values}));drawCh5();
   extras();extras2(T,commit,oph,list);idleRiders();render();
 }
 function draw(id,cfg){
@@ -589,19 +580,11 @@ function draw(id,cfg){
 }
 /* ---------- extras ---------- */
 const li=(x,v,c,rk)=>`<div class="li" onclick="showR('${x.id}')"><span>${rk?`<b style="color:var(--mut);display:inline-block;min-width:28px">${rk}</b>`:''}${esc(x.n||x.id)}<small style="color:var(--mut)"> · ${esc(x.z)}</small></span><b style="color:${c||'inherit'}">${v}</b></div>`;
-function alertCard(t,arr,f,ex,limit=6){
-  const i=ALX.push({t,arr,ex})-1;
-  return `<div class="card" style="background:#0f1626"><div><b>${t}</b> <span class="b ${arr.length?'r':'g'}">${arr.length}</span><button class="chip" onclick="showAlertRows(${i})" ${arr.length?'':'disabled'}>عرض القائمة</button></div>${arr.slice(0,limit).map(f).join('')}</div>`;
-}
 function extras(){
   const A=AGG;
   TXD.top=[...A].sort((x,y)=>y.o-x.o);rl('top');
   TXD.bot=A.filter(x=>x.p>0).sort((x,y)=>x.c-y.c);rl('bot');
-  ALX=[];$('al').innerHTML=alertCard('💳 مديونية المحفظة',A.filter(x=>x.w<0).sort((x,y)=>x.w-y.w),x=>li(x,NF(x.w)+' ج','#f87171'),x=>[x.w,'ج'])
-   +alertCard('📅 عقود منتهية / خلال 7 أيام',A.filter(x=>x.left!==null&&x.left<=7).sort((x,y)=>x.left-y.left),x=>li(x,x.left<0?'منتهي':x.left+' يوم','#fbbf24'),x=>[x.left,x.left<0?'يوم (منتهي)':'يوم'])
-   +alertCard('🎯 التزام أقل من 50%',A.filter(x=>x.p>0&&x.c<50).sort((x,y)=>x.c-y.c),x=>li(x,F1(x.c)+'%','#f87171'),x=>[+x.c.toFixed(1),'% التزام'])
-   +alertCard('🚫 ساعات عمل بدون طلبات',A.filter(x=>x.a>0&&x.o===0).sort((x,y)=>y.a-x.a),x=>li(x,F1(x.a)+' س','#f87171'),x=>[+x.a.toFixed(1),'ساعة عمل'])
-   +alertCard('⏱ ساعات فعلية أكبر من المخطط 25%',A.filter(x=>x.p>0&&x.a>x.p*1.25),x=>li(x,F1(x.a)+'/'+F1(x.p),'#60a5fa'),x=>[+x.a.toFixed(1),'ساعة فعلية (المخطط '+F1(x.p)+')']);
+  $('al').innerHTML='';
   grp();
 }
 function grp(){
@@ -632,11 +615,6 @@ function showChartRiders(title,rows){
   $('bms').textContent='إجمالي الساعات: '+F1(hours)+' · إجمالي الطلبات: '+NF(orders)+' · متوسط طلب/ساعة: '+F1(hours?orders/hours:0);
   renderDrillRows(sorted);
   $('bm').style.display='block';
-}
-function showAlertRows(index){
-  const alert=ALX[index];
-  if(!alert||!alert.arr.length)return;
-  showChartRiders(alert.t,alert.arr);
 }
 function exportDrillExcel(){
   if(!DRILL_ROWS.length)return alert('لا توجد بيانات للتصدير');
@@ -716,75 +694,19 @@ function extras2(T,commit,oph,list){
   // 2) توزيع التقييم
   const rc={'ممتاز':0,'جيد':0,'متوسط':0,'ضعيف':0};list.forEach(x=>{rc[rate(x)[0]]++});
   draw('ch8',{type:'doughnut',data:{labels:Object.keys(rc),datasets:[{data:Object.values(rc),backgroundColor:['#10b981','#3b82f6','#f59e0b','#ef4444']}]},options:{scales:{}}});
-  // 3) الالتزام مقابل الإنتاجية (شرائح بدل نقط متفرقة)
-  const BK=[['أقل من 25%',0,25],['25–50%',25,50],['50–75%',50,75],['75–90%',75,90],['90–100%',90,100],['100–120%',100,120],['أكتر من 120%',120,1e9]];
-  const bs=BK.map(([l,lo,hi])=>{const rows=list.filter(x=>x.p>0&&x.c>=lo&&x.c<hi),h=rows.reduce((t,x)=>t+x.a,0),o=rows.reduce((t,x)=>t+x.o,0);return{l,rows,n:rows.length,oph:h?o/h:0}});
-  draw('ch9',{type:'bar',data:{labels:bs.map(x=>x.l),datasets:[{label:'عدد الطيارين',data:bs.map(x=>x.n),backgroundColor:['#ef4444aa','#ef4444aa','#f59e0baa','#3b82f6aa','#10b981aa','#10b981aa','#8b5cf6aa'],yAxisID:'y'},{label:'متوسط طلب/ساعة',type:'line',data:bs.map(x=>+x.oph.toFixed(2)),borderColor:'#f59e0b',backgroundColor:'#f59e0b',tension:.3,yAxisID:'y1'}]},
-    options:{scales:{y:{position:'left',title:{display:true,text:'عدد الطيارين'}},y1:{position:'right',grid:{display:false},title:{display:true,text:'طلب/ساعة'}}},onClick:(e,els)=>{const hit=els.find(x=>x.datasetIndex===0);if(hit)showChartRiders('الالتزام مقابل الإنتاجية — '+bs[hit.index].l,bs[hit.index].rows)},onHover:(e,els)=>{e.native.target.style.cursor=els.some(x=>x.datasetIndex===0)?'pointer':'default'}}});
   // المناديب حسب ساعات الشغل (متوسط يومي، مقرّب لأقرب ساعة)
   const HB={};list.forEach(x=>{if(!(x.wd>0&&x.a>0))return;const h=Math.min(12,Math.round(x.a/x.wd)),k=h<1?0:h,g=HB[k]||(HB[k]={n:0,o:0,a:0,rows:[]});g.n++;g.o+=x.o;g.a+=x.a;g.rows.push(x)});
   const hk=Object.keys(HB).map(Number).sort((a,b)=>a-b),h0=hk.length?hk[0]:0,h1=hk.length?hk[hk.length-1]:0,hs=[];for(let k=h0;k<=h1;k++)hs.push(k);
   const hl=k=>k===0?'أقل من ساعة':k===1?'ساعة':k===2?'ساعتين':k<=10?k+' ساعات':k<12?k+' ساعة':'12+ ساعة';
   draw('ch10',{type:'bar',data:{labels:hs.map(hl),datasets:[{label:'عدد المناديب',data:hs.map(k=>HB[k]?HB[k].n:0),backgroundColor:'#3b82f6aa',yAxisID:'y'},{label:'متوسط طلب/ساعة',type:'line',data:hs.map(k=>HB[k]&&HB[k].a?+(HB[k].o/HB[k].a).toFixed(2):0),borderColor:'#f59e0b',backgroundColor:'#f59e0b',tension:.3,yAxisID:'y1'}]},
     options:{scales:{y:{position:'left',title:{display:true,text:'عدد المناديب'}},y1:{position:'right',grid:{display:false},title:{display:true,text:'طلب/ساعة'}}},onClick:(e,els)=>{const hit=els.find(x=>x.datasetIndex===0);if(hit)showChartRiders('المناديب حسب ساعات الشغل — '+hl(hs[hit.index]),HB[hs[hit.index]].rows)},onHover:(e,els)=>{e.native.target.style.cursor=els.some(x=>x.datasetIndex===0)?'pointer':'default'}}});
-  const productivityGroups=[
-    {label:'التزام أقل من 60%',color:'#ef4444',rows:[]},
-    {label:'التزام من 60% إلى 90%',color:'#f59e0b',rows:[]},
-    {label:'التزام 90% فأكثر',color:'#10b981',rows:[]}
-  ];
-  for(const x of list)if(x.a>0){
-    const group=x.c<60?0:x.c<90?1:2;
-    productivityGroups[group].rows.push({x:+x.avg.toFixed(2),y:+x.oph.toFixed(2),rider:x});
-  }
-  draw('ch12',{type:'scatter',data:{datasets:productivityGroups.map(g=>({
-    label:g.label,data:g.rows,backgroundColor:g.color+'bb',borderColor:g.color,
-    pointRadius:4,pointHoverRadius:7,hitRadius:8
-  }))},options:{
-    scales:{
-      x:{beginAtZero:true,title:{display:true,text:'متوسط ساعات العمل في يوم العمل'}},
-      y:{beginAtZero:true,title:{display:true,text:'طلبات لكل ساعة'}}
-    },
-    plugins:{tooltip:{callbacks:{label:ctx=>{
-      const x=ctx.raw.rider;
-      return `${x.n||x.id} · ${ctx.raw.x} ساعة/يوم · ${ctx.raw.y} طلب/ساعة · ${F1(x.c)}% التزام`;
-    }}}},
-    onClick:(e,els)=>{const hit=els[0];if(hit){const x=productivityGroups[hit.datasetIndex].rows[hit.index].rider;showR(x.id)}},
-    onHover:(e,els)=>{e.native.target.style.cursor=els.length?'pointer':'default'}
-  }});
   // أقل الطيارين: طلبات / ساعات / أيام عمل (بتستبعد اللي ما اشتغلش خالص عشان القايمة تبقى مفيدة)
   const wd={};FR.forEach(r=>{if(r.o>0||r.a>0)(wd[r.id]||(wd[r.id]=new Set())).add(r.t)});
   const wk=list.filter(x=>x.a>0||x.o>0);
   TXD.lo1=wk.filter(x=>x.a>0).sort((x,y)=>x.o-y.o||y.a-x.a);rl('lo1');
   TXD.lo2=wk.filter(x=>x.a>0).sort((x,y)=>x.a-y.a);rl('lo2');
   TXD.lo3=wk.map(x=>({...x,wd:(wd[x.id]||[]).size||0})).sort((x,y)=>x.wd-y.wd||x.o-y.o);rl('lo3');
-  // 4) تنبيهات إضافية
-  const hb=list.filter(x=>x.b>=1&&x.b/(x.a+x.b||1)>0.25).sort((a,b)=>b.b-a.b);
-  $('al').insertAdjacentHTML('beforeend',
-    alertCard('☕ راحة عالية (>25% من وقتهم)',hb,x=>li(x,F1(x.b)+' س','#fbbf24'),x=>[+x.b.toFixed(1),'ساعة راحة'])+
-    alertCard('💰 أعلى محافظ موجبة',list.filter(x=>x.w>0).sort((x,y)=>y.w-x.w),x=>li(x,NF(x.w)+' ج','#34d399'),x=>[x.w,'ج'],10));
 }
-/* ---------- تصدير مركز التنبيهات ---------- */
-let ALX=[];
-const alTitle=t=>t.replace(/^[^\u0600-\u06FFA-Za-z0-9>]+/,'').trim();
-$('alX').onclick=()=>{
-  const P=$('alP');
-  if(P.style.display==='none'){
-    $('alC').innerHTML=ALX.map((a,i)=>`<label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" class="alK" value="${i}" checked> ${a.t} <span class="b ${a.arr.length?'r':'g'}">${a.arr.length}</span></label>`).join('')||'<span class="sub">مفيش تنبيهات لسه</span>';
-    P.style.display='block';
-  }else P.style.display='none';
-};
-$('alAll').onclick=()=>document.querySelectorAll('.alK').forEach(c=>c.checked=true);
-$('alNone').onclick=()=>document.querySelectorAll('.alK').forEach(c=>c.checked=false);
-$('alGo').onclick=()=>{
-  const sel=[...document.querySelectorAll('.alK:checked')].map(c=>ALX[+c.value]);
-  if(!sel.length)return alert('اختار تنبيه واحد على الأقل');
-  const toRows=a=>a.arr.map(x=>{const [v,u]=a.ex?a.ex(x):['',''];return{'نوع التنبيه':alTitle(a.t),'كود الطيار':x.id,'الاسم':x.n,'المنطقة':x.z,'المشرف':x.s||'','القيمة':v,'الوحدة':u}});
-  const dl=(rows,name)=>{if(!rows.length)return false;const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+Papa.unparse(rows)],{type:'text/csv'}));a.download=name;a.click();return true};
-  const day=new Date().toISOString().slice(0,10);
-  if($('alSep').checked){
-    let k=0;sel.forEach(a=>setTimeout(()=>dl(toRows(a),'alert_'+alTitle(a.t).replace(/[\\/:*?"<>|\s]+/g,'_')+'_'+day+'.csv'),k++*350));
-  }else if(!dl(sel.flatMap(toRows),'alerts_'+day+'.csv'))alert('التنبيهات المختارة فاضية — مفيش بيانات تتصدّر');
-};
 /* ---------- طيارين بدون شغل X يوم ---------- */
 let IDLE=[];
 function idleRiders(){
@@ -829,9 +751,9 @@ function rl(k,keep){if(!keep)PGI[k]=0;const a=(TXD[k]||[]).slice(0,TOPN[k]),tp=M
 function pgl(k,d){PGI[k]=(PGI[k]||0)+d;rl(k,1)}
 document.querySelectorAll('.tn').forEach(i=>{i.value=TOPN[i.dataset.k];i.oninput=()=>{const n=Math.floor(+i.value);if(!(n>=1))return;TOPN[i.dataset.k]=n;try{localStorage.setItem('pd_topn',JSON.stringify(TOPN))}catch(e){}rl(i.dataset.k)}});
 
-const TXN={top:['أفضل_طلبات','أفضل طلبات'],bot:['أضعف_التزام','أضعف التزام'],lo1:['أقل_طلبات','أقل طلبات'],lo2:['أقل_ساعات','أقل ساعات'],lo3:['أقل_أيام_عمل','أقل أيام عمل'],ch5:['حسب_يوم_الأسبوع','يوم الأسبوع']};
+const TXN={top:['أفضل_طلبات','أفضل طلبات'],bot:['أضعف_التزام','أضعف التزام'],lo1:['أقل_طلبات','أقل طلبات'],lo2:['أقل_ساعات','أقل ساعات'],lo3:['أقل_أيام_عمل','أقل أيام عمل'],ch5:['حسب_التاريخ','حسب التاريخ']};
 function exl(k){let rows;
-  if(k==='ch5'){if(!D5)return alert('لا توجد بيانات للتصدير');const {WN,wd,wh}=D5;rows=WN.map((n,i)=>({'اليوم':n,'طلبات':wd[i]||0,'ساعات':+(wh[i]||0).toFixed(1)}))}
+  if(k==='ch5'){if(!D5||!D5.length)return alert('لا توجد بيانات للتصدير');rows=D5.map(day=>({'التاريخ':fd(new Date(day.date+'T00:00:00').getTime()),'طلبات':day.o,'ساعات':+day.a.toFixed(1)}))}
   else{const a=(TXD[k]||[]).slice(0,TOPN[k]);if(!a.length)return alert('لا توجد بيانات للتصدير');
    rows=a.map((x,i)=>{const r={'#':i+1,'الكود':x.id,'الاسم':x.n||x.id,'المنطقة':x.z||'','المشرف':x.s||'','طلبات':x.o,'ساعات فعلية':+(+x.a).toFixed(1),'الالتزام %':+(+x.c||0).toFixed(1)};if(k==='lo3')r['أيام العمل']=x.wd;return r})}
   const d=new Date(),nm=TXN[k][0]+'_'+d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
@@ -841,12 +763,14 @@ function exl(k){let rows;
 let M5='o',D5=null;
 function setM5(m){M5=m;drawCh5()}
 function drawCh5(){
-  if(!D5)return;const {WN,wd,wh}=D5,x=M5==='x';
+  if(!D5)return;const x=M5==='x',dates=D5.map(day=>fd(new Date(day.date+'T00:00:00').getTime()));
   ['o','a','x'].forEach(k=>$('m5'+k).classList.toggle('on',M5===k));
-  const O={label:'طلبات',data:WN.map((_,k)=>wd[k]||0),backgroundColor:'#10b981aa',yAxisID:'y'},
-        H={label:'ساعات',data:WN.map((_,k)=>+(wh[k]||0).toFixed(1)),backgroundColor:'#3b82f6aa',yAxisID:x?'y1':'y'};
+  const O={label:'طلبات',data:D5.map(day=>day.o),backgroundColor:'#10b981aa',yAxisID:'y'},
+        H={label:'ساعات',data:D5.map(day=>+day.a.toFixed(1)),backgroundColor:'#3b82f6aa',yAxisID:x?'y1':'y'};
   if(x){H.type='line';H.borderColor=H.backgroundColor='#f59e0b';H.tension=.3}
-  draw('ch5',{type:'bar',data:{labels:WN,datasets:M5==='o'?[O]:M5==='a'?[H]:[O,H]},options:x?{scales:{y:{position:'left'},y1:{position:'right',grid:{display:false}}}}:{}});
+  draw('ch5',{type:'bar',data:{labels:dates,datasets:M5==='o'?[O]:M5==='a'?[H]:[O,H]},options:{
+    ...(x?{scales:{y:{position:'left'},y1:{position:'right',grid:{display:false}}}}:{}),
+  }});
 }
 const nk=s=>String(s==null?'':s).trim().replace(/\s+/g,' ').toLowerCase(),pk=(b,v)=>nk(b)+'|'+nk(v);
 const pk3=(s,b,v)=>nk(s)+'|'+pk(b,v);
@@ -1002,14 +926,26 @@ let IT;function idleReset(){clearTimeout(IT);if(CUR)IT=setTimeout(()=>$('out').c
 const TGGID='1428075881';
 let TGR=[],TGF=[],TGP=[],tgSort='t',tgDir=-1,tgPg=0,TGPS=25,TGH=false;
 let TG_DATA_READY=false,TG_RELOAD_PROMISE=null;
+const TG_CACHE_KEY='targetRows_dmy_v2';
 const tgNum=v=>{const n=parseFloat(String(v==null?'':v).replace(/[,%\s]/g,''));return isNaN(n)?0:n};
 const tgPct=v=>{if(v===''||v==null)return 0;const s=String(v),n=tgNum(s);return typeof v==='number'||!s.includes('%')?(n<=2?n*100:n):n};
+function tgDate(value){
+  if(!value)return 0;
+  const text=String(value).trim().split(' ')[0],parts=text.split(/[/-]/);
+  if(parts.length<3)return 0;
+  const year=+(parts[0].length===4?parts[0]:parts[2]);
+  const month=+parts[1];
+  const day=+(parts[0].length===4?parts[2]:parts[0]);
+  if(!year||!month||!day||month>12||day>31)return 0;
+  const date=new Date(year,month-1,day);
+  return date.getFullYear()===year&&date.getMonth()===month-1&&date.getDate()===day?date.getTime():0;
+}
 const TGPAL=['#3b82f6','#10b981','#f59e0b','#8b5cf6','#06b6d4','#ef4444','#ec4899','#84cc16','#14b8a6','#f97316','#6366f1','#a3a3a3'];
 const tgZonesForGroup=(rows=TGR,group=$('tgGroup').value)=>tgU('z',rows.filter(r=>tgGroupHasZone(group,r.z)));
 const tgZoneAllowed=z=>tgGroupHasZone($('tgGroup').value,z)&&(!$('tgz').value||$('tgz').value===z);
 const tgMonthZonesForGroup=(rows=TGR)=>tgZonesForGroup(rows,$('tgGroup').value);
 function tgIngest(arr){const out=[];
-  for(let i=1;i<arr.length;i++){const r=arr[i],d=pd(r[4]),o=String(r[1]==null?'':r[1]).trim(),z=String(r[2]==null?'':r[2]).trim();
+  for(let i=1;i<arr.length;i++){const r=arr[i],d=tgDate(r[4]),o=String(r[1]==null?'':r[1]).trim(),z=String(r[2]==null?'':r[2]).trim();
     if(!d||!(o||z))continue;
     out.push({o,z,t:tgNum(r[3]),d,av:tgNum(r[5]),ap:tgPct(r[6]),nt:tgNum(r[7]),rk:tgNum(r[8]),mx:tgNum(r[9])})}
   TGR=out;return out.length}
@@ -1030,7 +966,7 @@ async function tgFetch(){
       const text=await response.text();
       if(text.trim().startsWith('<'))throw new Error('الشيت يتطلب تسجيل دخول');
       const parsed=Papa.parse(text,{skipEmptyLines:true}).data;
-      const result=[];for(let i=1;i<parsed.length;i++){const r=parsed[i],d=pd(r[4]),o=String(r[1]==null?'':r[1]).trim(),z=String(r[2]==null?'':r[2]).trim();if(!d||!(o||z))continue;result.push({o,z,t:tgNum(r[3]),d,av:tgNum(r[5]),ap:tgPct(r[6]),nt:tgNum(r[7]),rk:tgNum(r[8]),mx:tgNum(r[9])})}
+      const result=[];for(let i=1;i<parsed.length;i++){const r=parsed[i],d=tgDate(r[4]),o=String(r[1]==null?'':r[1]).trim(),z=String(r[2]==null?'':r[2]).trim();if(!d||!(o||z))continue;result.push({o,z,t:tgNum(r[3]),d,av:tgNum(r[5]),ap:tgPct(r[6]),nt:tgNum(r[7]),rk:tgNum(r[8]),mx:tgNum(r[9])})}
       if(!result.length)throw new Error('ملف CSV لا يحتوي على صفوف تارجت صالحة');
       return result;
     }));
@@ -1056,7 +992,7 @@ function tgCache(mode,value){
       if(!db.objectStoreNames.contains('s')){db.close();resolve(null);return}
       try{
         const tx=db.transaction('s',mode==='get'?'readonly':'readwrite'),store=tx.objectStore('s');
-        const operation=mode==='get'?store.get('targetRows'):store.put(value,'targetRows');
+        const operation=mode==='get'?store.get(TG_CACHE_KEY):store.put(value,TG_CACHE_KEY);
         operation.onsuccess=()=>resolve(operation.result||null);
         operation.onerror=()=>resolve(null);
         tx.oncomplete=()=>db.close();tx.onerror=()=>{db.close();resolve(null)};
@@ -1087,10 +1023,11 @@ function tgFillZ(){tgSetSel('tgz',tgU('z',TGR),'كل المناطق')}
 function tgFillO(){tgSetSel('tgo',tgU('o',TGR),'كل المكاتب')}
 function tgPreset(p){tgCdMan=false;
   const mx=TGR.reduce((a,r)=>r.d>a?r.d:a,0),mn=TGR.reduce((a,r)=>!a||r.d<a?r.d:a,0),M=new Date(mx);let a=mn,b=mx;
-  if(p==='day')a=mx;else if(p==='7')a=mx-6*DAY;else if(p==='30')a=mx-29*DAY;
+  if(p==='day'){b=new Date();b.setHours(0,0,0,0);b-=DAY;a=b}
+  else if(p==='7')a=mx-6*DAY;else if(p==='30')a=mx-29*DAY;
   else if(p==='month')a=new Date(M.getFullYear(),M.getMonth(),1).getTime();
   else if(p==='last'){a=new Date(M.getFullYear(),M.getMonth()-1,1).getTime();b=new Date(M.getFullYear(),M.getMonth(),0).getTime()}
-  $('tgd1').value=ds(Math.max(a,mn));$('tgd2').value=ds(b);
+  $('tgd1').value=ds(p==='day'?a:Math.max(a,mn));$('tgd2').value=ds(b);
   document.querySelectorAll('#tgChips .chip[data-p]').forEach(c=>c.classList.toggle('on',c.dataset.p===p));tgApply()}
 [['day','📅 آخر تاريخ'],['7','آخر 7 أيام'],['30','آخر 30 يوم'],['month','هذا الشهر'],['last','الشهر الماضي'],['all','كل الفترة']].forEach(([p,t])=>{
   const b=document.createElement('button');b.className='chip';b.dataset.p=p;b.textContent=t;b.onclick=()=>tgPreset(p);$('tgChips').appendChild(b)});
