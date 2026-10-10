@@ -258,11 +258,13 @@ html{-webkit-text-size-adjust:100%}body{overflow-x:hidden}
   <div class="fm" id="tf" style="margin:10px 0">
     <input id="tf_q" placeholder="🔎 بحث بالاسم أو الكود">
     <select id="tf_z"></select><select id="tf_s"></select><select id="tf_v"></select><select id="tf_bt"></select>
+    <input id="tf_rank" type="number" min="1" step="1" placeholder="🏅 رقم الترتيب">
     <select id="tf_c"><option value="">الالتزام: الكل</option><option value="90">90% فأكثر</option><option value="60">من 60% إلى 90%</option><option value="lt60">أقل من 60%</option></select>
     <select id="tf_r"><option value="">التقييم: الكل</option><option>ممتاز</option><option>جيد</option><option>متوسط</option><option>ضعيف</option></select>
     <select id="tf_w"><option value="">المحفظة: الكل</option><option value="neg">سالبة</option><option value="zero">صفر</option><option value="pos">موجبة</option></select>
     <select id="tf_l"><option value="">العقد: الكل</option><option value="exp">منتهي</option><option value="7">ينتهي خلال 7 أيام</option><option value="30">ينتهي خلال 30 يوم</option><option value="ok">أكثر من 30 يوم</option></select>
     <button class="btn" id="tf_x">✕ مسح فلاتر الجدول</button>
+    <span class="sub" style="align-self:center">الترتيب بالساعات الفعلية: عام بين الزونات، وداخل الزون عند اختيارها</span>
   </div>
   <div class="tw rt"><table><thead><tr id="th"></tr></thead><tbody id="tb"></tbody></table></div>
   <div class="pg"><button class="btn" id="pp">‹</button><span id="pi"></span><button class="btn" id="pn">›</button></div>
@@ -655,10 +657,11 @@ let VW=[],tfSrc=null;
 const TF={z:'tf_z',s:'tf_s',v:'tf_v',bt:'tf_bt'},TFL={z:'كل المناطق',s:'كل المشرفين',v:'كل المركبات',bt:'كل الباتشات'};
 function tfFill(){if(tfSrc===AGG)return;tfSrc=AGG;
   for(const k in TF){const u=[...new Set(AGG.map(x=>x[k]).filter(Boolean))].sort((a,b)=>String(a).localeCompare(String(b),'ar',{numeric:true}));setSel(TF[k],u,TFL[k])}}
-function tfOk(){const g=i=>$(i).value,q=g('tf_q').trim().toLowerCase(),f={};for(const k in TF)f[k]=g(TF[k]);
+function tfOk(ignoreRank=false){const g=i=>$(i).value,q=g('tf_q').trim().toLowerCase(),f={};for(const k in TF)f[k]=g(TF[k]);
   const c=g('tf_c'),r=g('tf_r'),w=g('tf_w'),l=g('tf_l');
   return x=>{for(const k in TF)if(f[k]&&x[k]!==f[k])return false;
     if(q&&!(String(x.n).toLowerCase().includes(q)||String(x.id).toLowerCase().includes(q)))return false;
+    if(!ignoreRank&&g('tf_rank')&&x.rank!==+g('tf_rank'))return false;
     if(c&&!(c==='90'?x.c>=90:c==='60'?x.c>=60&&x.c<90:x.c<60))return false;
     if(r&&rate(x)[0]!==r)return false;
     if(w&&!(w==='neg'?x.w<0:w==='zero'?x.w===0:x.w>0))return false;
@@ -666,17 +669,22 @@ function tfOk(){const g=i=>$(i).value,q=g('tf_q').trim().toLowerCase(),f={};for(
     return true}}
 document.querySelectorAll('#tf select,#tf input').forEach(e=>{const h=()=>{page=0;render()};e.onchange=h;if(e.tagName==='INPUT')e.oninput=h});
 $('tf_x').onclick=()=>{document.querySelectorAll('#tf select,#tf input').forEach(e=>e.value='');page=0;render()};
-const ALLCOLS=[['id','الكود'],['n','الاسم'],['z','المنطقة'],['s','المشرف'],['v','المركبة'],['bt','باتش'],['p','مخطط'],['a','فعلي'],['avg','متوسط س/يوم'],['b','راحة'],['c','الالتزام'],['o','طلبات'],['oph','طلب/س'],['pay','قبض تقريبي'],['w','المحفظة'],['left','العقد'],['r','التقييم']];
+const ALLCOLS=[['id','الكود'],['n','الاسم'],['rank','ترتيب الساعات'],['z','المنطقة'],['s','المشرف'],['v','المركبة'],['bt','باتش'],['p','مخطط'],['a','فعلي'],['avg','متوسط س/يوم'],['b','راحة'],['c','الالتزام'],['o','طلبات'],['oph','طلب/س'],['pay','قبض تقريبي'],['w','المحفظة'],['left','العقد'],['r','التقييم']];
 let COLS=ALLCOLS;const drawTH=()=>{$('th').innerHTML='<th>#</th>'+COLS.map(c=>`<th data-k="${c[0]}">${c[1]}${c[0]===sortK?(sortD>0?' ▲':' ▼'):' ↕'}</th>`).join('')};drawTH();
 $('th').onclick=e=>{const k=e.target.dataset.k;if(!k||k==='r')return;sortD=sortK===k?-sortD:-1;sortK=k;drawTH();render()};
 function rate(x){return x.c>=90&&x.oph>=1.5?['ممتاز','g']:x.c>=75?['جيد','g']:x.c>=50?['متوسط','y']:['ضعيف','r']}
 function render(){
   const hasPay=AGG.some(x=>x.pay>0),want=hasPay?ALLCOLS:ALLCOLS.filter(c=>c[0]!=='pay');
   if(want.length!==COLS.length){COLS=want;if(!hasPay&&sortK==='pay')sortK='o';drawTH()}
-  const k=sortK;AGG.sort((x,y)=>{let a=x[k],b=y[k];if(a==null)a=-1e9;if(b==null)b=-1e9;return(typeof a==='string'?a.localeCompare(b,'ar'):a-b)*sortD});
-  tfFill();VW=AGG.filter(tfOk());const tp=Math.max(1,Math.ceil(VW.length/PS));page=Math.min(page,tp-1);const sl=VW.slice(page*PS,page*PS+PS);
+  const k=sortK;if(k!=='rank')AGG.sort((x,y)=>{let a=x[k],b=y[k];if(a==null)a=-1e9;if(b==null)b=-1e9;return(typeof a==='string'?a.localeCompare(b,'ar'):a-b)*sortD});
+  tfFill();const rankRows=AGG.filter(tfOk(true));
+  const rankGroups={all:[]};for(const x of rankRows){const groupKey=$('tf_z').value?(x.z||'—'):'all';(rankGroups[groupKey]||(rankGroups[groupKey]=[])).push(x)}
+  for(const group of Object.values(rankGroups)){group.sort((a,b)=>b.a-a.a);let rank=0,prev=null;group.forEach((x,i)=>{if(prev===null||x.a!==prev)rank=i+1;x.rank=rank;prev=x.a})}
+  VW=rankRows.filter(tfOk());
+  if(k==='rank')VW.sort((a,b)=>(a.rank-b.rank)*sortD||(b.a-a.a)||String(a.n||'').localeCompare(String(b.n||''),'ar'));
+  const tp=Math.max(1,Math.ceil(VW.length/PS));page=Math.min(page,tp-1);const sl=VW.slice(page*PS,page*PS+PS);
   $('tb').innerHTML=sl.map((x,i)=>{const [rt,rc]=rate(x);const cl=x.left===null?'<span class="b n">—</span>':x.left<0?`<span class="b r">منتهي (${-x.left}ي)</span>`:`<span class="b ${x.left<=7?'y':'g'}">${x.left} يوم</span>`;
-   return`<tr><td>${page*PS+i+1}</td><td>${x.id}</td><td><b style="cursor:pointer;color:#93c5fd" onclick="showR('${x.id}')">${esc(x.n)}</b></td><td>${esc(x.z)}</td><td>${esc(x.s)}</td><td>${esc(x.v)}</td><td>${esc(x.bt)}</td><td>${F1(x.p)}</td><td>${F1(x.a)}</td><td>${F1(x.avg)}</td><td>${F1(x.b)}</td><td><span class="b ${x.c>=90?'g':x.c>=60?'y':'r'}">${F1(x.c)}%</span></td><td>${NF(x.o)}</td><td>${F1(x.oph)}</td>${hasPay?`<td>${x.pay?NF(x.pay)+' ج':'—'}</td>`:''}<td style="color:${x.w<0?'#f87171':'inherit'}">${NF(x.w)}</td><td>${cl}</td><td><span class="b ${rc}">${rt}</span></td></tr>`}).join('');
+   return`<tr><td>${page*PS+i+1}</td><td>${x.id}</td><td><b style="cursor:pointer;color:#93c5fd" onclick="showR('${x.id}')">${esc(x.n)}</b></td><td><span class="b ${x.rank===1?'g':'n'}">${x.rank}</span></td><td>${esc(x.z)}</td><td>${esc(x.s)}</td><td>${esc(x.v)}</td><td>${esc(x.bt)}</td><td>${F1(x.p)}</td><td>${F1(x.a)}</td><td>${F1(x.avg)}</td><td>${F1(x.b)}</td><td><span class="b ${x.c>=90?'g':x.c>=60?'y':'r'}">${F1(x.c)}%</span></td><td>${NF(x.o)}</td><td>${F1(x.oph)}</td>${hasPay?`<td>${x.pay?NF(x.pay)+' ج':'—'}</td>`:''}<td style="color:${x.w<0?'#f87171':'inherit'}">${NF(x.w)}</td><td>${cl}</td><td><span class="b ${rc}">${rt}</span></td></tr>`}).join('');
   const H=['#',...COLS.map(c=>c[1])];[...$('tb').rows].forEach(r=>[...r.cells].forEach((c,j)=>c.dataset.l=H[j]));
   {const sp=VW.reduce((s,x)=>s+x.pay,0);$('tc').textContent=NF(VW.length)+(VW.length!==AGG.length?' من '+NF(AGG.length):'')+' طيار'+(sp?' · إجمالي القبض التقريبي '+NF(sp)+' ج':'')}$('pi').textContent=(page+1)+' / '+tp;$('pp').disabled=page===0;$('pn').disabled=page>=tp-1;
 }
