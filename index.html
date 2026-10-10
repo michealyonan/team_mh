@@ -405,11 +405,9 @@ const DAY=864e5, NF=n=>Math.round(n).toLocaleString('en'), F1=n=>(+n).toFixed(1)
 
 function pd(s){
   if(!s)return 0;s=String(s).trim().split(' ')[0];let d,m,y,p;
-  if(s.includes('/')||s.includes('-')){
-    p=s.split(/[/-]/);if(p.length<3)return 0;
-    if(p[0].length===4){y=+p[0];m=+p[1];d=+p[2]}
-    else{d=+p[0];m=+p[1];y=+p[2]}
-  }else return 0;
+  if(s.includes('/')){p=s.split('/');if(p.length<3)return 0;m=+p[0];d=+p[1];y=+p[2];if(m>12&&d<=12)[m,d]=[d,m]}
+  else if(s.includes('-')){p=s.split('-');if(p.length<3)return 0;if(p[0].length===4){y=+p[0];m=+p[1];d=+p[2]}else{d=+p[0];m=+p[1];y=+p[2]}}
+  else return 0;
   if(!y||!m||!d||m>12||d>31)return 0;
   const date=new Date(y,m-1,d);
   return date.getFullYear()===y&&date.getMonth()===m-1&&date.getDate()===d?date.getTime():0;
@@ -584,7 +582,6 @@ function extras(){
   const A=AGG;
   TXD.top=[...A].sort((x,y)=>y.o-x.o);rl('top');
   TXD.bot=A.filter(x=>x.p>0).sort((x,y)=>x.c-y.c);rl('bot');
-  $('al').innerHTML='';
   grp();
 }
 function grp(){
