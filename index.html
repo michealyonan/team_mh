@@ -50,6 +50,20 @@ tr:hover td{background:#18223a}
 .pw{position:relative}.pw input{padding-inline-end:46px}.eye{position:absolute;inset-inline-end:2px;top:2px;bottom:2px;width:42px;background:none;border:0;color:var(--mut);font-size:18px;cursor:pointer}
 .lb{width:100%;max-width:360px;display:grid;gap:10px;margin:auto}.lb h2{font-size:22px;font-weight:900}.lb input{width:100%;min-height:44px}
 #le{color:#f87171;font-size:12px;min-height:16px}
+#lg{align-items:center;background:radial-gradient(ellipse at 50% 20%,#1d3c6a 0,#111b30 38%,#0b0f19 76%)}
+#lg .lb{max-width:410px;padding:clamp(22px,5vw,34px);gap:14px;border-color:#344361;box-shadow:0 24px 80px #0008}
+.login-brand{display:grid;justify-items:center;gap:8px;text-align:center;margin-bottom:2px}
+.login-logo{width:62px;height:62px;display:grid;place-items:center;border:1px solid #60a5fa66;border-radius:20px;background:linear-gradient(145deg,#3b82f633,#8b5cf633);font-size:30px;box-shadow:0 8px 30px #3b82f622}
+.login-brand h2{font-size:23px!important}
+.login-highlights{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin:2px 0 4px}
+.login-highlight{padding:9px 5px;text-align:center;border:1px solid var(--bd);border-radius:10px;background:#0b1220;font-size:11px;color:#cbd5e1}
+.login-highlight span{display:block;font-size:17px;margin-bottom:2px}
+#lf label{font-size:12px;color:#cbd5e1;font-weight:700}
+#lf input{background:#0b1220;border-color:#344361}
+#lf input:focus{border-color:#60a5fa;box-shadow:0 0 0 3px #3b82f622}
+#lgB{box-shadow:0 8px 22px #3b82f633;transition:filter .15s,transform .15s}
+#lgB:not(:disabled):hover{filter:brightness(1.1);transform:translateY(-1px)}
+#lh{padding:9px 10px;border:1px solid var(--bd);border-radius:9px;background:#0b1220}
 .fm{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-bottom:10px}.fm input,.fm select{width:100%}
 
 html{-webkit-text-size-adjust:100%}body{overflow-x:hidden}
@@ -184,7 +198,7 @@ html{-webkit-text-size-adjust:100%}body{overflow-x:hidden}
 </style>
 </head>
 <body>
-<div class="ov" id="lg" style="display:none"><form class="lb card" id="lf" onsubmit="return false" autocomplete="on"><h2>🚀 تسجيل الدخول</h2><div class="sub">داش بورد أداء الطيارين</div><input id="lu" name="username" placeholder="اسم المستخدم" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="next" dir="ltr" style="text-align:right"><div class="pw"><input id="lp" name="password" type="password" placeholder="كلمة المرور" autocomplete="current-password" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="go" dir="ltr" style="text-align:right"><button type="button" class="eye" id="lpe" aria-label="إظهار كلمة المرور">👁</button></div><div id="le" role="alert"></div><button type="submit" class="btn pr" id="lgB" style="min-height:46px;font-size:15px">دخول</button><div class="sub" id="lh" style="display:none;line-height:1.7"></div></form></div>
+<div class="ov" id="lg" style="display:none"><form class="lb card" id="lf" onsubmit="return false" autocomplete="on"><div class="login-brand"><div class="login-logo" aria-hidden="true">🚀</div><h2>أهلًا بيك</h2><div class="sub">سجّل دخولك لمتابعة أداء الطيارين</div></div><div class="login-highlights" aria-label="مميزات لوحة الأداء"><div class="login-highlight"><span aria-hidden="true">📊</span>مؤشرات الأداء</div><div class="login-highlight"><span aria-hidden="true">🔎</span>فلاتر مرنة</div><div class="login-highlight"><span aria-hidden="true">📈</span>رسوم وتقارير</div></div><label for="lu">اسم المستخدم</label><input id="lu" name="username" placeholder="اكتب اسم المستخدم" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="next" dir="ltr" style="text-align:right"><label for="lp">كلمة المرور</label><div class="pw"><input id="lp" name="password" type="password" placeholder="اكتب كلمة المرور" autocomplete="current-password" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="go" dir="ltr" style="text-align:right"><button type="button" class="eye" id="lpe" aria-label="إظهار كلمة المرور">👁</button></div><div id="le" role="alert"></div><button type="submit" class="btn pr" id="lgB" style="min-height:46px;font-size:15px">دخول ←</button><div class="sub" id="lh" style="display:none;line-height:1.7"></div></form></div>
 <div id="load"><div style="font-weight:900">جارٍ سحب البيانات من Google Sheets…</div><div class="bar"><i></i></div><div class="sub" id="lt">قد يستغرق دقيقة لأول مرة</div></div>
 <header><div class="hr">
  <div><h1>🚀 داش بورد أداء الطيارين</h1><div class="sub" id="sync">—</div></div>
@@ -543,9 +557,10 @@ function apply(){
     if(zz){const g={};for(const r of ALL)if(r.t>=a&&r.t<=b&&r.z===zz&&r.s){const x=g[r.s]||(g[r.s]={a:0,d:new Set});x.a+=r.a;if(r.a>0||r.o>0)x.d.add(r.t)}
      const arr=Object.entries(g).map(([k,x])=>({k,v:x.d.size?x.a/x.d.size:0})).sort((x,y)=>y.v-x.v),i=arr.findIndex(x=>x.k===cs);
      if(i>=0)svTxt='ساعة<br><b style="color:#5eead4">👷 المشرف: '+F1(arr[i].v)+' س/يوم</b><br>🏅 الترتيب '+(i+1)+' من '+arr.length+' في '+esc(zz)}}}
-  const K=[['📦 الطلبات',NF(T.o),'مكتملة','--c:var(--pr)'],['⏱ ساعات فعلية',NF(T.a),'من '+NF(T.p)+' مخطط','--c:var(--ok)'],['🎯 الالتزام',F1(commit)+'%','فعلي/مخطط','--c:var(--wa)'],['⚡ الإنتاجية',F1(oph),'طلب/ساعة','--c:var(--pu)'],
+  const remaining=T.p-T.a,reservedNote=remaining>=0?'متبقي '+NF(remaining)+' ساعة':'تجاوز المحجوز '+NF(-remaining)+' ساعة';
+  const K=[['📦 الطلبات',NF(T.o),'مكتملة','--c:var(--pr)'],['⏱ ساعات فعلية',NF(T.a),'من '+NF(T.p)+' محجوز','--c:var(--ok)'],['🗓️ ساعات محجوزة',NF(T.p),reservedNote,'--c:#a78bfa'],['🎯 الالتزام',F1(commit)+'%','فعلي/محجوز','--c:var(--wa)'],['⚡ الإنتاجية',F1(oph),'طلب/ساعة','--c:var(--pu)'],
    ['🛵 الطيارين',NF(list.length),'عاملين','--c:var(--cy)'],['⌛ متوسط ساعات/طيار',F1(list.length?T.a/list.length:0),svTxt,'--c:#14b8a6'],['☕ الاستراحة',NF(T.b),'ساعة','--c:#f43f5e']];
-  [[0,T.o,P.o],[1,T.a,P.a],[2,commit,P.p?P.a/P.p*100:0],[3,oph,P.a?P.o/P.a:0]].forEach(([i,c,p])=>{if(p){const d=(c-p)/p*100;K[i][2]=(d>=0?'▲ ':'▼ ')+Math.abs(d).toFixed(1)+'% عن الفترة السابقة'}});
+  [[0,T.o,P.o],[1,T.a,P.a],[2,T.p,P.p],[3,commit,P.p?P.a/P.p*100:0],[4,oph,P.a?P.o/P.a:0]].forEach(([i,c,p])=>{if(p){const d=(c-p)/p*100;K[i][2]=(d>=0?'▲ ':'▼ ')+Math.abs(d).toFixed(1)+'% عن الفترة السابقة'}});
   $('kpis').innerHTML=K.map(k=>`<div class="kpi" style="${k[3]}"><div class="l">${k[0]}</div><div class="v">${k[1]}</div><div class="s">${k[2]}</div></div>`).join('');
   updateFilterControls();
   // charts
