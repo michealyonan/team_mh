@@ -2715,10 +2715,29 @@ function hcFillSelect(id,label,values){
 }
 function hcUpdateFilters(){
   HC_VISIBLE_ROWS=hcVisibleRows();
-  hcFillSelect('hcCity','كل المدن',[...new Set(HC_VISIBLE_ROWS.map(row=>row.city).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ar')));
-  hcFillSelect('hcStatus','كل الحالات',[...new Set(HC_VISIBLE_ROWS.map(row=>row.status).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ar')));
-  hcFillSelect('hcBatch','كل الباتشات',[...new Set(HC_VISIBLE_ROWS.map(row=>row.batch).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ar',{numeric:true})));
-  hcFillSelect('hcSupervisor','كل المشرفين',[...new Set(HC_VISIBLE_ROWS.map(row=>row.supervisor).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ar')));
+  const filters=[
+    {id:'hcCity',key:'city',label:'كل المدن',sort:(a,b)=>a.localeCompare(b,'ar')},
+    {id:'hcStatus',key:'status',label:'كل الحالات',sort:(a,b)=>a.localeCompare(b,'ar')},
+    {id:'hcBatch',key:'batch',label:'كل الباتشات',sort:(a,b)=>a.localeCompare(b,'ar',{numeric:true})},
+    {id:'hcSupervisor',key:'supervisor',label:'كل المشرفين',sort:(a,b)=>a.localeCompare(b,'ar')}
+  ];
+  const selected=Object.fromEntries(filters.map(filter=>[filter.key,$(filter.id).value]));
+  const matchingRows=(exceptKey)=>HC_VISIBLE_ROWS.filter(row=>filters.every(filter=>
+    filter.key===exceptKey||!selected[filter.key]||row[filter.key]===selected[filter.key]
+  ));
+  for(let pass=0;pass<filters.length;pass++){
+    let changed=false;
+    for(const filter of filters){
+      const values=new Set(matchingRows(filter.key).map(row=>row[filter.key]).filter(Boolean));
+      if(selected[filter.key]&&!values.has(selected[filter.key])){selected[filter.key]='';changed=true}
+    }
+    if(!changed)break;
+  }
+  for(const filter of filters){
+    const values=[...new Set(matchingRows(filter.key).map(row=>row[filter.key]).filter(Boolean))].sort(filter.sort);
+    hcFillSelect(filter.id,filter.label,values);
+    $(filter.id).value=selected[filter.key];
+  }
 }
 function hcApplyFilters(){
   HC_VISIBLE_ROWS=hcVisibleRows();
@@ -2799,7 +2818,7 @@ function hcOpen(){
   const scopeKey=String(CUR.u||'').toLocaleLowerCase('en')+'|'+CUR.r;
   if(HC_SCOPE_KEY!==scopeKey){
     ['hcCity','hcStatus','hcBatch','hcSupervisor','hcStartMonth','hcEndMonth','hcSearch'].forEach(id=>$(id).value='');
-    HC_KPI_FILTER='all';HC_SCOPE_KEY=scopeKey;hcApplyFilters();
+    HC_KPI_FILTER='all';HC_SCOPE_KEY=scopeKey;hcUpdateFilters();hcApplyFilters();
   }
   $('hc').style.display='block';document.body.style.overflow='hidden';
   if(!HC_ROWS.length){
@@ -2811,7 +2830,7 @@ function hcOpen(){
 function hcClose(){$('hc').style.display='none';document.body.style.overflow=''}
 function hcClear(){
   ['hcCity','hcStatus','hcBatch','hcSupervisor','hcStartMonth','hcEndMonth','hcSearch'].forEach(id=>$(id).value='');
-  HC_KPI_FILTER='all';
+  HC_KPI_FILTER='all';hcUpdateFilters();
   hcApplyFilters();
 }
 function hcExport(){
@@ -2825,7 +2844,8 @@ function hcExport(){
   }else dlCSV([headers,...rows],filename+'.csv');
 }
 $('hcB').onclick=hcOpen;$('hcClose').onclick=hcClose;$('hcRefresh').onclick=hcLoad;$('hcClear').onclick=hcClear;$('hcExport').onclick=hcExport;
-['hcCity','hcStatus','hcBatch','hcSupervisor','hcStartMonth','hcEndMonth'].forEach(id=>$(id).onchange=hcApplyFilters);
+['hcCity','hcStatus','hcBatch','hcSupervisor'].forEach(id=>$(id).onchange=()=>{hcUpdateFilters();hcApplyFilters()});
+['hcStartMonth','hcEndMonth'].forEach(id=>$(id).onchange=hcApplyFilters);
 $('hcSearch').oninput=()=>{clearTimeout(hcSearchTimer);hcSearchTimer=setTimeout(hcApplyFilters,180)};
 $('hcPrev').onclick=()=>{if(HC_PAGE>0){HC_PAGE--;hcRender()}};
 $('hcNext').onclick=()=>{if((HC_PAGE+1)*HC_PAGE_SIZE<HC_FILTERED.length){HC_PAGE++;hcRender()}};
