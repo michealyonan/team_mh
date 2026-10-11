@@ -268,10 +268,18 @@ html[data-theme="light"] .btn.pr{border-color:var(--pr)}
 <header><div class="hr">
  <div><h1>🚀 داش بورد أداء الطيارين</h1><div class="sub" id="sync">—</div></div>
  <div class="row" style="margin:0">
-  <span class="sub" id="who"></span><button class="btn" id="themeToggle" type="button" aria-pressed="false">☀️ وضع نهاري</button><button class="btn" id="prB" style="display:none">💰 أسعار الباتشات</button><button class="btn" id="usrB" style="display:none">👥 المستخدمين</button><button class="btn" id="tgB" style="display:none">🎯 التارجت</button><button class="btn" id="asB" style="display:none">🗓️ ان اصين</button><button class="btn" id="queriesB" style="display:none">📨 الاستعلامات</button><button class="btn" id="out">خروج</button>
+  <span class="sub" id="who"></span><button class="btn" id="themeToggle" type="button" aria-pressed="false">☀️ وضع نهاري</button><button class="btn" id="prB" style="display:none">💰 أسعار الباتشات</button><button class="btn" id="usrB" style="display:none">👥 المستخدمين</button><button class="btn" id="loginAuditB" style="display:none">🕵️ سجل الدخول</button><button class="btn" id="tgB" style="display:none">🎯 التارجت</button><button class="btn" id="asB" style="display:none">🗓️ ان اصين</button><button class="btn" id="queriesB" style="display:none">📨 الاستعلامات</button><button class="btn" id="out">خروج</button>
   <button class="btn pr" id="rf">🔄 تحديث</button>
  </div></div></header>
-<main>
+ <div id="loginAuditModal" style="display:none;position:fixed;inset:0;background:#000c;z-index:75;overflow:auto;padding:12px" onclick="if(event.target===this)this.style.display='none'">
+  <div class="card" style="max-width:900px;margin:auto">
+   <div class="row"><h3 style="margin:0">🕵️ المشرفون الذين فتحوا الداشبورد اليوم</h3><button class="btn pr" id="loginAuditRefresh">🔄 تحديث</button><button class="btn" style="margin-inline-start:auto" onclick="$('loginAuditModal').style.display='none'">✕</button></div>
+   <div class="sub" id="loginAuditStatus" role="status" style="margin:8px 0">اضغط تحديث لعرض السجل.</div>
+   <input id="loginAuditSearch" type="search" placeholder="🔎 ابحث باسم المشرف أو اسم المستخدم" aria-label="ابحث باسم المشرف أو اسم المستخدم" style="width:100%;margin:0 0 10px">
+   <div class="tw" style="max-height:65vh;overflow:auto"><table style="min-width:0"><thead><tr><th>#</th><th>وقت الدخول</th><th>اسم المشرف</th><th>اسم المستخدم</th><th>الدور</th></tr></thead><tbody id="loginAuditBody"></tbody></table></div>
+  </div>
+ </div>
+ <main>
  <div id="msg"></div>
  <div class="card">
   <div class="chips" id="chips"></div>
@@ -355,6 +363,19 @@ html[data-theme="light"] .btn.pr{border-color:var(--pr)}
    <div><label>🏢 المكتب (3PL)</label><select id="tgo"></select></div>
    <div><label>🔎 بحث</label><input id="tgq" placeholder="اسم مكتب أو منطقة…"></div>
    <div><label>&nbsp;</label><button class="btn" id="tgX" style="width:100%">✕ مسح الفلاتر</button></div>
+  </div>
+ </div>
+ <div class="card" id="tgMovement">
+  <div class="row" style="align-items:center">
+   <h3 style="margin:0">📊 ترتيب التحسن والتراجع</h3>
+   <label class="sub" for="tgMovementLevel">الترتيب حسب</label>
+   <select id="tgMovementLevel"><option value="office">المكاتب</option><option value="zone">المناطق</option></select>
+   <span class="sub" id="tgMovementPeriod" style="margin-inline-start:auto"></span>
+  </div>
+  <div class="sub" style="margin:-4px 0 8px">مقارنة بإجمالي التارجت في الفترة السابقة بنفس عدد الأيام. اضغط على أي صف لتصفية التارجت على المنطقة أو المكتب.</div>
+  <div class="charts" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,360px),1fr));gap:10px">
+   <div><h4 style="margin:0 0 6px">🚀 أكبر تحسن في التارجت</h4><div class="tw" style="max-height:320px"><table style="min-width:520px"><thead id="tgMovementUpHead"></thead><tbody id="tgMovementUp"></tbody></table></div></div>
+   <div><h4 style="margin:0 0 6px">📉 أكبر تراجع في التارجت</h4><div class="tw" style="max-height:320px"><table style="min-width:520px"><thead id="tgMovementDownHead"></thead><tbody id="tgMovementDown"></tbody></table></div></div>
   </div>
  </div>
   <div class="card" id="tgMc" style="display:none">
@@ -711,9 +732,35 @@ function draw(id,cfg){
   Chart.defaults.font.family='Cairo';Chart.defaults.font.size=innerWidth<700?10:12;Chart.defaults.color=themeStyles.getPropertyValue('--mut').trim();Chart.defaults.borderColor=themeStyles.getPropertyValue('--bd').trim();
   cfg.options=Object.assign({responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{boxWidth:10}}}},cfg.options);
   if(cfg.options.scales&&cfg.options.scales.y)for(const k in cfg.options.scales)cfg.options.scales[k].grid=cfg.options.scales[k].grid||{color:themeStyles.getPropertyValue('--bd').trim()};
-  if(charts[id]){const chart=charts[id];chart.config.type=cfg.type;chart.config.data=cfg.data;chart.config.options=cfg.options;chart.update('none')}
+  if(charts[id]){const chart=charts[id];chart.config.type=cfg.type;chart.config.data=cfg.data;chart.config.options=cfg.options;if(cfg.plugins)chart.config.plugins=cfg.plugins;chart.update('none')}
   else charts[id]=new Chart($(id),cfg);
 }
+const dashboardValueLabels={id:'dashboardValueLabels',afterDatasetsDraw(chart){
+  const ctx=chart.ctx,mobile=innerWidth<700,occupied=[];
+  ctx.save();ctx.font='700 '+(mobile?9:11)+'px Cairo';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.shadowColor='rgba(0,0,0,.8)';ctx.shadowBlur=3;ctx.shadowOffsetY=1;
+  chart.data.datasets.forEach((dataset,datasetIndex)=>{
+    if(!chart.isDatasetVisible(datasetIndex))return;
+    const meta=chart.getDatasetMeta(datasetIndex);
+    meta.data.forEach((element,index)=>{
+      const value=dataset.data[index];
+      if(value==null||!Number.isFinite(+value)||+value===0)return;
+      const numeric=+value;
+      const label=dataset.label==='الالتزام %'?numeric.toFixed(1)+'%':
+        dataset.label==='متوسط طلب/ساعة'?numeric.toFixed(2):
+        dataset.label==='ساعات فعلية'?numeric.toFixed(1):NF(numeric);
+      const isLine=(dataset.type||chart.config.type)==='line';
+      const x=element.x,y=isLine?Math.max(12,element.y-12):element.y+12;
+      const width=ctx.measureText(label).width+8,left=x-width/2,right=x+width/2,top=y-8,bottom=y+8;
+      if(left<0||right>chart.width||top<0||bottom>chart.height)return;
+      if(occupied.some(box=>left<box[2]+3&&right+3>box[0]&&top<box[3]+2&&bottom+2>box[1]))return;
+      occupied.push([left,top,right,bottom]);
+      ctx.fillStyle=isLine?(dataset.borderColor||'#f3f5f9'):'#fff';
+      ctx.fillText(label,x,y);
+    });
+  });
+  ctx.restore();
+}};
 /* ---------- extras ---------- */
 const li=(x,v,c,rk)=>`<div class="li" onclick="showR('${x.id}')"><span>${rk?`<b style="color:var(--mut);display:inline-block;min-width:28px">${rk}</b>`:''}${esc(x.n||x.id)}<small style="color:var(--mut)"> · ${esc(x.z)}</small></span><b style="color:${c||'inherit'}">${v}</b></div>`;
 function extras(){
@@ -824,7 +871,7 @@ function drawSup(){
   $('supHours').classList.toggle('on',SUP_METRIC==='a');
   const key=SUP_METRIC,label=key==='o'?'أوردرات':'ساعات فعلية';
   const top=[...SUP_DATA].sort((a,b)=>b[key]-a[key]).slice(0,12);
-  draw('ch7',{type:'bar',data:{labels:top.map(x=>x.s),datasets:[{label,data:top.map(x=>key==='a'?+x[key].toFixed(1):x[key]),backgroundColor:'#3b82f6aa',yAxisID:'y'},{label:'الالتزام %',type:'line',data:top.map(x=>+(x.p?x.a/x.p*100:0).toFixed(1)),borderColor:'#f59e0b',yAxisID:'y1'}]},options:{scales:{y:{position:'left'},y1:{position:'right',grid:{display:false}}},onClick:(e,els)=>{const hit=els.find(x=>x.datasetIndex===0);if(hit)showChartRiders('أداء المشرف '+top[hit.index].s,top[hit.index].riders)},onHover:(e,els)=>{e.native.target.style.cursor=els.some(x=>x.datasetIndex===0)?'pointer':'default'}}});
+  draw('ch7',{type:'bar',plugins:[dashboardValueLabels],data:{labels:top.map(x=>x.s),datasets:[{label,data:top.map(x=>key==='a'?+x[key].toFixed(1):x[key]),backgroundColor:'#3b82f6aa',yAxisID:'y'},{label:'الالتزام %',type:'line',data:top.map(x=>+(x.p?x.a/x.p*100:0).toFixed(1)),borderColor:'#f59e0b',yAxisID:'y1'}]},options:{scales:{y:{position:'left'},y1:{position:'right',grid:{display:false}}},onClick:(e,els)=>{const hit=els.find(x=>x.datasetIndex===0);if(hit)showChartRiders('أداء المشرف '+top[hit.index].s,top[hit.index].riders)},onHover:(e,els)=>{e.native.target.style.cursor=els.some(x=>x.datasetIndex===0)?'pointer':'default'}}});
 }
 function extras2(T,commit,oph,list){
   LAST={T,commit,oph,list};
@@ -839,7 +886,7 @@ function extras2(T,commit,oph,list){
   const HB={};list.forEach(x=>{if(!(x.wd>0&&x.a>0))return;const h=Math.min(12,Math.round(x.a/x.wd)),k=h<1?0:h,g=HB[k]||(HB[k]={n:0,o:0,a:0,rows:[]});g.n++;g.o+=x.o;g.a+=x.a;g.rows.push(x)});
   const hk=Object.keys(HB).map(Number).sort((a,b)=>a-b),h0=hk.length?hk[0]:0,h1=hk.length?hk[hk.length-1]:0,hs=[];for(let k=h0;k<=h1;k++)hs.push(k);
   const hl=k=>k===0?'أقل من ساعة':k===1?'ساعة':k===2?'ساعتين':k<=10?k+' ساعات':k<12?k+' ساعة':'12+ ساعة';
-  draw('ch10',{type:'bar',data:{labels:hs.map(hl),datasets:[{label:'عدد المناديب',data:hs.map(k=>HB[k]?HB[k].n:0),backgroundColor:'#3b82f6aa',yAxisID:'y'},{label:'متوسط طلب/ساعة',type:'line',data:hs.map(k=>HB[k]&&HB[k].a?+(HB[k].o/HB[k].a).toFixed(2):0),borderColor:'#f59e0b',backgroundColor:'#f59e0b',tension:.3,yAxisID:'y1'}]},
+  draw('ch10',{type:'bar',plugins:[dashboardValueLabels],data:{labels:hs.map(hl),datasets:[{label:'عدد المناديب',data:hs.map(k=>HB[k]?HB[k].n:0),backgroundColor:'#3b82f6aa',yAxisID:'y'},{label:'متوسط طلب/ساعة',type:'line',data:hs.map(k=>HB[k]&&HB[k].a?+(HB[k].o/HB[k].a).toFixed(2):0),borderColor:'#f59e0b',backgroundColor:'#f59e0b',tension:.3,yAxisID:'y1'}]},
     options:{scales:{y:{position:'left',title:{display:true,text:'عدد المناديب'}},y1:{position:'right',grid:{display:false},title:{display:true,text:'طلب/ساعة'}}},onClick:(e,els)=>{const hit=els.find(x=>x.datasetIndex===0);if(hit)showChartRiders('المناديب حسب ساعات الشغل — '+hl(hs[hit.index]),HB[hs[hit.index]].rows)},onHover:(e,els)=>{e.native.target.style.cursor=els.some(x=>x.datasetIndex===0)?'pointer':'default'}}});
   // أقل الطيارين: طلبات / ساعات / أيام عمل (بتستبعد اللي ما اشتغلش خالص عشان القايمة تبقى مفيدة)
   const wd={};FR.forEach(r=>{if(r.o>0||r.a>0)(wd[r.id]||(wd[r.id]=new Set())).add(r.t)});
@@ -932,6 +979,58 @@ $('pc').onclick=()=>{const t='const PRICES_EMBED='+JSON.stringify(mergeP())+';';
 /* ---------- auth ---------- */
 const hp=(u,p)=>sha(u.toLowerCase()+':'+p+':pd1'),esc=s=>String(s).replace(/[&<>"']/g,c=>'&#'+c.charCodeAt(0)+';');
 const ROLE={admin:'أدمن',manager:'مدير منطقة',sup:'مشرف'};
+const LOGIN_AUDIT_ENDPOINT='https://script.google.com/macros/s/AKfycbx1dPzvn7QvGd_c5UgsH-EVB-XBxpL-VeJ5EyJbN9_37118lZdLBaGrS9TYdDVutXe-OA/exec';
+function logDashboardOpen(user){
+  if(!LOGIN_AUDIT_ENDPOINT)return;
+  const payload=JSON.stringify({username:user.u,displayName:user.n,role:user.r});
+  try{
+    fetch(LOGIN_AUDIT_ENDPOINT,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:payload})
+      .catch(error=>console.error('تعذّر إرسال سجل فتح الداشبورد:',error));
+  }catch(error){console.error('تعذّر إرسال سجل فتح الداشبورد:',error)}
+}
+function loadTodayLoginAudit(){
+  if(!CUR||CUR.r!=='admin')return;
+  const status=$('loginAuditStatus'),body=$('loginAuditBody'),button=$('loginAuditRefresh'),search=$('loginAuditSearch');
+  status.textContent='⏳ جارٍ تحميل سجل اليوم…';body.innerHTML='';button.disabled=true;
+  const callback='__loginAuditSheetResponse'+Date.now(),script=document.createElement('script');
+  let finished=false;
+  const finish=(error,rows)=>{
+    if(finished)return;finished=true;clearTimeout(timer);delete window[callback];script.remove();button.disabled=false;
+    if(error){status.textContent='⚠️ تعذّر تحميل السجل من Google Sheets: '+error.message;return    }
+    window.LOGIN_AUDIT_ROWS=rows;
+    renderLoginAuditRows();
+  };
+  window[callback]=response=>{
+    if(!response||response.status!=='ok'||!response.table){finish(new Error(response&&response.errors&&response.errors[0]&&response.errors[0].detailed_message||'تعذّر قراءة التابة.'));return}
+    const today=ds(Date.now()),rows=[];
+    for(const item of response.table.rows||[]){
+      const cells=item.c||[],dateCell=cells[1];
+      let date=dateCell&&dateCell.f!=null?String(dateCell.f):'';
+      if(!date&&dateCell&&dateCell.v)date=String(dateCell.v).replace(/^Date\((\d+),(\d+),(\d+).*$/,(_,y,m,d)=>y+'-'+String(+m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0'));
+      if(date!==today)continue;
+      rows.push({
+        time:cells[0]&&cells[0].f!=null?String(cells[0].f):'—',
+        username:cells[2]&&cells[2].v!=null?String(cells[2].v):'',
+        displayName:cells[3]&&cells[3].v!=null?String(cells[3].v):'',
+        role:cells[4]&&cells[4].v!=null?String(cells[4].v):''
+      });
+    }
+    finish(null,rows.reverse());
+  };
+  const timer=setTimeout(()=>finish(new Error('انتهت مهلة الاتصال.')),20000);
+  script.onerror=()=>finish(new Error('فشل الاتصال بجدول البيانات أو أن التابة غير متاحة للقراءة.'));
+  script.src=`https://docs.google.com/spreadsheets/d/${SID}/gviz/tq?sheet=${encodeURIComponent('سجل دخول الداشبورد')}&headers=1&tqx=out:json;responseHandler:${callback}&_=${Date.now()}`;
+  document.head.appendChild(script);
+}
+function renderLoginAuditRows(){
+  const body=$('loginAuditBody'),query=String($('loginAuditSearch').value||'').trim().toLocaleLowerCase('ar');
+  const rows=(window.LOGIN_AUDIT_ROWS||[]).filter(row=>!query||[row.displayName,row.username,row.role].some(value=>String(value||'').toLocaleLowerCase('ar').includes(query)));
+  body.innerHTML=rows.map((row,index)=>`<tr><td>${index+1}</td><td>${esc(row.time||'—')}</td><td><b>${esc(row.displayName||'—')}</b></td><td>${esc(row.username||'—')}</td><td>${esc(row.role||'—')}</td></tr>`).join('');
+  const total=(window.LOGIN_AUDIT_ROWS||[]).length;
+  $('loginAuditStatus').textContent=query
+    ?'🔎 '+NF(rows.length)+' نتيجة من '+NF(total)+' تسجيل دخول اليوم.'
+    :total?'✅ '+NF(total)+' تسجيل دخول اليوم.':'لا يوجد تسجيل دخول مسجل اليوم.';
+}
 function getU(){return(CUR&&CUR.r==='admin'&&DRAFT)?DRAFT:USERS}
 function getPW(){try{return JSON.parse(localStorage.getItem('pd_pw'))||{}}catch(e){return{}}}
 function setPW(u,p){const b=getPW();if(p==null)delete b[u.toLowerCase()];else b[u.toLowerCase()]=p;try{localStorage.setItem('pd_pw',JSON.stringify(b))}catch(e){}}
@@ -940,8 +1039,8 @@ function saveU(a){DRAFT=a;try{localStorage.setItem('pd_draft',JSON.stringify(a))
 function gstat(){const e=$('gst');if(e)e.textContent=DRAFT?'⚠️ فيه تعديلات لسه متنشرتش — اضغط 🚀 نشر على GitHub':'✅ كل التعديلات منشورة'}
 function scope(rows){if(!CUR||CUR.r==='admin')return rows;const k=CUR.r==='manager'?'m':'s',userName=nameMatchKey(CUR.s);return rows.filter(r=>nameMatchKey(r[k])===userName)}
 function findU(u,h){return USERS.find(y=>y.u.toLowerCase()===u&&y.h===h)||(DRAFT&&DRAFT.find(y=>y.u.toLowerCase()===u&&y.h===h))}
-function enter(x){CUR=x;idleReset();try{sessionStorage.setItem('pd_sess',x.u.toLowerCase()+'|'+x.h)}catch(e){}
-  $('lg').style.display='none';$('who').textContent='👤 '+x.n+' · '+ROLE[x.r];$('usrB').style.display=x.r==='admin'?'':'none';$('tgB').style.display=x.r==='admin'?'':'none';$('asB').style.display='';$('prB').style.display='';$('queriesB').style.display='';load().then(()=>{if(x.r==='admin'&&x.h===DEF_H){const m=$('msg');m.style.display='block';m.textContent='⚠️ كلمة مرور الأدمن الافتراضية لسه شغالة — غيّره من 👥 المستخدمين.'}})}
+function enter(x){CUR=x;idleReset();logDashboardOpen(x);try{sessionStorage.setItem('pd_sess',x.u.toLowerCase()+'|'+x.h)}catch(e){}
+  $('lg').style.display='none';$('who').textContent='👤 '+x.n+' · '+ROLE[x.r]+(x.r==='admin'&&!LOGIN_AUDIT_ENDPOINT?' · ⚠️ سجل الدخول المركزي غير مفعّل':'');$('usrB').style.display=x.r==='admin'?'':'none';$('loginAuditB').style.display=x.r==='admin'?'':'none';$('tgB').style.display=x.r==='admin'?'':'none';$('asB').style.display='';$('prB').style.display='';$('queriesB').style.display='';load().then(()=>{if(x.r==='admin'&&x.h===DEF_H){const m=$('msg');m.style.display='block';m.textContent='⚠️ كلمة مرور الأدمن الافتراضية لسه شغالة — غيّره من 👥 المستخدمين.'}})}
 let USERS=USERS_EMBED,DRAFT=null,VAULT=PW_EMBED;
 async function loadUsers(){
   try{const r=await fetch('users.json?_='+Date.now(),{cache:'no-store'});if(r.ok){const d=await r.json();if(d&&Array.isArray(d.users)&&d.users.length){USERS=d.users;if(d.vault)VAULT=d.vault}}}catch(e){}
@@ -976,6 +1075,9 @@ $('lgB').addEventListener('click',e=>{e.preventDefault();doLogin()});
 $('lu').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();$('lp').focus()}});
 $('lp').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();doLogin()}});
 $('lpe').addEventListener('click',()=>{const t=$('lp').type==='password';$('lp').type=t?'text':'password';$('lpe').textContent=t?'🙈':'👁'});
+$('loginAuditB').onclick=()=>{if(!CUR||CUR.r!=='admin')return;$('loginAuditModal').style.display='block';loadTodayLoginAudit()};
+$('loginAuditRefresh').onclick=loadTodayLoginAudit;
+$('loginAuditSearch').addEventListener('input',renderLoginAuditRows);
 $('out').onclick=()=>{try{sessionStorage.removeItem('pd_sess');localStorage.removeItem('pd_sess')}catch(e){}location.reload()};
 /* ---------- خزنة الباسوردات (مشفرة AES-GCM بكلمة سر الأدمن) ---------- */
 const b64=u=>btoa(String.fromCharCode(...u)),ub64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
@@ -1650,11 +1752,68 @@ function tgDrawAvg(){const a=TGA[tgAm];$('tgAz').classList.toggle('on',tgAm==='z
   dr('tg8',{type:'bar',data:{labels:a.map(x=>x[0]),datasets:[{label:'متوسط التارجت/يوم',data:a.map(x=>+x[1].toFixed(1)),backgroundColor:(tgAm==='z'?'#06b6d4':'#ec4899')+'aa'}]},options:{indexAxis:'y',plugins:{legend:{display:false}}}})}
 function tgAvSet(m){tgAm=m;tgDrawAvg()}
 
+function tgMovementDate(value,fallback){
+  if(!value)return fallback;
+  const match=String(value).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if(!match)return 0;
+  const date=new Date(+match[1],+match[2]-1,+match[3]);
+  return date.getFullYear()===+match[1]&&date.getMonth()===+match[2]-1&&date.getDate()===+match[3]?date.getTime():0;
+}
+function tgDrawMovement(){
+  let minimum=Infinity,maximum=-Infinity;
+  for(const row of TGR)if(Number.isFinite(row.d)){minimum=Math.min(minimum,row.d);maximum=Math.max(maximum,row.d)}
+  if(!Number.isFinite(minimum)){ $('tgMovementPeriod').textContent='لا توجد بيانات للمقارنة';$('tgMovementUp').innerHTML='';$('tgMovementDown').innerHTML='';return}
+  const start=tgMovementDate($('tgd1').value,minimum),end=tgMovementDate($('tgd2').value,maximum),head='<tr><th>#</th><th>المنطقة / المكتب</th><th>الحالي</th><th>السابق</th><th>الفرق</th><th>التغير</th></tr>';
+  $('tgMovementUpHead').innerHTML=head;$('tgMovementDownHead').innerHTML=head;
+  if(!start||!end||start>end){
+    $('tgMovementPeriod').textContent='راجع نطاق التاريخ المختار';
+    $('tgMovementUp').innerHTML='<tr><td colspan="6" class="sub">نطاق تاريخ غير صالح.</td></tr>';
+    $('tgMovementDown').innerHTML='<tr><td colspan="6" class="sub">نطاق تاريخ غير صالح.</td></tr>';return;
+  }
+  const days=Math.floor((end-start)/DAY)+1,previousStart=start-days*DAY,previousEnd=start-DAY;
+  const group=$('tgGroup').value,zone=$('tgz').value,office=$('tgo').value,query=$('tgq').value.trim().toLocaleLowerCase();
+  const matches=row=>tgGroupHasZone(group,row.z)&&(!zone||row.z===zone)&&(!office||row.o===office)&&
+    (!query||(String(row.o)+' '+String(row.z)).toLocaleLowerCase().includes(query));
+  const current=new Map(),previous=new Map();
+  const identity=row=>$('tgMovementLevel').value==='zone'
+    ?{key:'z:'+String(row.z||''),label:String(row.z||''),zone:String(row.z||''),office:''}
+    :{key:'o:'+String(row.z||'')+'\u0000'+String(row.o||''),label:String(row.o||'')+' · '+String(row.z||''),zone:String(row.z||''),office:String(row.o||'')};
+  for(const row of TGR){
+    if(!matches(row))continue;
+    const item=identity(row);if(!item.key)continue;
+    if(row.d>=start&&row.d<=end)current.set(item.key,{...item,value:(current.get(item.key)?.value||0)+(+row.t||0)});
+    else if(row.d>=previousStart&&row.d<=previousEnd)previous.set(item.key,{...item,value:(previous.get(item.key)?.value||0)+(+row.t||0)});
+  }
+  const entries=[...new Set([...current.keys(),...previous.keys()])].map(key=>{
+    const now=current.get(key),before=previous.get(key),value=now?now.value:0,prior=before?before.value:0;
+    return{...(now||before),current:value,previous:prior,delta:value-prior,pct:prior?((value-prior)/prior)*100:null};
+  });
+  const render=(rows,kind)=>{
+    const top=rows.slice(0,5);
+    if(!top.length)return'<tr><td colspan="6" class="sub">مفيش تحسن أو تراجع في النتائج مقارنة بالفترة السابقة.</td></tr>';
+    return top.map((row,index)=>`<tr data-tg-movement="${encodeURIComponent(row.key)}" style="cursor:pointer"><td>${index+1}</td><td><b>${esc(row.label)}</b></td><td>${NF(row.current)}</td><td>${NF(row.previous)}</td><td><span class="b ${kind==='up'?'g':'r'}">${kind==='up'?'+':'−'}${NF(Math.abs(row.delta))}</span></td><td>${row.pct==null?'<span class="b y">جديد</span>':`<span class="b ${kind==='up'?'g':'r'}">${kind==='up'?'+':''}${F1(row.pct)}%</span>`}</td></tr>`).join('');
+  };
+  $('tgMovementPeriod').textContent=`الحالي ${fd(start)} – ${fd(end)} · السابق ${fd(previousStart)} – ${fd(previousEnd)} · اضغط على صف للتصفية`;
+  $('tgMovementUp').innerHTML=render(entries.filter(row=>row.delta>0).sort((a,b)=>b.delta-a.delta), 'up');
+  $('tgMovementDown').innerHTML=render(entries.filter(row=>row.delta<0).sort((a,b)=>a.delta-b.delta), 'down');
+  for(const [body,kind] of [[$('tgMovementUp'),'up'],[$('tgMovementDown'),'down']]){
+    body.onclick=event=>{
+      const row=event.target.closest('[data-tg-movement]');if(!row)return;
+      const found=entries.find(item=>item.key===decodeURIComponent(row.dataset.tgMovement));if(!found)return;
+      if($('tgMovementLevel').value==='zone'){$('tgz').value=found.label;$('tgo').value=''}
+      else{$('tgz').value=found.zone;tgFillO();$('tgo').value=found.office}
+      tgApply();
+    };
+  }
+}
+$('tgMovementLevel').onchange=tgDrawMovement;
+
 function tgApply(){
   if(!CUR||CUR.r!=='admin')return;
   const a=$('tgd1').value?new Date($('tgd1').value).setHours(0,0,0,0):0,b=$('tgd2').value?new Date($('tgd2').value).setHours(0,0,0,0):1e15,
         o=$('tgo').value,q=$('tgq').value.trim().toLowerCase();
   TGF=TGR.filter(r=>r.d>=a&&r.d<=b&&tgZoneAllowed(r.z)&&(!o||r.o===o)&&(!q||(r.o+' '+r.z).toLowerCase().includes(q)));
+  tgDrawMovement();
   const day={},zn={},of={},pr={};let T=0;const dset=new Set;
   for(const r of TGF){T+=r.t;dset.add(r.d);day[r.d]=(day[r.d]||0)+r.t;zn[r.z]=(zn[r.z]||0)+r.t;of[r.o]=(of[r.o]||0)+r.t;
     const k=r.z+'|'+r.o,x=pr[k]||(pr[k]={z:r.z,o:r.o,t:0,ds:new Set,mxd:0,mnd:Infinity,as:0,an:0,ps:0,pn:0,ns:0,nn:0,mx:0});
