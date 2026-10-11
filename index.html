@@ -734,7 +734,7 @@ html[data-theme="light"] [style*="background:#0b1220"],html[data-theme="light"] 
   <div class="kpis hc-kpis" id="hcKpis"></div>
   <div class="card hc-table-card">
    <div class="row"><h3>📋 تفاصيل الطيارين</h3><span class="sub" id="hcPage"></span><button class="btn" id="hcPrev">‹ السابق</button><button class="btn" id="hcNext">التالي ›</button></div>
-   <div class="tw hc-table"><table><thead><tr><th>#</th><th>الكود</th><th>اسم المندوب</th><th>الباتش</th><th>المدينة</th><th>الحالة الفعلية</th><th>بداية العقد</th><th>نهاية العقد</th><th>الأيام المتبقية</th><th>المشرف</th><th>المحفظة</th></tr></thead><tbody id="hcBody"></tbody></table></div>
+   <div class="tw hc-table"><table><thead><tr><th>#</th><th>الكود</th><th>اسم المندوب</th><th>الباتش</th><th>الهاتف</th><th>المدينة</th><th>الحالة الفعلية</th><th>بداية العقد</th><th>نهاية العقد</th><th>الأيام المتبقية</th><th>المشرف</th><th>المحفظة</th></tr></thead><tbody id="hcBody"></tbody></table></div>
   </div>
  </div>
 </div>
@@ -2602,6 +2602,7 @@ function hcParseRows(headers,rows){
     id:indexOf(['idالمندوب','كودالمندوب','id']),
     name:indexOf(['اسمالمندوب','الاسم']),
     batch:indexOf(['batch','الباتش','باتش']),
+    phone:indexOf(['الهاتف','رقمالهاتف','الموبايل','رقمالموبايل','phone','mobile']),
     city:indexOf(['المدينة','المدينه']),
     status:indexOf(['الحالةالفعلية','الحالهالفعليه']),
     start:indexOf(['بدايةالعقد','تاريخبدايةالعقد']),
@@ -2617,7 +2618,7 @@ function hcParseRows(headers,rows){
     const value=key=>columns[key]<0?'':String(row[columns[key]]==null?'':row[columns[key]]).trim();
     const batch=value('batch').replace(/\.0$/,'');
     return{
-      id:value('id'),name:value('name'),batch,city:value('city'),status:value('status'),
+      id:value('id'),name:value('name'),batch,phone:value('phone'),city:value('city'),status:value('status'),
       start:queryDateValue(value('start')),end:queryDateValue(value('end')),
       remaining:value('remaining'),supervisor:value('supervisor'),wallet:value('wallet')
     };
@@ -2768,9 +2769,9 @@ function hcRender(){
     const match=String(value||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);
     return match?`${Number(match[3])}/${Number(match[2])}/${match[1]}`:'—';
   };
-  const columns=['#','الكود','اسم المندوب','الباتش','المدينة','الحالة الفعلية','بداية العقد','نهاية العقد','الأيام المتبقية','المشرف','المحفظة'];
-  $('hcBody').innerHTML=shown.map((row,index)=>`<tr><td>${start+index+1}</td><td>${esc(row.id||'—')}</td><td><b>${esc(row.name)}</b></td><td>${esc(row.batch||'—')}</td><td>${esc(row.city||'—')}</td><td>${esc(row.status||'—')}</td><td>${displayDate(row.start)}</td><td>${displayDate(row.end)}</td><td>${esc(row.remaining||'—')}</td><td>${esc(row.supervisor||'—')}</td><td>${esc(row.wallet||'—')}</td></tr>`).join('')||
-    '<tr><td colspan="11" class="sub">لا توجد نتائج مطابقة للفلاتر.</td></tr>';
+  const columns=['#','الكود','اسم المندوب','الباتش','الهاتف','المدينة','الحالة الفعلية','بداية العقد','نهاية العقد','الأيام المتبقية','المشرف','المحفظة'];
+  $('hcBody').innerHTML=shown.map((row,index)=>`<tr><td>${start+index+1}</td><td>${esc(row.id||'—')}</td><td><b>${esc(row.name)}</b></td><td>${esc(row.batch||'—')}</td><td>${esc(row.phone||'—')}</td><td>${esc(row.city||'—')}</td><td>${esc(row.status||'—')}</td><td>${displayDate(row.start)}</td><td>${displayDate(row.end)}</td><td>${esc(row.remaining||'—')}</td><td>${esc(row.supervisor||'—')}</td><td>${esc(row.wallet||'—')}</td></tr>`).join('')||
+    '<tr><td colspan="12" class="sub">لا توجد نتائج مطابقة للفلاتر.</td></tr>';
   [...$('hcBody').rows].forEach(row=>[...row.cells].forEach((cell,index)=>cell.dataset.label=columns[index]));
   $('hcPage').textContent=(HC_FILTERED.length?start+1:0)+'–'+Math.min(start+HC_PAGE_SIZE,HC_FILTERED.length)+' من '+NF(HC_FILTERED.length)+' · صفحة '+(HC_PAGE+1)+' / '+pages;
   $('hcPrev').disabled=HC_PAGE===0;$('hcNext').disabled=HC_PAGE>=pages-1;
@@ -2815,11 +2816,11 @@ function hcClear(){
 }
 function hcExport(){
   if(!HC_FILTERED.length)return;
-  const headers=['ID المندوب','اسم المندوب','Batch','المدينة','الحالة الفعلية','بداية العقد','نهاية العقد','الأيام المتبقية','المشرف','المحفظة'];
-  const rows=HC_FILTERED.map(row=>[row.id,row.name,row.batch,row.city,row.status,row.start,row.end,row.remaining,row.supervisor,row.wallet]);
+  const headers=['ID المندوب','اسم المندوب','Batch','الهاتف','المدينة','الحالة الفعلية','بداية العقد','نهاية العقد','الأيام المتبقية','المشرف','المحفظة'];
+  const rows=HC_FILTERED.map(row=>[row.id,row.name,row.batch,row.phone,row.city,row.status,row.start,row.end,row.remaining,row.supervisor,row.wallet]);
   const filename='head_count_live_'+new Date().toISOString().slice(0,10);
   if(window.XLSX){
-    const sheet=XLSX.utils.aoa_to_sheet([headers,...rows]);sheet['!views']=[{RTL:true}];sheet['!cols']=[{wch:14},{wch:36},{wch:10},{wch:20},{wch:18},{wch:14},{wch:14},{wch:16},{wch:24},{wch:14}];
+    const sheet=XLSX.utils.aoa_to_sheet([headers,...rows]);sheet['!views']=[{RTL:true}];sheet['!cols']=[{wch:14},{wch:36},{wch:10},{wch:18},{wch:20},{wch:18},{wch:14},{wch:14},{wch:16},{wch:24},{wch:14}];
     const workbook=XLSX.utils.book_new();workbook.Workbook={Views:[{RTL:true}]};XLSX.utils.book_append_sheet(workbook,sheet,'هيد كونت');XLSX.writeFile(workbook,filename+'.xlsx');
   }else dlCSV([headers,...rows],filename+'.csv');
 }
