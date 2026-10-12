@@ -306,6 +306,9 @@ main{gap:14px;padding:16px}
 .btn{transition:background-color .16s ease,border-color .16s ease,transform .16s ease}
 .btn:not(:disabled):hover{border-color:#5680ae;background:#20344d}
 .btn:active:not(:disabled){transform:translateY(1px)}
+.group-drill{padding:0;border:0;background:transparent;color:#93c5fd;font:inherit;font-weight:700;text-decoration:underline;text-decoration-color:#93c5fd66;text-underline-offset:3px;cursor:pointer}
+.group-drill:hover{text-decoration-color:currentColor}
+.group-drill:focus-visible{outline:2px solid #38bdf8;outline-offset:3px;border-radius:3px}
 .btn.pr{background:var(--pr);border-color:var(--pr);color:#082033}
 .btn.pr:not(:disabled):hover{background:#7dd3fc;border-color:#7dd3fc}
 .btn:disabled{cursor:not-allowed;opacity:.48}
@@ -371,6 +374,9 @@ tr:hover td{background:#1a2b41}
 #hc .hc-kpis .kpi:hover{transform:translateY(-2px);border-color:#5680ae;border-top-color:var(--c,var(--pr))}
 #hc .hc-kpis .kpi:focus-visible{outline:3px solid #38bdf8aa;outline-offset:3px}
 #hc .hc-kpis .kpi[aria-pressed="true"]{border-color:#38bdf8;border-top-color:var(--c,var(--pr));box-shadow:0 0 0 2px #38bdf833,var(--shadow)}
+#hcSupervisorSummary[hidden]{display:none}
+#hcSupervisorSummary table{min-width:360px;width:100%}
+#hcSupervisorSummary td:nth-child(n+3),#hcSupervisorSummary th:nth-child(n+3){text-align:center}
 #hc .hc-table-card>.row{align-items:center}
 #hc .hc-table-card>.row h3{margin:0}
 #hc .hc-table{max-height:68vh}
@@ -561,7 +567,7 @@ html[data-theme="light"] [style*="background:#0b1220"],html[data-theme="light"] 
   <div class="card c4"><h3 style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">📆 أقل <input type="number" min="1" class="tn" data-k="lo3" value="10" title="كام عايز تعرض؟" style="width:62px;min-height:28px;padding:2px 6px;font-size:13px"> في أيام العمل<button class="btn" style="margin-inline-start:auto;padding:4px 10px;min-height:30px;font-size:12px" onclick="exl('lo3')">⬇ Excel</button></h3><div id="lo3"></div></div>
   <div class="card c4"><div class="row" style="margin-bottom:6px"><h3 style="margin:0">📆 حسب التاريخ</h3><span style="margin-inline-start:auto;display:flex;gap:6px"><button class="chip on" id="m5o" onclick="setM5('o')">📦 طلبات</button><button class="chip" id="m5a" onclick="setM5('a')">⏱ ساعات</button><button class="chip" id="m5x" onclick="setM5('x')">🔀 مكس</button><button class="chip" onclick="exl('ch5')">⬇ Excel</button></span></div><div class="cw"><canvas id="ch5"></canvas></div></div>
  </div>
- <div class="card"><div class="row"><h3 style="margin:0">📊 تحليل مجمّع حسب</h3><select id="gb"><option value="m">مدير المنطقة</option><option value="z">المنطقة</option><option value="s">المشرف</option><option value="bt">الباتش</option><option value="v">المركبة</option></select><button class="btn" id="gx" style="margin-inline-start:auto">⬇ CSV</button></div><div class="tw rt2"><table style="min-width:620px"><thead id="gh"></thead><tbody id="gt"></tbody></table></div></div>
+ <div class="card"><div class="row"><h3 style="margin:0">📊 تحليل مجمّع حسب</h3><select id="gb"><option value="m">مدير المنطقة</option><option value="z">المنطقة</option><option value="s">المشرف</option><option value="bt">الباتش</option><option value="v">المركبة</option></select><button class="btn" id="gx" style="margin-inline-start:auto">⬇ CSV</button></div><div class="sub" id="groupDrillHint" style="margin:-2px 0 8px">اضغط على اسم مدير المنطقة لعرض قائمة المناديب.</div><div class="tw rt2"><table style="min-width:620px"><thead id="gh"></thead><tbody id="gt"></tbody></table></div></div>
  <div class="charts">
   <div class="card c8"><div class="row" style="margin-bottom:6px"><h3 style="margin:0">📈 المسار اليومي</h3><span style="margin-inline-start:auto;display:flex;gap:6px"><button class="chip on" id="m1o" onclick="setM1('o')">📦 طلبات</button><button class="chip" id="m1a" onclick="setM1('a')">⏱ ساعات</button></span></div><div class="cw"><canvas id="ch1"></canvas></div></div>
   <div class="card c4"><h3>🛵 المركبات (الطلبات)</h3><div class="cw"><canvas id="ch2"></canvas></div></div>
@@ -748,6 +754,10 @@ html[data-theme="light"] [style*="background:#0b1220"],html[data-theme="light"] 
    <div class="sub" style="margin-top:8px">اترك حقول الشهر فارغة لعرض كل النتائج، أو اختر شهرًا لتصفية بداية العقد أو نهايته.</div>
   </div>
   <div class="kpis hc-kpis" id="hcKpis"></div>
+  <section class="card" id="hcSupervisorSummary" hidden aria-labelledby="hcSupervisorSummaryTitle" aria-live="polite">
+   <h3 id="hcSupervisorSummaryTitle">عدد الطيارين لكل مشرف</h3>
+   <div class="tw"><table><thead><tr><th>#</th><th>اسم المشرف</th><th>يعمل</th><th>إقالة</th><th>الإجمالي</th></tr></thead><tbody id="hcSupervisorSummaryBody"></tbody><tfoot id="hcSupervisorSummaryFoot"></tfoot></table></div>
+  </section>
   <div class="card hc-table-card">
    <div class="row"><h3>📋 تفاصيل الطيارين</h3><span class="sub" id="hcPage"></span><button class="btn" id="hcPrev">‹ السابق</button><button class="btn" id="hcNext">التالي ›</button></div>
    <div class="tw hc-table"><table><thead><tr><th>#</th><th>الكود</th><th>اسم المندوب</th><th>الباتش</th><th>الهاتف</th><th>المدينة</th><th>الحالة الفعلية</th><th>بداية العقد</th><th>نهاية العقد</th><th>الأيام المتبقية</th><th>المشرف</th><th>المحفظة</th></tr></thead><tbody id="hcBody"></tbody></table></div>
@@ -1053,13 +1063,18 @@ function extras(){
 }
 function grp(){
   const k=$('gb').value,M={};
-  FR.forEach(r=>{const g=r[k]||'—';const x=M[g]||(M[g]={g,o:0,a:0,p:0,b:0,rs:new Set});x.o+=r.o;x.a+=r.a;x.p+=r.p;x.b+=r.b;x.rs.add(r.id)});
+  $('groupDrillHint').hidden=k!=='m';
+  FR.forEach(r=>{const g=k==='m'?(String(r.m||'').trim()||'بدون مدير'):(r[k]||'—');const x=M[g]||(M[g]={g,o:0,a:0,p:0,b:0,rs:new Set});x.o+=r.o;x.a+=r.a;x.p+=r.p;x.b+=r.b;x.rs.add(r.id)});
   GR=Object.values(M).map(x=>({...x,n:x.rs.size,c:x.p?x.a/x.p*100:0,oph:x.a?x.o/x.a:0,opr:x.o/x.rs.size})).sort((x,y)=>y.o-x.o);
   $('gh').innerHTML='<tr>'+['#','الاسم','طيارين','طلبات','ساعات فعلية','الالتزام','طلب/س','طلب/طيار'].map(h=>`<th>${h}</th>`).join('')+'</tr>';
-  $('gt').innerHTML=GR.map((x,i)=>`<tr><td>${i+1}</td><td><b>${x.g}</b></td><td>${x.n}</td><td>${NF(x.o)}</td><td>${NF(x.a)}</td><td><span class="b ${x.c>=90?'g':x.c>=60?'y':'r'}">${F1(x.c)}%</span></td><td>${F1(x.oph)}</td><td>${F1(x.opr)}</td></tr>`).join('');
+  $('gt').innerHTML=GR.map((x,i)=>`<tr><td>${i+1}</td><td>${k==='m'?`<button type="button" class="group-drill" data-manager="${esc(x.g)}" aria-label="عرض مناديب ${x.g==='بدون مدير'?'بدون مدير':`مدير المنطقة ${esc(x.g)}`}">${esc(x.g)}</button>`:`<b>${esc(x.g)}</b>`}</td><td>${x.n}</td><td>${NF(x.o)}</td><td>${NF(x.a)}</td><td><span class="b ${x.c>=90?'g':x.c>=60?'y':'r'}">${F1(x.c)}%</span></td><td>${F1(x.oph)}</td><td>${F1(x.opr)}</td></tr>`).join('');
   {const H=['#','الاسم','طيارين','طلبات','ساعات فعلية','الالتزام','طلب/س','طلب/طيار'];[...$('gt').rows].forEach(r=>[...r.cells].forEach((c,j)=>c.dataset.l=H[j]))}
 }
 $('gb').onchange=grp;
+$('gt').addEventListener('click',event=>{
+  const manager=event.target.closest('button[data-manager]');
+  if(manager&&$('gb').value==='m')showB(manager.dataset.manager,'m');
+});
 $('svx').onclick=()=>{const SL=window.SUPL||[];if(!SL.length)return alert('لا توجد بيانات للتصدير');
   const rows=SL.map((x,i)=>({'#':i+1,'المشرف':x.s,'مناديب اشتغلوا':x.n,'متوسط مناديب/يوم':+x.adr.toFixed(1),'إجمالي الساعات':+x.a.toFixed(1),'عدد الأيام':x.nd,'متوسط ساعات المشرف/يوم':+x.ad.toFixed(1),'متوسط س/مندوب':+x.avg.toFixed(1),'متوسط س/يوم عمل':+x.avgd.toFixed(1),'طلبات':x.o,'طلب/س':+x.oph.toFixed(2)}));
   const d=new Date(),nm='ساعات_المشرفين_'+d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
@@ -1088,9 +1103,9 @@ function exportDrillExcel(){
   else{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+Papa.unparse(DRILL_ROWS)],{type:'text/csv'}));a.download=nm+'.csv';a.click()}
 }
 function showB(k,f){
-  f=f||'bt';const m={};for(const r of FR){if(r[f]!==k)continue;const x=m[r.id]||(m[r.id]={id:r.id,n:r.n,z:r.z,s:r.s,v:r.v,o:0,a:0,p:0,days:0});x.o+=r.o;x.a+=r.a;x.p+=r.p;x.days++;x.n=r.n||x.n}
+  f=f||'bt';const m={};for(const r of FR){const matches=f==='m'?(String(r.m||'').trim()||'بدون مدير')===k:r[f]===k;if(!matches)continue;const x=m[r.id]||(m[r.id]={id:r.id,n:r.n,z:r.z,s:r.s,v:r.v,o:0,a:0,p:0,days:0});x.o+=r.o;x.a+=r.a;x.p+=r.p;x.days++;x.n=r.n||x.n}
   const L=Object.values(m).sort((x,y)=>y.o-x.o),to=L.reduce((t,x)=>t+x.o,0),ta=L.reduce((t,x)=>t+x.a,0);
-  $('bmt').textContent=(f==='s'?'👔 المشرف ':'🏷 باتش ')+k+' — '+L.length+' مندوب';
+  $('bmt').textContent=(f==='s'?'👔 المشرف ':f==='m'?(k==='بدون مدير'?'👤 بدون مدير ':'👤 مدير المنطقة '):'🏷 باتش ')+k+' — '+L.length+' مندوب';
   $('bms').textContent='إجمالي الساعات: '+F1(ta)+' · إجمالي الطلبات: '+NF(to)+' · متوسط طلب/ساعة: '+F1(ta?to/ta:0);
   renderDrillRows(L);
   $('bm').style.display='block';
@@ -3011,11 +3026,38 @@ function hcRender(){
   const expiring=HC_BASE_FILTERED.filter(row=>row.end&&row.end>=todayKey&&row.end<=soonKey).length;
   const cards=[
     ['all','إجمالي السجلات',NF(HC_BASE_FILTERED.length),'بعد تطبيق الفلاتر','--c:var(--pr)'],
-    ['working','يعمل',NF(active),'الحالة الفعلية','--c:var(--ok)'],
-    ['dismissed','إقالة',NF(dismissed),'الحالة الفعلية','--c:var(--bad)'],
+    ['working','يعمل',NF(active),'اضغط لعرض العدد لكل مشرف','--c:var(--ok)'],
+    ['dismissed','إقالة',NF(dismissed),'اضغط لعرض العدد لكل مشرف','--c:var(--bad)'],
     ['expiring','انتهاء العقد خلال 30 يوم',NF(expiring),'من العقود المعروضة','--c:var(--wa)']
   ];
   $('hcKpis').innerHTML=cards.map(item=>`<div class="kpi" style="${item[4]}" role="button" tabindex="0" data-hc-kpi="${item[0]}" aria-pressed="${HC_KPI_FILTER===item[0]}" aria-label="${item[1]}: ${item[2]}"><div class="l">${item[1]}</div><div class="v">${item[2]}</div><div class="s">${item[3]}</div></div>`).join('');
+  const showSupervisorSummary=HC_KPI_FILTER==='working'||HC_KPI_FILTER==='dismissed';
+  $('hcSupervisorSummary').hidden=!showSupervisorSummary;
+  if(showSupervisorSummary){
+    $('hcSupervisorSummaryTitle').textContent='عدد الطيارين لكل مشرف حسب الحالة';
+    const supervisorCounts=new Map;
+    for(const row of HC_BASE_FILTERED){
+      const supervisor=String(row.supervisor||'').trim()||'غير محدد';
+      const counts=supervisorCounts.get(supervisor)||{working:0,dismissed:0,total:0};
+      counts.total++;
+      if(queryHeaderKey(row.status)==='يعمل')counts.working++;
+      if(queryHeaderKey(row.status)==='اقالة')counts.dismissed++;
+      supervisorCounts.set(supervisor,counts);
+    }
+    const supervisorTotals=[...supervisorCounts].sort((a,b)=>
+      (b[1].working+b[1].dismissed)-(a[1].working+a[1].dismissed)||a[0].localeCompare(b[0],'ar')
+    );
+    $('hcSupervisorSummaryBody').innerHTML=supervisorTotals.map(([name,counts],index)=>
+      `<tr><td>${index+1}</td><td>${esc(name)}</td><td><b dir="ltr">${NF(counts.working)}</b></td><td><b dir="ltr">${NF(counts.dismissed)}</b></td><td><b dir="ltr">${NF(counts.total)}</b></td></tr>`
+    ).join('')||'<tr><td colspan="5" class="sub">لا توجد نتائج مطابقة للفلاتر.</td></tr>';
+    const totals=[...supervisorCounts.values()].reduce((sum,counts)=>({
+      working:sum.working+counts.working,
+      dismissed:sum.dismissed+counts.dismissed,
+      total:sum.total+counts.total
+    }),{working:0,dismissed:0,total:0});
+    $('hcSupervisorSummaryFoot').innerHTML=supervisorTotals.length?
+      `<tr><th colspan="2">الإجمالي</th><th><b dir="ltr">${NF(totals.working)}</b></th><th><b dir="ltr">${NF(totals.dismissed)}</b></th><th><b dir="ltr">${NF(totals.total)}</b></th></tr>`:'';
+  }
   $('hcCount').textContent=NF(HC_FILTERED.length)+' من '+NF(HC_VISIBLE_ROWS.length)+' طيار';
   const pages=Math.max(1,Math.ceil(HC_FILTERED.length/HC_PAGE_SIZE));HC_PAGE=Math.min(HC_PAGE,pages-1);
   const start=HC_PAGE*HC_PAGE_SIZE,shown=HC_FILTERED.slice(start,start+HC_PAGE_SIZE);
