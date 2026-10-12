@@ -59,6 +59,14 @@ tr:hover td{background:#18223a}
 #queryFilters{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;margin:8px 0}
 #queryFilters label{display:block;font-size:11px;color:var(--mut);margin-bottom:3px}
 #queryFilters input,#queryFilters select{width:100%}
+#querySupervisorMenu{display:none;position:absolute;z-index:20;top:calc(100% + 4px);inset-inline:0;max-height:320px;overflow:auto;padding:8px;background:var(--card);border:1px solid var(--bd);border-radius:10px;box-shadow:0 8px 24px #0008}
+#querySupervisorOptions{display:grid;gap:3px;margin-top:6px}
+.query-supervisor-option{display:flex;align-items:center;gap:8px;padding:6px 5px;border-radius:6px;cursor:pointer}
+.query-supervisor-option:hover{background:var(--surface-inset,#1a2438)}
+.query-supervisor-option input{width:auto!important;min-height:auto;accent-color:var(--pr)}
+#querySupervisorSummary{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:7px;max-height:220px;overflow:auto}
+.query-supervisor-summary-item{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 9px;background:var(--surface-inset,#1a2438);border:1px solid var(--bd);border-radius:8px;font-size:12px}
+.query-supervisor-summary-item b{color:var(--pr);white-space:nowrap}
 #queryMessage{display:none;padding:10px;border-radius:10px;background:#1a2438;color:#cbd5e1;font-size:13px}
 #queryTable{max-height:68vh}
 #queryTable table{min-width:900px}
@@ -511,6 +519,15 @@ html[data-theme="light"] [style*="background:#0b1220"],html[data-theme="light"] 
    <div class="tw" style="max-height:65vh;overflow:auto"><table style="min-width:0"><thead><tr><th>#</th><th>وقت الدخول</th><th>اسم المشرف</th><th>اسم المستخدم</th><th>الدور</th></tr></thead><tbody id="loginAuditBody"></tbody></table></div>
   </div>
  </div>
+ <div id="loginAuditGate" style="display:none;position:fixed;inset:0;background:#000c;z-index:76;align-items:center;justify-content:center;padding:16px" onclick="if(event.target===this)closeLoginAuditGate()">
+  <form class="card" id="loginAuditGateForm" role="dialog" aria-modal="true" aria-labelledby="loginAuditGateTitle" style="width:min(100%,380px);display:grid;gap:12px">
+   <div class="row"><h3 id="loginAuditGateTitle" style="margin:0">🔒 كلمة مرور سجل الدخول</h3><button class="btn" type="button" style="margin-inline-start:auto" onclick="closeLoginAuditGate()">✕</button></div>
+   <label for="loginAuditPassword">أدخل كلمة المرور للمتابعة</label>
+   <input id="loginAuditPassword" type="password" autocomplete="current-password" aria-describedby="loginAuditGateError">
+   <div id="loginAuditGateError" role="alert" style="color:var(--bad)"></div>
+   <button class="btn pr" type="submit">فتح سجل الدخول</button>
+  </form>
+ </div>
  <main>
  <div id="msg"></div>
  <div class="card" id="periodControls">
@@ -692,7 +709,6 @@ html[data-theme="light"] [style*="background:#0b1220"],html[data-theme="light"] 
   <div class="kpis" id="asK" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))"></div>
   <div class="charts" id="asCharts">
    <div class="card c8"><h3>📈 الاختيارات حسب اليوم</h3><div class="cw"><canvas id="as1"></canvas></div></div>
-   <div class="card c4"><h3>🍩 حالة الاختيار</h3><div class="cw"><canvas id="as2"></canvas></div></div>
    <div class="card c12" style="grid-column:1/-1"><h3>👷 أكثر المشرفين اختيارًا</h3><div class="cw"><canvas id="as3"></canvas></div></div>
    <div class="card c6"><h3>📍 الاختيارات حسب المنطقة</h3><div class="cw"><canvas id="as4"></canvas></div></div>
    <div class="card c6"><h3>🏢 الاختيارات حسب المقر</h3><div class="cw"><canvas id="as5"></canvas></div></div>
@@ -749,11 +765,13 @@ html[data-theme="light"] [style*="background:#0b1220"],html[data-theme="light"] 
     <button class="btn" id="queryClose">✕ إغلاق</button>
    </span>
   </div>
-  <div class="card"><div class="sub" style="margin-bottom:6px">اختار التابة لعرض بياناتها:</div><div class="chips" id="queryTabs"></div>
+  <div class="card"><div class="sub" style="margin-bottom:6px">اختار التابة لعرض بياناتها:</div><div class="chips" id="queryTabs"></div></div>
+  <div class="card" id="querySupervisorSummaryCard" style="display:none"><div class="sub" style="margin-bottom:7px">👷 عدد السجلات لكل مشرف حسب الفلاتر الحالية</div><div id="querySupervisorSummary"></div></div>
+  <div class="card">
    <div id="queryFilters">
     <div><label for="queryDateFrom">📅 من تاريخ</label><input type="date" id="queryDateFrom"></div>
     <div><label for="queryDateTo">📅 إلى تاريخ</label><input type="date" id="queryDateTo"></div>
-    <div id="querySupervisorFilter"><label for="querySupervisor">👷 المشرف</label><select id="querySupervisor"><option value="">كل المشرفين</option></select></div>
+    <div id="querySupervisorFilter"><label for="querySupervisorToggle">👷 المشرفين (يمكن اختيار أكثر من مشرف)</label><div style="position:relative"><button class="btn" id="querySupervisorToggle" type="button" aria-haspopup="listbox" aria-expanded="false" style="width:100%;text-align:start">كل المشرفين ▾</button><div id="querySupervisorMenu"><div class="row" style="margin:0 0 6px"><button class="chip" id="querySupervisorAll" type="button">تحديد الكل</button><button class="chip" id="querySupervisorClear" type="button">مسح التحديد</button></div><input id="querySupervisorSearch" type="search" placeholder="🔎 ابحث عن مشرف" aria-label="ابحث عن مشرف"><div id="querySupervisorOptions" role="listbox" aria-multiselectable="true"></div></div></div></div>
     <div id="queryOfficeFilter"><label for="queryOffice">🏢 إسم مكتب طلبات الذي سيتم حضور المحاضره من خلاله</label><select id="queryOffice"><option value="">كل المكاتب</option></select></div>
    </div>
    <div class="row" id="querySearchRow" style="margin:0"><input id="querySearch" placeholder="🔎 بحث في كل أعمدة التابة" style="flex:1;min-width:220px"><span class="sub" id="queryPage"></span><button class="btn" id="queryPrev">‹ السابق</button><button class="btn" id="queryNext">التالي ›</button></div>
@@ -1012,8 +1030,10 @@ const dashboardValueLabels={id:'dashboardValueLabels',afterDatasetsDraw(chart){
         dataset.label==='متوسط ساعات/مندوب'?numeric.toFixed(1)+' س':
         dataset.label==='عدد المناديب'?NF(numeric):NF(numeric);
       const isLine=(dataset.type||chart.config.type)==='line';
-      const x=element.x,y=isLine?Math.max(12,element.y-12):element.y+12;
+      const isHorizontalBar=chart.options.indexAxis==='y'&&(dataset.type||chart.config.type)==='bar';
+      const x=element.x,y=isHorizontalBar?element.y:isLine?Math.max(12,element.y-12):element.y+12;
       const width=ctx.measureText(label).width+8,left=x-width/2,right=x+width/2,top=y-8,bottom=y+8;
+      if(isHorizontalBar&&element.width<width)return;
       if(left<0||right>chart.width||top<0||bottom>chart.height)return;
       if(occupied.some(box=>left<box[2]+3&&right+3>box[0]&&top<box[3]+2&&bottom+2>box[1]))return;
       occupied.push([left,top,right,bottom]);
@@ -1492,7 +1512,15 @@ $('lgB').addEventListener('click',e=>{e.preventDefault();doLogin()});
 $('lu').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();$('lp').focus()}});
 $('lp').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();doLogin()}});
 $('lpe').addEventListener('click',()=>{const t=$('lp').type==='password';$('lp').type=t?'text':'password';$('lpe').textContent=t?'🙈':'👁'});
-$('loginAuditB').onclick=()=>{if(!CUR||CUR.r!=='admin')return;$('loginAuditModal').style.display='block';loadTodayLoginAudit()};
+function closeLoginAuditGate(){$('loginAuditGate').style.display='none';$('loginAuditPassword').value='';$('loginAuditGateError').textContent=''}
+function openLoginAuditGate(){if(!CUR||CUR.r!=='admin')return;$('loginAuditPassword').value='';$('loginAuditGateError').textContent='';$('loginAuditGate').style.display='flex';$('loginAuditPassword').focus()}
+$('loginAuditB').onclick=openLoginAuditGate;
+$('loginAuditGateForm').addEventListener('submit',e=>{
+  e.preventDefault();if(!CUR||CUR.r!=='admin')return closeLoginAuditGate();
+  if($('loginAuditPassword').value!=='mh'){$('loginAuditGateError').textContent='كلمة المرور غير صحيحة.';$('loginAuditPassword').select();return}
+  closeLoginAuditGate();$('loginAuditModal').style.display='block';loadTodayLoginAudit();
+});
+addEventListener('keydown',e=>{if(e.key==='Escape'&&$('loginAuditGate').style.display==='flex')closeLoginAuditGate()});
 $('loginAuditRefresh').onclick=loadTodayLoginAudit;
 $('loginAuditSearch').addEventListener('input',renderLoginAuditRows);
 $('out').onclick=()=>{try{sessionStorage.removeItem('pd_sess');localStorage.removeItem('pd_sess')}catch(e){}location.reload()};
@@ -2466,7 +2494,6 @@ function asRender(){
     {label:'مش مختار',data:byDay.map(x=>x.no),backgroundColor:'#ef4444aa',stack:'shift'},
     {label:'بدون حالة',data:byDay.map(x=>x.unknown),backgroundColor:'#64748b99',stack:'shift'}
   ]},options:{scales:{x:{stacked:true},y:{stacked:true,beginAtZero:true}},onClick:(e,els)=>{if(!els.length)return;const d=days[els[0].index];$('asD1').value=d;$('asD2').value=d;asRender()}}});
-  draw('as2',{type:'doughnut',data:{labels:['مختار','مش مختار','بدون حالة'],datasets:[{data:[chosen,notChosen,unknown],backgroundColor:['#10b981','#ef4444','#64748b']}]},options:{scales:{}}});
   const top=Object.entries(supervisors).sort((a,b)=>b[1].yes-a[1].yes).slice(0,12);
   draw('as3',{type:'bar',data:{labels:top.map(x=>x[0]),datasets:[{label:'اختيارات مؤكدة',data:top.map(x=>x[1].yes),backgroundColor:'#8b5cf6cc'},{label:'أيام بحالة معروفة',data:top.map(x=>Math.max(0,x[1].total-x[1].yes)),backgroundColor:'#3b82f688'}]},options:{indexAxis:'y',scales:{x:{stacked:true},y:{stacked:true}},onClick:(e,els)=>{if(!els.length)return;$('asSup').value=top[els[0].index][0];asRender()}}});
   const groupRows=field=>{
@@ -2544,6 +2571,8 @@ const QUERY_SHEET_ID='1vKTJSRhsoEUczoAceMh6gHlHz60HD3SBY2fJHx1aIuE';
 const QUERY_SHEETS=['تصالحات','invalid','عوده من اقاله','تعيين جديد','الاستعلامات'];
 const QUERY_CACHE={},QUERY_REQUESTS={};
 let QUERY_ACTIVE='',QUERY_PAGE=0,QUERY_PAGE_SIZE=50,QUERY_FILTERED=[],QUERY_JSONP_ID=0;
+const QUERY_SUPERVISORS_SELECTED=new Set;
+let QUERY_SUPERVISOR_OPTIONS=[];
 const QUERY_STORAGE_PREFIX='pd_query_cache_v1_';
 function querySetTabs(){
   $('queryTabs').innerHTML=QUERY_SHEETS.map(name=>`<button type="button" class="chip${name===QUERY_ACTIVE?' on':''}" data-query-sheet="${esc(name)}">${esc(name)}</button>`).join('');
@@ -2650,21 +2679,26 @@ function queryUpdateFilters(data){
     officeSelect.disabled=false;
     if(offices.includes(previousOffice))officeSelect.value=previousOffice;
   }else officeSelect.disabled=true;
-  const select=$('querySupervisor'),previous=select.value;
+  const select=$('querySupervisorToggle');
   $('querySupervisorFilter').style.display=supervisorIndex<0?'none':'';
-  select.innerHTML='<option value="">كل المشرفين</option>';
   if(supervisorIndex<0){
-    select.disabled=true;select.options[0].textContent='المشرف غير موجود في التابة';
+    select.disabled=true;QUERY_SUPERVISOR_OPTIONS=[];QUERY_SUPERVISORS_SELECTED.clear();
+    $('querySupervisorOptions').innerHTML='<div class="sub">المشرف غير موجود في التابة</div>';
   }else{
     const selectedOffice=officeSelect.value;
     const supervisorRows=selectedOffice&&officeIndex>=0
       ?data.rows.filter(row=>String(row[officeIndex]||'').trim()===selectedOffice.trim())
       :data.rows;
-    const supervisors=[...new Set(supervisorRows.map(row=>String(row[supervisorIndex]||'').trim()).filter(Boolean))]
-      .sort((a,b)=>a.localeCompare(b,'ar'));
-    supervisors.forEach(name=>{const option=document.createElement('option');option.value=name;option.textContent=name;select.appendChild(option)});
+    const byKey=new Map;
+    supervisorRows.forEach(row=>{
+      const name=String(row[supervisorIndex]||'').trim(),key=queryHeaderKey(name);
+      if(name&&key&&!byKey.has(key))byKey.set(key,name);
+    });
+    QUERY_SUPERVISOR_OPTIONS=[...byKey.entries()].map(([key,name])=>({key,name}))
+      .sort((a,b)=>a.name.localeCompare(b.name,'ar'));
+    const available=new Set(QUERY_SUPERVISOR_OPTIONS.map(option=>option.key));
+    for(const key of QUERY_SUPERVISORS_SELECTED)if(!available.has(key))QUERY_SUPERVISORS_SELECTED.delete(key);
     select.disabled=false;
-    if(supervisors.includes(previous))select.value=previous;
   }
   return{dateIndex,supervisorIndex:supervisorIndex<0?-1:supervisorIndex,officeIndex};
 }
@@ -2677,10 +2711,10 @@ function queryOpen(){
   $('queries').style.display='flex';document.body.style.overflow='hidden';
   if(!QUERY_ACTIVE)querySet(QUERY_SHEETS[0]);else{querySetTabs();queryRender()}
 }
-function queryClose(){$('queries').style.display='none';document.body.style.overflow=''}
+function queryClose(){$('queries').style.display='none';$('querySupervisorMenu').style.display='none';$('querySupervisorToggle').setAttribute('aria-expanded','false');document.body.style.overflow=''}
 async function querySet(name,force=false){
   if(!QUERY_SHEETS.includes(name))return;
-  QUERY_ACTIVE=name;QUERY_PAGE=0;$('querySearch').value='';$('querySupervisor').value='';querySetTabs();
+  QUERY_ACTIVE=name;QUERY_PAGE=0;$('querySearch').value='';$('querySupervisorSearch').value='';QUERY_SUPERVISORS_SELECTED.clear();querySetTabs();
   if(!QUERY_CACHE[name])QUERY_CACHE[name]=queryReadCache(name);
   if(QUERY_CACHE[name]){ $('queryMessage').style.display='none';queryRender();if(!force)return}
   const message=$('queryMessage');message.style.display='block';message.textContent='⏳ جارٍ تحميل تابة «'+name+'» من Google Sheets…'+(QUERY_CACHE[name]?' · البيانات الحالية تظل ظاهرة أثناء التحديث.':'');
@@ -2703,16 +2737,37 @@ async function querySet(name,force=false){
 function queryRender(){
   const data=QUERY_CACHE[QUERY_ACTIVE];if(!data)return;
   const{dateIndex,supervisorIndex,officeIndex}=queryUpdateFilters(data),q=$('querySearch').value.trim().toLocaleLowerCase();
-  const from=$('queryDateFrom').value,to=$('queryDateTo').value,supervisor=$('querySupervisor').value,office=$('queryOffice').value;
-  QUERY_FILTERED=data.rows.filter(row=>{
+  const from=$('queryDateFrom').value,to=$('queryDateTo').value,office=$('queryOffice').value;
+  const searchBase=row=>!q||row.some(value=>value.toLocaleLowerCase().includes(q));
+  const dateBase=row=>{
+    if(!from&&!to)return true;
+    if(dateIndex<0)return false;
+    const date=queryDateValue(row[dateIndex]);
+    return Boolean(date&&(!from||date>=from)&&(!to||date<=to));
+  };
+  const officeBase=row=>!office||(officeIndex>=0&&String(row[officeIndex]||'').trim()===office.trim());
+  const baseRows=data.rows.filter(row=>searchBase(row)&&dateBase(row)&&officeBase(row));
+  const counts=new Map;
+  if(supervisorIndex>=0)for(const row of baseRows){
+    const key=queryHeaderKey(row[supervisorIndex]);
+    if(key)counts.set(key,(counts.get(key)||0)+1);
+  }
+  const supervisorSearch=$('querySupervisorSearch').value.trim().toLocaleLowerCase('ar');
+  $('querySupervisorOptions').innerHTML=QUERY_SUPERVISOR_OPTIONS.filter(({name})=>!supervisorSearch||name.toLocaleLowerCase('ar').includes(supervisorSearch)).map(({key,name})=>
+    `<label class="query-supervisor-option"><input type="checkbox" data-query-supervisor="${esc(key)}"${QUERY_SUPERVISORS_SELECTED.has(key)?' checked':''}><span>${esc(name)}</span></label>`
+  ).join('')||'<div class="sub">لا يوجد مشرفون مطابقون.</div>';
+  const selectedSupervisors=QUERY_SUPERVISOR_OPTIONS.filter(({key})=>QUERY_SUPERVISORS_SELECTED.has(key));
+  $('querySupervisorSummaryCard').style.display=selectedSupervisors.length?'':'none';
+  $('querySupervisorSummary').innerHTML=selectedSupervisors.map(({key,name})=>
+    `<div class="query-supervisor-summary-item"><span>${esc(name)}</span><b dir="ltr">${NF(counts.get(key)||0)}</b></div>`
+  ).join('');
+  const selectedCount=QUERY_SUPERVISORS_SELECTED.size;
+  $('querySupervisorToggle').textContent=selectedCount?selectedCount+' مشرفين محددين ▾':'كل المشرفين ▾';
+  QUERY_FILTERED=baseRows.filter(row=>{
     if(q&&!row.some(value=>value.toLocaleLowerCase().includes(q)))return false;
-    if(supervisor&&(supervisorIndex<0||String(row[supervisorIndex]||'').trim()!==supervisor.trim()))return false;
+    if(QUERY_SUPERVISORS_SELECTED.size&&(supervisorIndex<0||!QUERY_SUPERVISORS_SELECTED.has(queryHeaderKey(row[supervisorIndex]))))return false;
     if(office&&(officeIndex<0||String(row[officeIndex]||'').trim()!==office.trim()))return false;
-    if(from||to){
-      if(dateIndex<0)return false;
-      const date=queryDateValue(row[dateIndex]);
-      if(!date||(from&&date<from)||(to&&date>to))return false;
-    }
+    if(!dateBase(row))return false;
     return true;
   });
   const pageCount=Math.max(1,Math.ceil(QUERY_FILTERED.length/QUERY_PAGE_SIZE));
@@ -2735,8 +2790,30 @@ function queryExport(){
 $('queriesB').onclick=queryOpen;$('queryClose').onclick=queryClose;$('queryRefresh').onclick=()=>QUERY_ACTIVE&&querySet(QUERY_ACTIVE,true);
 $('queryTabs').onclick=e=>{const button=e.target.closest('[data-query-sheet]');if(button)querySet(button.dataset.querySheet)};
 $('querySearch').oninput=()=>{QUERY_PAGE=0;queryRender()};
-['queryDateFrom','queryDateTo','querySupervisor'].forEach(id=>$(id).onchange=()=>{QUERY_PAGE=0;queryRender()});
-$('queryOffice').onchange=()=>{$('querySupervisor').value='';QUERY_PAGE=0;queryRender()};
+['queryDateFrom','queryDateTo'].forEach(id=>$(id).onchange=()=>{QUERY_PAGE=0;queryRender()});
+$('querySupervisorToggle').onclick=()=>{
+  const menu=$('querySupervisorMenu'),open=menu.style.display!=='block';
+  menu.style.display=open?'block':'none';$('querySupervisorToggle').setAttribute('aria-expanded',String(open));
+};
+$('querySupervisorOptions').onchange=e=>{
+  const checkbox=e.target.closest('input[data-query-supervisor]');if(!checkbox)return;
+  if(checkbox.checked)QUERY_SUPERVISORS_SELECTED.add(checkbox.dataset.querySupervisor);
+  else QUERY_SUPERVISORS_SELECTED.delete(checkbox.dataset.querySupervisor);
+  QUERY_PAGE=0;queryRender();
+};
+$('querySupervisorAll').onclick=()=>{
+  QUERY_SUPERVISORS_SELECTED.clear();
+  QUERY_SUPERVISOR_OPTIONS.forEach(({key})=>QUERY_SUPERVISORS_SELECTED.add(key));
+  QUERY_PAGE=0;queryRender();
+};
+$('querySupervisorClear').onclick=()=>{
+  QUERY_SUPERVISORS_SELECTED.clear();$('querySupervisorSearch').value='';QUERY_PAGE=0;queryRender();
+};
+$('querySupervisorSearch').oninput=()=>queryRender();
+$('queryOffice').onchange=()=>{QUERY_SUPERVISORS_SELECTED.clear();QUERY_PAGE=0;queryRender()};
+document.addEventListener('click',e=>{
+  if(!e.target.closest('#querySupervisorFilter')){$('querySupervisorMenu').style.display='none';$('querySupervisorToggle').setAttribute('aria-expanded','false')}
+});
 $('queryPrev').onclick=()=>{if(QUERY_PAGE>0){QUERY_PAGE--;queryRender()}};
 $('queryNext').onclick=()=>{if((QUERY_PAGE+1)*QUERY_PAGE_SIZE<QUERY_FILTERED.length){QUERY_PAGE++;queryRender()}};
 $('queryExport').onclick=queryExport;
