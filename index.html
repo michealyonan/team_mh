@@ -553,7 +553,7 @@ html[data-theme="light"] [style*="background:#0b1220"],html[data-theme="light"] 
  </div>
  <div class="card"><div class="row"><h3 style="margin:0">🛌 طيارين بدون شغل</h3><span class="b r" id="idN">0</span><span class="sub">من</span><input type="number" id="idD" value="10" min="1" max="90" style="width:70px;min-height:34px"><span class="sub">يوم أو أكتر (بدون طلبات)</span><button class="btn" id="idX" style="margin-inline-start:auto">⬇ تصدير CSV</button></div><div id="idL" style="max-height:320px;overflow:auto"></div></div>
  <div class="charts">
-  <div class="card c8"><div class="row" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px"><h3 style="margin:0">👷 أداء المشرفين + الالتزام %</h3><span style="margin-inline-start:auto;display:flex;gap:6px"><button class="chip on" id="supOrders" onclick="setSupMetric('o')">📦 أوردرات</button><button class="chip" id="supHours" onclick="setSupMetric('a')">⏱ ساعات</button></span></div><div class="cw"><canvas id="ch7"></canvas></div></div>
+  <div class="card c8"><div class="row" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px"><h3 style="margin:0">👷 أداء المشرفين + متوسط الساعات/يوم</h3><span style="margin-inline-start:auto;display:flex;gap:6px"><button class="chip on" id="supOrders" onclick="setSupMetric('o')">📦 أوردرات</button><button class="chip" id="supHours" onclick="setSupMetric('a')">⏱ ساعات</button></span><button class="btn" id="supCaptureAll" type="button" style="display:none">🗺️📸 تنزيل صور كل المشرفين</button><button class="btn" id="zoneCaptureAll" type="button" style="display:none">🗺️📸 تنزيل صور كل المناطق</button></div><div class="sub" id="supCaptureStatus" role="status" aria-live="polite" style="display:none;margin-bottom:8px"></div><div class="sub" id="zoneCaptureStatus" role="status" aria-live="polite" style="display:none;margin-bottom:8px"></div><div class="cw"><canvas id="ch7"></canvas></div></div>
   <div class="card c4"><h3>⭐ توزيع تقييم الطيارين</h3><div class="cw"><canvas id="ch8"></canvas></div></div>
   <div class="card c12" style="grid-column:1/-1"><h3>⏱ المناديب حسب ساعات الشغل <span class="sub">(متوسط ساعات المندوب في اليوم اللي اشتغل فيه، والخط = متوسط الإنتاجية)</span></h3><div class="cw"><canvas id="ch10"></canvas></div></div>
   <div class="card c12" style="grid-column:1/-1"><h3 style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">👔 ساعات المشرفين <button class="btn" id="svx" style="margin-inline-start:auto">⬇ تصدير Excel</button><span class="sub" style="flex-basis:100%">(الأعمدة = إجمالي الساعات الفعلية، الخط البرتقالي = متوسط ساعات المندوب، الخط الأخضر = عدد المناديب اللي اشتغلوا · اضغط على مشرف لعرض مناديبه)</span></h3><div class="cw"><canvas id="ch11"></canvas></div><div class="tw" style="max-height:340px;margin-top:8px"><table style="min-width:0"><thead><tr><th>#</th><th>المشرف</th><th>مناديب اشتغلوا</th><th>متوسط مناديب/يوم</th><th>إجمالي الساعات</th><th>عدد الأيام</th><th>متوسط ساعات المشرف/يوم</th><th>متوسط س/مندوب</th><th>متوسط س/يوم عمل</th><th>طلبات</th><th>طلب/س</th></tr></thead><tbody id="svb"></tbody></table></div></div>
@@ -1006,8 +1006,11 @@ const dashboardValueLabels={id:'dashboardValueLabels',afterDatasetsDraw(chart){
       if(value==null||!Number.isFinite(+value)||+value===0)return;
       const numeric=+value;
       const label=dataset.label==='الالتزام %'?numeric.toFixed(1)+'%':
+        dataset.label==='متوسط الساعات/يوم'?numeric.toFixed(1)+' س':
         dataset.label==='متوسط طلب/ساعة'?numeric.toFixed(2):
-        dataset.label==='ساعات فعلية'?numeric.toFixed(1):NF(numeric);
+        dataset.label==='ساعات فعلية'||dataset.label==='إجمالي الساعات'?numeric.toFixed(1):
+        dataset.label==='متوسط ساعات/مندوب'?numeric.toFixed(1)+' س':
+        dataset.label==='عدد المناديب'?NF(numeric):NF(numeric);
       const isLine=(dataset.type||chart.config.type)==='line';
       const x=element.x,y=isLine?Math.max(12,element.y-12):element.y+12;
       const width=ctx.measureText(label).width+8,left=x-width/2,right=x+width/2,top=y-8,bottom=y+8;
@@ -1130,13 +1133,168 @@ function drawSup(){
   $('supHours').classList.toggle('on',SUP_METRIC==='a');
   const key=SUP_METRIC,label=key==='o'?'أوردرات':'ساعات فعلية';
   const top=[...SUP_DATA].sort((a,b)=>b[key]-a[key]).slice(0,12);
-  draw('ch7',{type:'bar',plugins:[dashboardValueLabels],data:{labels:top.map(x=>x.s),datasets:[{label,data:top.map(x=>key==='a'?+x[key].toFixed(1):x[key]),backgroundColor:'#3b82f6aa',yAxisID:'y'},{label:'الالتزام %',type:'line',data:top.map(x=>+(x.p?x.a/x.p*100:0).toFixed(1)),borderColor:'#f59e0b',yAxisID:'y1'}]},options:{scales:{y:{position:'left'},y1:{position:'right',grid:{display:false}}},onClick:(e,els)=>{const hit=els.find(x=>x.datasetIndex===0);if(hit)showChartRiders('أداء المشرف '+top[hit.index].s,top[hit.index].riders)},onHover:(e,els)=>{e.native.target.style.cursor=els.some(x=>x.datasetIndex===0)?'pointer':'default'}}});
+  draw('ch7',{type:'bar',plugins:[dashboardValueLabels],data:{labels:top.map(x=>x.s),datasets:[{label,data:top.map(x=>key==='a'?+x[key].toFixed(1):x[key]),backgroundColor:'#3b82f6aa',yAxisID:'y'},{label:'متوسط الساعات/يوم',type:'line',data:top.map(x=>+x.avg.toFixed(1)),borderColor:'#f59e0b',yAxisID:'y1'}]},options:{scales:{y:{position:'left'},y1:{position:'right',beginAtZero:true,grid:{display:false},title:{display:true,text:'متوسط الساعات/يوم'}}},onClick:(e,els)=>{const hit=els.find(x=>x.datasetIndex===0);if(hit)showChartRiders('أداء المشرف '+top[hit.index].s,top[hit.index].riders)},onHover:(e,els)=>{e.native.target.style.cursor=els.some(x=>x.datasetIndex===0)?'pointer':'default'}}});
 }
+let SUP_CAPTURE_BUSY=false,ZONE_CAPTURE_BUSY=false;
+async function supCaptureAll(){
+  if(!CUR||CUR.r!=='admin'||SUP_CAPTURE_BUSY)return;
+  const button=$('supCaptureAll'),status=$('supCaptureStatus');
+  const supervisors=SUP_DATA.filter(x=>String(x.s||'').trim()).sort((a,b)=>String(a.s).localeCompare(String(b.s),'ar'));
+  status.style.display='block';
+  if(!supervisors.length){status.textContent='لا توجد بيانات مشرفين ضمن الفلاتر الحالية.';return}
+  SUP_CAPTURE_BUSY=true;button.disabled=true;
+  let stage=null,activeChartId=null;
+  try{
+    const [capture,Zip]=await Promise.all([tgLoadScreenshotLibrary(),tgLoadZipLibrary()]);
+    if(document.fonts&&document.fonts.ready)await document.fonts.ready;
+    const css=getComputedStyle(document.documentElement),theme={
+      bg:css.getPropertyValue('--bg').trim()||'#0b0f19',
+      card:css.getPropertyValue('--card').trim()||'#121a2b',
+      border:css.getPropertyValue('--bd').trim()||'#232e45',
+      text:css.getPropertyValue('--tx').trim()||'#f3f5f9',
+      muted:css.getPropertyValue('--mut').trim()||'#8b97b0'
+    };
+    const supervisorByRider=new Map(),dailyBySupervisor=new Map(supervisors.map(supervisor=>{
+      supervisor.riders.forEach(rider=>supervisorByRider.set(rider.id,supervisor.s));
+      return[supervisor.s,new Map()];
+    }));
+    FR.forEach(row=>{
+      const supervisor=supervisorByRider.get(row.id),days=dailyBySupervisor.get(supervisor);
+      if(!days)return;
+      const date=ds(row.t),day=days.get(date)||{hours:0,riders:new Set,zones:new Set};
+      day.hours+=row.a;
+      if(row.a>0||row.o>0){day.riders.add(row.id);if(row.z)day.zones.add(row.z)}
+      days.set(date,day);
+    });
+    const period=[ $('d1').value&&fd(new Date($('d1').value+'T00:00:00').getTime()), $('d2').value&&fd(new Date($('d2').value+'T00:00:00').getTime()) ].filter(Boolean);
+    stage=document.createElement('div');
+    stage.setAttribute('aria-hidden','true');
+    Object.assign(stage.style,{position:'fixed',left:'-10000px',top:'0',width:'960px',zIndex:'-1',fontFamily:'Cairo,system-ui,sans-serif'});
+    document.body.appendChild(stage);
+    const zip=new Zip();
+    for(let i=0;i<supervisors.length;i++){
+      if(!CUR||CUR.r!=='admin')throw new Error('انتهت جلسة الأدمن قبل اكتمال التنزيل.');
+      const supervisor=supervisors[i],daily=dailyBySupervisor.get(supervisor.s);
+      const days=[...daily.entries()].sort(([a],[b])=>a.localeCompare(b)),dates=days.map(([date])=>fd(new Date(date+'T00:00:00').getTime()));
+      const hours=days.map(([,day])=>+day.hours.toFixed(1)),riderCounts=days.map(([,day])=>day.riders.size);
+      const averages=days.map(([,day])=>day.riders.size?+(day.hours/day.riders.size).toFixed(1):0);
+      const zones=[...new Set(days.flatMap(([,day])=>[...day.zones]))].sort((a,b)=>a.localeCompare(b,'ar'));
+      const chartId='supCaptureChart'+i;
+      activeChartId=chartId;
+      stage.innerHTML=`<section style="width:960px;padding:30px 36px;background:${theme.bg};border:1px solid ${theme.border};border-radius:18px;color:${theme.text};direction:rtl"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:20px"><div><div style="font-size:15px;color:${theme.muted}">🗺️ تقرير أداء المشرف</div><h2 style="margin:8px 0 0;font-size:32px;font-weight:900;color:${theme.text}">${esc(supervisor.s)}</h2><div style="margin-top:10px;font-size:16px;color:${theme.muted}">الزونات: ${zones.length?zones.map(esc).join(' · '):'—'}</div></div><div style="text-align:left;font-size:13px;color:${theme.muted}">${period.length?'الفترة: '+period.join(' — '):'حسب الفلاتر الحالية'}</div></div><div style="height:430px;margin-top:20px;padding:14px;background:${theme.card};border:1px solid ${theme.border};border-radius:12px"><canvas id="${chartId}" width="850" height="390"></canvas></div><div style="margin-top:12px;text-align:left;font-size:12px;color:${theme.muted}">الساعات الفعلية لكل يوم · عدد المناديب العاملين · متوسط الساعات لكل مندوب في اليوم · ${i+1} من ${supervisors.length}</div></section>`;
+      draw(chartId,{type:'bar',plugins:days.length<=14?[dashboardValueLabels]:[],data:{labels:dates,datasets:[
+        {label:'إجمالي الساعات',data:hours,backgroundColor:'#3b82f6bb',borderColor:'#3b82f6',borderWidth:1,yAxisID:'yHours'},
+        {label:'عدد المناديب',type:'line',data:riderCounts,borderColor:'#10b981',backgroundColor:'#10b981',pointBackgroundColor:'#10b981',pointRadius:3,tension:.25,yAxisID:'yRiders'},
+        {label:'متوسط ساعات/مندوب',type:'line',data:averages,borderColor:'#f59e0b',backgroundColor:'#f59e0b',pointBackgroundColor:'#f59e0b',pointRadius:3,tension:.25,yAxisID:'yAverage'}
+      ]},options:{responsive:false,maintainAspectRatio:false,animation:false,devicePixelRatio:2,plugins:{legend:{position:'top',labels:{color:theme.muted,font:{family:'Cairo',size:14},usePointStyle:true,padding:18}},tooltip:{enabled:false}},scales:{
+        x:{grid:{color:theme.border},ticks:{color:theme.muted,font:{family:'Cairo',size:12},maxRotation:45,minRotation:0,autoSkip:true}},
+        yHours:{type:'linear',position:'left',beginAtZero:true,title:{display:true,text:'الساعات',color:'#3b82f6',font:{family:'Cairo'}},grid:{color:theme.border},ticks:{color:theme.muted}},
+        yRiders:{type:'linear',position:'right',beginAtZero:true,title:{display:true,text:'عدد المناديب',color:'#10b981',font:{family:'Cairo'}},grid:{drawOnChartArea:false},ticks:{color:theme.muted,precision:0}},
+        yAverage:{type:'linear',position:'right',offset:true,beginAtZero:true,title:{display:true,text:'ساعة / مندوب',color:'#f59e0b',font:{family:'Cairo'}},grid:{drawOnChartArea:false},ticks:{color:theme.muted}}
+      }}});
+      await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+      status.textContent='⏳ تجهيز صورة '+supervisor.s+' ('+(i+1)+' من '+supervisors.length+')…';
+      const canvas=await capture(stage.firstElementChild,{backgroundColor:theme.bg,scale:2,useCORS:true,logging:false});
+      const blob=await new Promise((resolve,reject)=>canvas.toBlob(image=>image?resolve(image):reject(new Error('لم يتم إنشاء صورة المشرف '+supervisor.s+'.')),'image/png'));
+      const safeName=String(supervisor.s).replace(/[\\/:*?"<>|]+/g,'_').trim()||'مشرف';
+      zip.file(String(i+1).padStart(2,'0')+'_'+safeName+'.png',blob);
+      if(charts[chartId]){charts[chartId].destroy();delete charts[chartId]}
+      activeChartId=null;
+    }
+    status.textContent='⏳ جارٍ ضغط صور المشرفين…';
+    const blob=await zip.generateAsync({type:'blob'}),url=URL.createObjectURL(blob),link=document.createElement('a');
+    link.href=url;link.download='صور_أداء_المشرفين_'+ds(Date.now())+'.zip';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+    status.textContent='✅ تم تنزيل '+supervisors.length+' صورة، واحدة لكل مشرف، حسب الفلاتر الحالية.';
+  }catch(error){
+    status.textContent='⚠️ '+(error&&error.message?error.message:String(error));
+  }finally{
+    if(activeChartId&&charts[activeChartId]){charts[activeChartId].destroy();delete charts[activeChartId]}
+    if(stage)stage.remove();
+    SUP_CAPTURE_BUSY=false;button.disabled=false;
+  }
+}
+$('supCaptureAll').onclick=supCaptureAll;
+async function zoneCaptureAll(){
+  if(!CUR||!['admin','manager'].includes(CUR.r)||ZONE_CAPTURE_BUSY)return;
+  const button=$('zoneCaptureAll'),status=$('zoneCaptureStatus'),zones=new Map;
+  const managerName=CUR.r==='manager'?nameMatchKey(CUR.s):null;
+  const reportRows=managerName?FR.filter(row=>nameMatchKey(row.m)===managerName):FR;
+  status.style.display='block';
+  reportRows.forEach(row=>{
+    const zone=String(row.z||'').trim();
+    if(!zone)return;
+    const days=zones.get(zone)||new Map,date=ds(row.t),day=days.get(date)||{hours:0,riders:new Set};
+    day.hours+=row.a;
+    if(row.a>0||row.o>0)day.riders.add(row.id);
+    days.set(date,day);zones.set(zone,days);
+  });
+  const entries=[...zones.entries()].sort(([a],[b])=>a.localeCompare(b,'ar'));
+  if(!entries.length){status.textContent='لا توجد مناطق ببيانات ضمن الفلاتر الحالية.';return}
+  ZONE_CAPTURE_BUSY=true;button.disabled=true;
+  let stage=null,activeChartId=null;
+  try{
+    const [capture,Zip]=await Promise.all([tgLoadScreenshotLibrary(),tgLoadZipLibrary()]);
+    if(document.fonts&&document.fonts.ready)await document.fonts.ready;
+    const css=getComputedStyle(document.documentElement),theme={
+      bg:css.getPropertyValue('--bg').trim()||'#0b0f19',
+      card:css.getPropertyValue('--card').trim()||'#121a2b',
+      border:css.getPropertyValue('--bd').trim()||'#232e45',
+      text:css.getPropertyValue('--tx').trim()||'#f3f5f9',
+      muted:css.getPropertyValue('--mut').trim()||'#8b97b0'
+    };
+    const period=[$('d1').value&&fd(new Date($('d1').value+'T00:00:00').getTime()),$('d2').value&&fd(new Date($('d2').value+'T00:00:00').getTime())].filter(Boolean);
+    stage=document.createElement('div');
+    stage.setAttribute('aria-hidden','true');
+    Object.assign(stage.style,{position:'fixed',left:'-10000px',top:'0',width:'960px',zIndex:'-1',fontFamily:'Cairo,system-ui,sans-serif'});
+    document.body.appendChild(stage);
+    const zip=new Zip();
+    for(let i=0;i<entries.length;i++){
+      if(!CUR||!['admin','manager'].includes(CUR.r)||(managerName&&nameMatchKey(CUR.s)!==managerName))throw new Error('انتهت الجلسة أو تغيّر نطاق الحساب قبل اكتمال التنزيل.');
+      const [zone,daily]=entries[i],days=[...daily.entries()].sort(([a],[b])=>a.localeCompare(b));
+      const dates=days.map(([date])=>fd(new Date(date+'T00:00:00').getTime()));
+      const hours=days.map(([,day])=>+day.hours.toFixed(1)),riderCounts=days.map(([,day])=>day.riders.size);
+      const averages=days.map(([,day])=>day.riders.size?+(day.hours/day.riders.size).toFixed(1):0);
+      const chartId='zoneCaptureChart'+i;
+      activeChartId=chartId;
+      stage.innerHTML=`<section style="width:960px;padding:30px 36px;background:${theme.bg};border:1px solid ${theme.border};border-radius:18px;color:${theme.text};direction:rtl"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:20px"><div><div style="font-size:15px;color:${theme.muted}">🗺️ تقرير الأداء اليومي للمنطقة</div><h2 style="margin:8px 0 0;font-size:32px;font-weight:900;color:${theme.text}">${esc(zone)}</h2></div><div style="text-align:left;font-size:13px;color:${theme.muted}">${period.length?'الفترة: '+period.join(' — '):'حسب الفلاتر الحالية'}</div></div><div style="height:430px;margin-top:20px;padding:14px;background:${theme.card};border:1px solid ${theme.border};border-radius:12px"><canvas id="${chartId}" width="850" height="390"></canvas></div><div style="margin-top:12px;text-align:left;font-size:12px;color:${theme.muted}">الساعات الفعلية لكل يوم · عدد المناديب العاملين · متوسط الساعات لكل مندوب في اليوم · المنطقة ${i+1} من ${entries.length}</div></section>`;
+      draw(chartId,{type:'bar',plugins:days.length<=14?[dashboardValueLabels]:[],data:{labels:dates,datasets:[
+        {label:'إجمالي الساعات',data:hours,backgroundColor:'#3b82f6bb',borderColor:'#3b82f6',borderWidth:1,yAxisID:'yHours'},
+        {label:'عدد المناديب',type:'line',data:riderCounts,borderColor:'#10b981',backgroundColor:'#10b981',pointBackgroundColor:'#10b981',pointRadius:3,tension:.25,yAxisID:'yRiders'},
+        {label:'متوسط ساعات/مندوب',type:'line',data:averages,borderColor:'#f59e0b',backgroundColor:'#f59e0b',pointBackgroundColor:'#f59e0b',pointRadius:3,tension:.25,yAxisID:'yAverage'}
+      ]},options:{responsive:false,maintainAspectRatio:false,animation:false,devicePixelRatio:2,plugins:{legend:{position:'top',labels:{color:theme.muted,font:{family:'Cairo',size:14},usePointStyle:true,padding:18}},tooltip:{enabled:false}},scales:{
+        x:{grid:{color:theme.border},ticks:{color:theme.muted,font:{family:'Cairo',size:12},maxRotation:45,minRotation:0,autoSkip:true}},
+        yHours:{type:'linear',position:'left',beginAtZero:true,title:{display:true,text:'الساعات',color:'#3b82f6',font:{family:'Cairo'}},grid:{color:theme.border},ticks:{color:theme.muted}},
+        yRiders:{type:'linear',position:'right',beginAtZero:true,title:{display:true,text:'عدد المناديب',color:'#10b981',font:{family:'Cairo'}},grid:{drawOnChartArea:false},ticks:{color:theme.muted,precision:0}},
+        yAverage:{type:'linear',position:'right',offset:true,beginAtZero:true,title:{display:true,text:'ساعة / مندوب',color:'#f59e0b',font:{family:'Cairo'}},grid:{drawOnChartArea:false},ticks:{color:theme.muted}}
+      }}});
+      await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+      status.textContent='⏳ تجهيز صورة منطقة '+zone+' ('+(i+1)+' من '+entries.length+')…';
+      const canvas=await capture(stage.firstElementChild,{backgroundColor:theme.bg,scale:2,useCORS:true,logging:false});
+      const blob=await new Promise((resolve,reject)=>canvas.toBlob(image=>image?resolve(image):reject(new Error('لم يتم إنشاء صورة المنطقة '+zone+'.')),'image/png'));
+      const safeName=zone.replace(/[\\/:*?"<>|]+/g,'_').trim()||'منطقة';
+      zip.file(String(i+1).padStart(2,'0')+'_'+safeName+'.png',blob);
+      if(charts[chartId]){charts[chartId].destroy();delete charts[chartId]}
+      activeChartId=null;
+    }
+    status.textContent='⏳ جارٍ ضغط صور المناطق…';
+    const blob=await zip.generateAsync({type:'blob'}),url=URL.createObjectURL(blob),link=document.createElement('a');
+    link.href=url;link.download='صور_أداء_المناطق_'+ds(Date.now())+'.zip';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+    status.textContent='✅ تم تنزيل '+entries.length+' صورة منفصلة للمناطق حسب الفلاتر الحالية.';
+  }catch(error){
+    status.textContent='⚠️ '+(error&&error.message?error.message:String(error));
+  }finally{
+    if(activeChartId&&charts[activeChartId]){charts[activeChartId].destroy();delete charts[activeChartId]}
+    if(stage)stage.remove();
+    ZONE_CAPTURE_BUSY=false;button.disabled=false;
+  }
+}
+$('zoneCaptureAll').onclick=zoneCaptureAll;
 function extras2(T,commit,oph,list){
   LAST={T,commit,oph,list};
   // 1) أداء المشرفين
-  const sg={};list.forEach(x=>{if(!x.s)return;const g=sg[x.s]||(sg[x.s]={o:0,a:0,p:0,n:0,riders:[]});g.o+=x.o;g.a+=x.a;g.p+=x.p;g.n++;g.riders.push(x)});
-  SUP_DATA=Object.entries(sg).map(([s,x])=>({s,...x}));
+  const sg={},supervisorByRider=new Map;list.forEach(x=>{if(!x.s)return;const g=sg[x.s]||(sg[x.s]={o:0,a:0,p:0,n:0,riders:[],days:new Set});g.o+=x.o;g.a+=x.a;g.p+=x.p;g.n++;g.riders.push(x);supervisorByRider.set(x.id,g)});
+  FR.forEach(r=>{const g=supervisorByRider.get(r.id);if(g&&(r.a>0||r.o>0))g.days.add(String(r.t))});
+  SUP_DATA=Object.entries(sg).map(([s,x])=>({s,...x,avg:x.days.size?x.a/x.days.size:0}));
   drawSup();
   // 2) توزيع التقييم
   const rc={'ممتاز':0,'جيد':0,'متوسط':0,'ضعيف':0};list.forEach(x=>{rc[rate(x)[0]]++});
@@ -1183,7 +1341,7 @@ function setM1(m){M1=m;drawCh1()}
 function drawCh1(){
   if(!D1)return;const {days,day}=D1,o=M1==='o';
   $('m1o').classList.toggle('on',o);$('m1a').classList.toggle('on',!o);
-  draw('ch1',{type:o?'bar':'line',data:{labels:days.map(d=>new Date(d).toLocaleDateString('en-GB',{day:'2-digit',month:'2-digit'})),
+  draw('ch1',{type:o?'bar':'line',plugins:[dashboardValueLabels],data:{labels:days.map(d=>new Date(d).toLocaleDateString('en-GB',{day:'2-digit',month:'2-digit'})),
     datasets:[{label:o?'طلبات':'ساعات فعلية',data:days.map(d=>o?day[d].o:+day[d].a.toFixed(1)),
       backgroundColor:o?'#3b82f6aa':'#10b98133',borderColor:o?'#3b82f6':'#10b981',fill:!o,tension:.3,pointRadius:days.length>31?0:3}]},options:{}});
 }
@@ -1299,7 +1457,7 @@ function gstat(){const e=$('gst');if(e)e.textContent=DRAFT?'⚠️ فيه تعد
 function scope(rows){if(!CUR||CUR.r==='admin')return rows;const k=CUR.r==='manager'?'m':'s',userName=nameMatchKey(CUR.s);return rows.filter(r=>nameMatchKey(r[k])===userName)}
 function findU(u,h){return USERS.find(y=>y.u.toLowerCase()===u&&y.h===h)||(DRAFT&&DRAFT.find(y=>y.u.toLowerCase()===u&&y.h===h))}
 function enter(x){CUR=x;idleReset();logDashboardOpen(x);try{sessionStorage.setItem('pd_sess',x.u.toLowerCase()+'|'+x.h)}catch(e){}
-  $('lg').style.display='none';$('who').textContent='👤 '+x.n+' · '+ROLE[x.r]+(x.r==='admin'&&!LOGIN_AUDIT_ENDPOINT?' · ⚠️ سجل الدخول المركزي غير مفعّل':'');$('usrB').style.display=x.r==='admin'?'':'none';$('loginAuditB').style.display=x.r==='admin'?'':'none';$('tgB').style.display=x.r==='admin'?'':'none';$('hcB').style.display=hcCanAccess(x)?'':'none';$('asB').style.display='';$('prB').style.display='';$('queriesB').style.display='';load().then(()=>{if(x.r==='admin'&&x.h===DEF_H){const m=$('msg');m.style.display='block';m.textContent='⚠️ كلمة مرور الأدمن الافتراضية لسه شغالة — غيّره من 👥 المستخدمين.'}})}
+  $('lg').style.display='none';$('who').textContent='👤 '+x.n+' · '+ROLE[x.r]+(x.r==='admin'&&!LOGIN_AUDIT_ENDPOINT?' · ⚠️ سجل الدخول المركزي غير مفعّل':'');$('usrB').style.display=x.r==='admin'?'':'none';$('loginAuditB').style.display=x.r==='admin'?'':'none';$('tgB').style.display=x.r==='admin'?'':'none';$('supCaptureAll').style.display=x.r==='admin'?'':'none';$('zoneCaptureAll').style.display=['admin','manager'].includes(x.r)?'':'none';$('zoneCaptureAll').textContent=x.r==='manager'?'🗺️📸 تنزيل صور مناطقي':'🗺️📸 تنزيل صور كل المناطق';$('hcB').style.display=hcCanAccess(x)?'':'none';$('asB').style.display='';$('prB').style.display='';$('queriesB').style.display='';load().then(()=>{if(x.r==='admin'&&x.h===DEF_H){const m=$('msg');m.style.display='block';m.textContent='⚠️ كلمة مرور الأدمن الافتراضية لسه شغالة — غيّره من 👥 المستخدمين.'}})}
 let USERS=USERS_EMBED,DRAFT=null,VAULT=PW_EMBED;
 async function loadUsers(){
   try{const r=await fetch('users.json?_='+Date.now(),{cache:'no-store'});if(r.ok){const d=await r.json();if(d&&Array.isArray(d.users)&&d.users.length){USERS=d.users;if(d.vault)VAULT=d.vault}}}catch(e){}
