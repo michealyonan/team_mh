@@ -593,6 +593,12 @@ html[data-theme="light"] #deductionsMessage.warning{border-color:#a1620755;backg
 .live-summary-table tfoot th,.live-summary-table tfoot td{position:sticky;bottom:0;background:var(--surface-raised);font-weight:800}
 #liveSummary tbody tr:nth-child(even) td{background:var(--surface-inset)}
 #liveSummary tbody tr:hover td{background:var(--surface-raised)}
+#liveSupervisorStatusRows{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px}
+.live-status-item{min-width:0;padding:9px 10px;border:1px solid var(--bd);border-radius:9px;background:var(--surface-inset)}
+.live-status-item-head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:7px}
+.live-status-item-head strong{overflow-wrap:anywhere}
+.live-status-track{height:6px;overflow:hidden;border-radius:99px;background:var(--bd)}
+.live-status-fill{height:100%;border-radius:inherit;background:var(--pr)}
 #liveTable{max-width:100%;max-height:70vh;overflow-x:hidden}
 #liveTable table{width:100%;min-width:0;table-layout:fixed;font-size:10px}
 #liveTable th,#liveTable td{white-space:normal;overflow-wrap:anywhere;text-align:center}
@@ -969,9 +975,10 @@ html[data-theme="light"] #liveMessage.error{border-color:#be123c55;background:#b
  <div class="live-wrap">
   <div class="row live-head">
    <h2 id="liveTitle">🔴 Live</h2><span class="sub" id="liveCount"></span>
-   <span id="liveActions" style="margin-inline-start:auto;display:flex;gap:6px"><button class="btn live-manager-action" id="liveSupervisorSummaryToggle" type="button" aria-controls="liveSupervisorSummary" aria-expanded="false">عرض المشرفين</button><button class="btn live-manager-action" id="liveZoneSummaryToggle" type="button" aria-controls="liveZoneSummary" aria-expanded="false">عرض الزون</button><button class="btn live-manager-action" id="liveScreenshot" type="button">📸 سكرين</button><button class="btn" id="liveClose" type="button">✕ إغلاق</button></span>
+   <span id="liveActions" style="margin-inline-start:auto;display:flex;gap:6px"><button class="btn live-supervisor-action" id="liveStatusSummaryToggle" type="button" aria-controls="liveSupervisorStatusSummary" aria-expanded="false" style="display:none">📊 نسب حالات مناديبي</button><button class="btn live-manager-action" id="liveSupervisorSummaryToggle" type="button" aria-controls="liveSupervisorSummary" aria-expanded="false">عرض المشرفين</button><button class="btn live-manager-action" id="liveZoneSummaryToggle" type="button" aria-controls="liveZoneSummary" aria-expanded="false">عرض الزون</button><button class="btn live-manager-action" id="liveScreenshot" type="button">📸 سكرين</button><button class="btn" id="liveClose" type="button">✕ إغلاق</button></span>
   </div>
   <div id="liveMessage" role="status" aria-live="polite"></div>
+  <section class="card" id="liveSupervisorStatusSummary" style="display:none" aria-live="polite"><h3 style="margin:0 0 4px">نسب حالات مناديبك النشطين</h3><div class="sub" id="liveSupervisorStatusMeta" style="margin:0 0 10px"></div><div id="liveSupervisorStatusRows"></div></section>
   <div class="card" id="liveSummary" style="display:none">
    <section class="live-summary-section" id="liveSupervisorSummary" style="display:none" aria-live="polite"><h3>الحالات لكل مشرف</h3><div id="liveSupervisorSummaryTable"></div></section>
    <section class="live-summary-section" id="liveZoneSummary" style="display:none" aria-live="polite"><h3>الحالات لكل زون</h3><div id="liveZoneSummaryTable"></div></section>
@@ -1117,7 +1124,14 @@ function liveSummaryTable(rows,index){
 function liveCanViewSummaries(){return Boolean(CUR&&['admin','manager'].includes(CUR.r))}
 function updateLiveRoleControls(user=CUR){
   const allowed=Boolean(user&&['admin','manager'].includes(user.r));
+  const supervisor=Boolean(user&&user.r==='sup');
   document.querySelectorAll('.live-manager-action').forEach(button=>button.style.display=allowed?'':'none');
+  document.querySelectorAll('.live-supervisor-action').forEach(button=>button.style.display=supervisor?'':'none');
+  if(!supervisor){
+    $('liveSupervisorStatusSummary').style.display='none';
+    $('liveStatusSummaryToggle').setAttribute('aria-expanded','false');
+    $('liveStatusSummaryToggle').textContent='📊 نسب حالات مناديبي';
+  }
   if(!allowed){
     $('liveSupervisorSummary').style.display='none';$('liveZoneSummary').style.display='none';$('liveSummary').style.display='none';$('liveScreenshotStatus').style.display='none';
     $('liveSupervisorSummaryToggle').setAttribute('aria-expanded','false');$('liveSupervisorSummaryToggle').textContent='عرض المشرفين';
@@ -1128,12 +1142,23 @@ function renderLiveSummary(rows){
   if($('liveSupervisorSummary').style.display!=='none')$('liveSupervisorSummaryTable').innerHTML=liveSummaryTable(rows,16);
   if($('liveZoneSummary').style.display!=='none')$('liveZoneSummaryTable').innerHTML=liveSummaryTable(rows,1);
 }
+function renderLiveSupervisorStatus(rows){
+  const counts=new Map();
+  rows.forEach(({cells})=>{const state=String(cells[14]||'').trim()||'غير محدد';counts.set(state,(counts.get(state)||0)+1)});
+  const total=rows.length;
+  $('liveSupervisorStatusMeta').textContent=total?`إجمالي مناديبك النشطين: ${NF(total)} — النسب من كل المناديب، بدون تطبيق فلاتر الشاشة.`:'لا يوجد مناديب نشطون تابعون لحسابك حاليًا.';
+  $('liveSupervisorStatusRows').innerHTML=[...counts].sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0],'ar')).map(([state,count])=>{
+    const percent=total?count/total*100:0,shown=new Intl.NumberFormat('ar-EG',{maximumFractionDigits:1}).format(percent);
+    return`<div class="live-status-item"><div class="live-status-item-head"><strong>${esc(state)}</strong><span>${NF(count)} · ${shown}٪</span></div><div class="live-status-track" aria-hidden="true"><div class="live-status-fill" style="width:${percent.toFixed(2)}%"></div></div></div>`;
+  }).join('');
+}
 function renderLive(){
   const active=liveEligibleRows(),button=$('liveB'),panel=$('livePanel'),thead=$('liveHead'),tbody=$('liveBody');
   button.style.display=active.length?'':'none';button.setAttribute('aria-label',`Live: ${NF(active.length)} مندوب نشط`);
   liveUpdateFilterOptions(active);
   const visible=liveFilteredRows(active);
   if($('liveSummary').style.display!=='none')renderLiveSummary(visible);
+  if($('liveSupervisorStatusSummary').style.display!=='none'&&CUR&&CUR.r==='sup')renderLiveSupervisorStatus(active);
   $('liveCount').textContent='عرض '+NF(visible.length)+' من '+NF(active.length)+' مندوب خلال آخر 10 دقائق';
   $('liveMessage').classList.toggle('error',!!LIVE_ERROR);
   const sheetUpdated=LIVE_SHEET_UPDATE_TIME?'آخر تحديث: '+fdt(LIVE_SHEET_UPDATE_TIME):'وقت آخر تحديث غير متاح';
@@ -1182,6 +1207,14 @@ function toggleLiveSummary(type){
   summary.style.display=$('liveSupervisorSummary').style.display!=='none'||$('liveZoneSummary').style.display!=='none'?'grid':'none';
   if(open)renderLiveSummary(liveFilteredRows(liveEligibleRows()));
 }
+function toggleLiveSupervisorStatus(){
+  if(!CUR||CUR.r!=='sup')return;
+  const section=$('liveSupervisorStatusSummary'),button=$('liveStatusSummaryToggle'),open=section.style.display==='none';
+  section.style.display=open?'block':'none';
+  button.setAttribute('aria-expanded',String(open));
+  button.textContent=open?'إخفاء نسب الحالات':'📊 نسب حالات مناديبي';
+  if(open)renderLiveSupervisorStatus(liveEligibleRows());
+}
 async function captureLiveTable(button){
   const status=$('liveScreenshotStatus');
   if(!liveCanViewSummaries()||LIVE_SCREENSHOT_BUSY)return;
@@ -1207,6 +1240,7 @@ $('liveB').addEventListener('click',openLivePanel);
 $('liveClose').addEventListener('click',closeLivePanel);
 $('liveSupervisorSummaryToggle').addEventListener('click',()=>toggleLiveSummary('supervisor'));
 $('liveZoneSummaryToggle').addEventListener('click',()=>toggleLiveSummary('zone'));
+$('liveStatusSummaryToggle').addEventListener('click',toggleLiveSupervisorStatus);
 $('liveScreenshot').addEventListener('click',event=>captureLiveTable(event.currentTarget));
 $('liveSearch').addEventListener('input',()=>renderLive());
 LIVE_FILTERS.forEach(([id])=>$(id).addEventListener('change',()=>renderLive()));
