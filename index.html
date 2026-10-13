@@ -1075,10 +1075,13 @@ async function liveFetchRows(){
 }
 function liveEligibleRows(now=Date.now()){
   const today=new Date(now),earliest=now-LIVE_WINDOW_MS;
-  return LIVE_ROWS.map(cells=>({cells,timestamp:liveTimestamp(cells[15])})).filter(row=>{
+  const eligible=LIVE_ROWS.map(cells=>({cells,timestamp:liveTimestamp(cells[15])})).filter(row=>{
     if(!row.timestamp||row.timestamp<earliest||row.timestamp>now)return false;
     const date=new Date(row.timestamp);return date.getFullYear()===today.getFullYear()&&date.getMonth()===today.getMonth()&&date.getDate()===today.getDate();
   });
+  if(!CUR||CUR.r!=='sup')return eligible;
+  const supervisor=nameMatchKey(CUR.s);
+  return supervisor?eligible.filter(({cells})=>nameMatchKey(cells[16])===supervisor):[];
 }
 const LIVE_FILTERS=[['liveGovernorate',0,'كل المحافظات'],['liveZone',1,'كل الزونات'],['liveSupervisor',16,'كل المشرفين'],['liveState',14,'كل الحالات']];
 let LIVE_FILTER_OPTION_SIGNATURE={};
