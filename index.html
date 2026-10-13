@@ -36,6 +36,7 @@ main{max-width:1500px;margin:auto;padding:12px;display:grid;gap:12px}
 .filters select,.filters input{width:100%}
 .kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
 .kpi{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:12px;border-top:3px solid var(--c)}
+.kpi[data-target-details]{cursor:pointer;transition:transform .15s ease,border-color .15s ease}.kpi[data-target-details]:hover{transform:translateY(-2px);border-color:var(--c)}.kpi[data-target-details]:focus-visible{outline:2px solid var(--pr);outline-offset:2px}
 .kpi .l{font-size:11px;color:var(--mut)}.kpi .v{font-size:24px;font-weight:900;margin:2px 0}.kpi .s{font-size:11px;color:var(--mut)}
 .charts{display:grid;gap:12px;grid-template-columns:1fr}
 .cw{position:relative;height:260px}.card h3{font-size:14px;margin-bottom:8px}
@@ -749,6 +750,14 @@ html[data-theme="light"] #liveMessage.error{border-color:#be123c55;background:#b
  </div>
 </main>
 <div id="md" style="display:none;position:fixed;inset:0;background:#000c;z-index:60;overflow:auto;padding:12px" onclick="if(event.target===this)this.style.display='none'"><div class="card" style="max-width:820px;margin:auto"><div class="row"><h3 id="mt" style="margin:0"></h3><button class="btn" style="margin-inline-start:auto" onclick="$('md').style.display='none'">✕</button></div><div id="ms" class="kpis" style="margin-bottom:10px"></div><div class="cw"><canvas id="ch6"></canvas></div></div></div>
+<div id="supervisorTargetModal" style="display:none;position:fixed;inset:0;background:#000c;z-index:76;overflow:auto;padding:12px" onclick="if(event.target===this)closeSupervisorTargetModal()">
+ <section class="card" role="dialog" aria-modal="true" aria-labelledby="supervisorTargetTitle" style="max-width:760px;margin:auto">
+  <div class="row"><h3 id="supervisorTargetTitle" style="margin:0">🎯 تارجت المشرفين</h3><button class="btn" id="supervisorTargetClose" type="button" style="margin-inline-start:auto" aria-label="إغلاق">✕</button></div>
+  <div id="supervisorTargetSummary" class="sub" style="margin-bottom:10px" aria-live="polite"></div>
+  <div class="row"><input id="supervisorTargetSearch" type="search" placeholder="🔎 ابحث باسم المشرف" aria-label="ابحث باسم المشرف" style="flex:1;min-width:180px"><select id="supervisorTargetStatus" aria-label="فلترة حالة التارجت"><option value="">كل المشرفين</option><option value="set">التارجت محطوط</option><option value="missing">التارجت مش محطوط</option></select></div>
+  <div class="tw" style="max-height:65vh"><table style="min-width:420px"><thead><tr><th>المشرف</th><th>التارجت اليومي</th><th>الحالة</th></tr></thead><tbody id="supervisorTargetBody"></tbody></table></div>
+ </section>
+</div>
 <div id="um" style="display:none;position:fixed;inset:0;background:#000c;z-index:70;overflow:auto;padding:12px" onclick="if(event.target===this)this.style.display='none'"><div class="card" style="max-width:820px;margin:auto"><div class="row"><h3 style="margin:0">👥 إدارة المستخدمين</h3><button class="btn" style="margin-inline-start:auto" onclick="$('um').style.display='none'">✕</button></div>
 <div class="fm"><input id="nu" placeholder="اسم المستخدم" autocapitalize="off"><input id="nn" placeholder="الاسم الظاهر"><select id="nr"><option value="sup">مشرف</option><option value="manager">مدير منطقة</option><option value="admin">أدمن</option></select><select id="nz" title="فلتر بالمنطقة"></select><select id="ns"></select><input id="np" type="text" placeholder="كلمة المرور (فاضية = تفضل زي ما هي)"><button class="btn pr" id="na">➕ إضافة / تحديث</button></div>
 <input id="us" placeholder="🔍 ابحث بالمشرف أو الاسم أو المستخدم أو المنطقة..." style="width:100%;margin:10px 0"><div class="tw rt3" style="max-height:45vh"><table style="min-width:600px"><thead><tr><th>الاسم</th><th>المستخدم</th><th>الدور</th><th>مرتبط بـ</th><th>كلمة المرور</th><th></th></tr></thead><tbody id="ut"></tbody></table></div>
@@ -1413,15 +1422,46 @@ function supervisorTargetKpis(start,end){
   if(!configured.length)return[['🎯 التارجت اليومي','—',matched.length?'أضف التارجت للمشرفين في الشيت':'لا توجد أهداف مطابقة للفلاتر','--c:var(--pr)'],['📅 تحقيق التارجت اليومي','—','التارجت غير مضاف بعد','--c:var(--ok)'],['📈 تحقيق التارجت للفترة','—','التارجت غير مضاف بعد','--c:var(--pu)']];
   const dailyHours=eligible.filter(row=>configuredNames.has(nameMatchKey(row.s))&&row.t>=end&&row.t<end+DAY).reduce((sum,row)=>sum+row.a,0);
   const periodHours=FR.filter(row=>configuredNames.has(nameMatchKey(row.s))).reduce((sum,row)=>sum+row.a,0);
-  const dayCount=Math.max(1,Math.floor((end-start)/DAY)+1),periodTarget=target*dayCount;
+  const dayCount=Math.max(1,Math.floor((end-start)/DAY)+1),periodTarget=target*dayCount,isSingleDay=dayCount===1;
   const dayLabel=new Date(end).toLocaleDateString('ar-EG');
   const loadedNote=SUP_TARGET_STATUS==='stale'?' · نسخة محفوظة':` · ${completion}`;
   return[
     ['🎯 التارجت اليومي',F1(target),'ساعة لكل يوم'+loadedNote,'--c:var(--pr)'],
-    ['📅 تحقيق التارجت اليومي',target?F1(dailyHours/target*100)+'%':'—',dayLabel+' · '+F1(dailyHours)+' / '+F1(target)+' ساعة','--c:var(--ok)'],
+    ['📅 تحقيق التارجت اليومي',isSingleDay&&target?F1(dailyHours/target*100)+'%':'—',isSingleDay?dayLabel+' · '+F1(dailyHours)+' / '+F1(target)+' ساعة':'اختار تاريخ يوم واحد لعرض نسبة اليوم','--c:var(--ok)'],
     ['📈 تحقيق التارجت للفترة',periodTarget?F1(periodHours/periodTarget*100)+'%':'—',dayCount+' يوم · '+F1(periodHours)+' / '+F1(periodTarget)+' ساعة','--c:var(--pu)']
   ];
 }
+function supervisorTargetDetails(){
+  if(!CUR||!['admin','manager'].includes(CUR.r))return[];
+  const team=new Map;
+  for(const row of ALL){
+    if(!row.s||(CUR.r==='manager'&&nameMatchKey(row.m)!==nameMatchKey(CUR.s)))continue;
+    const key=nameMatchKey(row.s);
+    if(key&&!team.has(key))team.set(key,String(row.s).trim());
+  }
+  const names=CUR.r==='admin'?new Map(team):new Map(team);
+  if(CUR.r==='admin')for(const [key,item] of SUP_TARGETS)if(!names.has(key))names.set(key,item.name);
+  return[...names].map(([key,name])=>({name,target:SUP_TARGETS.get(key)?.target??null}))
+    .sort((a,b)=>a.name.localeCompare(b.name,'ar'));
+}
+function renderSupervisorTargetDetails(){
+  const all=supervisorTargetDetails(),search=$('supervisorTargetSearch').value.trim().toLocaleLowerCase('ar'),status=$('supervisorTargetStatus').value;
+  const configured=all.filter(item=>item.target!==null),missing=all.length-configured.length;
+  $('supervisorTargetSummary').textContent=`${all.length} مشرف · التارجت محطوط لـ ${configured.length} · مش محطوط لـ ${missing}`+(SUP_TARGET_STATUS==='stale'?' · تنبيه: البيانات من آخر نسخة محفوظة':'');
+  const filtered=all.filter(item=>(!search||item.name.toLocaleLowerCase('ar').includes(search))&&(!status||(status==='set'?item.target!==null:item.target===null)));
+  $('supervisorTargetBody').innerHTML=filtered.map(item=>`<tr><td><b>${esc(item.name)}</b></td><td>${item.target===null?'—':F1(item.target)+' ساعة'}</td><td><span class="b ${item.target===null?'y':'g'}">${item.target===null?'مش محطوط':'محطوط'}</span></td></tr>`).join('')||`<tr><td colspan="3" class="sub" style="text-align:center">${all.length?'مفيش مشرفين مطابقين للبحث أو الفلتر.':'لا توجد أسماء مشرفين في النطاق.'}</td></tr>`;
+}
+function openSupervisorTargetModal(){
+  if(!CUR||!['admin','manager'].includes(CUR.r))return;
+  $('supervisorTargetSearch').value='';$('supervisorTargetStatus').value='';renderSupervisorTargetDetails();
+  $('supervisorTargetModal').style.display='block';$('supervisorTargetClose').focus();
+}
+function closeSupervisorTargetModal(){$('supervisorTargetModal').style.display='none'}
+$('supervisorTargetClose').onclick=closeSupervisorTargetModal;
+['supervisorTargetSearch','supervisorTargetStatus'].forEach(id=>$(id).addEventListener(id==='supervisorTargetSearch'?'input':'change',renderSupervisorTargetDetails));
+document.addEventListener('keydown',event=>{if(event.key==='Escape'&&$('supervisorTargetModal').style.display==='block')closeSupervisorTargetModal()});
+$('kpis').addEventListener('click',event=>{if(event.target.closest('[data-target-details]'))openSupervisorTargetModal()});
+$('kpis').addEventListener('keydown',event=>{if((event.key==='Enter'||event.key===' ')&&event.target.closest('[data-target-details]')){event.preventDefault();openSupervisorTargetModal()}});
 const TG_ZONE_GROUPS={
   'اكتوبر':['Smart village','October wahat','October palm hills','October'],
   'التجمعات':['Madinaty','Shorouk city','Obour city'],
@@ -1518,7 +1558,8 @@ function apply(){
   const K=[['📦 الطلبات',NF(T.o),'مكتملة','--c:var(--pr)'],['⏱ ساعات فعلية',NF(T.a),'من '+NF(T.p)+' محجوز','--c:var(--ok)'],['🗓️ ساعات محجوزة',NF(T.p),reservedNote,'--c:#a78bfa'],['🎯 الالتزام',F1(commit)+'%','فعلي/محجوز','--c:var(--wa)'],['⚡ الإنتاجية',F1(oph),'طلب/ساعة','--c:var(--pu)'],
    ['🛵 الطيارين',NF(list.length),'عاملين','--c:var(--cy)'],['⌛ متوسط ساعات/طيار',F1(list.length?T.a/list.length:0),svTxt,'--c:#14b8a6'],['☕ الاستراحة',NF(T.b),'ساعة','--c:#f43f5e'],...supervisorTargetKpis(a,b)];
   [[0,T.o,P.o],[1,T.a,P.a],[2,T.p,P.p],[3,commit,P.p?P.a/P.p*100:0],[4,oph,P.a?P.o/P.a:0]].forEach(([i,c,p])=>{if(p){const d=(c-p)/p*100;K[i][2]=(d>=0?'▲ ':'▼ ')+Math.abs(d).toFixed(1)+'% عن الفترة السابقة'}});
-  $('kpis').innerHTML=K.map(k=>`<div class="kpi" style="${k[3]}"><div class="l">${k[0]}</div><div class="v">${k[1]}</div><div class="s">${k[2]}</div></div>`).join('');
+  const canViewTargets=Boolean(CUR&&['admin','manager'].includes(CUR.r));
+  $('kpis').innerHTML=K.map((k,index)=>{const targetCard=index>=8&&index<=10;return`<div class="kpi"${targetCard&&canViewTargets?' data-target-details role="button" tabindex="0" aria-label="عرض تفاصيل تارجت المشرفين"':''} style="${k[3]}"><div class="l">${k[0]}</div><div class="v">${k[1]}</div><div class="s">${k[2]}</div></div>`}).join('');
   updateFilterControls();
   // charts
   const days=Object.keys(day).map(Number).sort((x,y)=>x-y);
