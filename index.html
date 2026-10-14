@@ -65,6 +65,60 @@ tr:hover td{background:#18223a}
 .idle-riders-table td{white-space:normal;overflow-wrap:anywhere;vertical-align:middle}
 .idle-rider-clickable{cursor:pointer}
 .idle-rider-clickable:hover td{background:#1a2940}
+.booking-table{min-width:1320px;table-layout:fixed}
+.booking-table th,.booking-table td{padding:9px 10px;text-align:center;vertical-align:middle}
+.booking-table th:nth-child(1){width:4%}
+.booking-table th:nth-child(2){width:8%}
+.booking-table th:nth-child(3){width:11%}
+.booking-table th:nth-child(4){width:9%}
+.booking-table th:nth-child(5){width:11%}
+.booking-table th:nth-child(6){width:17%}
+.booking-table th:nth-child(7){width:14%}
+.booking-table th:nth-child(8){width:12%}
+.booking-table th:nth-child(9){width:7%}
+.booking-table th:nth-child(10){width:7%}
+.booking-table td{white-space:normal;overflow-wrap:anywhere}
+.booking-summary{display:flex;align-items:baseline;flex-wrap:wrap;gap:8px 20px;margin:8px 0;padding:8px 10px;border:1px solid var(--bd);border-radius:9px;background:#0f1b2d}
+.booking-summary-item{display:flex;align-items:baseline;gap:7px}
+.booking-summary-item span{color:var(--mut);font-size:11px}
+.booking-summary-item b{font-size:16px}
+.booking-supervisor-panel{margin-top:8px}
+.booking-supervisor-table{min-width:820px;border-collapse:separate;border-spacing:0}
+.booking-supervisor-table th,.booking-supervisor-table td{text-align:center;padding:11px 14px;white-space:nowrap}
+.booking-supervisor-table thead th{position:sticky;top:0;z-index:1;background:#1a2b42;color:#cbdaf0;font-weight:800;border-bottom:1px solid #344964}
+.booking-supervisor-table thead th:first-child{border-start-start-radius:9px}
+.booking-supervisor-table thead th:last-child{border-start-end-radius:9px}
+.booking-supervisor-table tbody tr{background:#111d2e;transition:background-color .15s ease}
+.booking-supervisor-table tbody tr:nth-child(even){background:#152338}
+.booking-supervisor-table tbody tr:hover{background:#1b3049}
+.booking-supervisor-table tbody td{border-bottom:1px solid #263951}
+.booking-supervisor-table tbody tr:last-child td{border-bottom:0}
+.booking-supervisor-table tbody td:first-child{font-weight:800;color:#dbeafe}
+.booking-rate-value{display:inline-block;min-width:62px;padding:5px 10px;border:1px solid currentColor;border-radius:7px;font-size:12px;font-weight:900;white-space:nowrap}
+.booking-rate-value.high{color:#6ee7b7;background:#064e3b55}
+.booking-rate-value.good{color:#67e8f9;background:#164e6355}
+.booking-rate-value.mid{color:#fcd34d;background:#78350f55}
+.booking-rate-value.low{color:#fda4af;background:#7f1d1d55}
+html[data-theme="light"] .booking-supervisor-table thead th{background:#e7eef8;color:#243b5a;border-bottom-color:#cbd8e8}
+html[data-theme="light"] .booking-supervisor-table tbody tr{background:#fff}
+html[data-theme="light"] .booking-supervisor-table tbody tr:nth-child(even){background:#f4f7fb}
+html[data-theme="light"] .booking-supervisor-table tbody tr:hover{background:#eaf2fd}
+html[data-theme="light"] .booking-supervisor-table tbody td{border-bottom-color:#e1e8f1}
+html[data-theme="light"] .booking-supervisor-table tbody td:first-child{color:#19375c}
+html[data-theme="light"] .booking-rate-value.high{color:#047857;background:#d1fae5}
+html[data-theme="light"] .booking-rate-value.good{color:#0e7490;background:#cffafe}
+html[data-theme="light"] .booking-rate-value.mid{color:#a16207;background:#fef3c7}
+html[data-theme="light"] .booking-rate-value.low{color:#be123c;background:#ffe4e6}
+.booking-rider-toggle{display:grid;justify-items:center;gap:2px;width:100%;padding:0;border:0;background:transparent;color:inherit;font:inherit;text-align:center;cursor:pointer}
+.booking-rider-toggle:hover .booking-rider-hint{color:var(--pr)}
+.booking-rider-toggle:focus-visible{outline:2px solid var(--pr);outline-offset:3px;border-radius:4px}
+.booking-rider-hint{font-size:10px;color:var(--mut)}
+.booking-details-row td{background:#0f1b2d;text-align:start}
+.booking-shift-list{display:flex;flex-wrap:wrap;justify-content:center;gap:6px}
+.booking-shift-item{padding:5px 8px;border:1px solid var(--bd);border-radius:7px;background:#1a2438;font-size:12px}
+.booking-controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px}
+.booking-controls label{display:block;margin-bottom:3px;color:var(--mut);font-size:11px}
+.booking-controls input,.booking-controls select{width:100%;min-width:0}
 .header-supervisor-rank{display:inline-flex;align-items:center;margin-inline-start:8px;padding:1px 8px;border:1px solid #f59e0b66;border-radius:999px;background:#f59e0b22;color:#fbbf24;font-size:10px;font-weight:900;line-height:1.8;white-space:nowrap;vertical-align:middle}
 .pg{display:flex;justify-content:space-between;align-items:center;margin-top:8px;font-size:12px;color:var(--mut)}
 #msg{padding:10px;border-radius:10px;background:#f59e0b22;color:#fbbf24;font-size:13px;display:none}
@@ -183,6 +237,17 @@ html{-webkit-text-size-adjust:100%}body{overflow-x:hidden}
  .rt4 td[colspan]{display:block;text-align:center}
  .rt4 td[colspan]::before{content:none}
  .rt4 tr.idle-rider-clickable:hover td{background:none}
+ #bookingTable table{min-width:0;width:100%;display:block;border-spacing:0 8px}
+ #bookingTable thead{display:none}
+ #bookingTable tbody{display:block}
+ #bookingTable tr{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:3px 10px;margin:0 0 8px;padding:10px;border:1px solid var(--bd);border-radius:12px;background:#0f1626}
+ #bookingTable td{display:grid;justify-items:center;align-content:center;gap:3px;min-width:0;border:0;padding:6px 3px;white-space:normal;text-align:center;font-size:12px;overflow-wrap:anywhere}
+ #bookingTable td::before{content:attr(data-l);color:var(--mut);font-size:11px;font-weight:700;text-align:center}
+ #bookingTable td:nth-child(1){display:none}
+ #bookingTable td:nth-child(3){grid-column:1/-1;padding-bottom:9px;border-bottom:1px solid var(--bd);font-size:14px;font-weight:700}
+ #bookingTable td:nth-child(8){grid-column:1/-1}
+ #bookingTable td[colspan]{display:block;text-align:center}
+ #bookingTable td[colspan]::before{content:none}
 }
 
 .card,.kpi,.charts>*,main>*{min-width:0}
@@ -235,7 +300,7 @@ html[data-theme="light"] th{background:#e2e8f0;color:#172033}
 html[data-theme="light"] tr:hover td{background:#eff6ff}
 html[data-theme="light"] #load{background:rgba(241,245,249,.95)}
 html[data-theme="light"] .bar{background:#cbd5e1}
-html[data-theme="light"] .rt tr,html[data-theme="light"] .rt2 tr,html[data-theme="light"] .rt3 tr,html[data-theme="light"] .rt4 tr{background:#f8fafc}
+html[data-theme="light"] .rt tr,html[data-theme="light"] .rt2 tr,html[data-theme="light"] .rt3 tr,html[data-theme="light"] .rt4 tr,html[data-theme="light"] #bookingTable tr{background:#f8fafc}
 html[data-theme="light"] tbody tr:nth-child(even) td{background:#f8fafc}
 html[data-theme="light"] #lg{background:radial-gradient(ellipse at 50% 20%,#dbeafe 0,#eff6ff 40%,#f1f5f9 78%)}
 html[data-theme="light"] #lg .lb{border-color:#bfdbfe;box-shadow:0 24px 80px #1e3a8a1f}
@@ -703,7 +768,7 @@ html[data-theme="light"] #liveMessage.error{border-color:#be123c55;background:#b
 <header><div class="hr">
  <div><h1>🚀 داش بورد أداء الطيارين</h1><div class="sub" id="sync">—</div></div>
  <div class="row" style="margin:0">
-  <span class="sub" id="who"></span><button class="btn" id="prB" style="display:none">💰 أسعار الباتشات</button><button class="btn" id="usrB" style="display:none">👥 المستخدمين</button><button class="btn" id="loginAuditB" style="display:none">🕵️ سجل الدخول</button><button class="btn" id="tgB" style="display:none">🎯 التارجت</button><button class="btn" id="hcB" style="display:none">👥 هيد كونت</button><button class="btn" id="dedB" style="display:none">🏢 الشركة</button><button class="btn" id="asB" style="display:none">🗓️ ان اصين</button><button class="btn" id="queriesB" style="display:none">📨 الاستعلامات</button><button class="btn" id="liveB" type="button" style="display:none" aria-controls="livePanel" aria-expanded="false">🔴 Live</button><button class="btn" id="out">خروج</button>
+  <span class="sub" id="who"></span><button class="btn" id="prB" style="display:none">💰 أسعار الباتشات</button><button class="btn" id="usrB" style="display:none">👥 المستخدمين</button><button class="btn" id="loginAuditB" style="display:none">🕵️ سجل الدخول</button><button class="btn" id="tgB" style="display:none">🎯 التارجت</button><button class="btn" id="hcB" style="display:none">👥 هيد كونت</button><button class="btn" id="dedB" style="display:none">🏢 الشركة</button><button class="btn" id="bookingDashboardB" style="display:none">🗓️ ان اصين</button><button class="btn" id="queriesB" style="display:none">📨 الاستعلامات</button><button class="btn" id="liveB" type="button" style="display:none" aria-controls="livePanel" aria-expanded="false">🔴 Live</button><button class="btn" id="out">خروج</button>
   <button class="btn pr" id="rf">🔄 تحديث</button>
  </div></div></header>
  <div id="loginAuditModal" style="display:none;position:fixed;inset:0;background:#000c;z-index:75;overflow:auto;padding:12px" onclick="if(event.target===this)this.style.display='none'">
@@ -890,45 +955,38 @@ html[data-theme="light"] #liveMessage.error{border-color:#be123c55;background:#b
 <div class="ov" id="as" style="display:none;z-index:85;padding:0;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch">
  <div style="width:100%;max-width:1500px;margin:0 auto;padding:0 12px 80px;display:grid;gap:12px">
   <div class="row" style="margin:0;position:sticky;top:0;z-index:5;background:rgba(11,15,25,.96);backdrop-filter:blur(8px);padding:10px 0;border-bottom:1px solid var(--bd)">
-   <h2 style="font-size:17px;font-weight:900">🗓️ ان اصين</h2><span class="sub" id="asN"></span>
-   <button class="chip" onclick="asGo('asCharts')">📊 الرسومات</button><button class="chip" onclick="asGo('asTable')">📋 الجدول</button>
-   <span style="margin-inline-start:auto;display:flex;gap:6px"><button class="btn" id="asE">⬇ تصدير</button><button class="btn pr" id="asRf">🔄 تحديث</button><button class="btn" id="asC">✕ إغلاق</button></span>
+   <h2 style="font-size:17px;font-weight:900">🗓️ ان اصين · الحجز والمندوبون</h2><span class="sub" id="asN"></span>
+   <span style="margin-inline-start:auto;display:flex;gap:6px"><button class="btn" id="bookingExport">⬇ تصدير Excel</button><button class="btn pr" id="bookingOnline">🔄 تحديث البيانات</button><button class="btn" id="bookingDashboardClose">✕ إغلاق</button></span>
   </div>
   <div id="asM" style="padding:10px;border-radius:10px;background:#f59e0b22;color:#fbbf24;font-size:13px;display:none"></div>
-  <div class="card">
-   <div class="chips" id="asChips"></div>
-   <div class="filters" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr));margin-top:8px">
-    <div><label>📅 من تاريخ</label><input type="date" id="asD1"></div>
-    <div><label>📅 إلى تاريخ</label><input type="date" id="asD2"></div>
-     <div><label>🗺️ مجموعة المناطق</label><select id="asZoneGroup"></select></div>
-     <div><label>👔 المدير</label><select id="asManager"></select></div>
-    <div><label>👷 المشرف</label><select id="asSup"></select></div>
-    <div><label>📍 المدينة</label><select id="asCity"></select></div>
-    <div><label>🏢 المقر</label><select id="asOffice"></select></div>
-    <div><label>✅ حالة الاختيار</label><select id="asStatus"><option value="">كل الحالات</option><option value="selected">مختار في يوم واحد على الأقل</option><option value="not-selected">غير مختار في الأيام المحددة</option><option value="active">نشط فقط</option></select></div>
-    <div><label>🔎 بحث بالاسم أو الكود</label><input id="asQ" placeholder="ابحث عن مندوب…"></div>
-    <div><label>&nbsp;</label><button class="btn" id="asX" style="width:100%">✕ مسح الفلاتر</button></div>
+  <section class="card" id="bookingPanel">
+   <div class="row"><h3 style="margin:0">🗓️ مقارنة قاعدة البيانات بالحجوزات</h3><span class="sub" id="bookingCount" aria-live="polite"></span><span style="margin-inline-start:auto;display:flex;gap:6px;flex-wrap:wrap"><button class="btn" id="bookingSupervisorSummary" type="button" aria-expanded="false" aria-controls="bookingSupervisorPanel">👷 ملخص المشرفين</button></span><span class="sub" id="bookingUpdated"></span></div>
+   <div class="booking-summary" aria-live="polite">
+    <div class="booking-summary-item"><span>إجمالي المناديب بقاعدة البيانات</span><b id="bookingRosterTotal">—</b></div>
+    <div class="booking-summary-item"><span>المناديب الحاجزون</span><b id="bookingRiderTotal">—</b></div>
+    <div class="booking-summary-item"><span>المناديب غير الحاجزين</span><b id="bookingUnbookedTotal">—</b></div>
+    <div class="booking-summary-item"><span>إجمالي الساعات المحجوزة</span><b id="bookingHoursTotal">—</b></div>
+    <div class="booking-summary-item" id="bookingSupervisorRateItem" hidden><span>نسبة الحجز لمناديبك</span><b id="bookingSupervisorRate">—</b></div>
    </div>
-  </div>
-  <div class="kpis" id="asK" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))"></div>
-  <div class="charts" id="asCharts">
-   <div class="card c8"><h3>📈 الاختيارات حسب اليوم</h3><div class="cw"><canvas id="as1"></canvas></div></div>
-   <div class="card c12" style="grid-column:1/-1"><h3>👷 أكثر المشرفين اختيارًا</h3><div class="cw"><canvas id="as3"></canvas></div></div>
-   <div class="card c6"><h3>📍 الاختيارات حسب المنطقة</h3><div class="cw"><canvas id="as4"></canvas></div></div>
-   <div class="card c6"><h3>🏢 الاختيارات حسب المقر</h3><div class="cw"><canvas id="as5"></canvas></div></div>
-  </div>
-  <div class="card" id="asSummary">
-   <div class="row" style="margin-bottom:8px"><h3 style="margin:0">📊 ملخص الاختيارات</h3><span class="sub">عدد حالات مختار ومش مختار حسب المجموعة</span><span style="margin-inline-start:auto;display:flex;gap:6px">
-    <button class="chip on" data-as-group="city" onclick="asSetGroup('city')">📍 المناطق</button>
-    <button class="chip" data-as-group="office" onclick="asSetGroup('office')">🏢 المقرات</button>
-    <button class="chip" data-as-group="sup" onclick="asSetGroup('sup')">👷 المشرفين</button>
-   </span></div>
-   <div class="tw" style="max-height:50vh"><table style="min-width:600px"><thead id="asGroupH"></thead><tbody id="asGroupT"></tbody></table></div>
-  </div>
-  <div class="card" id="asTable">
-   <div class="row"><h3 style="margin:0">📋 تفاصيل المندوبين</h3><span class="sub" id="asCount"></span><button class="btn" id="asPrev" style="margin-inline-start:auto">‹ السابق</button><span class="sub" id="asPage"></span><button class="btn" id="asNext">التالي ›</button></div>
-   <div class="tw" style="max-height:70vh"><table style="min-width:1000px"><thead id="asH"></thead><tbody id="asT"></tbody></table></div>
-  </div>
+   <div id="bookingMessage" role="status" aria-live="polite" class="sub" style="margin:6px 0 10px"></div>
+   <div class="booking-controls">
+    <div><label for="bookingDate">📅 تاريخ الحجز</label><select id="bookingDate"><option value="">كل التواريخ</option></select></div>
+    <div><label for="bookingSupervisor">👷 المشرف</label><select id="bookingSupervisor"><option value="">كل المشرفين</option></select></div>
+    <div><label for="bookingZone">📍 الزون</label><select id="bookingZone"><option value="">كل الزونات</option></select></div>
+    <div><label for="bookingStatus">✅ حالة الحجز</label><select id="bookingStatus"><option value="">كل المناديب</option><option value="booked">حاجز</option><option value="unbooked">مش حاجز</option></select></div>
+    <div><label for="bookingRiderState">📡 حالة المندوب من Live</label><select id="bookingRiderState"><option value="">كل حالات المندوبين</option></select></div>
+    <div><label for="bookingHoursMax">⏱️ ساعات المحجوزين أقل من</label><input type="number" id="bookingHoursMax" min="0" step="any" inputmode="decimal" placeholder="مثال: 40"></div>
+    <div><label for="bookingSearch">🔎 بحث بالاسم أو الكود</label><input type="search" id="bookingSearch" placeholder="ابحث عن مندوب…"></div>
+    <div style="align-self:end"><button class="btn" id="bookingClear" type="button" style="width:100%">✕ مسح فلاتر الحجوزات</button></div>
+   </div>
+   <div id="bookingPhoneMessage" role="status" aria-live="polite" class="sub" style="margin:6px 0;display:none"></div>
+   <div class="booking-supervisor-panel" id="bookingSupervisorPanel" style="display:none">
+    <h4 style="font-size:13px;margin-bottom:6px">👷 المناديب والحجوزات لكل مشرف حسب الفلاتر الحالية</h4>
+    <div class="tw" style="max-height:40vh"><table class="booking-supervisor-table"><thead><tr><th>المشرف</th><th>إجمالي المناديب</th><th>الحاجزون</th><th>نسبة الحجز</th><th>غير الحاجزين</th><th>الساعات المحجوزة</th><th>عدد الشيفتات</th></tr></thead><tbody id="bookingSupervisorRows"></tbody></table></div>
+   </div>
+   <div class="tw" id="bookingTable" style="max-height:65vh;margin-top:10px"><table class="booking-table"><thead><tr><th>#</th><th>حالة الحجز</th><th>حالة المندوب (Live)</th><th>كود المندوب</th><th>رقم التليفون</th><th>اسم المندوب</th><th>المشرف</th><th>الزون</th><th>عدد الشيفتات</th><th>إجمالي الساعات</th></tr></thead><tbody id="bookingRows"></tbody></table></div>
+   <div class="pg"><button class="btn" id="bookingPrev" type="button">‹ السابق</button><span id="bookingPage" aria-live="polite"></span><button class="btn" id="bookingNext" type="button">التالي ›</button></div>
+  </section>
  </div>
 </div>
 <div class="ov" id="hc" style="display:none;z-index:88;padding:0;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch">
@@ -1226,7 +1284,7 @@ async function refreshLive(){
     LIVE_LAST_SUCCESS=Date.now();
   }
   catch(error){LIVE_ERROR=error.message||String(error);console.error('Live_Riders refresh failed:',error)}
-  finally{LIVE_BUSY=false;LIVE_LOADING=false;renderLive()}
+  finally{LIVE_BUSY=false;LIVE_LOADING=false;renderLive();if(BOOKING_LOADED&&$('as').style.display==='block')bookingRender()}
 }
 function startLivePolling(){
   if(LIVE_TIMER)return;
@@ -2141,7 +2199,7 @@ function enter(x){CUR=x;updateLiveRoleControls(x);idleReset();logDashboardOpen(x
   $('riderRatingsCard').style.display=x.r==='sup'?'none':'';
   $('dailyHistoryCard').style.display=x.r==='sup'?'none':'';
   $('vehicleChartCard').style.display=x.r==='sup'?'none':'';
-  $('lg').style.display='none';$('who').textContent='👤 '+x.n+' · '+ROLE[x.r]+(x.r==='admin'&&!LOGIN_AUDIT_ENDPOINT?' · ⚠️ سجل الدخول المركزي غير مفعّل':'');$('usrB').style.display=x.r==='admin'?'':'none';$('loginAuditB').style.display=x.r==='admin'?'':'none';$('tgB').style.display=x.r==='admin'?'':'none';$('supCaptureAll').style.display=x.r==='admin'?'':'none';$('zoneCaptureAll').style.display=['admin','manager'].includes(x.r)?'':'none';$('zoneCaptureAll').textContent=x.r==='manager'?'🗺️📸 تنزيل صور مناطقي':'🗺️📸 تنزيل صور كل المناطق';$('hcB').style.display=hcCanAccess(x)?'':'none';$('dedB').style.display=['admin','manager','sup'].includes(x.r)?'':'none';$('asB').style.display='';$('prB').style.display='';$('queriesB').style.display='';load().then(()=>{if(x.r==='admin'&&x.h===DEF_H){const m=$('msg');m.style.display='block';m.textContent='⚠️ كلمة مرور الأدمن الافتراضية لسه شغالة — غيّره من 👥 المستخدمين.'}})}
+  $('lg').style.display='none';$('who').textContent='👤 '+x.n+' · '+ROLE[x.r]+(x.r==='admin'&&!LOGIN_AUDIT_ENDPOINT?' · ⚠️ سجل الدخول المركزي غير مفعّل':'');$('usrB').style.display=x.r==='admin'?'':'none';$('loginAuditB').style.display=x.r==='admin'?'':'none';$('tgB').style.display=x.r==='admin'?'':'none';$('supCaptureAll').style.display=x.r==='admin'?'':'none';$('zoneCaptureAll').style.display=['admin','manager'].includes(x.r)?'':'none';$('zoneCaptureAll').textContent=x.r==='manager'?'🗺️📸 تنزيل صور مناطقي':'🗺️📸 تنزيل صور كل المناطق';$('hcB').style.display=hcCanAccess(x)?'':'none';$('dedB').style.display=['admin','manager','sup'].includes(x.r)?'':'none';$('bookingDashboardB').style.display=bookingCanAccessDashboard(x)?'':'none';bookingApplyRoleAccess(x);$('prB').style.display='';$('queriesB').style.display='';load().then(()=>{if(x.r==='admin'&&x.h===DEF_H){const m=$('msg');m.style.display='block';m.textContent='⚠️ كلمة مرور الأدمن الافتراضية لسه شغالة — غيّره من 👥 المستخدمين.'}})}
 let USERS=USERS_EMBED,DRAFT=null,VAULT=PW_EMBED;
 async function loadUsers(){
   try{const r=await fetch('users.json?_='+Date.now(),{cache:'no-store'});if(r.ok){const d=await r.json();if(d&&Array.isArray(d.users)&&d.users.length){USERS=d.users;if(d.vault)VAULT=d.vault}}}catch(e){}
@@ -2973,249 +3031,503 @@ $('tgE').onclick=()=>{if(!TGP.length)return alert('لا توجد بيانات ل
   if(window.XLSX){const ws=XLSX.utils.json_to_sheet(rows);ws['!views']=[{RTL:true}];const wb=XLSX.utils.book_new();wb.Workbook={Views:[{RTL:true}]};XLSX.utils.book_append_sheet(wb,ws,'التارجت');XLSX.writeFile(wb,nm+'.xlsx')}
   else dlCSV(rows,nm+'.csv')};
 
-/* ---------- 🗓️ ان اصين ---------- */
-const AS_GID='1908066150',AS_TAB='ان اصين';
-let AS_ROWS=[],AS_DATES=[],AS_FILTERED=[],AS_PAGE=0,AS_PAGE_SIZE=50,AS_DAY_KEYS=[],AS_GROUP='city',AS_GROUP_DATA=[];
 function asTodayKey(){
   const today=new Date();
   return today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0');
 }
-const asDateKey=v=>{
-  const s=String(v==null?'':v).trim(),m=s.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
-  if(m)return m[3]+'-'+String(+m[1]).padStart(2,'0')+'-'+String(+m[2]).padStart(2,'0');
-  const y=s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
-  return y?y[1]+'-'+String(+y[2]).padStart(2,'0')+'-'+String(+y[3]).padStart(2,'0'):''
-};
 const asDateLabel=d=>new Date(d+'T00:00:00').toLocaleDateString('ar-EG',{weekday:'short',day:'numeric',month:'short'});
-const asParseRows=arr=>{
-  if(!Array.isArray(arr)||arr.length<2)throw new Error('التابة فاضية أو مفيهاش صفوف بيانات.');
-  const heads=arr[0].map(v=>String(v==null?'':v).trim()),cols=heads.map((h,i)=>({i,d:asDateKey(h)})).filter(x=>x.d);
-  if(!cols.length)throw new Error('ملقتش أعمدة تواريخ في أول صف من التابة.');
-  const col=(test,fallback)=>{const i=heads.findIndex(h=>test(h.toLowerCase()));return i<0?fallback:i};
-  const ci={id:col(h=>/^id$|كود/.test(h),0),name:col(h=>/employee name|اسم المندوب|اسم الموظف|الاسم/.test(h),1),
-    sup:col(h=>/^s v$|مشرف/.test(h),2),manager:col(h=>/مدير/.test(h),3),city:col(h=>/city|مدينة|منطقة/.test(h),4),
-    status:col(h=>/^status$|الحالة/.test(h),6),office:col(h=>/مقر|office/.test(h),heads.length-2),
-    hours:col(h=>/الساعات المختاره|الساعات المختارة|ساعات مختارة/.test(h),heads.length-1)};
-  const rows=[];
-  for(let i=1;i<arr.length;i++){
-    const r=arr[i]||[],id=String(r[ci.id]||'').trim(),name=String(r[ci.name]||'').trim();
-    if(!id&&!name)continue;
-    const shifts={};for(const c of cols)shifts[c.d]=String(r[c.i]||'').trim();
-    rows.push({id,name,sup:String(r[ci.sup]||'').trim(),manager:String(r[ci.manager]||'').trim(),
-      city:String(r[ci.city]||'').trim(),status:String(r[ci.status]||'').trim(),
-      office:String(r[ci.office]||'').trim(),hours:String(r[ci.hours]||'').trim(),shifts});
+
+/* ---------- تحديث حجوزات الشيفتات أونلاين ---------- */
+const BOOKING_SHEET_ID='1OLvK2_Wi7k8jTa9K1FdLkNjQwpMD5ntMsG_pC8woTlk',BOOKING_GID='963721718',BOOKING_DB_GID='74019377',BOOKING_PAGE_SIZE=50;
+let BOOKING_ROWS=[],BOOKING_DB_ROWS=[],BOOKING_DB_ID_MAP=null,BOOKING_VISIBLE=[],BOOKING_ALL_VISIBLE=[],BOOKING_PAGE=0,BOOKING_JSONP_ID=0,BOOKING_LOADED=false,BOOKING_DB_LOADED=false,BOOKING_BUSY=false;
+let BOOKING_STATUS_MESSAGE='';
+let BOOKING_PHONE_LOAD=null,BOOKING_PHONE_ERROR='';
+const BOOKING_FILTERS=[
+  {id:'bookingDate',key:'date',label:'كل التواريخ'},
+  {id:'bookingSupervisor',key:'sup',label:'كل المشرفين'},
+  {id:'bookingZone',key:'zone',label:'كل الزونات'}
+];
+const BOOKING_EXPANDED=new Set;
+let BOOKING_PROFILE_SOURCE=null,BOOKING_PROFILE_CACHE=null;
+let BOOKING_MANAGER_TEAM_SOURCE=null,BOOKING_MANAGER_TEAM_CACHE=null;
+function bookingDateKey(value){
+  const text=String(value==null?'':value).trim();
+  let match=text.match(/^Date\((\d+),(\d+),(\d+)/);
+  if(match)return match[1]+'-'+String(+match[2]+1).padStart(2,'0')+'-'+String(+match[3]).padStart(2,'0');
+  match=text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if(match)return match[1]+'-'+String(+match[2]).padStart(2,'0')+'-'+String(+match[3]).padStart(2,'0');
+  match=text.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
+  if(match){
+    const first=+match[1],second=+match[2],month=first>12?second:first,day=first>12?first:second;
+    if(month>=1&&month<=12&&day>=1&&day<=31)return match[3]+'-'+String(month).padStart(2,'0')+'-'+String(day).padStart(2,'0');
   }
-  if(!rows.length)throw new Error('اتحملت التابة لكن مفيش صفوف فيها كود أو اسم مندوب.');
-  AS_DATES=cols.map(x=>x.d).sort();AS_DATES=[...new Set(AS_DATES)];AS_ROWS=rows;
-};
-function asJsonp(){
+  return '';
+}
+function bookingCellText(cell,kind){
+  if(!cell)return '';
+  const value=cell.f!=null?cell.f:cell.v;
+  if(value==null)return '';
+  const text=String(value).trim();
+  if(kind==='date')return bookingDateKey(text);
+  if(kind==='time'&&/^Date\(/.test(text)){
+    const match=text.match(/^Date\(\d+,\d+,\d+,(\d+),(\d+)/);
+    if(match){const hour=+match[1],minute=+match[2];return new Date(2000,0,1,hour,minute).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}
+  }
+  if(kind==='duration'&&/^Date\(/.test(text)){
+    const match=text.match(/^Date\(\d+,\d+,\d+,(\d+),(\d+)/);
+    if(match)return match[1]+':'+String(+match[2]).padStart(2,'0');
+  }
+  return text;
+}
+function bookingDurationMinutes(value){
+  const text=String(value||'').trim();
+  const match=text.match(/^(-?)(\d+):([0-5]\d)(?::([0-5]\d))?$/);
+  if(match)return (match[1]?-1:1)*(+match[2]*60+(+match[3])+(match[4]?+match[4]/60:0));
+  const numeric=Number(text);
+  if(Number.isFinite(numeric))return numeric>=0&&numeric<1?numeric*1440:numeric*60;
+  return 0;
+}
+function bookingParseGviz(response){
+  if(!response||response.status==='error'||!response.table)throw new Error(response&&response.errors&&response.errors[0]?response.errors[0].detailed_message:'جوجل لم يرجع بيانات قابلة للقراءة.');
+  const rows=[];
+  for(const sourceRow of response.table.rows||[]){
+    const cells=sourceRow&&sourceRow.c||[],cell=index=>cells[index]||null;
+    const id=bookingCellText(cell(1),'text').replace(/\.0$/,'').trim(),name=bookingCellText(cell(2),'text').trim(),
+      date=bookingCellText(cell(7),'date'),start=bookingCellText(cell(9),'time'),end=bookingCellText(cell(10),'time'),
+      duration=bookingCellText(cell(11),'duration');
+    if(!id||!date)continue;
+    rows.push({id,name,date,start,end,duration,minutes:bookingDurationMinutes(duration)});
+  }
+  if(!rows.length)throw new Error('لم يتم العثور على حجوزات صالحة في الأعمدة B وC وH وJ وK وL.');
+  return rows;
+}
+function bookingJsonp(){
   return new Promise((resolve,reject)=>{
-    const script=document.createElement('script'),name='__asSheetResponse',timeout=setTimeout(()=>finish(new Error('انتهت مهلة الاتصال بجوجل.')),45000);
-    const finish=(err,value)=>{clearTimeout(timeout);script.remove();try{delete window[name]}catch(e){window[name]=undefined}if(err)reject(err);else resolve(value)};
-    window[name]=r=>{
-      if(!r||r.status==='error'||!r.table)return finish(new Error('جوجل رجّع خطأ أثناء قراءة التابة.'));
-      const rows=[(r.table.cols||[]).map(c=>c&&c.label||'')];
-      for(const row of r.table.rows||[])rows.push((r.table.cols||[]).map((_,i)=>{
-        const c=row.c&&row.c[i];if(!c)return '';
-        const v=c.f!=null?c.f:c.v;
-        if(typeof v==='string'){const m=v.match(/^Date\((\d+),(\d+),(\d+)/);if(m)return String(+m[2]+1)+'/'+String(+m[3])+'/'+m[1]}
-        return v==null?'':v;
-      }));
-      finish(null,rows);
+    const callback='__bookingSheet'+(++BOOKING_JSONP_ID),script=document.createElement('script');
+    let settled=false;
+    const finish=(error,value)=>{
+      if(settled)return;settled=true;clearTimeout(timeout);script.remove();
+      try{delete window[callback]}catch(e){window[callback]=undefined}
+      if(error)reject(error);else resolve(value);
     };
-    script.onerror=()=>finish(new Error('فشل تحميل بيانات التابة من Google Sheets.'));
-    script.src=`https://docs.google.com/spreadsheets/d/${SID}/gviz/tq?gid=${AS_GID}&headers=1&tqx=out:json;responseHandler:${name}`;
+    const timeout=setTimeout(()=>finish(new Error('انتهت مهلة الاتصال بشيت الحجز.')),45000);
+    window[callback]=response=>{try{finish(null,bookingParseGviz(response))}catch(error){finish(error)}};
+    script.onerror=()=>finish(new Error('تعذّر الوصول إلى شيت الحجز؛ تأكد من الإنترنت وإتاحة الشيت للعرض.'));
+    script.src=`https://docs.google.com/spreadsheets/d/${BOOKING_SHEET_ID}/gviz/tq?gid=${BOOKING_GID}&headers=1&tqx=out:json;responseHandler:${callback}&_=${Date.now()}`;
     document.head.appendChild(script);
   });
 }
-async function asFetch(){
-  const base=`https://docs.google.com/spreadsheets/d/${SID}/`,urls=[
-    base+`gviz/tq?tqx=out:csv&gid=${AS_GID}`,
-    base+`gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(AS_TAB)}`,
-    base+`export?format=csv&gid=${AS_GID}`
-  ],errors=[];
-  for(const url of urls){
+function bookingDatabaseParseGviz(response){
+  if(!response||response.status==='error'||!response.table)throw new Error(response&&response.errors&&response.errors[0]?response.errors[0].detailed_message:'جوجل لم يرجع بيانات قاعدة البيانات.');
+  const headers=(response.table.cols||[]).map(column=>String(column&&column.label||'').trim().toLocaleLowerCase().replace(/[\s_]+/g,''));
+  const column=(pattern,fallback)=>{const index=headers.findIndex(header=>pattern.test(header));return index<0?fallback:index};
+  const columns={
+    id:column(/^(id|riderid|معرفالمندوب|كودالمندوب)$/,0),
+    name:column(/^(employeename|الاسم|اسمالمندوب)$/,1),
+    manager:column(/^(manager|مديرالمنطقه|مديرالمنطقة)$/, -1),
+    sup:column(/^(sv|supervisor|المشرف)$/,4),
+    status:column(/^(status|الحاله|الحالة)$/, -1),
+    zone:column(/^(zone|الزون|المنطقه|المنطقة)$/,3)
+  };
+  const riders=new Map;
+  for(const sourceRow of response.table.rows||[]){
+    const cells=sourceRow&&sourceRow.c||[],text=index=>index<0?'':bookingCellText(cells[index],'text').trim(),
+      id=text(columns.id).replace(/\.0$/,''),name=text(columns.name);
+    if(!id||!name)continue;
+    const rider={id,name,manager:text(columns.manager),sup:text(columns.sup),status:text(columns.status),zone:text(columns.zone)},
+      score=Number(Boolean(rider.name))+Number(Boolean(rider.manager))+Number(Boolean(rider.sup))+Number(Boolean(rider.zone))+Number(Boolean(rider.status)),
+      existing=riders.get(id);
+    if(!existing||score>=existing.score)riders.set(id,{...rider,score});
+  }
+  const rows=[...riders.values()].map(({score,...rider})=>rider);
+  if(!rows.length)throw new Error('لم يتم العثور على مناديب بمعرّفات وأسماء في تاب قاعدة البيانات.');
+  return rows;
+}
+function bookingDatabaseJsonp(){
+  return new Promise((resolve,reject)=>{
+    const callback='__bookingDatabase'+(++BOOKING_JSONP_ID),script=document.createElement('script');
+    let settled=false;
+    const finish=(error,value)=>{
+      if(settled)return;settled=true;clearTimeout(timeout);script.remove();
+      try{delete window[callback]}catch(e){window[callback]=undefined}
+      if(error)reject(error);else resolve(value);
+    };
+    const timeout=setTimeout(()=>finish(new Error('انتهت مهلة تحميل قاعدة البيانات.')),60000);
+    window[callback]=response=>{try{finish(null,bookingDatabaseParseGviz(response))}catch(error){finish(error)}};
+    script.onerror=()=>finish(new Error('تعذّر الوصول إلى تاب قاعدة البيانات؛ تأكد من إتاحته للعرض.'));
+    script.src=`https://docs.google.com/spreadsheets/d/${BOOKING_SHEET_ID}/gviz/tq?gid=${BOOKING_DB_GID}&headers=1&tqx=out:json;responseHandler:${callback}&_=${Date.now()}`;
+    document.head.appendChild(script);
+  });
+}
+function bookingProfileMaps(){
+  if(BOOKING_PROFILE_SOURCE===ALL&&BOOKING_PROFILE_CACHE)return BOOKING_PROFILE_CACHE;
+  const byId=new Map,byName=new Map;
+  for(const row of ALL){
+    if(!row||!row.s&&!row.z&&!row.m)continue;
+    const profile={s:row.s||'',z:row.z||'',m:row.m||'',t:+row.t||0};
+    const id=String(row.id||'').trim().replace(/\.0$/,'');
+    if(id&&(!byId.has(id)||byId.get(id).t<profile.t))byId.set(id,profile);
+    const name=nameMatchKey(row.n);
+    if(name&&(!byName.has(name)||byName.get(name).t<profile.t))byName.set(name,profile);
+  }
+  BOOKING_PROFILE_SOURCE=ALL;BOOKING_PROFILE_CACHE={byId,byName};
+  return BOOKING_PROFILE_CACHE;
+}
+function bookingRosterRows(){
+  return BOOKING_DB_ROWS;
+}
+function bookingCanAccessDashboard(user=CUR){
+  return Boolean(user&&['admin','manager','sup'].includes(user.r));
+}
+function bookingCanViewSupervisorSummary(user=CUR){
+  return Boolean(user&&['admin','manager'].includes(user.r));
+}
+function bookingApplyRoleAccess(user=CUR){
+  const allowed=bookingCanViewSupervisorSummary(user),button=$('bookingSupervisorSummary'),panel=$('bookingSupervisorPanel');
+  $('bookingSupervisorRateItem').hidden=!(user&&user.r==='sup');
+  button.style.display=allowed?'':'none';
+  if(!allowed){
+    panel.style.display='none';
+    button.setAttribute('aria-expanded','false');
+    button.textContent='👷 ملخص المشرفين';
+  }
+}
+function bookingDatabaseById(){
+  if(!BOOKING_DB_ID_MAP)BOOKING_DB_ID_MAP=new Map(BOOKING_DB_ROWS.map(row=>[row.id,row]));
+  return BOOKING_DB_ID_MAP;
+}
+function bookingNormalizeRiderId(value){
+  return String(value==null?'':value).trim().replace(/\.0$/,'');
+}
+function bookingHeadcountPhoneMap(){
+  return new Map(HC_ROWS.filter(row=>row.id&&row.phone)
+    .map(row=>[bookingNormalizeRiderId(row.id),String(row.phone).trim()]));
+}
+async function bookingLoadHeadcountPhones(){
+  if(BOOKING_PHONE_LOAD)return BOOKING_PHONE_LOAD;
+  if(!HC_ROWS.length){
+    const cached=hcReadCache();
+    if(Array.isArray(cached))HC_ROWS=cached;
+  }
+  if(HC_ROWS.length){
+    $('bookingPhoneMessage').style.display='none';
+    bookingRender();
+    return;
+  }
+  const status=$('bookingPhoneMessage');
+  status.style.display='block';status.textContent='⏳ جارٍ تحميل أرقام الهواتف من الهيد كونت…';
+  BOOKING_PHONE_LOAD=(async()=>{
     try{
-      const r=await fetch(url,{cache:'no-store'});if(!r.ok){errors.push('HTTP '+r.status);continue}
-      const text=await r.text();if(text.trim().startsWith('<')){errors.push('الشيت طلب تسجيل دخول أو صلاحية');continue}
-      const data=Papa.parse(text,{skipEmptyLines:true}).data;asParseRows(data);return;
-    }catch(e){errors.push(e.message||'تعذّر قراءة CSV')}
-  }
-  try{asParseRows(await asJsonp());return}catch(e){errors.push(e.message||'تعذّر الاتصال')}
-  throw new Error([...new Set(errors)].join(' · ')||'تأكد إن الشيت متاح للعرض بالرابط.');
+      const rows=await hcFetchRows();
+      HC_ROWS=rows;hcSaveCache(rows);BOOKING_PHONE_ERROR='';
+      const phoneCount=rows.filter(row=>row.id&&row.phone).length;
+      status.textContent='✅ تم تحميل '+NF(phoneCount)+' رقم هاتف من الهيد كونت.';
+      bookingRender();
+    }catch(error){
+      BOOKING_PHONE_ERROR=error&&error.message?error.message:String(error);
+      status.textContent='⚠️ تعذّر تحميل أرقام الهواتف من الهيد كونت: '+BOOKING_PHONE_ERROR;
+    }finally{BOOKING_PHONE_LOAD=null}
+  })();
+  return BOOKING_PHONE_LOAD;
 }
-function asScopedRows(){
-  if(!CUR||CUR.r==='admin')return AS_ROWS;
-  const key=CUR.r==='manager'?'manager':'sup';
-  const userName=nameMatchKey(CUR.s);
-  return AS_ROWS.filter(r=>nameMatchKey(r[key])===userName);
+function bookingMissingLiveStatus(){
+  return LIVE_LAST_SUCCESS?'غير ظاهر في Live':LIVE_ERROR?'تعذّر تحديث Live':'جارٍ تحميل Live';
 }
-function asSetSelect(id,values,label){
-  const select=$(id),previous=select.value;select.innerHTML='';
-  const all=document.createElement('option');all.value='';all.textContent=label;select.appendChild(all);
-  [...new Set(values.filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ar')).forEach(value=>{
-    const option=document.createElement('option');option.value=value;option.textContent=value;select.appendChild(option);
-  });
-  if([...select.options].some(o=>o.value===previous))select.value=previous;
-}
-function asSetNameSelect(id,values,label){
-  const select=$(id),previous=select.value,names=new Map();
-  values.map(value=>String(value||'').trim()).filter(Boolean).forEach(name=>{
-    const key=nameMatchKey(name);if(!names.has(key))names.set(key,name);
-  });
-  select.innerHTML='';
-  const all=document.createElement('option');all.value='';all.textContent=label;select.appendChild(all);
-  [...names.entries()].sort((a,b)=>a[1].localeCompare(b[1],'ar')).forEach(([,name])=>{
-    const option=document.createElement('option');option.value=name;option.textContent=name;select.appendChild(option);
-  });
-  const matchingOption=[...select.options].find(option=>nameMatchKey(option.value)===nameMatchKey(previous));
-  if(matchingOption)select.value=matchingOption.value;
-}
-const asIsSelected=v=>{const s=String(v||'').trim().toLowerCase().replace(/\s+/g,'');return !!s&&((s.includes('مختار')&&!s.includes('مش'))||s==='selected'||s==='yes'||s==='true')};
-const asIsNotSelected=v=>{const s=String(v||'').trim().toLowerCase().replace(/\s+/g,'');return s.includes('مشمختار')||s==='notselected'||s==='no'||s==='false'};
-function asFillFilters(){
-  const rows=asScopedRows().filter(r=>tgGroupHasZone($('asZoneGroup').value,r.city));
-  asSetNameSelect('asManager',rows.map(r=>r.manager),'كل المديرين');
-  asSetNameSelect('asSup',rows.map(r=>r.sup),'كل المشرفين');
-  asSetSelect('asCity',rows.map(r=>r.city),'كل المدن');
-  asSetSelect('asOffice',rows.map(r=>r.office),'كل المقرات');
-}
-function asDateChips(){
-  const root=$('asChips'),last=AS_DATES[AS_DATES.length-1],first=AS_DATES[0];
-  root.innerHTML='';
-  const localDateKey=offset=>{
-    const date=new Date();date.setDate(date.getDate()+offset);
-    return date.getFullYear()+'-'+String(date.getMonth()+1).padStart(2,'0')+'-'+String(date.getDate()).padStart(2,'0');
-  };
-  [[localDateKey(0),localDateKey(0),'النهارده'],[localDateKey(1),localDateKey(1),'بكرة'],
-    [first,last,'كل الأيام'],[AS_DATES[Math.max(0,AS_DATES.length-7)],last,'آخر 7 أيام'],[last,last,'آخر يوم']].forEach(([a,b,label])=>{
-    const button=document.createElement('button');button.className='chip';button.textContent=label;
-    button.onclick=()=>{$('asD1').value=a||'';$('asD2').value=b||'';AS_PAGE=0;asRender()};
-    root.appendChild(button);
-  });
-}
-function asHours(v){
-  const m=String(v||'').trim().match(/^(\d{1,3}):([0-5]\d)$/);return m?+m[1]+(+m[2])/60:0;
-}
-function asRender(){
-  if(!AS_ROWS.length)return;
-  const first=AS_DATES[0],last=AS_DATES[AS_DATES.length-1];
-  const from=$('asD1').value||first,to=$('asD2').value||last;
-  const days=AS_DATES.filter(d=>d>=from&&d<=to);AS_DAY_KEYS=days;
-  const manager=$('asManager').value,sup=$('asSup').value,city=$('asCity').value,office=$('asOffice').value,
-    status=$('asStatus').value,q=$('asQ').value.trim().toLowerCase();
-  let rows=asScopedRows().filter(r=>tgGroupHasZone($('asZoneGroup').value,r.city)&&(!manager||nameMatchKey(r.manager)===nameMatchKey(manager))&&(!sup||nameMatchKey(r.sup)===nameMatchKey(sup))&&(!city||r.city===city)&&(!office||r.office===office)&&
-    (!q||(r.id+' '+r.name+' '+r.sup+' '+r.manager+' '+r.city+' '+r.office).toLowerCase().includes(q)));
-  rows=rows.filter(r=>{
-    const chosen=days.some(d=>asIsSelected(r.shifts[d]));
-    if(status==='selected'&&!chosen)return false;
-    if(status==='not-selected'&&chosen)return false;
-    if(status==='active'&&!/active|نشط/i.test(r.status))return false;
-    return true;
-  });
-  AS_FILTERED=rows;AS_PAGE=Math.min(AS_PAGE,Math.max(0,Math.ceil(rows.length/AS_PAGE_SIZE)-1));
-  let chosen=0,notChosen=0,unknown=0;const byDay=days.map(d=>({d,yes:0,no:0,unknown:0}));
-  const supervisors={},byCity={},byOffice={};
-  for(const r of rows){
-    let y=0,n=0;
-    for(const point of byDay){const value=r.shifts[point.d];if(asIsSelected(value)){point.yes++;y++}else if(asIsNotSelected(value)){point.no++;n++}else point.unknown++}
-    chosen+=y;notChosen+=n;unknown+=Math.max(0,days.length-y-n);
-    if(r.sup){const g=supervisors[r.sup]||(supervisors[r.sup]={yes:0,total:0});g.yes+=y;g.total+=y+n}
-    for(const group of [byCity,byOffice]){
-      const key=group===byCity?r.city:r.office;if(!key)continue;
-      const g=group[key]||(group[key]={yes:0,no:0});
-      g.yes+=y;g.no+=n;
+function bookingLiveRiderMap(){
+  const idIndex=LIVE_HEADERS.findIndex(header=>/^(id|riderid|rider id)$/i.test(String(header||'').trim())),
+    stateIndex=LIVE_HEADERS.findIndex(header=>/^(rider state|state|حالة المندوب)$/i.test(String(header||'').trim())),
+    phoneIndex=LIVE_HEADERS.findIndex(header=>/^(phone(?: no\.?)?|phone number|mobile|رقم التليفون|رقم الهاتف)$/i.test(String(header||'').trim())),
+    liveIdIndex=idIndex<0?2:idIndex,liveStateIndex=stateIndex<0?14:stateIndex,
+    livePhoneIndex=phoneIndex<0?4:phoneIndex,riders=new Map;
+  for(const {cells,timestamp} of liveEligibleRows()){
+    const id=bookingNormalizeRiderId(cells[liveIdIndex]);
+    if(!id)continue;
+    const existing=riders.get(id);
+    if(!existing||timestamp>existing.timestamp){
+      riders.set(id,{timestamp,status:String(cells[liveStateIndex]||'').trim()||'غير محدد',
+        phone:String(cells[livePhoneIndex]||'').trim()});
     }
   }
-  const availability=chosen+notChosen?chosen/(chosen+notChosen)*100:0,hours=rows.reduce((sum,r)=>sum+asHours(r.hours),0);
-  $('asK').innerHTML=[
-    ['👥 المندوبون',NF(rows.length),'حسب الفلاتر','--c:var(--pr)'],
-    ['✅ مختار',NF(chosen),'اختيارات مندوب × يوم','--c:var(--ok)'],
-    ['⏳ مش مختار',NF(notChosen),'اختيارات مندوب × يوم','--c:var(--bad)'],
-    ['📋 إجمالي الحالات المسجلة',NF(chosen+notChosen),'مختار + مش مختار؛ بدون الخانات الفارغة','--c:var(--cy)'],
-    ['📊 نسبة الاختيار',F1(availability)+'%','من الحالات المحددة','--c:var(--wa)'],
-    ['⏱ ساعات اليوم المختارة',F1(hours),'إجمالي الساعات المسجلة لليوم فقط','--c:var(--pu)'],
-    ['❔ بدون حالة',NF(unknown),'خانات فاضية أو غير معروفة','--c:var(--cy)']
-  ].map(k=>`<div class="kpi" style="${k[3]}"><div class="l">${k[0]}</div><div class="v">${k[1]}</div><div class="s">${k[2]}</div></div>`).join('');
-  $('asN').textContent=NF(AS_ROWS.length)+' مندوب في الشيت · '+NF(rows.length)+' بعد الفلترة';
-  $('asCount').textContent=NF(rows.length)+' نتيجة';
-  const labels=days.map(asDateLabel);
-  draw('as1',{type:'bar',data:{labels,datasets:[
-    {label:'مختار',data:byDay.map(x=>x.yes),backgroundColor:'#10b981cc',stack:'shift'},
-    {label:'مش مختار',data:byDay.map(x=>x.no),backgroundColor:'#ef4444aa',stack:'shift'},
-    {label:'بدون حالة',data:byDay.map(x=>x.unknown),backgroundColor:'#64748b99',stack:'shift'}
-  ]},options:{scales:{x:{stacked:true},y:{stacked:true,beginAtZero:true}},onClick:(e,els)=>{if(!els.length)return;const d=days[els[0].index];$('asD1').value=d;$('asD2').value=d;asRender()}}});
-  const top=Object.entries(supervisors).sort((a,b)=>b[1].yes-a[1].yes).slice(0,12);
-  draw('as3',{type:'bar',data:{labels:top.map(x=>x[0]),datasets:[{label:'اختيارات مؤكدة',data:top.map(x=>x[1].yes),backgroundColor:'#8b5cf6cc'},{label:'أيام بحالة معروفة',data:top.map(x=>Math.max(0,x[1].total-x[1].yes)),backgroundColor:'#3b82f688'}]},options:{indexAxis:'y',scales:{x:{stacked:true},y:{stacked:true}},onClick:(e,els)=>{if(!els.length)return;$('asSup').value=top[els[0].index][0];asRender()}}});
-  const groupRows=field=>{
-    const groups={};
-    for(const r of rows){
-      const name=r[field]||'غير محدد',g=groups[name]||(groups[name]={name,selected:0,notSelected:0,unknown:0,riders:0});
-      g.riders++;
-      for(const d of days){const value=r.shifts[d];if(asIsSelected(value))g.selected++;else if(asIsNotSelected(value))g.notSelected++;else g.unknown++}
+  return riders;
+}
+function bookingLiveStatusClass(status){
+  const normalized=String(status||'').trim().toLocaleUpperCase('en');
+  if(['WORKING','READY'].includes(normalized))return'g';
+  if(['LATE','BREAK','STARTING'].includes(normalized))return'y';
+  if(normalized==='ENDING')return'r';
+  return'n';
+}
+function bookingUpdateLiveStateFilter(){
+  const select=$('bookingRiderState'),previous=select.value,
+    statuses=[...new Set(BOOKING_ALL_VISIBLE.map(row=>row.liveStatus).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ar'));
+  select.replaceChildren(new Option('كل حالات المندوبين',''));
+  statuses.forEach(status=>select.add(new Option(status,status)));
+  select.value=statuses.includes(previous)?previous:'';
+}
+function bookingRosterInRole(row,maps){
+  if(!CUR)return false;
+  if(CUR.r==='admin')return true;
+  if(CUR.r==='sup'){
+    const supervisor=nameMatchKey(CUR.s);
+    return Boolean(supervisor&&row.sup&&nameMatchKey(row.sup)===supervisor);
+  }
+  if(CUR.r!=='manager')return false;
+  const manager=nameMatchKey(CUR.s),profile=maps.byId.get(row.id)||maps.byName.get(nameMatchKey(row.name));
+  if(row.manager&&nameMatchKey(row.manager)===manager)return true;
+  if(profile&&nameMatchKey(profile.m)===manager)return true;
+  if(BOOKING_MANAGER_TEAM_SOURCE!==ALL||!BOOKING_MANAGER_TEAM_CACHE){
+    BOOKING_MANAGER_TEAM_SOURCE=ALL;BOOKING_MANAGER_TEAM_CACHE=new Map;
+    for(const source of ALL){
+      const managerKey=nameMatchKey(source.m),supervisorKey=nameMatchKey(source.s);
+      if(!managerKey||!supervisorKey)continue;
+      const supervisors=BOOKING_MANAGER_TEAM_CACHE.get(managerKey)||new Set;
+      supervisors.add(supervisorKey);BOOKING_MANAGER_TEAM_CACHE.set(managerKey,supervisors);
     }
-    return Object.values(groups).map(g=>({...g,total:g.selected+g.notSelected+g.unknown})).sort((a,b)=>b.total-a.total||a.name.localeCompare(b.name,'ar'));
-  };
-  const drawGroups=(id,groups,filterId)=>{const ranked=Object.entries(groups).map(([name,x])=>({name,...x,total:x.yes+x.no})).sort((a,b)=>b.total-a.total);
-    draw(id,{type:'bar',data:{labels:ranked.map(x=>x.name),datasets:[
-      {label:'مختار',data:ranked.map(x=>x.yes),backgroundColor:'#10b981cc'},
-      {label:'مش مختار',data:ranked.map(x=>x.no),backgroundColor:'#ef4444aa'},
-      {label:'الإجمالي المسجل',data:ranked.map(x=>x.total),backgroundColor:'#3b82f688'}
-    ]},options:{indexAxis:'y',scales:{x:{beginAtZero:true}},onClick:(e,els)=>{if(!els.length)return;$(filterId).value=ranked[els[0].index].name;AS_PAGE=0;asRender()}}});
-  };
-  drawGroups('as4',byCity,'asCity');drawGroups('as5',byOffice,'asOffice');
-  AS_GROUP_DATA={city:groupRows('city'),office:groupRows('office'),sup:groupRows('sup')};asRenderGroupTable();
-  $('asH').innerHTML='<tr>'+['#','الكود','اسم المندوب','المدير','المشرف','المدينة','المقر','الحالة',...days.map(asDateLabel),'ساعات اليوم المختارة'].map(x=>`<th>${esc(x)}</th>`).join('')+'</tr>';
-  const start=AS_PAGE*AS_PAGE_SIZE,shown=rows.slice(start,start+AS_PAGE_SIZE);
-  $('asT').innerHTML=shown.map((r,i)=>`<tr><td>${start+i+1}</td><td>${esc(r.id)}</td><td><b>${esc(r.name)}</b></td><td>${esc(r.manager||'—')}</td><td>${esc(r.sup||'—')}</td><td>${esc(r.city||'—')}</td><td>${esc(r.office||'—')}</td><td>${esc(r.status||'—')}</td>${days.map(d=>{const v=r.shifts[d],cls=asIsSelected(v)?'g':asIsNotSelected(v)?'r':'n';return`<td><span class="b ${cls}">${esc(v||'—')}</span></td>`}).join('')}<td>${esc(r.hours||'—')}</td></tr>`).join('')||`<tr><td colspan="${9+days.length}" class="sub">مفيش نتائج مطابقة للفلاتر</td></tr>`;
-  const pageCount=Math.max(1,Math.ceil(rows.length/AS_PAGE_SIZE));
-  $('asPage').textContent=(AS_PAGE+1)+' / '+pageCount;$('asPrev').disabled=AS_PAGE===0;$('asNext').disabled=AS_PAGE>=pageCount-1;
+  }
+  return Boolean(row.sup&&BOOKING_MANAGER_TEAM_CACHE.get(manager)?.has(nameMatchKey(row.sup)));
 }
-function asSetGroup(group){
-  if(!['city','office','sup'].includes(group))return;
-  AS_GROUP=group;
-  document.querySelectorAll('[data-as-group]').forEach(button=>button.classList.toggle('on',button.dataset.asGroup===group));
-  asRenderGroupTable();
+function bookingScopedRows(){
+  const maps=bookingProfileMaps(),database=bookingDatabaseById(),rows=[];
+  for(const row of BOOKING_ROWS){
+    const profile=maps.byId.get(row.id)||maps.byName.get(nameMatchKey(row.name))||null,
+      databaseRider=database.get(row.id)||null,
+      rosterRow={id:row.id,name:row.name,manager:databaseRider&&databaseRider.manager||profile&&profile.m||'',sup:databaseRider&&databaseRider.sup||profile&&profile.s||'',zone:databaseRider&&databaseRider.zone||profile&&profile.z||''};
+    if(!bookingRosterInRole(rosterRow,maps))continue;
+    rows.push({...row,sup:rosterRow.sup,zone:rosterRow.zone});
+  }
+  return rows;
 }
-function asRenderGroupTable(){
-  const titles={city:'المنطقة',office:'المقر',sup:'المشرف'},title=titles[AS_GROUP],groups=AS_GROUP_DATA[AS_GROUP]||[];
-  $('asGroupH').innerHTML='<tr>'+['#',title,'عدد المندوبين','مختار','مش مختار'].map(x=>`<th>${x}</th>`).join('')+'</tr>';
-  $('asGroupT').innerHTML=groups.map((g,i)=>`<tr><td>${i+1}</td><td><b>${esc(g.name)}</b></td><td>${NF(g.riders)}</td><td><span class="b g">${NF(g.selected)}</span></td><td><span class="b r">${NF(g.notSelected)}</span></td></tr>`).join('')||'<tr><td colspan="5" class="sub">مفيش بيانات للمجموعة دي</td></tr>';
+function bookingScopedRoster(){
+  const maps=bookingProfileMaps();
+  return bookingRosterRows().filter(row=>bookingRosterInRole(row,maps));
 }
-async function asReload(){
-  const message=$('asM'),button=$('asRf');button.disabled=true;message.style.display='block';message.textContent='⏳ جارٍ سحب بيانات التابة…';
+function bookingFillFilters(){
+  bookingUpdateFilters();
+}
+function bookingFilterRows(excludedFilter,rows,ignoreDate=false){
+  const date=$('bookingDate').value,supervisor=$('bookingSupervisor').value,zone=$('bookingZone').value,
+    query=$('bookingSearch').value.trim().toLocaleLowerCase();
+  return rows.filter(row=>
+    (ignoreDate||excludedFilter==='bookingDate'||!date||row.date===date)&&
+    (excludedFilter==='bookingSupervisor'||!supervisor||nameMatchKey(row.sup)===nameMatchKey(supervisor))&&
+    (excludedFilter==='bookingZone'||!zone||row.zone===zone)&&
+    (!query||excludedFilter==='bookingSearch'||(row.id+' '+row.name+' '+row.sup+' '+row.zone).toLocaleLowerCase().includes(query))
+  );
+}
+function bookingUpdateFilters(changedFilter){
+  const rows=bookingScopedRows(),roster=bookingScopedRoster();
+  for(const filter of BOOKING_FILTERS){
+    if(filter.id===changedFilter)continue;
+    const select=$(filter.id),previous=select.value,bookingValues=bookingFilterRows(filter.id,rows).map(row=>row[filter.key]),
+      rosterValues=filter.id==='bookingDate'?[]:bookingFilterRows(filter.id,roster,true).map(row=>row[filter.key]),
+      availableDates=filter.id==='bookingDate'?[...rows.map(row=>row.date),asTodayKey()]:[],
+      values=[...new Set([...bookingValues,...rosterValues,...availableDates].filter(Boolean))];
+    values.sort(filter.key==='date'?(a,b)=>b.localeCompare(a):(a,b)=>a.localeCompare(b,'ar'));
+    select.innerHTML='';
+    const all=document.createElement('option');all.value='';all.textContent=filter.label;select.appendChild(all);
+    values.forEach(value=>{
+      const option=document.createElement('option');option.value=value;
+      option.textContent=filter.key==='date'?asDateLabel(value):value;
+      select.appendChild(option);
+    });
+    select.value=values.includes(previous)?previous:'';
+  }
+}
+function bookingSupervisorSummaryRows(){
+  if(!bookingCanViewSupervisorSummary())return[];
+  const summaries=new Map,
+    getSummary=name=>{
+      const key=nameMatchKey(name)||'unknown';
+      let summary=summaries.get(key);
+      if(!summary){summary={name,riders:new Set,booked:new Set,minutes:0,shifts:0};summaries.set(key,summary)}
+      return summary;
+    };
+  for(const row of BOOKING_VISIBLE){
+    const summary=getSummary(row.sup||'غير محدد');
+    summary.riders.add(row.id);
+    if(row.isBooked)summary.booked.add(row.id);
+    summary.minutes+=row.minutes;summary.shifts+=row.shifts.length;
+  }
+  return[...summaries.values()]
+    .map(summary=>({
+      name:summary.name,total:summary.riders.size,booked:summary.booked.size,
+      bookingRate:summary.riders.size?summary.booked.size/summary.riders.size*100:0,
+      unbooked:Math.max(0,summary.riders.size-summary.booked.size),minutes:summary.minutes,shifts:summary.shifts
+    }))
+    .sort((a,b)=>b.total-a.total||a.name.localeCompare(b.name,'ar'));
+}
+function bookingRenderSupervisorSummary(){
+  if(!bookingCanViewSupervisorSummary()){
+    $('bookingSupervisorRows').replaceChildren();
+    return;
+  }
+  $('bookingSupervisorRows').innerHTML=bookingSupervisorSummaryRows().map(summary=>{
+    const level=summary.bookingRate>=80?'high':summary.bookingRate>=60?'good':summary.bookingRate>=40?'mid':'low';
+    return`<tr><td>${esc(summary.name)}</td><td>${NF(summary.total)}</td><td>${NF(summary.booked)}</td><td><span class="booking-rate-value ${level}">${F1(summary.bookingRate)}%</span></td><td>${NF(summary.unbooked)}</td><td>${F1(summary.minutes/60)} س</td><td>${NF(summary.shifts)}</td></tr>`;
+  }).join('')||'<tr><td colspan="7" class="sub">لا توجد بيانات مطابقة للفلاتر.</td></tr>';
+}
+function bookingExportExcel(){
+  if(!bookingCanAccessDashboard()){return}
+  if(!window.XLSX){$('bookingMessage').textContent='⚠️ مكتبة Excel غير متاحة حاليًا؛ حدّث الصفحة وحاول مرة أخرى.';return}
+  if(!BOOKING_VISIBLE.length){$('bookingMessage').textContent='⚠️ لا يوجد مناديب مطابقون للفلاتر لتصديرهم.';return}
   try{
-    await asFetch();asFillFilters();asDateChips();
-    $('asD1').value=asTodayKey();$('asD2').value=asTodayKey();
-    AS_PAGE=0;message.style.display='none';asRender();
-  }catch(e){message.textContent='⚠️ تعذّر تحميل بيانات التابة: '+e.message+(AS_ROWS.length?' · البيانات السابقة ما زالت معروضة.':' · تأكد إن الشيت متاح لمن لديه الرابط.') }
-  finally{button.disabled=false}
+    const details=BOOKING_VISIBLE.map(row=>({
+      'حالة الحجز':row.isBooked?'حاجز':'غير حاجز','كود المندوب':row.id,'اسم المندوب':row.name,
+      'حالة المندوب في Live':row.liveStatus,'رقم التليفون':row.phone||'','المشرف':row.sup||'غير محدد','الزون':row.zone||'غير محدد','عدد الشيفتات':row.shifts.length,
+      'إجمالي الساعات':row.minutes/60
+    }));
+    const shifts=BOOKING_VISIBLE.flatMap(row=>row.shifts.map((shift,index)=>({
+      'كود المندوب':row.id,'اسم المندوب':row.name,'حالة المندوب في Live':row.liveStatus,'رقم التليفون':row.phone||'','المشرف':row.sup||'غير محدد',
+      'الزون':row.zone||'غير محدد','تاريخ الحجز':asDateLabel(shift.date),
+      'الشيفت':index+1,'بداية الشيفت':shift.start||'','نهاية الشيفت':shift.end||'',
+      'المدة':shift.duration||F1(shift.minutes/60)+' ساعة'
+    })));
+    const wb=XLSX.utils.book_new(),detailsSheet=XLSX.utils.json_to_sheet(details),shiftsSheet=XLSX.utils.json_to_sheet(shifts);
+    wb.Workbook={Views:[{RTL:true}]};
+    detailsSheet['!views']=[{RTL:true}];detailsSheet['!cols']=[{wch:16},{wch:16},{wch:36},{wch:24},{wch:24},{wch:18},{wch:20},{wch:16},{wch:18}];
+    shiftsSheet['!views']=[{RTL:true}];shiftsSheet['!cols']=[{wch:16},{wch:36},{wch:20},{wch:24},{wch:20},{wch:18},{wch:12},{wch:18},{wch:18},{wch:18}];
+    XLSX.utils.book_append_sheet(wb,detailsSheet,'مقارنة المناديب');
+    XLSX.utils.book_append_sheet(wb,shiftsSheet,'تفاصيل الشيفتات');
+    if(bookingCanViewSupervisorSummary()){
+      const summary=bookingSupervisorSummaryRows().map(row=>({
+        'المشرف':row.name,'إجمالي المناديب':row.total,'المناديب الحاجزون':row.booked,
+        'نسبة الحجز %':row.bookingRate,'المناديب غير الحاجزين':row.unbooked,
+        'الساعات المحجوزة':row.minutes/60,'عدد الشيفتات':row.shifts
+      }));
+      const summarySheet=XLSX.utils.json_to_sheet(summary);
+      summarySheet['!views']=[{RTL:true}];summarySheet['!cols']=[{wch:28},{wch:18},{wch:18},{wch:18},{wch:22},{wch:20},{wch:16}];
+      XLSX.utils.book_append_sheet(wb,summarySheet,'ملخص المشرفين');
+    }
+    XLSX.writeFile(wb,'حجوزات_الشيفتات_'+new Date().toISOString().slice(0,10)+'.xlsx');
+  }catch(error){
+    $('bookingMessage').textContent='⚠️ تعذّر إنشاء ملف Excel: '+(error&&error.message?error.message:String(error));
+  }
 }
-function asOpen(){
+function bookingRender(){
+  if(!BOOKING_LOADED)return;
+  const date=$('bookingDate').value,supervisor=$('bookingSupervisor').value,zone=$('bookingZone').value,
+    query=$('bookingSearch').value.trim().toLocaleLowerCase(),groups=new Map;
+  for(const row of BOOKING_ROWS){
+    if(date&&row.date!==date)continue;
+    const group=groups.get(row.id)||[];group.push(row);groups.set(row.id,group);
+  }
+  const liveRiders=bookingLiveRiderMap(),headcountPhones=bookingHeadcountPhoneMap();
+  BOOKING_ALL_VISIBLE=bookingScopedRoster().filter(row=>
+    (!supervisor||nameMatchKey(row.sup)===nameMatchKey(supervisor))&&
+    (!zone||row.zone===zone)&&
+    (!query||(row.id+' '+row.name+' '+row.sup+' '+row.zone+' '+(headcountPhones.get(bookingNormalizeRiderId(row.id))||(liveRiders.get(bookingNormalizeRiderId(row.id))||{}).phone||'')).toLocaleLowerCase().includes(query))
+  ).map(row=>{
+    const shifts=groups.get(row.id)||[];
+    const liveRider=liveRiders.get(bookingNormalizeRiderId(row.id));
+    return{...row,shifts,minutes:shifts.reduce((sum,shift)=>sum+shift.minutes,0),isBooked:shifts.length>0,
+      liveStatus:liveRider&&liveRider.status||bookingMissingLiveStatus(),
+      phone:headcountPhones.get(bookingNormalizeRiderId(row.id))||liveRider&&liveRider.phone||''};
+  }).sort((a,b)=>Number(b.isBooked)-Number(a.isBooked)||a.name.localeCompare(b.name,'ar'));
+  bookingUpdateLiveStateFilter();
+  const bookingStatus=$('bookingStatus').value,hoursLimit=$('bookingHoursMax').value.trim(),
+    maxMinutes=hoursLimit===''?null:Number(hoursLimit),riderState=$('bookingRiderState').value;
+  BOOKING_VISIBLE=BOOKING_ALL_VISIBLE.filter(row=>
+    (!bookingStatus||(bookingStatus==='booked'?row.isBooked:!row.isBooked))&&
+    (!riderState||row.liveStatus===riderState)&&
+    (maxMinutes===null||!Number.isFinite(maxMinutes)||maxMinutes<0||(row.isBooked&&row.minutes<maxMinutes*60))
+  );
+  const pages=Math.max(1,Math.ceil(BOOKING_VISIBLE.length/BOOKING_PAGE_SIZE));
+  BOOKING_PAGE=Math.min(BOOKING_PAGE,pages-1);
+  const start=BOOKING_PAGE*BOOKING_PAGE_SIZE,visible=BOOKING_VISIBLE.slice(start,start+BOOKING_PAGE_SIZE);
+  const booked=BOOKING_ALL_VISIBLE.filter(row=>row.isBooked).length,totalShifts=BOOKING_VISIBLE.reduce((sum,row)=>sum+row.shifts.length,0);
+  $('bookingCount').textContent=NF(BOOKING_VISIBLE.length)+' مندوب فريد · '+NF(totalShifts)+' شيفت';
+  $('bookingRosterTotal').textContent=NF(BOOKING_ALL_VISIBLE.length);
+  $('bookingRiderTotal').textContent=NF(booked);
+  $('bookingUnbookedTotal').textContent=NF(BOOKING_ALL_VISIBLE.length-booked);
+  $('bookingHoursTotal').textContent=F1(BOOKING_ALL_VISIBLE.reduce((sum,row)=>sum+row.minutes,0)/60)+' ساعة';
+  $('bookingSupervisorRate').textContent=F1(BOOKING_ALL_VISIBLE.length?booked/BOOKING_ALL_VISIBLE.length*100:0)+'%';
+  $('bookingMessage').textContent=BOOKING_STATUS_MESSAGE;
+  bookingRenderSupervisorSummary();
+  $('bookingRows').innerHTML=visible.map((row,index)=>{
+    const rowIndex=start+index,key=row.id,expanded=BOOKING_EXPANDED.has(key),
+      shiftDetails=row.shifts.map((shift,shiftIndex)=>`<span class="booking-shift-item">${esc(asDateLabel(shift.date))} · ${NF(shiftIndex+1)}. ${esc((shift.start||'—')+' – '+(shift.end||'—'))} · ${esc(shift.duration||F1(shift.minutes/60)+' ساعة')}</span>`).join(''),
+      status=row.isBooked?'<span class="b g">حاجز</span>':'<span class="b r">غير حاجز</span>';
+    const nameContent=row.isBooked
+      ?`<button type="button" class="booking-rider-toggle" data-booking-toggle="${rowIndex}" aria-expanded="${expanded}" aria-controls="booking-details-${rowIndex}"><b>${esc(row.name||row.id)}</b><span class="booking-rider-hint">${expanded?'▲ إخفاء':'▼ تفاصيل الشيفتات'}</span></button>`
+      :`<span class="booking-rider-toggle"><b>${esc(row.name||row.id)}</b><span class="booking-rider-hint">لا توجد حجوزات</span></span>`;
+    const liveStatus=`<span class="b ${bookingLiveStatusClass(row.liveStatus)}">${esc(row.liveStatus)}</span>`;
+    return`<tr><td>${rowIndex+1}</td><td>${status}</td><td>${liveStatus}</td><td>${esc(row.id)}</td><td dir="ltr">${esc(row.phone||'—')}</td><td>${nameContent}</td><td>${esc(row.sup||'غير محدد')}</td><td>${esc(row.zone||'غير محدد')}</td><td><b>${NF(row.shifts.length)}</b></td><td><b>${F1(row.minutes/60)} س</b></td></tr>${expanded&&row.isBooked?`<tr class="booking-details-row" id="booking-details-${rowIndex}"><td colspan="10"><div class="booking-shift-list">${shiftDetails}</div></td></tr>`:''}`;
+  }).join('')||'<tr><td colspan="10" class="sub">لا توجد مناديب مطابقة للفلاتر.</td></tr>';
+  $('bookingPage').textContent=(BOOKING_PAGE+1)+' / '+pages;
+  $('bookingPrev').disabled=BOOKING_PAGE===0;$('bookingNext').disabled=BOOKING_PAGE>=pages-1;
+}
+async function bookingRefresh(){
+  if(BOOKING_BUSY)return;
+  const button=$('bookingOnline'),message=$('bookingMessage'),hadData=BOOKING_LOADED;
+  BOOKING_BUSY=true;button.disabled=true;button.textContent='⏳ جارٍ التحديث…';message.textContent='⏳ جارٍ سحب الحجوزات وقاعدة بيانات المناديب من Google Sheets…';
+  try{
+    const [bookingResult,databaseResult]=await Promise.allSettled([bookingJsonp(),bookingDatabaseJsonp()]);
+    if(bookingResult.status==='rejected')throw bookingResult.reason;
+    BOOKING_ROWS=bookingResult.value;BOOKING_LOADED=true;
+    if(databaseResult.status==='fulfilled'){
+      BOOKING_DB_ROWS=databaseResult.value;BOOKING_DB_ID_MAP=null;BOOKING_DB_LOADED=true;
+    }
+    bookingFillFilters();
+    if(!hadData){
+      $('bookingDate').value=asTodayKey();
+    }
+    $('bookingUpdated').textContent='آخر تحديث: '+new Date().toLocaleString('ar-EG');
+    BOOKING_STATUS_MESSAGE=databaseResult.status==='fulfilled'
+      ?'✅ تم تحديث '+NF(BOOKING_ROWS.length)+' حجزًا ومقارنة IDs مع '+NF(BOOKING_DB_ROWS.length)+' مندوبًا في قاعدة البيانات.'
+      :'⚠️ تم تحديث '+NF(BOOKING_ROWS.length)+' حجز، لكن تعذّر تحديث قاعدة البيانات: '+(databaseResult.reason&&databaseResult.reason.message?databaseResult.reason.message:String(databaseResult.reason))+(BOOKING_DB_LOADED?' · تم الاحتفاظ بآخر نسخة من قاعدة البيانات.':'');
+    BOOKING_PAGE=0;bookingRender();
+  }catch(error){
+    BOOKING_STATUS_MESSAGE='⚠️ '+(error&&error.message?error.message:String(error))+(hadData?' · البيانات السابقة ما زالت معروضة.':'');
+    message.textContent=BOOKING_STATUS_MESSAGE;
+    if(!hadData)$('bookingRows').innerHTML='<tr><td colspan="10" class="sub">تعذّر تحميل البيانات.</td></tr>';
+  }finally{BOOKING_BUSY=false;button.disabled=false;button.textContent='🔄 تحديث البيانات'}
+}
+$('bookingOnline').onclick=bookingRefresh;
+$('bookingExport').onclick=bookingExportExcel;
+$('bookingDashboardB').onclick=()=>{
+  if(!bookingCanAccessDashboard())return;
+  bookingApplyRoleAccess();
   $('as').style.display='block';document.body.style.overflow='hidden';
-  if(!AS_ROWS.length)asReload();else asRender();
-}
-function asClose(){$('as').style.display='none';document.body.style.overflow=''}
-function asGo(id){const e=$(id);if(e)$('as').scrollTo({top:e.offsetTop-60,behavior:'smooth'})}
-function asExport(){
-  if(!AS_FILTERED.length)return alert('مفيش بيانات للتصدير بعد الفلترة.');
-  const days=AS_DAY_KEYS,rows=AS_FILTERED.map(r=>{
-    const x={'الكود':r.id,'اسم المندوب':r.name,'المدير':r.manager,'المشرف':r.sup,'المدينة':r.city,'المقر':r.office,'الحالة':r.status};
-    days.forEach(d=>x[asDateLabel(d)]=r.shifts[d]||'');x['ساعات اليوم المختارة']=r.hours;return x;
-  });
-  const name='ان_اصين_'+new Date().toISOString().slice(0,10);
-  if(window.XLSX){const ws=XLSX.utils.json_to_sheet(rows);ws['!views']=[{RTL:true}];const wb=XLSX.utils.book_new();wb.Workbook={Views:[{RTL:true}]};XLSX.utils.book_append_sheet(wb,ws,'ان اصين');XLSX.writeFile(wb,name+'.xlsx')}
-  else dlCSV(rows,name+'.csv');
-}
-$('asB').onclick=asOpen;$('asC').onclick=asClose;$('asRf').onclick=asReload;$('asE').onclick=asExport;
-$('as').addEventListener('click',e=>{if(e.target===$('as'))asClose()});
-addEventListener('keydown',e=>{if(e.key==='Escape'&&$('as').style.display==='block')asClose()});
-['asD1','asD2','asManager','asSup','asCity','asOffice','asStatus'].forEach(id=>$(id).onchange=()=>{AS_PAGE=0;asRender()});
-$('asZoneGroup').onchange=()=>{$('asCity').value='';$('asOffice').value='';asFillFilters();AS_PAGE=0;asRender()};
-let asQT;$('asQ').oninput=()=>{clearTimeout(asQT);asQT=setTimeout(()=>{AS_PAGE=0;asRender()},200)};
-$('asX').onclick=()=>{$('asZoneGroup').value='';['asManager','asSup','asCity','asOffice','asStatus','asQ'].forEach(id=>$(id).value='');asFillFilters();$('asD1').value=asTodayKey();$('asD2').value=asTodayKey();AS_PAGE=0;asRender()};
-$('asPrev').onclick=()=>{if(AS_PAGE>0){AS_PAGE--;asRender()}};
-$('asNext').onclick=()=>{if((AS_PAGE+1)*AS_PAGE_SIZE<AS_FILTERED.length){AS_PAGE++;asRender()}};
+  bookingLoadHeadcountPhones();
+  if(!BOOKING_LOADED||!BOOKING_DB_LOADED)bookingRefresh();else bookingRender();
+};
+$('bookingDashboardClose').onclick=()=>{$('as').style.display='none';document.body.style.overflow=''};
+$('as').addEventListener('click',event=>{if(event.target===$('as'))$('bookingDashboardClose').click()});
+addEventListener('keydown',event=>{if(event.key==='Escape'&&$('as').style.display==='block')$('bookingDashboardClose').click()});
+$('bookingSupervisorSummary').onclick=()=>{
+  if(!bookingCanViewSupervisorSummary())return;
+  const panel=$('bookingSupervisorPanel'),show=panel.style.display==='none';
+  panel.style.display=show?'block':'none';
+  $('bookingSupervisorSummary').setAttribute('aria-expanded',String(show));
+  $('bookingSupervisorSummary').textContent=show?'✕ إخفاء ملخص المشرفين':'👷 ملخص المشرفين';
+};
+BOOKING_FILTERS.forEach(filter=>$(filter.id).onchange=()=>{
+  bookingUpdateFilters(filter.id);BOOKING_PAGE=0;bookingRender();
+});
+$('bookingStatus').onchange=()=>{BOOKING_PAGE=0;bookingRender()};
+$('bookingRiderState').onchange=()=>{BOOKING_PAGE=0;bookingRender()};
+$('bookingHoursMax').oninput=()=>{BOOKING_PAGE=0;bookingRender()};
+let bookingSearchTimer;
+$('bookingSearch').oninput=()=>{clearTimeout(bookingSearchTimer);bookingSearchTimer=setTimeout(()=>{bookingUpdateFilters('bookingSearch');BOOKING_PAGE=0;bookingRender()},180)};
+$('bookingClear').onclick=()=>{
+  BOOKING_FILTERS.forEach(filter=>$(filter.id).value='');
+  $('bookingDate').value=asTodayKey();$('bookingStatus').value='';
+  $('bookingRiderState').value='';
+  $('bookingHoursMax').value='';
+  $('bookingSearch').value='';bookingUpdateFilters();BOOKING_PAGE=0;bookingRender();
+};
+$('bookingRows').onclick=event=>{
+  const toggle=event.target.closest('[data-booking-toggle]');
+  if(!toggle)return;
+  const row=BOOKING_VISIBLE[Number(toggle.dataset.bookingToggle)];
+  if(!row)return;
+  const key=row.id;
+  if(BOOKING_EXPANDED.has(key))BOOKING_EXPANDED.delete(key);else BOOKING_EXPANDED.add(key);
+  bookingRender();
+  $('bookingRows').querySelector(`[data-booking-toggle="${toggle.dataset.bookingToggle}"]`)?.focus();
+};
+$('bookingPrev').onclick=()=>{if(BOOKING_PAGE>0){BOOKING_PAGE--;bookingRender()}};
+$('bookingNext').onclick=()=>{if((BOOKING_PAGE+1)*BOOKING_PAGE_SIZE<BOOKING_VISIBLE.length){BOOKING_PAGE++;bookingRender()}};
 
 /* ================= الاستقطاعات ================= */
 const DEDUCTIONS_SHEET_ID='1CGoU4pR3tjAmi81hIU_z7qQyVD6rFb8OrbPEQzykcqQ';
