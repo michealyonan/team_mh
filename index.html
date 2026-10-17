@@ -1887,6 +1887,48 @@ const dashboardValueLabels={id:'dashboardValueLabels',afterDatasetsDraw(chart){
   });
   ctx.restore();
 }};
+const reportLineValueLabels={id:'reportLineValueLabels',afterDatasetsDraw(chart){
+  const ctx=chart.ctx,area=chart.chartArea;
+  if(!area)return;
+  const occupied=[],step=area.width/Math.max(1,chart.data.labels.length);
+  ctx.save();ctx.font='700 10px Cairo';ctx.textAlign='center';ctx.textBaseline='middle';
+  [{index:0,fill:'#bfdbfe',text:'#082f49',format:value=>F1(value)+' س'},
+   {index:1,fill:'#34d399',text:'#052e1b',format:value=>NF(value)},
+   {index:2,fill:'#fbbf24',text:'#422006',format:value=>F1(value)+' س'}].forEach(series=>{
+    if(!chart.isDatasetVisible(series.index))return;
+    const meta=chart.getDatasetMeta(series.index);
+    meta.data.forEach((point,index)=>{
+      const value=chart.data.datasets[series.index].data[index];
+      if(value==null||!Number.isFinite(+value)||(+value===0&&series.index!==0))return;
+      const label=series.format(+value),width=ctx.measureText(label).width+8,height=16,
+        xOffsets=[0,-step*.24,step*.24,-step*.46,step*.46],
+        yOffsets=series.index===0
+          ?[-height/2,-height*1.6,-height*2.7,-height*3.8,-height*4.9]
+          :series.index===1
+            ?[-height*1.2,height*1.2,-height*2.3,height*2.3,-height*3.4,height*3.4,-height*4.5,height*4.5]
+            :[height*1.2,-height*1.2,height*2.3,-height*2.3,height*3.4,-height*3.4,height*4.5,-height*4.5],
+        preferredY=series.index===0?point.base:point.y;
+      let placement=null;
+      for(const xOffset of xOffsets){
+        const x=Math.max(area.left+width/2,Math.min(area.right-width/2,point.x+xOffset));
+        for(const yOffset of yOffsets){
+          const y=Math.max(area.top+height/2,Math.min(area.bottom-height/2,preferredY+yOffset)),
+            box=[x-width/2,y-height/2,x+width/2,y+height/2];
+          if(occupied.every(other=>box[0]>=other[2]+2||box[2]+2<=other[0]||box[1]>=other[3]+2||box[3]+2<=other[1])){
+            placement={x,y,box};break;
+          }
+        }
+        if(placement)break;
+      }
+      if(!placement)return;
+      occupied.push(placement.box);
+      ctx.fillStyle=series.fill;
+      ctx.beginPath();ctx.roundRect(placement.x-width/2,placement.y-height/2,width,height,5);ctx.fill();
+      ctx.fillStyle=series.text;ctx.fillText(label,placement.x,placement.y);
+    });
+  });
+  ctx.restore();
+}};
 /* ---------- extras ---------- */
 const li=(x,v,c,rk)=>`<div class="li" onclick="showR('${x.id}')"><span>${rk?`<b style="color:var(--mut);display:inline-block;min-width:28px">${rk}</b>`:''}${esc(x.n||x.id)}<small style="color:var(--mut)"> · ${esc(x.z)}</small></span><b style="color:${c||'inherit'}">${v}</b></div>`;
 function extras(){
@@ -2037,6 +2079,18 @@ async function supCaptureAll(){
       days.set(date,day);
     });
     const period=[ $('d1').value&&fd(new Date($('d1').value+'T00:00:00').getTime()), $('d2').value&&fd(new Date($('d2').value+'T00:00:00').getTime()) ].filter(Boolean);
+    const periodStart=$('d1').value?new Date($('d1').value+'T00:00:00').getTime():-Infinity,
+      periodEnd=$('d2').value?new Date($('d2').value+'T00:00:00').getTime():Infinity,
+      rankTotals=new Map;
+    for(const row of ALL){
+      if(row.t<periodStart||row.t>periodEnd||!row.s)continue;
+      const key=nameMatchKey(row.s),entry=rankTotals.get(key)||{name:row.s,hours:0};
+      entry.hours+=row.a;rankTotals.set(key,entry);
+    }
+    const supervisorRanks=new Map([...rankTotals.values()]
+      .sort((a,b)=>b.hours-a.hours||a.name.localeCompare(b.name,'ar'))
+      .map((entry,index)=>[nameMatchKey(entry.name),index+1]));
+    supervisors.sort((a,b)=>(supervisorRanks.get(nameMatchKey(a.s))||Infinity)-(supervisorRanks.get(nameMatchKey(b.s))||Infinity)||String(a.s).localeCompare(String(b.s),'ar'));
     stage=document.createElement('div');
     stage.setAttribute('aria-hidden','true');
     Object.assign(stage.style,{position:'fixed',left:'-10000px',top:'0',width:'960px',zIndex:'-1',fontFamily:'Cairo,system-ui,sans-serif'});
@@ -2051,8 +2105,9 @@ async function supCaptureAll(){
       const zones=[...new Set(days.flatMap(([,day])=>[...day.zones]))].sort((a,b)=>a.localeCompare(b,'ar'));
       const chartId='supCaptureChart'+i;
       activeChartId=chartId;
-      stage.innerHTML=`<section style="width:960px;padding:30px 36px;background:${theme.bg};border:1px solid ${theme.border};border-radius:18px;color:${theme.text};direction:rtl"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:20px"><div><div style="font-size:15px;color:${theme.muted}">🗺️ تقرير أداء المشرف</div><h2 style="margin:8px 0 0;font-size:32px;font-weight:900;color:${theme.text}">${esc(supervisor.s)}</h2><div style="margin-top:10px;font-size:16px;color:${theme.muted}">الزونات: ${zones.length?zones.map(esc).join(' · '):'—'}</div></div><div style="text-align:left;font-size:13px;color:${theme.muted}">${period.length?'الفترة: '+period.join(' — '):'حسب الفلاتر الحالية'}</div></div><div style="height:430px;margin-top:20px;padding:14px;background:${theme.card};border:1px solid ${theme.border};border-radius:12px"><canvas id="${chartId}" width="850" height="390"></canvas></div><div style="margin-top:12px;text-align:left;font-size:12px;color:${theme.muted}">الساعات الفعلية لكل يوم · عدد المناديب العاملين · متوسط الساعات لكل مندوب في اليوم · ${i+1} من ${supervisors.length}</div></section>`;
-      draw(chartId,{type:'bar',plugins:days.length<=14?[dashboardValueLabels]:[],data:{labels:dates,datasets:[
+      const rank=supervisorRanks.get(nameMatchKey(supervisor.s));
+      stage.innerHTML=`<section style="position:relative;width:960px;padding:30px 36px;background:${theme.bg};border:1px solid ${theme.border};border-radius:18px;color:${theme.text};direction:rtl"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:20px"><div><div style="font-size:15px;color:${theme.muted}">🗺️ تقرير أداء المشرف</div><h2 style="margin:8px 0 0;font-size:32px;font-weight:900;color:${theme.text}">${esc(supervisor.s)}</h2><div style="margin-top:10px;font-size:16px;color:${theme.muted}">الزونات: ${zones.length?zones.map(esc).join(' · '):'—'}</div></div><div style="text-align:left;font-size:13px;color:${theme.muted}">${period.length?'الفترة: '+period.join(' — '):'حسب الفلاتر الحالية'}</div></div>${rank?`<span style="position:absolute;left:36px;top:78px;padding:6px 10px;border:1px solid #f59e0b88;border-radius:9px;background:#f59e0b22;color:#fbbf24;font-size:15px;font-weight:900;white-space:nowrap">🏅 الترتيب ${NF(rank)}</span>`:''}<div style="height:430px;margin-top:20px;padding:14px;background:${theme.card};border:1px solid ${theme.border};border-radius:12px"><canvas id="${chartId}" width="850" height="390"></canvas></div><div style="margin-top:12px;text-align:left;font-size:12px;color:${theme.muted}">إجمالي الساعات لكل يوم · عدد المناديب العاملين · متوسط الساعات لكل مندوب في اليوم · ${i+1} من ${supervisors.length}</div></section>`;
+      draw(chartId,{type:'bar',plugins:[reportLineValueLabels],data:{labels:dates,datasets:[
         {label:'إجمالي الساعات',data:hours,backgroundColor:'#3b82f6bb',borderColor:'#3b82f6',borderWidth:1,yAxisID:'yHours'},
         {label:'عدد المناديب',type:'line',data:riderCounts,borderColor:'#10b981',backgroundColor:'#10b981',pointBackgroundColor:'#10b981',pointRadius:3,tension:.25,yAxisID:'yRiders'},
         {label:'متوسط ساعات/مندوب',type:'line',data:averages,borderColor:'#f59e0b',backgroundColor:'#f59e0b',pointBackgroundColor:'#f59e0b',pointRadius:3,tension:.25,yAxisID:'yAverage'}
@@ -2127,7 +2182,7 @@ async function zoneCaptureAll(){
       const chartId='zoneCaptureChart'+i;
       activeChartId=chartId;
       stage.innerHTML=`<section style="width:960px;padding:30px 36px;background:${theme.bg};border:1px solid ${theme.border};border-radius:18px;color:${theme.text};direction:rtl"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:20px"><div><div style="font-size:15px;color:${theme.muted}">🗺️ تقرير الأداء اليومي للمنطقة</div><h2 style="margin:8px 0 0;font-size:32px;font-weight:900;color:${theme.text}">${esc(zone)}</h2></div><div style="text-align:left;font-size:13px;color:${theme.muted}">${period.length?'الفترة: '+period.join(' — '):'حسب الفلاتر الحالية'}</div></div><div style="height:430px;margin-top:20px;padding:14px;background:${theme.card};border:1px solid ${theme.border};border-radius:12px"><canvas id="${chartId}" width="850" height="390"></canvas></div><div style="margin-top:12px;text-align:left;font-size:12px;color:${theme.muted}">الساعات الفعلية لكل يوم · عدد المناديب العاملين · متوسط الساعات لكل مندوب في اليوم · المنطقة ${i+1} من ${entries.length}</div></section>`;
-      draw(chartId,{type:'bar',plugins:days.length<=14?[dashboardValueLabels]:[],data:{labels:dates,datasets:[
+      draw(chartId,{type:'bar',plugins:[reportLineValueLabels],data:{labels:dates,datasets:[
         {label:'إجمالي الساعات',data:hours,backgroundColor:'#3b82f6bb',borderColor:'#3b82f6',borderWidth:1,yAxisID:'yHours'},
         {label:'عدد المناديب',type:'line',data:riderCounts,borderColor:'#10b981',backgroundColor:'#10b981',pointBackgroundColor:'#10b981',pointRadius:3,tension:.25,yAxisID:'yRiders'},
         {label:'متوسط ساعات/مندوب',type:'line',data:averages,borderColor:'#f59e0b',backgroundColor:'#f59e0b',pointBackgroundColor:'#f59e0b',pointRadius:3,tension:.25,yAxisID:'yAverage'}
