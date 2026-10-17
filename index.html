@@ -520,6 +520,14 @@ tr:hover td{background:#1a2b41}
 #queryTable tbody tr{background:var(--surface-inset)}
 #queryTable tbody td:before{color:var(--mut)}
 #loginAuditModal{backdrop-filter:blur(4px)}
+.login-audit-person{display:inline-flex;align-items:center;gap:7px;padding:3px 0;border:0;background:none;color:var(--tx);font:inherit;font-weight:800;text-align:start;cursor:pointer}
+.login-audit-person:hover{color:#38bdf8}
+.login-audit-person:focus-visible{outline:2px solid var(--pr);outline-offset:3px;border-radius:4px}
+.login-audit-chevron{color:var(--mut);font-size:10px;transition:transform .15s ease}
+.login-audit-person[aria-expanded="true"] .login-audit-chevron{transform:rotate(180deg)}
+.login-audit-detail td{padding:10px 16px;background:var(--surface-inset);text-align:start}
+.login-audit-times{display:flex;flex-wrap:wrap;gap:7px}
+.login-audit-time{padding:5px 9px;border:1px solid var(--bd);border-radius:7px;background:var(--surface-raised);color:var(--tx);font-size:12px;font-variant-numeric:tabular-nums}
 html[data-theme="light"]{
  --bg:#edf3f9;
  --card:#fff;
@@ -719,7 +727,7 @@ html[data-theme="light"] #deductionsMessage.warning{border-color:#a1620755;backg
 .live-summary-meta{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 auto 10px;max-width:1120px}
 .live-summary-meta strong{color:var(--tx);font-size:11px}
 .live-summary-table-wrap{max-height:55vh;overflow:auto;border:1px solid var(--bd);border-radius:10px}
-.live-summary-table{width:100%;min-width:640px;table-layout:fixed;font-size:12px}
+.live-summary-table{width:100%;min-width:820px;table-layout:fixed;font-size:12px}
 .live-summary-table th,.live-summary-table td{padding:9px 10px;text-align:center;white-space:normal;overflow-wrap:anywhere}
 .live-summary-table th{position:sticky;top:0;z-index:1;background:var(--surface-raised);color:var(--tx);font-size:11px;line-height:1.4;cursor:default}
 .live-summary-table th:first-child,.live-summary-table td:first-child{width:30%;text-align:start}
@@ -803,10 +811,10 @@ html[data-theme="light"] #liveMessage.error{border-color:#be123c55;background:#b
  </div></div></header>
  <div id="loginAuditModal" style="display:none;position:fixed;inset:0;background:#000c;z-index:75;overflow:auto;padding:12px" onclick="if(event.target===this)this.style.display='none'">
   <div class="card" style="max-width:900px;margin:auto">
-   <div class="row"><h3 style="margin:0">🕵️ المشرفون الذين فتحوا الداشبورد اليوم</h3><button class="btn pr" id="loginAuditRefresh">🔄 تحديث</button><button class="btn" style="margin-inline-start:auto" onclick="$('loginAuditModal').style.display='none'">✕</button></div>
+   <div class="row"><h3 style="margin:0">🕵️ مرات دخول المشرفين اليوم</h3><button class="btn pr" id="loginAuditRefresh">🔄 تحديث</button><button class="btn" style="margin-inline-start:auto" onclick="$('loginAuditModal').style.display='none'">✕</button></div>
    <div class="sub" id="loginAuditStatus" role="status" style="margin:8px 0">اضغط تحديث لعرض السجل.</div>
    <input id="loginAuditSearch" type="search" placeholder="🔎 ابحث باسم المشرف أو اسم المستخدم" aria-label="ابحث باسم المشرف أو اسم المستخدم" style="width:100%;margin:0 0 10px">
-   <div class="tw" style="max-height:65vh;overflow:auto"><table style="min-width:0"><thead><tr><th>#</th><th>وقت الدخول</th><th>اسم المشرف</th><th>اسم المستخدم</th><th>الدور</th></tr></thead><tbody id="loginAuditBody"></tbody></table></div>
+   <div class="tw" style="max-height:65vh;overflow:auto"><table style="min-width:0"><thead><tr><th>#</th><th>المشرف</th><th>اسم المستخدم</th><th>عدد مرات الدخول</th><th>الدور</th></tr></thead><tbody id="loginAuditBody"></tbody></table></div>
   </div>
  </div>
  <div id="loginAuditGate" style="display:none;position:fixed;inset:0;background:#000c;z-index:76;align-items:center;justify-content:center;padding:16px" onclick="if(event.target===this)closeLoginAuditGate()">
@@ -1117,8 +1125,8 @@ html[data-theme="light"] #liveMessage.error{border-color:#be123c55;background:#b
   <div id="liveMessage" role="status" aria-live="polite"></div>
   <section class="card" id="liveSupervisorStatusSummary" style="display:none" aria-live="polite"><h3 style="margin:0 0 4px">نسب حالات مناديبك النشطين</h3><div class="sub" id="liveSupervisorStatusMeta" style="margin:0 0 10px"></div><div id="liveSupervisorStatusRows"></div></section>
   <div class="card" id="liveSummary" style="display:none">
-   <section class="live-summary-section" id="liveSupervisorSummary" style="display:none" aria-live="polite"><h3>الحالات لكل مشرف</h3><div id="liveSupervisorSummaryTable"></div></section>
-   <section class="live-summary-section" id="liveZoneSummary" style="display:none" aria-live="polite"><h3>الحالات لكل زون</h3><div id="liveZoneSummaryTable"></div></section>
+   <section class="live-summary-section" id="liveSupervisorSummary" style="display:none" aria-live="polite"><h3>حالات وساعات العمل لكل مشرف</h3><div id="liveSupervisorSummaryTable"></div></section>
+   <section class="live-summary-section" id="liveZoneSummary" style="display:none" aria-live="polite"><h3>حالات وساعات العمل لكل زون</h3><div id="liveZoneSummaryTable"></div></section>
   </div>
   <div class="card" id="liveFilters">
    <div class="live-filter-grid">
@@ -1358,6 +1366,14 @@ function liveFilteredRows(active=liveEligibleRows()){
     (!search||[...cells.slice(1,15),cells[16]].some(value=>String(value||'').toLocaleLowerCase('ar').includes(search)))
   );
 }
+function liveDurationHours(value){
+  const text=String(value==null?'':value).trim();
+  if(!text)return 0;
+  const match=text.match(/^(-?)(\d+):([0-5]?\d)(?::([0-5]?\d))?$/);
+  if(match)return(match[1]?-1:1)*(+match[2]+(+match[3])/60+(+(match[4]||0))/3600);
+  const serial=Number(text);
+  return Number.isFinite(serial)?serial*24:0;
+}
 function liveSummaryTable(rows,index){
   const states=[...new Set(rows.map(({cells})=>String(cells[14]||'').trim()||'غير محدد'))].sort((a,b)=>a.localeCompare(b,'ar'));
   if(!states.length)return'<div class="sub">لا توجد بيانات ضمن الفلاتر الحالية.</div>';
@@ -1365,11 +1381,13 @@ function liveSummaryTable(rows,index){
   for(const {cells}of rows){
     const name=String(cells[index]||'').trim()||'غير محدد',state=String(cells[14]||'').trim()||'غير محدد';
     if(!groups.has(name))groups.set(name,new Map());
-    const counts=groups.get(name);counts.set(state,(counts.get(state)||0)+1);
+    const totals=groups.get(name),total=totals.get(state)||{count:0,hours:0};
+    total.count++;total.hours+=liveDurationHours(cells[8]);totals.set(state,total);
   }
-  const ordered=[...groups].sort((a,b)=>[...b[1].values()].reduce((sum,count)=>sum+count,0)-[...a[1].values()].reduce((sum,count)=>sum+count,0)||a[0].localeCompare(b[0],'ar'));
-  const stateTotals=states.map(state=>ordered.reduce((sum,[,counts])=>sum+(counts.get(state)||0),0));
-  return`<div class="sub live-summary-meta"><span>الأعداد حسب الحالة بعد الفلاتر الحالية</span><strong>${NF(rows.length)} مندوب</strong></div><div class="live-summary-table-wrap"><table class="live-summary-table"><thead><tr><th scope="col">${index===16?'المشرف':'الزون'}</th>${states.map(state=>`<th scope="col">${esc(state)}</th>`).join('')}<th scope="col">الإجمالي</th></tr></thead><tbody>${ordered.map(([name,counts])=>{const total=[...counts.values()].reduce((sum,count)=>sum+count,0);return`<tr><th scope="row">${esc(name)}</th>${states.map(state=>`<td>${NF(counts.get(state)||0)}</td>`).join('')}<td><strong>${NF(total)}</strong></td></tr>`}).join('')}</tbody><tfoot><tr><th scope="row">الإجمالي</th>${stateTotals.map(total=>`<td>${NF(total)}</td>`).join('')}<td>${NF(rows.length)}</td></tr></tfoot></table></div>`;
+  const ordered=[...groups].sort((a,b)=>[...b[1].values()].reduce((sum,total)=>sum+total.count,0)-[...a[1].values()].reduce((sum,total)=>sum+total.count,0)||a[0].localeCompare(b[0],'ar'));
+  const stateTotals=states.map(state=>ordered.reduce((sum,[,totals])=>{const total=totals.get(state)||{count:0,hours:0};sum.count+=total.count;sum.hours+=total.hours;return sum},{count:0,hours:0}));
+  const renderTotal=total=>`<strong>${NF(total.count)}</strong><div class="sub" style="font-size:10px;margin-top:2px">${F1(total.hours)} ساعة</div>`;
+  return`<div class="sub live-summary-meta"><span>عدد المناديب وساعات العمل حسب الحالة بعد الفلاتر الحالية</span><strong>${NF(rows.length)} مندوب · ${F1(stateTotals.reduce((sum,total)=>sum+total.hours,0))} ساعة</strong></div><div class="live-summary-table-wrap"><table class="live-summary-table"><thead><tr><th scope="col">${index===16?'المشرف':'الزون'}</th>${states.map(state=>`<th scope="col">${esc(state)}</th>`).join('')}<th scope="col">الإجمالي</th></tr></thead><tbody>${ordered.map(([name,totals])=>{const total=[...totals.values()].reduce((sum,value)=>({count:sum.count+value.count,hours:sum.hours+value.hours}),{count:0,hours:0});return`<tr><th scope="row">${esc(name)}</th>${states.map(state=>`<td>${renderTotal(totals.get(state)||{count:0,hours:0})}</td>`).join('')}<td>${renderTotal(total)}</td></tr>`}).join('')}</tbody><tfoot><tr><th scope="row">الإجمالي</th>${stateTotals.map(renderTotal).map(total=>`<td>${total}</td>`).join('')}<td>${renderTotal({count:rows.length,hours:stateTotals.reduce((sum,total)=>sum+total.hours,0)})}</td></tr></tfoot></table></div>`;
 }
 function liveCanViewSummaries(){return Boolean(CUR&&['admin','manager'].includes(CUR.r))}
 function updateLiveRoleControls(user=CUR){
@@ -2381,12 +2399,35 @@ function renderLoginAuditRows(){
     const role=String(row.role||'').trim().toLocaleLowerCase('ar'),username=String(row.username||'').trim().toLocaleLowerCase('ar');
     return role!=='admin'&&!role.includes('أدمن')&&username!=='admin';
   });
-  const rows=visibleRows.filter(row=>!query||[row.displayName,row.username,row.role].some(value=>String(value||'').toLocaleLowerCase('ar').includes(query)));
-  body.innerHTML=rows.map((row,index)=>`<tr><td>${index+1}</td><td>${esc(row.time||'—')}</td><td><b>${esc(row.displayName||'—')}</b></td><td>${esc(row.username||'—')}</td><td>${esc(row.role||'—')}</td></tr>`).join('');
-  const total=visibleRows.length;
+  const people=new Map;
+  visibleRows.forEach(row=>{
+    const username=String(row.username||'').trim(),displayName=String(row.displayName||'').trim(),
+      role=String(row.role||'').trim(),identity=displayName||username;
+    if(!identity)return;
+    const key=(role+'|'+identity).toLocaleLowerCase('ar');
+    const person=people.get(key)||{key,displayName,role,usernames:new Set,times:[]};
+    if(username)person.usernames.add(username);
+    person.times.push(row.time||'—');people.set(key,person);
+  });
+  const allPeople=[...people.values()],rows=allPeople.filter(person=>
+    !query||[person.displayName,person.role,...person.usernames].some(value=>String(value||'').toLocaleLowerCase('ar').includes(query))
+  );
+  body.innerHTML=rows.map((person,index)=>{
+    const name=person.displayName||[...person.usernames][0]||'—',usernames=[...person.usernames].join('، ')||'—';
+    return`<tr><td>${index+1}</td><td><button type="button" class="login-audit-person" data-audit-index="${index}" aria-label="عرض مواعيد دخول ${esc(name)}" aria-expanded="false" aria-controls="loginAuditTimes${index}"><span>${esc(name)}</span><span class="login-audit-chevron" aria-hidden="true">▼</span></button></td><td dir="ltr">${esc(usernames)}</td><td><b>${NF(person.times.length)}</b></td><td>${esc(person.role||'—')}</td></tr><tr class="login-audit-detail" id="loginAuditTimes${index}" hidden><td colspan="5"><div class="login-audit-times" aria-label="مواعيد دخول ${esc(name)}">${person.times.map((time,timeIndex)=>`<span class="login-audit-time"><b>${NF(timeIndex+1)}.</b> ${esc(time)}</span>`).join('')}</div></td></tr>`;
+  }).join('')||'<tr><td colspan="5" class="sub">لا توجد نتائج.</td></tr>';
+  body.onclick=event=>{
+    const toggle=event.target.closest('.login-audit-person');
+    if(!toggle||!body.contains(toggle))return;
+    const details=toggle.closest('tr').nextElementSibling,expanded=toggle.getAttribute('aria-expanded')==='true';
+    toggle.setAttribute('aria-expanded',String(!expanded));
+    details.hidden=expanded;
+  };
+  const total=allPeople.length,totalVisits=allPeople.reduce((sum,person)=>sum+person.times.length,0),
+    matchedVisits=rows.reduce((sum,person)=>sum+person.times.length,0);
   $('loginAuditStatus').textContent=query
-    ?'🔎 '+NF(rows.length)+' نتيجة من '+NF(total)+' تسجيل دخول اليوم.'
-    :total?'✅ '+NF(total)+' تسجيل دخول اليوم.':'لا يوجد تسجيل دخول مسجل اليوم.';
+    ?'🔎 '+NF(rows.length)+' مشرف من '+NF(total)+' · '+NF(matchedVisits)+' تسجيل دخول.'
+    :total?'✅ '+NF(total)+' مشرف · '+NF(totalVisits)+' تسجيل دخول اليوم.':'لا يوجد تسجيل دخول مسجل اليوم.';
 }
 function getU(){return(CUR&&CUR.r==='admin'&&DRAFT)?DRAFT:USERS}
 function getPW(){try{return JSON.parse(localStorage.getItem('pd_pw'))||{}}catch(e){return{}}}
