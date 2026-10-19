@@ -59,6 +59,31 @@ table{border-collapse:collapse;width:100%;font-size:12px;min-width:900px}
 th{position:sticky;top:0;background:#1a2438;padding:8px;text-align:right;cursor:pointer;white-space:nowrap;font-weight:700}
 td{padding:7px 8px;border-top:1px solid var(--bd);white-space:nowrap}
 tr:hover td{background:#18223a}
+#payTable{max-height:72vh}
+#payTable table{font-size:13px;table-layout:auto}
+#payTable th,#payTable td{text-align:center;vertical-align:middle}
+#payTable th{white-space:normal;overflow-wrap:anywhere;line-height:1.45;min-width:120px;padding:10px 8px}
+#payTable td{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:260px;padding:9px 8px}
+#payTable .pay-name-cell{min-width:260px!important;max-width:none!important;white-space:normal!important;overflow:visible;text-overflow:clip;overflow-wrap:anywhere;line-height:1.45}
+#payFilters label{text-align:center}
+#payFilters select{text-align:center;text-align-last:center}
+.pay-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.pay-summary-item{min-width:0;text-align:center;padding:12px 8px;border:1px solid var(--bd);border-radius:10px;background:linear-gradient(135deg,#12334a,var(--card) 75%)}
+.pay-summary-item span{display:block;color:var(--mut);font-size:12px;line-height:1.45}
+.pay-summary-item b{display:block;margin-top:5px;font-size:21px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.pay-period-info{display:block;flex:1 1 100%;color:#93c5fd;font-size:11px;line-height:1.5}
+.pay-summary-button{display:block;width:100%;font:inherit;color:var(--tx);cursor:pointer;transition:border-color .15s,transform .15s}
+.pay-summary-button:hover{border-color:#38bdf8;transform:translateY(-1px)}
+.pay-deduction-dialog{width:min(1100px,100%);max-height:min(92dvh,100%);overflow:auto;padding:14px;background:var(--bg);border:1px solid var(--bd);border-radius:14px;box-shadow:0 20px 70px #000a}
+.pay-deduction-head{position:sticky;top:-14px;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 0;background:var(--bg);border-bottom:1px solid var(--bd)}
+.pay-deduction-head h3{margin:0;font-size:17px}
+.pay-supervisor-pick{padding:0;border:0;background:transparent;color:#bfdbfe;font:inherit;font-weight:900;text-decoration:underline;text-decoration-color:#60a5fa88;text-underline-offset:3px;cursor:pointer}
+.pay-supervisor-pick:hover{color:#fff}
+.pay-deduction-table{max-height:68vh;overflow:auto;margin-top:10px;border-radius:9px}
+.pay-deduction-table table{min-width:700px}
+.pay-deduction-table .supervisor-row td{background:#17304a;color:#bfdbfe;font-weight:900}
+.pay-deduction-table .rider-row td{text-align:center}
+@media(max-width:700px){.pay-summary{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.pay-summary-item{padding:10px 6px}.pay-summary-item b{font-size:18px}}
 .b{padding:2px 8px;border-radius:99px;font-size:11px;font-weight:700}
 .g{background:#10b98122;color:#34d399}.y{background:#f59e0b22;color:#fbbf24}.r{background:#ef444422;color:#f87171}.n{background:#8b97b022;color:var(--mut)}
 .supervisor-name-cell{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
@@ -198,11 +223,75 @@ html[data-theme="light"] .booking-rate-value.low{color:#be123c;background:#ffe4e
 @media(max-width:380px){
  #queries .queries-head>span:last-child{grid-template-columns:1fr 1fr}
  #queries .queries-head>span:last-child #queryClose{grid-column:1/-1}
+ #payPanel{z-index:80}
+ #payPanel .queries-wrap{width:min(1500px,100%);max-height:100dvh;overflow:auto;padding:12px;display:grid;gap:12px}
+ #payPanel .queries-wrap{width:min(1500px,100%);max-height:100dvh;overflow:auto;padding:12px;display:grid;gap:12px}
+#payFilters label{font-size:11px;color:var(--mut)}
+ #payTable th{white-space:normal;overflow-wrap:anywhere;line-height:1.5;min-width:120px}
+ #payTable td{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:240px}
+ #payColumns label{display:flex;align-items:center;gap:7px;font-size:12px;background:#ffffff08;padding:6px 8px;border-radius:8px}
+ #payColumns input{accent-color:var(--pr)}
  #queryFilters{grid-template-columns:1fr}
  #queryFilters label{min-height:0}
 }
-@media(min-width:700px){.filters{grid-template-columns:repeat(4,1fr)}.kpis{grid-template-columns:repeat(4,1fr)}.cw{height:300px}}
-@media(min-width:1100px){.filters{grid-template-columns:repeat(8,1fr)}.kpis{grid-template-columns:repeat(11,minmax(0,1fr));gap:7px}.kpi{min-width:0;padding:8px}.kpi .l,.kpi .s{overflow-wrap:anywhere}.kpi .l{font-size:10px}.kpi .v{font-size:18px}.kpi .s{font-size:10px}.charts{grid-template-columns:repeat(12,1fr)}.c6{grid-column:span 6}.c8{grid-column:span 8}.c4{grid-column:span 4}}
+@media(max-width:699px){
+ #payPanel{z-index:80;padding:0;overflow:hidden}
+ #payPanel .queries-wrap{width:100%;height:100dvh;max-height:100dvh;overflow:auto;overscroll-behavior:contain;padding:calc(8px + env(safe-area-inset-top)) 8px calc(10px + env(safe-area-inset-bottom));display:grid;align-content:start;gap:8px}
+ #payPanel .queries-head{position:sticky;top:0;z-index:5;gap:6px;padding:7px 0;background:rgba(11,15,25,.97);backdrop-filter:blur(8px)}
+ #payPanel .queries-head h2{font-size:15px!important;line-height:1.4}
+ #payCount{margin-inline-start:auto;font-size:10px}
+ #payPanel .queries-head>span:last-child{width:100%;margin-inline-start:0!important;display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px!important}
+ #payPanel .queries-head>span:last-child .btn{min-width:0;min-height:40px;padding:6px 3px;font-size:10px;white-space:normal}
+ #payPanel .card{min-width:0;padding:8px;border-radius:11px}
+ #paySummary{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+ #paySummary .pay-summary-item{padding:8px 5px}
+ #paySummary .pay-summary-item span{font-size:10px}
+ #paySummary .pay-summary-item b{font-size:16px}
+ #payPanel .card>.row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-bottom:7px!important}
+ #payPanel .card>.row>b{font-size:13px}
+ #payPanel .card>.row .btn{min-width:0;min-height:40px;padding:6px 5px;font-size:10px;white-space:normal}
+ #payIdSearch{grid-column:1/-1;width:100%;max-width:none!important;min-width:0}
+ #payFilters{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:7px!important}
+ #payFilters>div{min-width:0}
+ #payFilters label{font-size:10px;line-height:1.4}
+ #payFilters select{min-width:0;min-height:42px;padding-inline:5px;font-size:12px}
+ #payTable{max-height:none;overflow:visible}
+ #payTable table{min-width:0!important;width:100%;border-collapse:separate;border-spacing:0 7px;table-layout:fixed!important}
+ #payTable thead{display:none}
+ #payTable tbody{display:block;width:100%}
+ #payTable tbody tr{display:block;margin:0 0 8px;padding:6px 9px;border:1px solid var(--bd);border-radius:10px;background:#0f1b2d}
+ #payTable tbody td{display:flex;justify-content:space-between;align-items:flex-start;gap:9px;width:100%;max-width:none!important;min-width:0!important;padding:7px 1px;border-top:1px solid var(--bd);white-space:normal!important;overflow:visible;text-overflow:clip;text-align:start;overflow-wrap:anywhere;word-break:break-word;font-size:12px;line-height:1.5}
+ #payTable tbody td:first-child{border-top:0}
+ #payTable tbody td:before{content:attr(data-label);flex:0 0 40%;color:var(--mut);font-size:10px;font-weight:700;line-height:1.6}
+ #payTable tbody td[colspan]{display:block;text-align:center}
+ #payTable tbody td[colspan]:before{content:none}
+ #payDeductionDetails{z-index:140;padding:8px}
+ .pay-deduction-dialog{width:100%;height:100%;max-height:100%;padding:10px;border-radius:11px}
+ .pay-deduction-head{top:-10px;padding:9px 0}
+ .pay-deduction-head h3{font-size:14px}
+ .pay-deduction-head .btn{min-height:40px;padding:5px 8px;font-size:11px}
+ .pay-deduction-table{max-height:none;overflow:visible}
+ .pay-deduction-table table{min-width:0;width:100%;display:block;border-spacing:0 7px}
+ .pay-deduction-table thead{display:none}
+ .pay-deduction-table tbody{display:block}
+ .pay-deduction-table tbody tr{display:block;margin:0 0 8px;padding:5px 8px;border:1px solid var(--bd);border-radius:9px;background:#0f1b2d}
+ .pay-deduction-table tbody td{display:flex;justify-content:space-between;align-items:flex-start;gap:9px;min-width:0;width:100%;padding:7px 1px;border-top:1px solid var(--bd);white-space:normal;overflow-wrap:anywhere;word-break:break-word;font-size:12px;text-align:start}
+ .pay-deduction-table tbody td:first-child{border-top:0}
+ .pay-deduction-table tbody td:before{content:attr(data-label);flex:0 0 40%;color:var(--mut);font-size:10px;font-weight:700}
+ .pay-deduction-table tbody .supervisor-row td{background:transparent;color:#bfdbfe}
+}
+@media(min-width:700px){
+ header{padding-inline:clamp(12px,1.5vw,24px)}
+ main{padding-inline:clamp(12px,1.5vw,24px)}
+ .filters{grid-template-columns:repeat(auto-fit,minmax(min(100%,170px),1fr))}
+ .kpis{grid-template-columns:repeat(auto-fit,minmax(min(100%,140px),1fr))}
+ .charts{grid-template-columns:repeat(12,minmax(0,1fr))}
+ .c6{grid-column:span 6}.c8{grid-column:span 8}.c4{grid-column:span 4}
+ .cw{height:clamp(240px,28vw,360px)}
+ .card,.kpi,.charts>*,main>*{min-width:0;max-width:100%}
+ .tw{max-width:100%}
+}
+@media(min-width:1100px){.kpis{gap:8px}.kpi{min-width:0;padding:9px}.kpi .l,.kpi .s{overflow-wrap:anywhere}.kpi .l{font-size:10px}.kpi .v{font-size:18px}.kpi .s{font-size:10px}}
 .ov{position:fixed;inset:0;z-index:100;background:var(--bg);display:flex;align-items:flex-start;justify-content:center;padding:16px;overflow:auto;-webkit-overflow-scrolling:touch}
 .pw{position:relative}.pw input{padding-inline-end:46px}.eye{position:absolute;inset-inline-end:2px;top:2px;bottom:2px;width:42px;background:none;border:0;color:var(--mut);font-size:18px;cursor:pointer}
 .lb{width:100%;max-width:360px;display:grid;gap:10px;margin:auto}.lb h2{font-size:22px;font-weight:900}.lb input{width:100%;min-height:44px}
@@ -806,7 +895,7 @@ html[data-theme="light"] #liveMessage.error{border-color:#be123c55;background:#b
 <header><div class="hr">
  <div><h1>🚀 داش بورد أداء الطيارين</h1><div class="sub" id="sync">—</div></div>
  <div class="row" style="margin:0">
-  <span class="sub" id="who"></span><button class="btn" id="prB" style="display:none">💰 أسعار الباتشات</button><button class="btn" id="usrB" style="display:none">👥 المستخدمين</button><button class="btn" id="loginAuditB" style="display:none">🕵️ سجل الدخول</button><button class="btn" id="tgB" style="display:none">🎯 التارجت</button><button class="btn" id="hcB" style="display:none">👥 هيد كونت</button><button class="btn" id="dedB" style="display:none">🏢 الشركة</button><button class="btn" id="bookingDashboardB" style="display:none">🗓️ ان اصين</button><button class="btn" id="queriesB" style="display:none">📨 الاستعلامات</button><button class="btn" id="liveB" type="button" style="display:none" aria-controls="livePanel" aria-expanded="false">🔴 Live</button><button class="btn" id="out">خروج</button>
+  <span class="sub" id="who"></span><button class="btn" id="prB" style="display:none">💰 أسعار الباتشات</button><button class="btn" id="usrB" style="display:none">👥 المستخدمين</button><button class="btn" id="loginAuditB" style="display:none">🕵️ سجل الدخول</button><button class="btn" id="tgB" style="display:none">🎯 التارجت</button><button class="btn" id="hcB" style="display:none">👥 هيد كونت</button><button class="btn" id="dedB" style="display:none">🏢 الشركة</button><button class="btn" id="bookingDashboardB" style="display:none">🗓️ ان اصين</button><button class="btn" id="queriesB" style="display:none">📨 الاستعلامات</button><button class="btn" id="payB" type="button" style="display:none" aria-controls="payPanel" aria-expanded="false">💵 القبض</button><button class="btn" id="liveB" type="button" style="display:none" aria-controls="livePanel" aria-expanded="false">🔴 Live</button><button class="btn" id="out">خروج</button>
   <button class="btn pr" id="rf">🔄 تحديث</button>
  </div></div></header>
  <div id="loginAuditModal" style="display:none;position:fixed;inset:0;background:#000c;z-index:75;overflow:auto;padding:12px" onclick="if(event.target===this)this.style.display='none'">
@@ -1090,7 +1179,23 @@ html[data-theme="light"] #liveMessage.error{border-color:#be123c55;background:#b
   </div>
  </div>
 </div>
-<div class="ov" id="queries">
+<div class="ov" id="payPanel" style="display:none" role="dialog" aria-modal="true" aria-labelledby="payTitle" onclick="if(event.target===this)payClose()">
+  <div class="queries-wrap">
+   <div class="row queries-head" style="margin:0"><h2 id="payTitle" style="font-size:17px;font-weight:900">💵 القبض · نتائج السحب</h2><span class="sub" id="payCount"></span><span id="payPeriodInfo" class="pay-period-info" aria-live="polite"></span><span style="margin-inline-start:auto;display:flex;gap:6px"><button class="btn" id="payExport" type="button">⬇ تصدير CSV</button><button class="btn pr" id="payRefresh" type="button">🔄 تحديث</button><button class="btn" id="payClose" type="button">✕ إغلاق</button></span></div>
+   <div class="card pay-summary" id="paySummary"><div class="pay-summary-item"><span>إجمالي الأوردرات المكتملة</span><b id="payTotalOrders">—</b></div><div class="pay-summary-item"><span>إجمالي المناديب</span><b id="payTotalRiders">—</b></div><div class="pay-summary-item"><span>إجمالي الساعات</span><b id="payTotalHours">—</b></div><button class="pay-summary-item pay-summary-button" id="payDeductionsCard" type="button" aria-controls="payDeductionDetails"><span>الإستقطاعات · اضغط للتفاصيل</span><b id="payTotalDeductions">—</b></button></div>
+   <div class="card"><div class="row" style="margin:0 0 8px"><b>🔎 الفلاتر</b><a class="btn" href="https://forms.gle/iq6Z3YqChB9pe34s9" target="_blank" rel="noopener noreferrer">📝 فورم الاستقطاعات</a><input id="payIdSearch" type="search" placeholder="بحث بكود ID" aria-label="بحث بكود ID" style="max-width:230px;margin-inline-start:auto"><button class="btn" id="payClear" type="button">✕ مسح الفلاتر</button></div><div class="filters" id="payFilters" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr));gap:10px"><div><label for="payValue0">Week</label><select id="payValue0" aria-label="Week" data-pay-value="0"><option value="">الكل</option></select></div><div><label for="payValue1">الزون</label><select id="payValue1" aria-label="الزون" data-pay-value="1"><option value="">الكل</option></select></div><div><label for="payValue2">المشرف</label><select id="payValue2" aria-label="المشرف" data-pay-value="2"><option value="">الكل</option></select></div><div><label for="payValue3">المركبة</label><select id="payValue3" aria-label="المركبة" data-pay-value="3"><option value="">الكل</option></select></div></div></div>
+   <div id="payMessage" role="status" aria-live="polite" class="sub"></div>
+   <div class="card"><div class="tw" id="payTable"><table style="width:100%;min-width:900px;table-layout:auto"><thead id="payHead"></thead><tbody id="payBody"></tbody></table></div></div>
+  </div>
+  <div class="ov" id="payDeductionDetails" style="display:none;z-index:140" role="dialog" aria-modal="true" aria-labelledby="payDeductionTitle" onclick="if(event.target===this)payCloseDeductionDetails()">
+   <div class="pay-deduction-dialog">
+    <div class="pay-deduction-head"><h3 id="payDeductionTitle">📊 إجمالي الاستقطاعات حسب المشرف</h3><button class="btn" id="payDeductionClose" type="button">✕ إغلاق</button></div>
+    <div class="sub" id="payDeductionMessage" role="status" aria-live="polite">اضغط على اسم المشرف لعرض مناديبه في جدول القبض.</div>
+    <div class="pay-deduction-table"><table><thead><tr><th>المشرف</th><th>عدد المناديب عليهم استقطاع</th><th>إجمالي الاستقطاعات</th></tr></thead><tbody id="payDeductionBody"></tbody></table></div>
+   </div>
+  </div>
+ </div>
+ <div class="ov" id="queries">
  <div class="queries-wrap">
   <div class="row queries-head" style="margin:0">
    <h2 style="font-size:17px;font-weight:900">📨 الاستعلامات</h2>
@@ -1167,7 +1272,7 @@ const URLS=[`https://docs.google.com/spreadsheets/d/${SID}/gviz/tq?tqx=out:csv&g
  `https://docs.google.com/spreadsheets/d/${SID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent('الاداء')}`,
  `https://docs.google.com/spreadsheets/d/${SID}/export?format=csv&gid=0`];
 const $=id=>document.getElementById(id);
-const MULTI_FILTER_IDS=['mainZoneGroup','fm','fz','fs','fv','fb','fc','fw','tf_z','tf_s','tf_v','tf_bt','tf_c','tf_r','tf_w','tf_l','liveGovernorate','liveZone','liveSupervisor','liveState','bookingDate','bookingSupervisor','bookingZone','bookingStatus','bookingRiderState','hcCity','hcStatus','hcBatch','hcSupervisor','deductionsReason','deductionsReply','deductionsZone','deductionsManager','deductionsSupervisor','queryOffice','supervisorTargetStatus'];
+const MULTI_FILTER_IDS=['mainZoneGroup','fm','fz','fs','fv','fb','fc','fw','tf_z','tf_s','tf_v','tf_bt','tf_c','tf_r','tf_w','tf_l','liveGovernorate','liveZone','liveSupervisor','liveState','bookingDate','bookingSupervisor','bookingZone','bookingStatus','bookingRiderState','hcCity','hcStatus','hcBatch','hcSupervisor','deductionsReason','deductionsReply','deductionsZone','deductionsManager','deductionsSupervisor','queryOffice','supervisorTargetStatus','payValue0','payValue1','payValue2','payValue3'];
 const MULTI_FILTER_VALUES=new Map,MULTI_FILTER_DRAFTS=new Map,MULTI_FILTER_WIDGETS=new Map;
 function filterValues(id){return [...(MULTI_FILTER_VALUES.get(id)||[])];}
 function filterMatches(id,value){const values=filterValues(id);return !values.length||values.includes(String(value??''));}
@@ -2445,7 +2550,7 @@ function enter(x){CUR=x;updateLiveRoleControls(x);idleReset();logDashboardOpen(x
   $('riderRatingsCard').style.display=x.r==='sup'?'none':'';
   $('dailyHistoryCard').style.display=x.r==='sup'?'none':'';
   $('vehicleChartCard').style.display=x.r==='sup'?'none':'';
-  $('lg').style.display='none';$('who').textContent='👤 '+x.n+' · '+ROLE[x.r]+(x.r==='admin'&&!LOGIN_AUDIT_ENDPOINT?' · ⚠️ سجل الدخول المركزي غير مفعّل':'');$('usrB').style.display=x.r==='admin'?'':'none';$('loginAuditB').style.display=x.r==='admin'?'':'none';$('tgB').style.display=x.r==='admin'?'':'none';$('supCaptureAll').style.display=x.r==='admin'?'':'none';$('zoneCaptureAll').style.display=['admin','manager'].includes(x.r)?'':'none';$('zoneCaptureAll').textContent=x.r==='manager'?'🗺️📸 تنزيل صور مناطقي':'🗺️📸 تنزيل صور كل المناطق';$('hcB').style.display=hcCanAccess(x)?'':'none';$('dedB').style.display=['admin','manager','sup'].includes(x.r)?'':'none';$('bookingDashboardB').style.display=bookingCanAccessDashboard(x)?'':'none';bookingApplyRoleAccess(x);$('prB').style.display='';$('queriesB').style.display='';load().then(()=>{if(x.r==='admin'&&x.h===DEF_H){const m=$('msg');m.style.display='block';m.textContent='⚠️ كلمة مرور الأدمن الافتراضية لسه شغالة — غيّره من 👥 المستخدمين.'}})}
+  $('lg').style.display='none';$('who').textContent='👤 '+x.n+' · '+ROLE[x.r]+(x.r==='admin'&&!LOGIN_AUDIT_ENDPOINT?' · ⚠️ سجل الدخول المركزي غير مفعّل':'');$('usrB').style.display=x.r==='admin'?'':'none';$('loginAuditB').style.display=x.r==='admin'?'':'none';$('tgB').style.display=x.r==='admin'?'':'none';$('supCaptureAll').style.display=x.r==='admin'?'':'none';$('zoneCaptureAll').style.display=['admin','manager'].includes(x.r)?'':'none';$('zoneCaptureAll').textContent=x.r==='manager'?'🗺️📸 تنزيل صور مناطقي':'🗺️📸 تنزيل صور كل المناطق';$('hcB').style.display=hcCanAccess(x)?'':'none';$('dedB').style.display=['admin','manager','sup'].includes(x.r)?'':'none';$('bookingDashboardB').style.display=bookingCanAccessDashboard(x)?'':'none';bookingApplyRoleAccess(x);$('payB').style.display=['admin','manager','sup'].includes(x.r)?'':'none';$('prB').style.display='';$('queriesB').style.display='';load().then(()=>{if(x.r==='admin'&&x.h===DEF_H){const m=$('msg');m.style.display='block';m.textContent='⚠️ كلمة مرور الأدمن الافتراضية لسه شغالة — غيّره من 👥 المستخدمين.'}})}
 let USERS=USERS_EMBED,DRAFT=null,VAULT=PW_EMBED;
 async function loadUsers(){
   try{const r=await fetch('users.json?_='+Date.now(),{cache:'no-store'});if(r.ok){const d=await r.json();if(d&&Array.isArray(d.users)&&d.users.length){USERS=d.users;if(d.vault)VAULT=d.vault}}}catch(e){}
@@ -3868,7 +3973,7 @@ function deductionsAmount(value){
 function deductionsOfficeKey(value){
   return String(value==null?'':value).trim().replace(/\s+/g,' ').toLocaleLowerCase('en');
 }
-function deductionsParseRows(headers,rows){
+function deductionsParseRows(headers,rows,sheetName=DEDUCTIONS_ACTIVE){
   const keys=headers.map(queryHeaderKey);
   const indexOf=patterns=>keys.findIndex(key=>patterns.some(pattern=>key===pattern||key.includes(pattern)));
   const columns={
@@ -3887,7 +3992,7 @@ function deductionsParseRows(headers,rows){
     period:indexOf(['الشهرالخاصبالتسويه','الاسبوعالخاصبالتسويه'])
   };
   const required=['date','amount'];
-  if(DEDUCTIONS_ACTIVE==='رد الاوردرات')required.push('office','reply');
+  if(sheetName==='رد الاوردرات')required.push('office','reply');
   const missing=required.filter(key=>columns[key]<0);
   if(columns.name<0&&columns.id<0)missing.push('name/id');
   if(missing.length)throw new Error('أعمدة أساسية غير موجودة في تابة «'+DEDUCTIONS_ACTIVE+'»: '+missing.join('، '));
@@ -3908,13 +4013,13 @@ function deductionsParseRows(headers,rows){
       supervisor:value('supervisor')||rider&&rider.s||'',zone:value('zone')||rider&&rider.z||'',
       name:name||rider&&rider.n||'',manager:value('manager')||rider&&rider.m||''
     };
-  }).filter(row=>row.date&&(DEDUCTIONS_ACTIVE!=='رد الاوردرات'||deductionsOfficeKey(row.office)==='team m&h'));
+  }).filter(row=>row.date&&(sheetName!=='رد الاوردرات'||deductionsOfficeKey(row.office)==='team m&h'));
 }
-function deductionsParseCsv(text){
+function deductionsParseCsv(text,name=DEDUCTIONS_ACTIVE){
   const parsed=Papa.parse(text,{skipEmptyLines:true});
   if(parsed.errors&&parsed.errors.length)throw new Error('تعذّر قراءة CSV: '+parsed.errors[0].message);
   if(!parsed.data.length)throw new Error('التابة لا تحتوي على صفوف');
-  return deductionsParseRows(parsed.data[0],parsed.data.slice(1));
+  return deductionsParseRows(parsed.data[0],parsed.data.slice(1),name);
 }
 function deductionsJsonp(name){
   const source=deductionsSheetSource(name);
@@ -3937,7 +4042,7 @@ function deductionsJsonp(name){
         if(cell.f!=null)return String(cell.f);
         return cell.v==null?'':String(cell.v);
       }));
-      try{finish(null,deductionsParseRows(headers,rows))}catch(error){finish(error)}
+      try{finish(null,deductionsParseRows(headers,rows,name))}catch(error){finish(error)}
     };
     script.onerror=()=>finish(new Error('تعذّر تحميل التابة بالطريقة البديلة'));
     const sourceQuery=source.gid?'gid='+source.gid:'sheet='+encodeURIComponent(source.sheet);
@@ -3959,7 +4064,7 @@ async function deductionsFetchRows(name){
       if(!response.ok)throw new Error('HTTP '+response.status);
       const text=await response.text();
       if(text.trimStart().startsWith('<'))throw new Error('الشيت غير متاح للعرض');
-      return deductionsParseCsv(text);
+      return deductionsParseCsv(text,name);
     }catch(error){errors.push(error.name==='AbortError'?'انتهت مهلة CSV':error.message||'فشل طلب CSV')}
     finally{clearTimeout(timer)}
   }
@@ -4138,6 +4243,77 @@ $('deductionsPrev').onclick=()=>{if(DEDUCTIONS_PAGE>0){DEDUCTIONS_PAGE--;deducti
 $('deductionsNext').onclick=()=>{if((DEDUCTIONS_PAGE+1)*DEDUCTIONS_PAGE_SIZE<DEDUCTIONS_FILTERED.length){DEDUCTIONS_PAGE++;deductionsRender()}};
 $('deductions').addEventListener('click',event=>{if(event.target===$('deductions'))deductionsClose()});
 addEventListener('keydown',event=>{if(event.key==='Escape'&&$('deductions').style.display==='block')deductionsClose()});
+
+/* ================= القبض · نتائج السحب ================= */
+const PAY_SHEET_ID='1qF6mEtqiDqejBupRYfK3zyODlRWYuNdBoDzrqB977O8',PAY_GID='1803561038',PAY_HC_GID='1378991698';
+const PAY_FILTER_COUNT=4;
+let PAY_DATA=null,PAY_FILTERED=[],PAY_JSONP_ID=0,PAY_HEADCOUNT=null,PAY_HC_BY_ID=new Map,PAY_ID_SEARCH='';
+const PAY_FILTERS=Array.from({length:PAY_FILTER_COUNT},()=>({column:'',value:''}));
+let PAY_VISIBLE_COLUMNS=new Set;
+const PAY_HIDDEN_COLUMNS=new Set([...Array.from({length:14},(_,index)=>index+9),40,43,44,45,48]);
+function payTimeColumnIndexes(){if(!PAY_DATA)return new Set;const indexes=new Set;for(let index=0;index<PAY_DATA.headers.length;index++){const key=String(PAY_DATA.headers[index]).toLocaleLowerCase('ar').normalize('NFD').replace(/[\u0300-\u036f\u064B-\u065F\u0670]/g,'').replace(/[إأآ]/g,'ا').replace(/[\s_-]/g,'');if(/^(year|السنة|سنة)$/.test(key)||/^year/.test(key))indexes.add(index);else if(/^(month|الشهر|شهر)$/.test(key)||/^month/.test(key))indexes.add(index);else if(/^(week|الاسبوع|اسبوع)$/.test(key)||/^week/.test(key))indexes.add(index)}return indexes}
+function payIsHiddenColumn(index){if(!PAY_DATA)return false;const key=payHeaderKey(PAY_DATA.headers[index]);return PAY_HIDDEN_COLUMNS.has(index)||payTimeColumnIndexes().has(index)||/(المكتب|office)/.test(key)||/(نقطهالانطلاق|نقطةالانطلاق|startingpoint|startpoint)/.test(key)||/^(المدينة|المدينه|مدينة|مدينه|city)$/.test(key)||/(vehicle|مركبة|المركبه)/.test(key)||/^(الرصيد|رصيد|الرصيدالنهائيللمديونية|الرصيدالنهائيللمديونيه|مديونيةالأوردرات|مديونيهالأوردرات|مديونيةالاوردرات)$/.test(key)||/مديونية(?:ال)?اوردراتانستاشوب/.test(key)}
+function payHeaderKey(value){return String(value||'').toLocaleLowerCase('ar').normalize('NFD').replace(/[\u0300-\u036f\u064B-\u065F\u0670]/g,'').replace(/[إأآ]/g,'ا').replace(/[\s_-]/g,'')}
+const PAY_FILTER_SPECS=[{label:'Week',match:key=>/^(week|الاسبوع|اسبوع)$/.test(key)},{label:'الزون',match:key=>/(zone|زون|منطقة|المنطقه|region)/.test(key)},{label:'المشرف',match:key=>/(supervisor|مشرف|supervis)/.test(key)},{label:'المركبة',match:key=>/(vehicle|مركبة|المركبه)/.test(key)}];
+function paySetDefaultFilters(){if(!PAY_DATA)return;const headers=PAY_DATA.headers.map((header,index)=>({index,key:payHeaderKey(header)}));for(let slot=0;slot<PAY_FILTERS.length;slot++){const found=slot===1?null:headers.find(item=>PAY_FILTER_SPECS[slot].match(item.key));PAY_FILTERS[slot].column=slot===1?'@zone':slot===2?'@supervisor':found?String(found.index):'';PAY_FILTERS[slot].values=[];PAY_FILTERS[slot].value='';if($('payValue'+slot))setFilterValues('payValue'+slot,[])}}
+function payNormalize(headers,rows){
+  let width=headers.length;for(const row of rows)width=Math.max(width,row.length);
+  while(width>0&&!String(headers[width-1]||'').trim()&&rows.every(row=>!String(row[width-1]||'').trim()))width--;
+  if(!width)throw new Error('التابة لا تحتوي على بيانات قابلة للعرض');
+  return{headers:Array.from({length:width},(_,i)=>String(headers[i]||'عمود '+(i+1)).trim()),rows:rows.filter(row=>row.some(value=>String(value==null?'':value).trim())).map(row=>Array.from({length:width},(_,i)=>String(row[i]==null?'':row[i]).trim()))};
+}
+function payParseCsv(text){const parsed=Papa.parse(text,{skipEmptyLines:true});if(parsed.errors?.length)throw new Error(parsed.errors[0].message);if(!parsed.data.length)throw new Error('التابة لا تحتوي على صفوف');return payNormalize(parsed.data[0],parsed.data.slice(1))}
+function payJsonp(gid=PAY_GID){return new Promise((resolve,reject)=>{const callback='__pdPayJsonp'+(++PAY_JSONP_ID),script=document.createElement('script');let done=false;const finish=(error,data)=>{if(done)return;done=true;clearTimeout(timer);script.remove();delete window[callback];error?reject(error):resolve(data)};const timer=setTimeout(()=>finish(new Error('انتهت مهلة الاتصال بالشيت')),20000);window[callback]=response=>{if(!response||response.status!=='ok'||!response.table)return finish(new Error(response?.errors?.[0]?.detailed_message||'Google Sheets لم يرجع بيانات التابة'));const headers=(response.table.cols||[]).map(col=>col.label||''),rows=(response.table.rows||[]).map(row=>(row.c||[]).map(cell=>cell?(cell.f!=null?cell.f:cell.v):''));try{finish(null,payNormalize(headers,rows))}catch(error){finish(error)}};script.onerror=()=>finish(new Error('تعذّر الاتصال بالشيت'));script.src=`https://docs.google.com/spreadsheets/d/${PAY_SHEET_ID}/gviz/tq?gid=${gid}&headers=1&tqx=out:json;responseHandler:${callback}&_=${Date.now()}`;document.head.appendChild(script)})}
+async function payFetch(gid=PAY_GID){const urls=[`https://docs.google.com/spreadsheets/d/${PAY_SHEET_ID}/gviz/tq?tqx=out:csv&gid=${gid}&_=${Date.now()}`,`https://docs.google.com/spreadsheets/d/${PAY_SHEET_ID}/export?format=csv&gid=${gid}&_=${Date.now()}`],errors=[];for(const url of urls){const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),18000);try{const response=await fetch(url,{cache:'no-store',signal:controller.signal});if(!response.ok)throw new Error('HTTP '+response.status);const text=await response.text();if(text.trimStart().startsWith('<'))throw new Error('التابة غير متاحة للقراءة');return payParseCsv(text)}catch(error){errors.push(error.message||'تعذّر تحميل CSV')}finally{clearTimeout(timer)}}try{return await payJsonp(gid)}catch(error){errors.push(error.message||'تعذّر تحميل البيانات')}throw new Error([...new Set(errors)].join(' · '))}
+function payId(value){return String(value??'').replace(/[٠-٩]/g,d=>'٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/[۰-۹]/g,d=>'۰۱۲۳۴۵۶۷۸۹'.indexOf(d)).trim().replace(/\.0$/,'').replace(/\s+/g,'')}
+function payBuildHeadcountMap(){PAY_HC_BY_ID=new Map;if(!PAY_HEADCOUNT)return;const keys=PAY_HEADCOUNT.headers.map(payHeaderKey),idIndex=keys.findIndex(key=>/^(riderid|id|كودالطيار|كودالمندوب|كودالسائق)$/.test(key)),zoneIndex=keys.findIndex(key=>/^(zone|الزون|زون|المنطقه|منطقه)$/.test(key)),supervisorIndex=keys.findIndex(key=>/^(supervisor|المشرف|مشرف)$/.test(key));if(idIndex<0)throw new Error('عمود rider_id غير موجود في هيد كاونت');if(zoneIndex<0||supervisorIndex<0)throw new Error('أعمدة الزون أو المشرف غير موجودة في هيد كاونت');for(const row of PAY_HEADCOUNT.rows){const id=payId(row[idIndex]);if(id)PAY_HC_BY_ID.set(id,{zone:row[zoneIndex]||'',supervisor:row[supervisorIndex]||''})}}
+function payFilterValue(row,index){const column=PAY_FILTERS[index].column;if(column==='@zone'||column==='@supervisor'){const idIndex=PAY_DATA.headers.map(payHeaderKey).findIndex(key=>/^(riderid|id|كودالطيار|كودالمندوب|كودالسائق)$/.test(key));const meta=PAY_HC_BY_ID.get(payId(idIndex<0?'':row[idIndex]));return column==='@zone'?meta?.zone||'':meta?.supervisor||''}return column?row[Number(column)]||'':''}
+function payBaseRows(except=-1){if(!PAY_DATA)return[];const idIndex=PAY_DATA.headers.map(payHeaderKey).findIndex(key=>/^(riderid|id|كودالطيار|كودالمندوب|كودالسائق)$/.test(key)),search=payId(PAY_ID_SEARCH),supervisor=CUR&&CUR.r==='sup'?nameMatchKey(CUR.s):'';return PAY_DATA.rows.filter(row=>{if(supervisor){const meta=PAY_HC_BY_ID.get(payId(row[idIndex<0?0:idIndex]));if(!meta||!nameMatchKey(meta.supervisor)||nameMatchKey(meta.supervisor)!==supervisor)return false}return(!search||payId(row[idIndex<0?0:idIndex]).includes(search))&&PAY_FILTERS.every((filter,index)=>index===except||!filter.column||!(filter.values||[]).length||filter.values.includes(payFilterValue(row,index)))})}
+function payMetricColumn(patterns){return PAY_DATA.headers.findIndex(header=>patterns.some(pattern=>pattern.test(payHeaderKey(header))))}
+function payIsNameColumn(index){const key=payHeaderKey(PAY_DATA.headers[index]);return /^اسم.*(طيار|مندوب|سائق)$/.test(key)||/^(ridername|pilotname|employeename|name)$/.test(key)}
+function payUpdatePeriodInfo(rows){if(!PAY_DATA)return;const keys=PAY_DATA.headers.map(payHeaderKey),yearIndex=keys.findIndex(key=>/^(year|السنه|سنه)$/.test(key)||/^year/.test(key)),monthIndex=keys.findIndex(key=>/^(month|الشهر|شهر)$/.test(key)||/^month/.test(key)),weekIndex=keys.findIndex(key=>/^(week|الاسبوع|اسبوع)$/.test(key)||/^week/.test(key));const distinct=index=>index<0?[]:[...new Set(rows.map(row=>String(row[index]||'').trim()).filter(Boolean))];const years=distinct(yearIndex),months=distinct(monthIndex),weeks=distinct(weekIndex).sort((a,b)=>{const x=payMetricNumber(a),y=payMetricNumber(b);return x&&y?x-y:a.localeCompare(b,'ar',{numeric:true})});const monthNames=months.map(value=>{const number=Number(payId(value));return number>=1&&number<=12?new Intl.DateTimeFormat('ar-EG',{month:'long'}).format(new Date(2020,number-1,1)):value});const periods=monthNames.map(month=>month+(years.length===1?' '+years[0]:'')).join('، ');const pieces=[];if(periods)pieces.push('شهر القبض: '+periods);if(years.length>1&&!periods)pieces.push('السنة: '+years.join('، '));if(weeks.length)pieces.push('الأسابيع: '+weeks.join('، '));$('payPeriodInfo').textContent=pieces.length?pieces.join(' · '):'لا توجد بيانات فترة في النتائج المعروضة'}
+function payMetricNumber(value){let normalized=String(value??'').replace(/[٠-٩]/g,d=>'٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/[۰-۹]/g,d=>'۰۱۲۳۴۵۶۷۸۹'.indexOf(d)).trim(),negative=/^\s*-|-$|^\(.*\)$/.test(normalized);normalized=normalized.replace(/[()]/g,'').replace(/[٬\s]/g,'').replace(/٫/g,'.').replace(/[+-]/g,'');if(normalized.includes(',')&&normalized.includes('.')){if(normalized.lastIndexOf(',')>normalized.lastIndexOf('.'))normalized=normalized.replace(/\./g,'').replace(',','.');else normalized=normalized.replace(/,/g,'')}else if(/\d{1,3}(,\d{3})+$/.test(normalized))normalized=normalized.replace(/,/g,'');else if(normalized.includes(','))normalized=normalized.replace(/,/g,'.');normalized=normalized.replace(/[^0-9.]/g,'');const number=Number(normalized);return Number.isFinite(number)?(negative?-Math.abs(number):number):0}
+function payDeductionColumnIndex(){const keys=PAY_DATA.headers.map(payHeaderKey);return keys.findIndex(key=>/^(?:اجمالي)?(?:ال)?استقطاعات$|^deductions?$/.test(key))}
+function payUpdateSummary(){
+ if(!PAY_DATA)return;
+ const rows=payBaseRows(),ordersIndex=payMetricColumn([/الاوردراتالمكتملة/,/اوردراتمكتملة/,/completedorders/]),hoursIndex=payMetricColumn([/اجمال.*ساع|ساع.*اجمال|totalhours|^hours$/]),deductionIndex=payDeductionColumnIndex(),keys=PAY_DATA.headers.map(payHeaderKey),idIndex=keys.findIndex(key=>/^(riderid|id|كودالطيار|كودالمندوب|كودالسائق)$/.test(key)),nameIndex=keys.findIndex(key=>/^(اسم|اسمالطيار|اسمالمندوب|employeename|ridername|name)$/.test(key));
+ const sum=index=>index<0?null:rows.reduce((total,row)=>total+payMetricNumber(row[index]),0),deductions=deductionIndex<0?null:rows.reduce((total,row)=>total+Math.abs(payMetricNumber(row[deductionIndex])),0),unique=new Set(rows.map(row=>row[idIndex>=0?idIndex:nameIndex]).map(value=>String(value||'').trim()).filter(Boolean));
+ const format=value=>value===null?'—':value.toLocaleString('ar-EG',{maximumFractionDigits:2});
+ $('payTotalOrders').textContent=format(sum(ordersIndex));$('payTotalRiders').textContent=unique.size.toLocaleString('ar-EG');$('payTotalHours').textContent=format(sum(hoursIndex));$('payTotalDeductions').textContent=format(deductions)
+}
+function payUpdateFilters(){if(!PAY_DATA)return;const host=$('payFilters'),isSupervisor=Boolean(CUR&&CUR.r==='sup');$('payValue2').parentElement.style.display=isSupervisor?'none':'';for(let index=0;index<PAY_FILTERS.length;index++){const filter=PAY_FILTERS[index],select=$('payValue'+index),values=filter.column?[...new Set(payBaseRows(index).map(row=>payFilterValue(row,index)).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ar')):[];select.disabled=!filter.column;select.innerHTML='<option value="">الكل</option>'+values.map(value=>`<option value="${esc(value)}">${esc(value)}</option>`).join('');filter.values=(filter.values||[]).filter(value=>values.includes(value));setFilterValues(select.id,filter.values)}host.onchange=event=>{const select=event.target.closest('[data-pay-value]');if(!select)return;const index=Number(select.dataset.payValue);PAY_FILTERS[index].values=filterValues(select.id);PAY_FILTERS[index].value=PAY_FILTERS[index].values[0]||'';payRender()}}
+function payDefaultColumns(){if(!PAY_DATA)return;PAY_VISIBLE_COLUMNS=new Set(PAY_DATA.headers.map((_,index)=>index).filter(index=>!payIsHiddenColumn(index)));payRender()}
+function payRender(){
+ if(!PAY_DATA)return;
+ PAY_FILTERED=payBaseRows();payUpdatePeriodInfo(PAY_FILTERED);const columns=[...PAY_VISIBLE_COLUMNS].filter(index=>index<PAY_DATA.headers.length&&!payIsHiddenColumn(index)).sort((a,b)=>a-b),shown=PAY_FILTERED;document.getElementById('payTable').querySelector('table').style.minWidth=Math.max(1200,columns.length*135)+"px";
+ $('payCount').textContent=`${PAY_FILTERED.length.toLocaleString('ar')} نتيجة`;
+ payUpdateSummary();
+ $('payHead').innerHTML='<tr>'+columns.map(index=>`<th class="${payIsNameColumn(index)?'pay-name-cell':''}" title="${esc(PAY_DATA.headers[index])}">${esc(PAY_DATA.headers[index])}</th>`).join('')+'</tr>';
+ $('payBody').innerHTML=shown.length?shown.map(row=>'<tr>'+columns.map(index=>`<td class="${payIsNameColumn(index)?'pay-name-cell':''}" data-label="${esc(PAY_DATA.headers[index])}" title="${esc(row[index])}">${esc(row[index])||'—'}</td>`).join('')+'</tr>').join(''):`<tr><td colspan="${Math.max(1,columns.length)}" class="sub">لا توجد نتائج مطابقة.</td></tr>`;
+ payUpdateFilters()
+}
+function payCloseDeductionDetails(){$('payDeductionDetails').style.display='none'}
+function payDeductionMoney(value){return Number(value||0).toLocaleString('ar-EG',{maximumFractionDigits:2})+' ج.م'}
+function payShowDeductionDetails(){
+ const panel=$('payDeductionDetails'),message=$('payDeductionMessage'),body=$('payDeductionBody');panel.style.display='flex';body.innerHTML='';
+ if(!PAY_DATA){message.textContent='حمّل بيانات القبض أولًا.';return}
+ const deductionIndex=payDeductionColumnIndex();if(deductionIndex<0){message.textContent='عمود «الاستقطاعات» غير موجود في بيانات القبض.';return}
+ const keys=PAY_DATA.headers.map(payHeaderKey),idIndex=keys.findIndex(key=>/^(riderid|id|كودالطيار|كودالمندوب|كودالسائق)$/.test(key)),nameIndex=keys.findIndex(key=>/^(اسم|اسمالطيار|اسمالمندوب|employeename|ridername|name)$/.test(key)),supervisorKey=CUR&&CUR.r==='sup'?nameMatchKey(CUR.s):'',managerKey=CUR&&CUR.r==='manager'?nameMatchKey(CUR.s):'',groups=new Map;
+ for(const row of payBaseRows()){
+  const amount=Math.abs(payMetricNumber(row[deductionIndex]));if(!amount)continue;
+  const rawId=row[idIndex<0?0:idIndex],id=deductionsIdKey(rawId),roster=ALL.find(item=>id&&deductionsIdKey(item.id)===id),meta=PAY_HC_BY_ID.get(payId(rawId));
+  const supervisor=meta?.supervisor||roster?.s||'';if(!supervisor)continue;const key=nameMatchKey(supervisor);if(!key||(supervisorKey&&key!==supervisorKey)||(managerKey&&nameMatchKey(roster?.m)!==managerKey))continue;
+  let group=groups.get(key);if(!group){group={name:supervisor,total:0,riders:new Set};groups.set(key,group)}group.total+=amount;group.riders.add(id||nameMatchKey(row[nameIndex<0?0:nameIndex]));
+ }
+ const sorted=[...groups.values()].sort((a,b)=>b.total-a.total),grandTotal=sorted.reduce((sum,group)=>sum+group.total,0),riderTotal=sorted.reduce((sum,group)=>sum+group.riders.size,0);
+ message.textContent=sorted.length?`${riderTotal.toLocaleString('ar-EG')} مندوب عليهم استقطاع · الإجمالي ${payDeductionMoney(grandTotal)} · اضغط على اسم المشرف لعرض مناديبه في الجدول.`:'لا توجد مبالغ استقطاع للمناديب الظاهرين حسب الفلاتر الحالية.';
+ body.innerHTML=sorted.map(group=>`<tr class="supervisor-row"><td data-label="المشرف"><button class="pay-supervisor-pick" type="button" data-pay-supervisor="${esc(group.name)}" title="عرض مناديب المشرف في جدول القبض">${esc(group.name)}</button></td><td data-label="عدد المناديب عليهم استقطاع">${group.riders.size.toLocaleString('ar-EG')}</td><td data-label="إجمالي الاستقطاعات">${esc(payDeductionMoney(group.total))}</td></tr>`).join('');
+}
+async function payLoad(){const message=$('payMessage');$('payRefresh').disabled=true;message.textContent='جارٍ تحميل نتائج السحب…';try{const [data,headcount]=await Promise.all([payFetch(PAY_GID),payFetch(PAY_HC_GID)]);PAY_DATA=data;PAY_HEADCOUNT=headcount;payBuildHeadcountMap();paySetDefaultFilters();payDefaultColumns();message.textContent=''}catch(error){message.textContent='تعذّر تحميل البيانات: '+(error.message||'خطأ غير معروف')}finally{$('payRefresh').disabled=false}}
+function payOpen(){ $('payPanel').style.display='flex';$('payB').setAttribute('aria-expanded','true');document.body.style.overflow='hidden';if(!PAY_DATA)payLoad();else payRender() }
+function payClose(){payCloseDeductionDetails();$('payPanel').style.display='none';$('payB').setAttribute('aria-expanded','false');document.body.style.overflow='' }
+function payExport(){if(!PAY_DATA||!PAY_FILTERED.length)return alert('مفيش بيانات مطابقة للتصدير.');const columns=PAY_DATA.headers.map((_,index)=>index),rows=PAY_FILTERED.map(row=>columns.map(index=>row[index]));const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+Papa.unparse([columns.map(index=>PAY_DATA.headers[index]),...rows])],{type:'text/csv;charset=utf-8'}));a.download='نتائج_القبض_'+new Date().toISOString().slice(0,10)+'.csv';a.click()}
+$('payB').onclick=payOpen;$('payClose').onclick=payClose;$('payRefresh').onclick=payLoad;$('payExport').onclick=payExport;$('payDeductionsCard').onclick=payShowDeductionDetails;$('payDeductionClose').onclick=payCloseDeductionDetails;$('payDeductionBody').onclick=event=>{const button=event.target.closest('[data-pay-supervisor]');if(!button)return;PAY_FILTERS[2].values=[button.dataset.paySupervisor];PAY_FILTERS[2].value=button.dataset.paySupervisor;payCloseDeductionDetails();payRender()};$('payIdSearch').oninput=event=>{PAY_ID_SEARCH=event.target.value;payRender()};$('payClear').onclick=()=>{$('payIdSearch').value='';PAY_ID_SEARCH='';paySetDefaultFilters();payRender()};addEventListener('keydown',event=>{if(event.key==='Escape'&&$('payDeductionDetails').style.display==='flex')payCloseDeductionDetails();else if(event.key==='Escape'&&$('payPanel').style.display==='flex')payClose()});
 
 /* ================= الاستعلامات ================= */
 const QUERY_SHEET_ID='1vKTJSRhsoEUczoAceMh6gHlHz60HD3SBY2fJHx1aIuE';
