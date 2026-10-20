@@ -3649,27 +3649,15 @@ function bookingRosterInRole(row,maps){
     const supervisor=nameMatchKey(CUR.s);
     return Boolean(supervisor&&row.sup&&nameMatchKey(row.sup)===supervisor);
   }
-  if(CUR.r!=='manager')return false;
-  const manager=nameMatchKey(CUR.s),profile=maps.byId.get(row.id)||maps.byName.get(nameMatchKey(row.name));
-  if(row.manager)return nameMatchKey(row.manager)===manager;
-  if(profile&&profile.m)return nameMatchKey(profile.m)===manager;
-  if(BOOKING_MANAGER_TEAM_SOURCE!==ALL||!BOOKING_MANAGER_TEAM_CACHE){
-    BOOKING_MANAGER_TEAM_SOURCE=ALL;BOOKING_MANAGER_TEAM_CACHE=new Map;
-    for(const source of ALL){
-      const managerKey=nameMatchKey(source.m),supervisorKey=nameMatchKey(source.s);
-      if(!managerKey||!supervisorKey)continue;
-      const supervisors=BOOKING_MANAGER_TEAM_CACHE.get(managerKey)||new Set;
-      supervisors.add(supervisorKey);BOOKING_MANAGER_TEAM_CACHE.set(managerKey,supervisors);
-    }
-  }
-  return Boolean(row.sup&&BOOKING_MANAGER_TEAM_CACHE.get(manager)?.has(nameMatchKey(row.sup)));
+  if(CUR.r==='manager')return true;
+  return false;
 }
 function bookingScopedRows(){
   const maps=bookingProfileMaps(),database=bookingDatabaseById(),rows=[];
   for(const row of BOOKING_ROWS){
     const profile=maps.byId.get(row.id)||maps.byName.get(nameMatchKey(row.name))||null,
       databaseRider=database.get(row.id)||null,
-      rosterRow={id:row.id,name:row.name,manager:databaseRider&&databaseRider.manager||profile&&profile.m||'',sup:databaseRider&&databaseRider.sup||profile&&profile.s||'',zone:databaseRider&&databaseRider.zone||profile&&profile.z||''};
+      rosterRow={id:row.id,name:row.name,manager:profile&&profile.m||databaseRider&&databaseRider.manager||'',sup:profile&&profile.s||databaseRider&&databaseRider.sup||'',zone:profile&&profile.z||databaseRider&&databaseRider.zone||''};
     if(!bookingRosterInRole(rosterRow,maps))continue;
     rows.push({...row,sup:rosterRow.sup,zone:rosterRow.zone});
   }
