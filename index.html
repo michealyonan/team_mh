@@ -1449,9 +1449,18 @@ function liveEligibleRows(now=Date.now()){
     if(!row.timestamp||row.timestamp<earliest||row.timestamp>now)return false;
     const date=new Date(row.timestamp);return date.getFullYear()===today.getFullYear()&&date.getMonth()===today.getMonth()&&date.getDate()===today.getDate();
   });
-  if(!CUR||CUR.r!=='sup')return eligible;
-  const supervisor=nameMatchKey(CUR.s);
-  return supervisor?eligible.filter(({cells})=>nameMatchKey(cells[16])===supervisor):[];
+  if(!CUR||CUR.r==='admin')return eligible;
+  if(!['sup','manager'].includes(CUR.r))return[];
+  const owner=nameMatchKey(CUR.s);if(!owner||!ALL.length)return[];
+  const team=CUR.r==='manager'?new Set(ALL.filter(row=>nameMatchKey(row.m)===owner).map(row=>nameMatchKey(row.s)).filter(Boolean)):null;
+  if(CUR.r==='manager'&&!team.size)return[];
+  const liveIdIndex=LIVE_HEADERS.findIndex(header=>/^(id|riderid|rider id|كودالطيار|كودالمندوب)$/i.test(String(header||'').trim())),rosterById=new Map(ALL.map(row=>[String(row.id||'').trim().replace(/\.0$/,''),row]));
+  return eligible.filter(({cells})=>{
+    const id=String(cells[liveIdIndex<0?2:liveIdIndex]||'').trim().replace(/\.0$/,''),rider=rosterById.get(id),supervisor=nameMatchKey(rider&&rider.s||cells[16]);
+    if(CUR.r==='sup')return supervisor===owner;
+    if(rider&&rider.m)return nameMatchKey(rider.m)===owner;
+    return Boolean(supervisor&&team.has(supervisor));
+  });
 }
 const LIVE_FILTERS=[['liveGovernorate',0,'كل المحافظات'],['liveZone',1,'كل الزونات'],['liveSupervisor',16,'كل المشرفين'],['liveState',14,'كل الحالات']];
 let LIVE_FILTER_OPTION_SIGNATURE={};
@@ -3642,8 +3651,8 @@ function bookingRosterInRole(row,maps){
   }
   if(CUR.r!=='manager')return false;
   const manager=nameMatchKey(CUR.s),profile=maps.byId.get(row.id)||maps.byName.get(nameMatchKey(row.name));
-  if(row.manager&&nameMatchKey(row.manager)===manager)return true;
-  if(profile&&nameMatchKey(profile.m)===manager)return true;
+  if(row.manager)return nameMatchKey(row.manager)===manager;
+  if(profile&&profile.m)return nameMatchKey(profile.m)===manager;
   if(BOOKING_MANAGER_TEAM_SOURCE!==ALL||!BOOKING_MANAGER_TEAM_CACHE){
     BOOKING_MANAGER_TEAM_SOURCE=ALL;BOOKING_MANAGER_TEAM_CACHE=new Map;
     for(const source of ALL){
@@ -4247,7 +4256,7 @@ addEventListener('keydown',event=>{if(event.key==='Escape'&&$('deductions').styl
 /* ================= القبض · نتائج السحب ================= */
 const PAY_SHEET_ID='1qF6mEtqiDqejBupRYfK3zyODlRWYuNdBoDzrqB977O8',PAY_GID='1803561038',PAY_HC_GID='1378991698';
 const PAY_FILTER_COUNT=4;
-let PAY_DATA=null,PAY_FILTERED=[],PAY_JSONP_ID=0,PAY_HEADCOUNT=null,PAY_HC_BY_ID=new Map,PAY_ID_SEARCH='';
+let PAY_DATA=null,PAY_FILTERED=[],PAY_JSONP_ID=0,PAY_HEADCOUNT=null,PAY_HC_BY_ID=new Map,PAY_ID_SEARCH='',PAY_RENDER_ROWS=[],PAY_RENDER_COLUMNS=[],PAY_RENDER_CURSOR=0,PAY_LAST_MOBILE_MODE=null,PAY_RESIZE_TIMER,PAY_RIDER_ID_INDEX=null;
 const PAY_FILTERS=Array.from({length:PAY_FILTER_COUNT},()=>({column:'',value:''}));
 let PAY_VISIBLE_COLUMNS=new Set;
 const PAY_HIDDEN_COLUMNS=new Set([...Array.from({length:14},(_,index)=>index+9),40,43,44,45,48]);
@@ -4267,8 +4276,9 @@ function payJsonp(gid=PAY_GID){return new Promise((resolve,reject)=>{const callb
 async function payFetch(gid=PAY_GID){const urls=[`https://docs.google.com/spreadsheets/d/${PAY_SHEET_ID}/gviz/tq?tqx=out:csv&gid=${gid}&_=${Date.now()}`,`https://docs.google.com/spreadsheets/d/${PAY_SHEET_ID}/export?format=csv&gid=${gid}&_=${Date.now()}`],errors=[];for(const url of urls){const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),18000);try{const response=await fetch(url,{cache:'no-store',signal:controller.signal});if(!response.ok)throw new Error('HTTP '+response.status);const text=await response.text();if(text.trimStart().startsWith('<'))throw new Error('التابة غير متاحة للقراءة');return payParseCsv(text)}catch(error){errors.push(error.message||'تعذّر تحميل CSV')}finally{clearTimeout(timer)}}try{return await payJsonp(gid)}catch(error){errors.push(error.message||'تعذّر تحميل البيانات')}throw new Error([...new Set(errors)].join(' · '))}
 function payId(value){return String(value??'').replace(/[٠-٩]/g,d=>'٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/[۰-۹]/g,d=>'۰۱۲۳۴۵۶۷۸۹'.indexOf(d)).trim().replace(/\.0$/,'').replace(/\s+/g,'')}
 function payBuildHeadcountMap(){PAY_HC_BY_ID=new Map;if(!PAY_HEADCOUNT)return;const keys=PAY_HEADCOUNT.headers.map(payHeaderKey),idIndex=keys.findIndex(key=>/^(riderid|id|كودالطيار|كودالمندوب|كودالسائق)$/.test(key)),zoneIndex=keys.findIndex(key=>/^(zone|الزون|زون|المنطقه|منطقه)$/.test(key)),supervisorIndex=keys.findIndex(key=>/^(supervisor|المشرف|مشرف)$/.test(key));if(idIndex<0)throw new Error('عمود rider_id غير موجود في هيد كاونت');if(zoneIndex<0||supervisorIndex<0)throw new Error('أعمدة الزون أو المشرف غير موجودة في هيد كاونت');for(const row of PAY_HEADCOUNT.rows){const id=payId(row[idIndex]);if(id)PAY_HC_BY_ID.set(id,{zone:row[zoneIndex]||'',supervisor:row[supervisorIndex]||''})}}
-function payFilterValue(row,index){const column=PAY_FILTERS[index].column;if(column==='@zone'||column==='@supervisor'){const idIndex=PAY_DATA.headers.map(payHeaderKey).findIndex(key=>/^(riderid|id|كودالطيار|كودالمندوب|كودالسائق)$/.test(key));const meta=PAY_HC_BY_ID.get(payId(idIndex<0?'':row[idIndex]));return column==='@zone'?meta?.zone||'':meta?.supervisor||''}return column?row[Number(column)]||'':''}
-function payBaseRows(except=-1){if(!PAY_DATA)return[];const idIndex=PAY_DATA.headers.map(payHeaderKey).findIndex(key=>/^(riderid|id|كودالطيار|كودالمندوب|كودالسائق)$/.test(key)),search=payId(PAY_ID_SEARCH),supervisor=CUR&&CUR.r==='sup'?nameMatchKey(CUR.s):'';return PAY_DATA.rows.filter(row=>{if(supervisor){const meta=PAY_HC_BY_ID.get(payId(row[idIndex<0?0:idIndex]));if(!meta||!nameMatchKey(meta.supervisor)||nameMatchKey(meta.supervisor)!==supervisor)return false}return(!search||payId(row[idIndex<0?0:idIndex]).includes(search))&&PAY_FILTERS.every((filter,index)=>index===except||!filter.column||!(filter.values||[]).length||filter.values.includes(payFilterValue(row,index)))})}
+function payRiderIdIndex(){if(PAY_RIDER_ID_INDEX===null)PAY_RIDER_ID_INDEX=PAY_DATA?PAY_DATA.headers.map(payHeaderKey).findIndex(key=>/^(riderid|id|كودالطيار|كودالمندوب|كودالسائق)$/.test(key)):-1;return PAY_RIDER_ID_INDEX}
+function payFilterValue(row,index){const column=PAY_FILTERS[index].column;if(column==='@zone'||column==='@supervisor'){const meta=PAY_HC_BY_ID.get(payId(payRiderIdIndex()<0?'':row[payRiderIdIndex()]));return column==='@zone'?meta?.zone||'':meta?.supervisor||''}return column?row[Number(column)]||'':''}
+function payBaseRows(except=-1){if(!PAY_DATA)return[];const idIndex=payRiderIdIndex(),search=payId(PAY_ID_SEARCH),supervisor=CUR&&CUR.r==='sup'?nameMatchKey(CUR.s):'';return PAY_DATA.rows.filter(row=>{if(supervisor){const meta=PAY_HC_BY_ID.get(payId(row[idIndex<0?0:idIndex]));if(!meta||!nameMatchKey(meta.supervisor)||nameMatchKey(meta.supervisor)!==supervisor)return false}return(!search||payId(row[idIndex<0?0:idIndex]).includes(search))&&PAY_FILTERS.every((filter,index)=>index===except||!filter.column||!(filter.values||[]).length||filter.values.includes(payFilterValue(row,index)))})}
 function payMetricColumn(patterns){return PAY_DATA.headers.findIndex(header=>patterns.some(pattern=>pattern.test(payHeaderKey(header))))}
 function payIsNameColumn(index){const key=payHeaderKey(PAY_DATA.headers[index]);return /^اسم.*(طيار|مندوب|سائق)$/.test(key)||/^(ridername|pilotname|employeename|name)$/.test(key)}
 function payUpdatePeriodInfo(rows){if(!PAY_DATA)return;const keys=PAY_DATA.headers.map(payHeaderKey),yearIndex=keys.findIndex(key=>/^(year|السنه|سنه)$/.test(key)||/^year/.test(key)),monthIndex=keys.findIndex(key=>/^(month|الشهر|شهر)$/.test(key)||/^month/.test(key)),weekIndex=keys.findIndex(key=>/^(week|الاسبوع|اسبوع)$/.test(key)||/^week/.test(key));const distinct=index=>index<0?[]:[...new Set(rows.map(row=>String(row[index]||'').trim()).filter(Boolean))];const years=distinct(yearIndex),months=distinct(monthIndex),weeks=distinct(weekIndex).sort((a,b)=>{const x=payMetricNumber(a),y=payMetricNumber(b);return x&&y?x-y:a.localeCompare(b,'ar',{numeric:true})});const monthNames=months.map(value=>{const number=Number(payId(value));return number>=1&&number<=12?new Intl.DateTimeFormat('ar-EG',{month:'long'}).format(new Date(2020,number-1,1)):value});const periods=monthNames.map(month=>month+(years.length===1?' '+years[0]:'')).join('، ');const pieces=[];if(periods)pieces.push('شهر القبض: '+periods);if(years.length>1&&!periods)pieces.push('السنة: '+years.join('، '));if(weeks.length)pieces.push('الأسابيع: '+weeks.join('، '));$('payPeriodInfo').textContent=pieces.length?pieces.join(' · '):'لا توجد بيانات فترة في النتائج المعروضة'}
@@ -4283,13 +4293,19 @@ function payUpdateSummary(){
 }
 function payUpdateFilters(){if(!PAY_DATA)return;const host=$('payFilters'),isSupervisor=Boolean(CUR&&CUR.r==='sup');$('payValue2').parentElement.style.display=isSupervisor?'none':'';for(let index=0;index<PAY_FILTERS.length;index++){const filter=PAY_FILTERS[index],select=$('payValue'+index),values=filter.column?[...new Set(payBaseRows(index).map(row=>payFilterValue(row,index)).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ar')):[];select.disabled=!filter.column;select.innerHTML='<option value="">الكل</option>'+values.map(value=>`<option value="${esc(value)}">${esc(value)}</option>`).join('');filter.values=(filter.values||[]).filter(value=>values.includes(value));setFilterValues(select.id,filter.values)}host.onchange=event=>{const select=event.target.closest('[data-pay-value]');if(!select)return;const index=Number(select.dataset.payValue);PAY_FILTERS[index].values=filterValues(select.id);PAY_FILTERS[index].value=PAY_FILTERS[index].values[0]||'';payRender()}}
 function payDefaultColumns(){if(!PAY_DATA)return;PAY_VISIBLE_COLUMNS=new Set(PAY_DATA.headers.map((_,index)=>index).filter(index=>!payIsHiddenColumn(index)));payRender()}
+function payRenderRow(row,columns){return'<tr>'+columns.map(index=>`<td class="${payIsNameColumn(index)?'pay-name-cell':''}" data-label="${esc(PAY_DATA.headers[index])}" title="${esc(row[index])}">${esc(row[index])||'—'}</td>`).join('')+'</tr>'}
+function payAppendMobileRows(){if(PAY_RENDER_CURSOR>=PAY_RENDER_ROWS.length)return;const end=Math.min(PAY_RENDER_CURSOR+24,PAY_RENDER_ROWS.length);$('payBody').insertAdjacentHTML('beforeend',PAY_RENDER_ROWS.slice(PAY_RENDER_CURSOR,end).map(row=>payRenderRow(row,PAY_RENDER_COLUMNS)).join(''));PAY_RENDER_CURSOR=end;$('payCount').textContent=`عرض ${PAY_RENDER_CURSOR.toLocaleString('ar')} من ${PAY_RENDER_ROWS.length.toLocaleString('ar')} نتيجة`}
+function payMaybeAppendMobileRows(){if(!matchMedia('(max-width:699px)').matches||$('payPanel').style.display!=='flex'||PAY_RENDER_CURSOR>=PAY_RENDER_ROWS.length)return;const table=$('payTable').getBoundingClientRect();if(table.bottom<innerHeight+420)payAppendMobileRows()}
 function payRender(){
  if(!PAY_DATA)return;
- PAY_FILTERED=payBaseRows();payUpdatePeriodInfo(PAY_FILTERED);const columns=[...PAY_VISIBLE_COLUMNS].filter(index=>index<PAY_DATA.headers.length&&!payIsHiddenColumn(index)).sort((a,b)=>a-b),shown=PAY_FILTERED;document.getElementById('payTable').querySelector('table').style.minWidth=Math.max(1200,columns.length*135)+"px";
+ PAY_FILTERED=payBaseRows();payUpdatePeriodInfo(PAY_FILTERED);PAY_RENDER_COLUMNS=[...PAY_VISIBLE_COLUMNS].filter(index=>index<PAY_DATA.headers.length&&!payIsHiddenColumn(index)).sort((a,b)=>a-b);PAY_RENDER_ROWS=PAY_FILTERED;PAY_RENDER_CURSOR=0;const mobile=matchMedia('(max-width:699px)').matches,body=$('payBody');document.getElementById('payTable').querySelector('table').style.minWidth=Math.max(1200,PAY_RENDER_COLUMNS.length*135)+"px";
  $('payCount').textContent=`${PAY_FILTERED.length.toLocaleString('ar')} نتيجة`;
  payUpdateSummary();
- $('payHead').innerHTML='<tr>'+columns.map(index=>`<th class="${payIsNameColumn(index)?'pay-name-cell':''}" title="${esc(PAY_DATA.headers[index])}">${esc(PAY_DATA.headers[index])}</th>`).join('')+'</tr>';
- $('payBody').innerHTML=shown.length?shown.map(row=>'<tr>'+columns.map(index=>`<td class="${payIsNameColumn(index)?'pay-name-cell':''}" data-label="${esc(PAY_DATA.headers[index])}" title="${esc(row[index])}">${esc(row[index])||'—'}</td>`).join('')+'</tr>').join(''):`<tr><td colspan="${Math.max(1,columns.length)}" class="sub">لا توجد نتائج مطابقة.</td></tr>`;
+ $('payHead').innerHTML='<tr>'+PAY_RENDER_COLUMNS.map(index=>`<th class="${payIsNameColumn(index)?'pay-name-cell':''}" title="${esc(PAY_DATA.headers[index])}">${esc(PAY_DATA.headers[index])}</th>`).join('')+'</tr>';
+ if(!PAY_RENDER_ROWS.length)body.innerHTML=`<tr><td colspan="${Math.max(1,PAY_RENDER_COLUMNS.length)}" class="sub">لا توجد نتائج مطابقة.</td></tr>`;
+ else if(mobile){body.innerHTML='';payAppendMobileRows();const scroller=$('payPanel').querySelector('.queries-wrap');scroller.scrollTop=0;requestAnimationFrame(payMaybeAppendMobileRows)}
+ else{body.innerHTML=PAY_RENDER_ROWS.map(row=>payRenderRow(row,PAY_RENDER_COLUMNS)).join('');PAY_RENDER_CURSOR=PAY_RENDER_ROWS.length}
+ PAY_LAST_MOBILE_MODE=mobile;
  payUpdateFilters()
 }
 function payCloseDeductionDetails(){$('payDeductionDetails').style.display='none'}
@@ -4309,11 +4325,11 @@ function payShowDeductionDetails(){
  message.textContent=sorted.length?`${riderTotal.toLocaleString('ar-EG')} مندوب عليهم استقطاع · الإجمالي ${payDeductionMoney(grandTotal)} · اضغط على اسم المشرف لعرض مناديبه في الجدول.`:'لا توجد مبالغ استقطاع للمناديب الظاهرين حسب الفلاتر الحالية.';
  body.innerHTML=sorted.map(group=>`<tr class="supervisor-row"><td data-label="المشرف"><button class="pay-supervisor-pick" type="button" data-pay-supervisor="${esc(group.name)}" title="عرض مناديب المشرف في جدول القبض">${esc(group.name)}</button></td><td data-label="عدد المناديب عليهم استقطاع">${group.riders.size.toLocaleString('ar-EG')}</td><td data-label="إجمالي الاستقطاعات">${esc(payDeductionMoney(group.total))}</td></tr>`).join('');
 }
-async function payLoad(){const message=$('payMessage');$('payRefresh').disabled=true;message.textContent='جارٍ تحميل نتائج السحب…';try{const [data,headcount]=await Promise.all([payFetch(PAY_GID),payFetch(PAY_HC_GID)]);PAY_DATA=data;PAY_HEADCOUNT=headcount;payBuildHeadcountMap();paySetDefaultFilters();payDefaultColumns();message.textContent=''}catch(error){message.textContent='تعذّر تحميل البيانات: '+(error.message||'خطأ غير معروف')}finally{$('payRefresh').disabled=false}}
+async function payLoad(){const message=$('payMessage');$('payRefresh').disabled=true;message.textContent='جارٍ تحميل نتائج السحب…';try{const [data,headcount]=await Promise.all([payFetch(PAY_GID),payFetch(PAY_HC_GID)]);PAY_DATA=data;PAY_RIDER_ID_INDEX=null;PAY_HEADCOUNT=headcount;payBuildHeadcountMap();paySetDefaultFilters();payDefaultColumns();message.textContent=''}catch(error){message.textContent='تعذّر تحميل البيانات: '+(error.message||'خطأ غير معروف')}finally{$('payRefresh').disabled=false}}
 function payOpen(){ $('payPanel').style.display='flex';$('payB').setAttribute('aria-expanded','true');document.body.style.overflow='hidden';if(!PAY_DATA)payLoad();else payRender() }
 function payClose(){payCloseDeductionDetails();$('payPanel').style.display='none';$('payB').setAttribute('aria-expanded','false');document.body.style.overflow='' }
 function payExport(){if(!PAY_DATA||!PAY_FILTERED.length)return alert('مفيش بيانات مطابقة للتصدير.');const columns=PAY_DATA.headers.map((_,index)=>index),rows=PAY_FILTERED.map(row=>columns.map(index=>row[index]));const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+Papa.unparse([columns.map(index=>PAY_DATA.headers[index]),...rows])],{type:'text/csv;charset=utf-8'}));a.download='نتائج_القبض_'+new Date().toISOString().slice(0,10)+'.csv';a.click()}
-$('payB').onclick=payOpen;$('payClose').onclick=payClose;$('payRefresh').onclick=payLoad;$('payExport').onclick=payExport;$('payDeductionsCard').onclick=payShowDeductionDetails;$('payDeductionClose').onclick=payCloseDeductionDetails;$('payDeductionBody').onclick=event=>{const button=event.target.closest('[data-pay-supervisor]');if(!button)return;PAY_FILTERS[2].values=[button.dataset.paySupervisor];PAY_FILTERS[2].value=button.dataset.paySupervisor;payCloseDeductionDetails();payRender()};$('payIdSearch').oninput=event=>{PAY_ID_SEARCH=event.target.value;payRender()};$('payClear').onclick=()=>{$('payIdSearch').value='';PAY_ID_SEARCH='';paySetDefaultFilters();payRender()};addEventListener('keydown',event=>{if(event.key==='Escape'&&$('payDeductionDetails').style.display==='flex')payCloseDeductionDetails();else if(event.key==='Escape'&&$('payPanel').style.display==='flex')payClose()});
+$('payB').onclick=payOpen;$('payClose').onclick=payClose;$('payRefresh').onclick=payLoad;$('payExport').onclick=payExport;$('payDeductionsCard').onclick=payShowDeductionDetails;$('payDeductionClose').onclick=payCloseDeductionDetails;$('payDeductionBody').onclick=event=>{const button=event.target.closest('[data-pay-supervisor]');if(!button)return;PAY_FILTERS[2].values=[button.dataset.paySupervisor];PAY_FILTERS[2].value=button.dataset.paySupervisor;payCloseDeductionDetails();payRender()};$('payPanel').querySelector('.queries-wrap').addEventListener('scroll',payMaybeAppendMobileRows,{passive:true});$('payIdSearch').oninput=event=>{PAY_ID_SEARCH=event.target.value;payRender()};$('payClear').onclick=()=>{$('payIdSearch').value='';PAY_ID_SEARCH='';paySetDefaultFilters();payRender()};addEventListener('resize',()=>{clearTimeout(PAY_RESIZE_TIMER);PAY_RESIZE_TIMER=setTimeout(()=>{const mobile=matchMedia('(max-width:699px)').matches;if(PAY_DATA&&mobile!==PAY_LAST_MOBILE_MODE)payRender()},160)});addEventListener('keydown',event=>{if(event.key==='Escape'&&$('payDeductionDetails').style.display==='flex')payCloseDeductionDetails();else if(event.key==='Escape'&&$('payPanel').style.display==='flex')payClose()});
 
 /* ================= الاستعلامات ================= */
 const QUERY_SHEET_ID='1vKTJSRhsoEUczoAceMh6gHlHz60HD3SBY2fJHx1aIuE';
