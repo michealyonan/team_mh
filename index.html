@@ -900,10 +900,11 @@ html[data-theme="light"] #liveMessage.error{border-color:#be123c55;background:#b
  </div></div></header>
  <div id="loginAuditModal" style="display:none;position:fixed;inset:0;background:#000c;z-index:75;overflow:auto;padding:12px" onclick="if(event.target===this)this.style.display='none'">
   <div class="card" style="max-width:900px;margin:auto">
-   <div class="row"><h3 style="margin:0">🕵️ مرات دخول المشرفين اليوم</h3><button class="btn pr" id="loginAuditRefresh">🔄 تحديث</button><button class="btn" style="margin-inline-start:auto" onclick="$('loginAuditModal').style.display='none'">✕</button></div>
+   <div class="row"><h3 style="margin:0">🕵️ مرات دخول المشرفين اليوم</h3><button class="btn" id="loginAuditScreenshot" type="button">📸 اسكرين الجدول</button><button class="btn pr" id="loginAuditRefresh">🔄 تحديث</button><button class="btn" style="margin-inline-start:auto" onclick="$('loginAuditModal').style.display='none'">✕</button></div>
    <div class="sub" id="loginAuditStatus" role="status" style="margin:8px 0">اضغط تحديث لعرض السجل.</div>
    <input id="loginAuditSearch" type="search" placeholder="🔎 ابحث باسم المشرف أو اسم المستخدم" aria-label="ابحث باسم المشرف أو اسم المستخدم" style="width:100%;margin:0 0 10px">
    <div class="tw" style="max-height:65vh;overflow:auto"><table style="min-width:0"><thead><tr><th>#</th><th>المشرف</th><th>اسم المستخدم</th><th>عدد مرات الدخول</th><th>الدور</th></tr></thead><tbody id="loginAuditBody"></tbody></table></div>
+   <div class="sub" id="loginAuditScreenshotStatus" role="status" aria-live="polite" style="margin-top:8px;display:none"></div>
   </div>
  </div>
  <div id="loginAuditGate" style="display:none;position:fixed;inset:0;background:#000c;z-index:76;align-items:center;justify-content:center;padding:16px" onclick="if(event.target===this)closeLoginAuditGate()">
@@ -2548,6 +2549,27 @@ function renderLoginAuditRows(){
     ?'🔎 '+NF(rows.length)+' مشرف من '+NF(total)+' · '+NF(matchedVisits)+' تسجيل دخول.'
     :total?'✅ '+NF(total)+' مشرف · '+NF(totalVisits)+' تسجيل دخول اليوم.':'لا يوجد تسجيل دخول مسجل اليوم.';
 }
+let LOGIN_AUDIT_SCREENSHOT_BUSY=false;
+async function captureLoginAuditTable(button){
+  const status=$('loginAuditScreenshotStatus'),source=$('loginAuditBody').closest('table');
+  if(!CUR||CUR.r!=='admin'||LOGIN_AUDIT_SCREENSHOT_BUSY)return;
+  LOGIN_AUDIT_SCREENSHOT_BUSY=true;button.disabled=true;status.style.display='block';status.textContent='⏳ جارٍ تصوير جدول مرات الدخول بجودة عالية…';
+  let stage=null;
+  try{
+    const capture=await tgLoadScreenshotLibrary();
+    if(document.fonts&&document.fonts.ready)await document.fonts.ready;
+    const width=Math.max(760,source.scrollWidth||source.getBoundingClientRect().width)+32;
+    stage=document.createElement('div');stage.setAttribute('aria-hidden','true');
+    Object.assign(stage.style,{position:'fixed',left:'-10000px',top:'0',width:width+'px',padding:'16px',background:getComputedStyle(document.body).backgroundColor||'#0b0f19',zIndex:'-1',direction:'rtl',boxSizing:'border-box'});
+    const wrap=document.createElement('div');wrap.className='tw';Object.assign(wrap.style,{maxHeight:'none',overflow:'visible',width:'100%'});
+    const table=source.cloneNode(true);table.style.width='100%';table.style.minWidth='0';wrap.appendChild(table);stage.appendChild(wrap);document.body.appendChild(stage);
+    const canvas=await capture(stage,{backgroundColor:getComputedStyle(document.body).backgroundColor||'#0b0f19',scale:3,useCORS:true,logging:false,windowWidth:Math.max(document.documentElement.clientWidth,width),windowHeight:Math.max(document.documentElement.clientHeight,stage.scrollHeight),scrollX:0,scrollY:0});
+    const blob=await new Promise((resolve,reject)=>canvas.toBlob(image=>image?resolve(image):reject(new Error('تعذّر إنشاء صورة الجدول.')),'image/png'));
+    const link=document.createElement('a'),url=URL.createObjectURL(blob);link.href=url;link.download='مرات_دخول_المشرفين_'+ds(Date.now())+'.png';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+    status.textContent='✅ تم تنزيل صورة الجدول بجودة عالية.';
+  }catch(error){status.textContent='⚠️ تعذّر تصوير الجدول: '+(error&&error.message?error.message:String(error))}
+  finally{if(stage)stage.remove();LOGIN_AUDIT_SCREENSHOT_BUSY=false;button.disabled=false}
+}
 function getU(){return(CUR&&CUR.r==='admin'&&DRAFT)?DRAFT:USERS}
 function getPW(){try{return JSON.parse(localStorage.getItem('pd_pw'))||{}}catch(e){return{}}}
 function setPW(u,p){const b=getPW();if(p==null)delete b[u.toLowerCase()];else b[u.toLowerCase()]=p;try{localStorage.setItem('pd_pw',JSON.stringify(b))}catch(e){}}
@@ -2609,6 +2631,7 @@ $('loginAuditGateForm').addEventListener('submit',e=>{
 });
 addEventListener('keydown',e=>{if(e.key==='Escape'&&$('loginAuditGate').style.display==='flex')closeLoginAuditGate()});
 $('loginAuditRefresh').onclick=loadTodayLoginAudit;
+$('loginAuditScreenshot').onclick=event=>captureLoginAuditTable(event.currentTarget);
 $('loginAuditSearch').addEventListener('input',renderLoginAuditRows);
 $('out').onclick=()=>{try{sessionStorage.removeItem('pd_sess');localStorage.removeItem('pd_sess')}catch(e){}location.reload()};
 /* ---------- خزنة الباسوردات (مشفرة AES-GCM بكلمة سر الأدمن) ---------- */
