@@ -1087,7 +1087,7 @@ html[data-theme="light"] #liveMessage.error{border-color:#be123c55;background:#b
   </div>
   <div id="asM" style="padding:10px;border-radius:10px;background:#f59e0b22;color:#fbbf24;font-size:13px;display:none"></div>
   <section class="card" id="bookingPanel">
-   <div class="row"><h3 style="margin:0">🗓️ مقارنة قاعدة البيانات بالحجوزات</h3><span class="sub" id="bookingCount" aria-live="polite"></span><span style="margin-inline-start:auto;display:flex;gap:6px;flex-wrap:wrap"><button class="btn" id="bookingSupervisorSummary" type="button" aria-expanded="false" aria-controls="bookingSupervisorPanel">👷 ملخص المشرفين</button></span><span class="sub" id="bookingUpdated"></span></div>
+   <div class="row"><h3 style="margin:0">🗓️ مقارنة قاعدة البيانات بالحجوزات</h3><span class="sub" id="bookingCount" aria-live="polite"></span><span style="margin-inline-start:auto;display:flex;gap:6px;flex-wrap:wrap"><button class="btn" id="bookingZoneSummary" type="button" aria-expanded="false" aria-controls="bookingZonePanel">📍 ملخص الزونات</button><button class="btn" id="bookingSupervisorSummary" type="button" aria-expanded="false" aria-controls="bookingSupervisorPanel">👷 ملخص المشرفين</button><button class="btn" id="bookingSummaryScreenshot" type="button">📸 اسكرين ملخص الزونات</button></span><span class="sub" id="bookingUpdated"></span></div>
    <div class="booking-summary" aria-live="polite">
     <div class="booking-summary-item"><span>إجمالي المناديب بقاعدة البيانات</span><b id="bookingRosterTotal">—</b></div>
     <div class="booking-summary-item"><span>المناديب الحاجزون</span><b id="bookingRiderTotal">—</b></div>
@@ -1096,6 +1096,7 @@ html[data-theme="light"] #liveMessage.error{border-color:#be123c55;background:#b
     <div class="booking-summary-item" id="bookingSupervisorRateItem" hidden><span>نسبة الحجز لمناديبك</span><b id="bookingSupervisorRate">—</b></div>
    </div>
    <div id="bookingMessage" role="status" aria-live="polite" class="sub" style="margin:6px 0 10px"></div>
+   <div id="bookingScreenshotStatus" role="status" aria-live="polite" class="sub" style="margin:6px 0 10px;display:none"></div>
    <div class="booking-controls">
     <div><label for="bookingDate">📅 تاريخ الحجز</label><select id="bookingDate"><option value="">كل التواريخ</option></select></div>
     <div><label for="bookingSupervisor">👷 المشرف</label><select id="bookingSupervisor"><option value="">كل المشرفين</option></select></div>
@@ -1111,6 +1112,10 @@ html[data-theme="light"] #liveMessage.error{border-color:#be123c55;background:#b
    <div class="booking-supervisor-panel" id="bookingSupervisorPanel" style="display:none">
     <h4 style="font-size:13px;margin-bottom:6px">👷 المناديب والحجوزات لكل مشرف حسب الفلاتر الحالية</h4>
     <div class="tw" style="max-height:40vh"><table class="booking-supervisor-table"><thead><tr><th>المشرف</th><th>إجمالي المناديب</th><th>الحاجزون</th><th>نسبة الحجز</th><th>غير الحاجزين</th><th>الساعات المحجوزة</th><th>عدد الشيفتات</th></tr></thead><tbody id="bookingSupervisorRows"></tbody></table></div>
+   </div>
+   <div class="booking-supervisor-panel" id="bookingZonePanel" style="display:none">
+    <h4 style="font-size:13px;margin-bottom:6px">📍 ملخص الحجوزات لكل زون حسب الفلاتر الحالية</h4>
+    <div class="tw" style="max-height:40vh"><table class="booking-supervisor-table"><thead><tr><th>الزون</th><th>إجمالي المناديب</th><th>الحاجزون</th><th>نسبة الحجز</th><th>غير الحاجزين</th><th>الساعات المحجوزة</th><th>عدد الشيفتات</th></tr></thead><tbody id="bookingZoneRows"></tbody></table></div>
    </div>
    <div class="tw" id="bookingTable" style="max-height:65vh;margin-top:10px"><table class="booking-table"><thead><tr><th>#</th><th>حالة الحجز</th><th>حالة المندوب (Live)</th><th>كود المندوب</th><th>رقم التليفون</th><th>اسم المندوب</th><th>المشرف</th><th>الزون</th><th>عدد الشيفتات</th><th>إجمالي الساعات</th></tr></thead><tbody id="bookingRows"></tbody></table></div>
    <div class="pg"><button class="btn" id="bookingPrev" type="button">‹ السابق</button><span id="bookingPage" aria-live="polite"></span><button class="btn" id="bookingNext" type="button">التالي ›</button></div>
@@ -3399,7 +3404,7 @@ const asDateLabel=d=>new Date(d+'T00:00:00').toLocaleDateString('ar-EG',{weekday
 
 /* ---------- تحديث حجوزات الشيفتات أونلاين ---------- */
 const BOOKING_SHEET_ID='1OLvK2_Wi7k8jTa9K1FdLkNjQwpMD5ntMsG_pC8woTlk',BOOKING_GID='963721718',BOOKING_DB_GID='74019377',BOOKING_PAGE_SIZE=50;
-let BOOKING_ROWS=[],BOOKING_DB_ROWS=[],BOOKING_DB_ID_MAP=null,BOOKING_VISIBLE=[],BOOKING_ALL_VISIBLE=[],BOOKING_PAGE=0,BOOKING_JSONP_ID=0,BOOKING_LOADED=false,BOOKING_DB_LOADED=false,BOOKING_BUSY=false;
+let BOOKING_ROWS=[],BOOKING_DB_ROWS=[],BOOKING_DB_ID_MAP=null,BOOKING_VISIBLE=[],BOOKING_ALL_VISIBLE=[],BOOKING_PAGE=0,BOOKING_JSONP_ID=0,BOOKING_LOADED=false,BOOKING_DB_LOADED=false,BOOKING_BUSY=false,BOOKING_SCREENSHOT_BUSY=false;
 let BOOKING_STATUS_MESSAGE='',BOOKING_NEXT_HOUR_ONLY=false;
 let BOOKING_PHONE_LOAD=null,BOOKING_PHONE_ERROR='';
 const BOOKING_FILTERS=[
@@ -3721,6 +3726,30 @@ function bookingSupervisorSummaryRows(){
     }))
     .sort((a,b)=>b.total-a.total||a.name.localeCompare(b.name,'ar'));
 }
+function bookingLocationSummaryRows(dimension){
+  const summaries=new Map;
+  for(const row of BOOKING_VISIBLE){
+    const name=row.zone||'غير محددة',key=tgZoneNorm(name);
+    let summary=summaries.get(key);
+    if(!summary){summary={name,riders:new Set,booked:new Set,minutes:0,shifts:0};summaries.set(key,summary)}
+    summary.riders.add(bookingNormalizeRiderId(row.id));
+    if(row.isBooked)summary.booked.add(bookingNormalizeRiderId(row.id));
+    summary.minutes+=row.minutes;summary.shifts+=row.shifts.length;
+  }
+  return[...summaries.values()].map(summary=>({
+    name:summary.name,total:summary.riders.size,booked:summary.booked.size,
+    bookingRate:summary.riders.size?summary.booked.size/summary.riders.size*100:0,
+    unbooked:Math.max(0,summary.riders.size-summary.booked.size),minutes:summary.minutes,shifts:summary.shifts
+  })).sort((a,b)=>b.total-a.total||a.name.localeCompare(b.name,'ar'));
+}
+function bookingRenderLocationSummary(dimension){
+  const target='bookingZoneRows';
+  const summaries=bookingLocationSummaryRows(dimension);
+  $(target).innerHTML=summaries.map(summary=>{
+    const level=summary.bookingRate>=80?'high':summary.bookingRate>=60?'good':summary.bookingRate>=40?'mid':'low';
+    return`<tr><td>${esc(summary.name)}</td><td>${NF(summary.total)}</td><td>${NF(summary.booked)}</td><td><span class="booking-rate-value ${level}">${F1(summary.bookingRate)}%</span></td><td>${NF(summary.unbooked)}</td><td>${F1(summary.minutes/60)} س</td><td>${NF(summary.shifts)}</td></tr>`;
+  }).join('')||'<tr><td colspan="7" class="sub">لا توجد بيانات مطابقة للفلاتر.</td></tr>';
+}
 function bookingRenderSupervisorSummary(){
   if(!bookingCanViewSupervisorSummary()){
     $('bookingSupervisorRows').replaceChildren();
@@ -3730,6 +3759,38 @@ function bookingRenderSupervisorSummary(){
     const level=summary.bookingRate>=80?'high':summary.bookingRate>=60?'good':summary.bookingRate>=40?'mid':'low';
     return`<tr><td>${esc(summary.name)}</td><td>${NF(summary.total)}</td><td>${NF(summary.booked)}</td><td><span class="booking-rate-value ${level}">${F1(summary.bookingRate)}%</span></td><td>${NF(summary.unbooked)}</td><td>${F1(summary.minutes/60)} س</td><td>${NF(summary.shifts)}</td></tr>`;
   }).join('')||'<tr><td colspan="7" class="sub">لا توجد بيانات مطابقة للفلاتر.</td></tr>';
+}
+async function bookingCaptureSummaryTables(button){
+  const status=$('bookingScreenshotStatus');
+  if(!BOOKING_LOADED||BOOKING_SCREENSHOT_BUSY)return;
+  const sources=[{id:'bookingZonePanel',title:'ملخص الزونات'}];
+  BOOKING_SCREENSHOT_BUSY=true;button.disabled=true;status.style.display='block';status.textContent='⏳ جارٍ تجهيز صورة ملخص الزونات بجودة عالية…';
+  let stage=null;
+  try{
+    const capture=await tgLoadScreenshotLibrary();
+    if(document.fonts&&document.fonts.ready)await document.fonts.ready;
+    const panels=sources.map(source=>({source,table:$(source.id).querySelector('table')})).filter(item=>item.table);
+    if(!panels.length)throw new Error('لا توجد جداول ملخصات للتصوير.');
+    const width=Math.max(900,...panels.map(item=>item.table.scrollWidth||item.table.getBoundingClientRect().width))+36;
+    stage=document.createElement('div');stage.setAttribute('aria-hidden','true');
+    Object.assign(stage.style,{position:'fixed',left:'-10000px',top:'0',width:width+'px',padding:'16px',background:getComputedStyle(document.body).backgroundColor||'#0b0f19',zIndex:'-1',direction:'rtl',boxSizing:'border-box'});
+    for(const {source,table} of panels){
+      const card=document.createElement('section');card.className='card';
+      Object.assign(card.style,{width:'100%',padding:'14px',margin:'0 0 12px',background:getComputedStyle($('bookingPanel')).backgroundColor,border:'1px solid var(--bd)',borderRadius:'10px',boxSizing:'border-box'});
+      const title=document.createElement('h3');title.textContent=source.title;title.style.cssText='margin:0 0 10px;font-size:16px';
+      const wrap=document.createElement('div');wrap.className='tw';Object.assign(wrap.style,{maxHeight:'none',overflow:'visible',width:'100%'});
+      const clone=table.cloneNode(true);wrap.appendChild(clone);card.append(title,wrap);stage.appendChild(card);
+    }
+    document.body.appendChild(stage);
+    const canvas=await capture(stage,{backgroundColor:getComputedStyle(document.body).backgroundColor||'#0b0f19',scale:3,useCORS:true,logging:false,windowWidth:Math.max(document.documentElement.clientWidth,width),windowHeight:Math.max(document.documentElement.clientHeight,stage.scrollHeight),scrollX:0,scrollY:0});
+    const blob=await new Promise((resolve,reject)=>canvas.toBlob(image=>image?resolve(image):reject(new Error('تعذّر إنشاء صورة الملخصات.')),'image/png'));
+    const link=document.createElement('a'),url=URL.createObjectURL(blob);link.href=url;link.download='ملخص_الزونات_'+new Date().toISOString().slice(0,10)+'.png';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+    status.textContent='✅ تم تنزيل صورة ملخص الزونات بجودة عالية.';
+  }catch(error){
+    status.textContent='⚠️ تعذّر تصوير ملخص الزونات: '+(error&&error.message?error.message:String(error));
+  }finally{
+    if(stage)stage.remove();BOOKING_SCREENSHOT_BUSY=false;button.disabled=false;
+  }
 }
 function bookingExportExcel(){
   if(!bookingCanAccessDashboard()){return}
@@ -3841,6 +3902,7 @@ function bookingRender(){
   $('bookingSupervisorRate').textContent=F1(BOOKING_ALL_VISIBLE.length?booked/BOOKING_ALL_VISIBLE.length*100:0)+'%';
   $('bookingMessage').textContent=BOOKING_STATUS_MESSAGE;
   bookingRenderSupervisorSummary();
+  bookingRenderLocationSummary('zone');
   $('bookingRows').innerHTML=visible.map((row,index)=>{
     const rowIndex=start+index,key=row.id,expanded=BOOKING_EXPANDED.has(key),
       shiftDetails=row.shifts.map((shift,shiftIndex)=>`<span class="booking-shift-item">${esc(asDateLabel(shift.date))} · ${NF(shiftIndex+1)}. ${esc((shift.start||'—')+' – '+(shift.end||'—'))} · ${esc(shift.duration||F1(shift.minutes/60)+' ساعة')}</span>`).join(''),
@@ -3882,6 +3944,7 @@ async function bookingRefresh(){
 }
 $('bookingOnline').onclick=bookingRefresh;
 $('bookingExport').onclick=bookingExportExcel;
+$('bookingSummaryScreenshot').onclick=event=>bookingCaptureSummaryTables(event.currentTarget);
 $('bookingDashboardB').onclick=()=>{
   if(!bookingCanAccessDashboard())return;
   bookingApplyRoleAccess();
@@ -3892,13 +3955,22 @@ $('bookingDashboardB').onclick=()=>{
 $('bookingDashboardClose').onclick=()=>{$('as').style.display='none';document.body.style.overflow=''};
 $('as').addEventListener('click',event=>{if(event.target===$('as'))$('bookingDashboardClose').click()});
 addEventListener('keydown',event=>{if(event.key==='Escape'&&$('as').style.display==='block')$('bookingDashboardClose').click()});
-$('bookingSupervisorSummary').onclick=()=>{
-  if(!bookingCanViewSupervisorSummary())return;
-  const panel=$('bookingSupervisorPanel'),show=panel.style.display==='none';
-  panel.style.display=show?'block':'none';
-  $('bookingSupervisorSummary').setAttribute('aria-expanded',String(show));
-  $('bookingSupervisorSummary').textContent=show?'✕ إخفاء ملخص المشرفين':'👷 ملخص المشرفين';
-};
+[
+  {button:'bookingZoneSummary',panel:'bookingZonePanel',label:'📍 ملخص الزونات',open:'✕ إخفاء ملخص الزونات'},
+  {button:'bookingSupervisorSummary',panel:'bookingSupervisorPanel',label:'👷 ملخص المشرفين',open:'✕ إخفاء ملخص المشرفين'}
+].forEach(item=>$(item.button).onclick=()=>{
+  if(item.button==='bookingSupervisorSummary'&&!bookingCanViewSupervisorSummary())return;
+  const panel=$(item.panel),show=panel.style.display==='none';
+  for(const other of [
+    {button:'bookingZoneSummary',panel:'bookingZonePanel',label:'📍 ملخص الزونات',open:'✕ إخفاء ملخص الزونات'},
+    {button:'bookingSupervisorSummary',panel:'bookingSupervisorPanel',label:'👷 ملخص المشرفين',open:'✕ إخفاء ملخص المشرفين'}
+  ]){
+    const active=other.button===item.button&&show;
+    $(other.panel).style.display=active?'block':'none';
+    $(other.button).setAttribute('aria-expanded',String(active));
+    $(other.button).textContent=active?other.open:other.label;
+  }
+});
 BOOKING_FILTERS.forEach(filter=>$(filter.id).onchange=()=>{
   bookingUpdateFilters(filter.id);BOOKING_PAGE=0;bookingRender();
 });
