@@ -123,6 +123,14 @@ tr:hover td{background:#18223a}
 .booking-summary-item{display:flex;align-items:baseline;gap:7px;flex:0 0 auto;white-space:nowrap}
 .booking-summary-item span{color:var(--mut);font-size:11px}
 .booking-summary-item b{font-size:16px}
+.booking-daily-summary{display:grid;gap:8px;margin:8px 0}
+.booking-daily-summary[hidden]{display:none!important}
+.booking-day-card{min-width:0;padding:9px 10px;border:1px solid var(--bd);border-radius:9px;background:var(--surface-inset)}
+.booking-day-card h4{margin:0 0 7px;font-size:13px;font-weight:900;color:var(--tx)}
+.booking-day-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,145px),1fr));gap:7px}
+.booking-day-stat{display:grid;justify-items:center;align-content:center;gap:3px;min-width:0;padding:7px 5px;border:1px solid var(--bd);border-radius:7px;text-align:center}
+.booking-day-stat span{color:var(--mut);font-size:10px}
+.booking-day-stat b{font-size:14px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
 .booking-supervisor-panel{margin-top:8px}
 .booking-supervisor-table{min-width:820px;border-collapse:separate;border-spacing:0}
 .booking-supervisor-table th,.booking-supervisor-table td{text-align:center;padding:11px 14px;white-space:nowrap}
@@ -149,6 +157,11 @@ html[data-theme="light"] .booking-supervisor-table tbody td:first-child{color:#1
 html[data-theme="light"] #as .booking-summary{background:#e7eef8;border-color:#cbd8e8;color:#19375c}
 html[data-theme="light"] #as .booking-summary-item span{color:#475569}
 html[data-theme="light"] #as .booking-summary-item b{color:#0f172a}
+html[data-theme="light"] #as .booking-day-card{background:#f1f5f9;border-color:#cbd8e8}
+html[data-theme="light"] #as .booking-day-card h4{color:#19375c}
+html[data-theme="light"] #as .booking-day-stat span{color:#475569}
+html[data-theme="light"] #as .booking-day-stat b{color:#0f172a}
+@media(max-width:520px){.booking-day-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.booking-day-card{padding:8px}.booking-day-stat span{font-size:9px}.booking-day-stat b{font-size:13px}}
 html[data-theme="light"] .booking-rate-value.high{color:#047857;background:#d1fae5}
 html[data-theme="light"] .booking-rate-value.good{color:#0e7490;background:#cffafe}
 html[data-theme="light"] .booking-rate-value.mid{color:#a16207;background:#fef3c7}
@@ -1142,7 +1155,7 @@ html[data-theme="light"] #liveMessage.error{border-color:#be123c55;background:#b
   </div>
   <div id="asM" style="padding:10px;border-radius:10px;background:#f59e0b22;color:#fbbf24;font-size:13px;display:none"></div>
   <section class="card" id="bookingPanel">
-   <div class="row"><h3 style="margin:0">🗓️ مقارنة قاعدة البيانات بالحجوزات</h3><span class="sub" id="bookingCount" aria-live="polite"></span><span style="margin-inline-start:auto;display:flex;gap:6px;flex-wrap:wrap"><button class="btn" id="bookingZoneSummary" type="button" aria-expanded="false" aria-controls="bookingZonePanel">📍 ملخص الزونات</button><button class="btn" id="bookingSupervisorSummary" type="button" aria-expanded="false" aria-controls="bookingSupervisorPanel">👷 ملخص المشرفين</button><button class="btn" id="bookingSummaryScreenshot" type="button">📸 اسكرين ملخص الزونات</button></span><span class="sub" id="bookingUpdated"></span></div>
+   <div class="row"><h3 style="margin:0">🗓️ مقارنة قاعدة البيانات بالحجوزات</h3><span class="sub" id="bookingCount" aria-live="polite"></span><span style="margin-inline-start:auto;display:flex;gap:6px;flex-wrap:wrap"><button class="btn" id="bookingDailySummaryToggle" type="button" aria-expanded="false" aria-controls="bookingDailySummary">📅 ملخص كل الأيام</button><button class="btn" id="bookingZoneSummary" type="button" aria-expanded="false" aria-controls="bookingZonePanel">📍 ملخص الزونات</button><button class="btn" id="bookingSupervisorSummary" type="button" aria-expanded="false" aria-controls="bookingSupervisorPanel">👷 ملخص المشرفين</button><button class="btn" id="bookingSummaryScreenshot" type="button">📸 اسكرين ملخص الزونات</button></span><span class="sub" id="bookingUpdated"></span></div>
    <div class="booking-summary" aria-live="polite">
     <div class="booking-summary-item"><span>إجمالي المناديب بقاعدة البيانات</span><b id="bookingRosterTotal">—</b></div>
     <div class="booking-summary-item"><span>المناديب الحاجزون</span><b id="bookingRiderTotal">—</b></div>
@@ -1154,6 +1167,7 @@ html[data-theme="light"] #liveMessage.error{border-color:#be123c55;background:#b
     <div class="booking-summary-item"><span>إجمالي ساعات بارت تايم</span><b id="bookingPartTimeHoursTotal">—</b></div>
     <div class="booking-summary-item" id="bookingSupervisorRateItem" hidden><span>نسبة الحجز لمناديبك</span><b id="bookingSupervisorRate">—</b></div>
    </div>
+   <section class="booking-daily-summary" id="bookingDailySummary" aria-live="polite" hidden></section>
    <div id="bookingMessage" role="status" aria-live="polite" class="sub" style="margin:6px 0 10px"></div>
    <div id="bookingScreenshotStatus" role="status" aria-live="polite" class="sub" style="margin:6px 0 10px;display:none"></div>
    <div class="booking-controls">
@@ -3535,7 +3549,7 @@ const BOOKING_FILTERS=[
   {id:'bookingStartingPoint',key:'startingPoint',label:'كل نقاط البداية'}
 ];
 const BOOKING_EXPANDED=new Set;
-let BOOKING_HYBRID_ONLY=false,BOOKING_PART_TIME_ONLY=false,BOOKING_BICYCLE_ONLY=false;
+let BOOKING_HYBRID_ONLY=false,BOOKING_PART_TIME_ONLY=false,BOOKING_BICYCLE_ONLY=false,BOOKING_DAILY_SUMMARY_OPEN=false;
 let BOOKING_PROFILE_SOURCE=null,BOOKING_PROFILE_CACHE=null;
 let BOOKING_MANAGER_TEAM_SOURCE=null,BOOKING_MANAGER_TEAM_CACHE=null;
 function bookingDateKey(value){
@@ -3957,6 +3971,34 @@ function bookingExportExcel(){
     $('bookingMessage').textContent='⚠️ تعذّر إنشاء ملف Excel: '+(error&&error.message?error.message:String(error));
   }
 }
+function bookingRenderDailySummary(scopedRoster){
+  const panel=$('bookingDailySummary'),button=$('bookingDailySummaryToggle');
+  panel.hidden=!BOOKING_DAILY_SUMMARY_OPEN;
+  button.setAttribute('aria-expanded',String(BOOKING_DAILY_SUMMARY_OPEN));
+  button.textContent=BOOKING_DAILY_SUMMARY_OPEN?'✕ إخفاء ملخص الأيام':'📅 ملخص كل الأيام';
+  if(!BOOKING_DAILY_SUMMARY_OPEN)return;
+  const scopedIds=new Set(scopedRoster.map(row=>bookingNormalizeRiderId(row.id)).filter(Boolean)),days=new Map;
+  for(const shift of BOOKING_ROWS){
+    const riderId=bookingNormalizeRiderId(shift.id);
+    if(!shift.date||!scopedIds.has(riderId))continue;
+    const riders=days.get(shift.date)||new Map,rider=riders.get(riderId)||{minutes:0,points:new Set};
+    rider.minutes+=Number(shift.minutes)||0;
+    const point=String(shift.startingPoint||'').trim();if(point)rider.points.add(point);
+    riders.set(riderId,rider);days.set(shift.date,riders);
+  }
+  if(!days.size){panel.innerHTML='<div class="sub">لا توجد حجوزات لعرضها.</div>';return}
+  const stat=(label,value)=>`<div class="booking-day-stat"><span>${label}</span><b>${value}</b></div>`;
+  const today=asTodayKey();
+  panel.innerHTML=[...days].sort(([a],[b])=>{
+    const aFuture=a>=today,bFuture=b>=today;
+    if(a===today||b===today)return a===today?-1:1;
+    if(aFuture!==bFuture)return aFuture?-1:1;
+    return aFuture?a.localeCompare(b):b.localeCompare(a);
+  }).map(([date,riders])=>{
+    const values=[...riders.values()],hybrid=values.filter(rider=>[...rider.points].some(point=>/hybrid/i.test(point))),partTime=values.filter(rider=>[...rider.points].some(point=>/part/i.test(point))),hours=values.reduce((sum,rider)=>sum+rider.minutes,0)/60;
+    return`<article class="booking-day-card"><h4>📅 ${esc(asDateLabel(date))}</h4><div class="booking-day-stats">${stat('إجمالي المناديب',NF(scopedIds.size))}${stat('الحاجزون',NF(values.length))}${stat('غير الحاجزين',NF(Math.max(0,scopedIds.size-values.length)))}${stat('الساعات المحجوزة',F1(hours)+' س')}${stat('مناديب Hybrid',NF(hybrid.length))}${stat('ساعات Hybrid',F1(hybrid.reduce((sum,rider)=>sum+rider.minutes,0)/60)+' س')}${stat('مناديب بارت تايم',NF(partTime.length))}${stat('ساعات بارت تايم',F1(partTime.reduce((sum,rider)=>sum+rider.minutes,0)/60)+' س')}</div></article>`;
+  }).join('');
+}
 function bookingRender(){
   if(!BOOKING_LOADED)return;
   const now=Date.now(),today=asTodayKey(),nextHour=now+60*60*1000,query=$('bookingSearch').value.trim().toLocaleLowerCase(),
@@ -3965,10 +4007,11 @@ function bookingRender(){
       filterMatches('bookingZone',row.zone)&&
       (!query||(row.id+' '+row.name+' '+row.sup+' '+row.zone+' '+(headcountPhones.get(bookingNormalizeRiderId(row.id))||(liveRiders.get(bookingNormalizeRiderId(row.id))||{}).phone||'')).toLocaleLowerCase().includes(query))
     ),scopedRiderIds=new Set(scopedRoster.map(row=>bookingNormalizeRiderId(row.id)));
-  const workingRiderIds=new Set(BOOKING_ROWS.filter(row=>{
+  const workingRiderIds=new Set([...liveRiders].filter(([,rider])=>String(rider.status||'').trim().toLocaleUpperCase('en')==='WORKING').map(([id])=>id));
+  for(const row of BOOKING_ROWS.filter(row=>{
     const start=bookingShiftStartTimestamp(row),end=bookingShiftEndTimestamp(row);
     return start&&end&&start<=now&&end>now;
-  }).map(row=>bookingNormalizeRiderId(row.id)));
+  }))workingRiderIds.add(bookingNormalizeRiderId(row.id));
   const upcomingRows=BOOKING_ROWS.filter(row=>{
     const riderId=bookingNormalizeRiderId(row.id);
     if(row.date!==today||!scopedRiderIds.has(riderId)||workingRiderIds.has(riderId))return false;
@@ -4039,6 +4082,7 @@ function bookingRender(){
   $('bookingUnbookedTotal').textContent=NF(BOOKING_ALL_VISIBLE.length-booked);
   $('bookingHoursTotal').textContent=F1(BOOKING_ALL_VISIBLE.reduce((sum,row)=>sum+row.minutes,0)/60)+' ساعة';
   $('bookingSupervisorRate').textContent=F1(BOOKING_ALL_VISIBLE.length?booked/BOOKING_ALL_VISIBLE.length*100:0)+'%';
+  bookingRenderDailySummary(scopedRoster);
   $('bookingMessage').textContent=BOOKING_STATUS_MESSAGE;
   bookingRenderSupervisorSummary();
   bookingRenderLocationSummary('zone');
@@ -4084,6 +4128,7 @@ async function bookingRefresh(){
 $('bookingOnline').onclick=bookingRefresh;
 $('bookingExport').onclick=bookingExportExcel;
 $('bookingSummaryScreenshot').onclick=event=>bookingCaptureSummaryTables(event.currentTarget);
+$('bookingDailySummaryToggle').onclick=()=>{BOOKING_DAILY_SUMMARY_OPEN=!BOOKING_DAILY_SUMMARY_OPEN;bookingRender()};
 const bookingStartingPointHeader=document.createElement('th');bookingStartingPointHeader.className='booking-starting-point-column';bookingStartingPointHeader.textContent='Starting Point';$('bookingTable').querySelector('thead tr').insertBefore(bookingStartingPointHeader,$('bookingTable').querySelector('thead tr').children[8]||null);
 $('bookingDashboardB').onclick=()=>{
   if(!bookingCanAccessDashboard())return;
