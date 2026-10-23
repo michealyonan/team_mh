@@ -119,8 +119,8 @@ tr:hover td{background:#18223a}
 .booking-table th:nth-child(11){width:7%}
 .booking-table td{white-space:normal;overflow-wrap:anywhere}
 #bookingTable .booking-starting-point-column{display:none!important}
-.booking-summary{display:flex;align-items:baseline;flex-wrap:wrap;gap:8px 20px;margin:8px 0;padding:8px 10px;border:1px solid var(--bd);border-radius:9px;background:#0f1b2d}
-.booking-summary-item{display:flex;align-items:baseline;gap:7px}
+.booking-summary{display:flex;align-items:center;flex-wrap:nowrap;gap:8px 16px;margin:8px 0;padding:8px 10px;border:1px solid var(--bd);border-radius:9px;background:#0f1b2d;overflow-x:auto;scrollbar-width:thin}
+.booking-summary-item{display:flex;align-items:baseline;gap:7px;flex:0 0 auto;white-space:nowrap}
 .booking-summary-item span{color:var(--mut);font-size:11px}
 .booking-summary-item b{font-size:16px}
 .booking-supervisor-panel{margin-top:8px}
@@ -146,6 +146,9 @@ html[data-theme="light"] .booking-supervisor-table tbody tr:nth-child(even){back
 html[data-theme="light"] .booking-supervisor-table tbody tr:hover{background:#eaf2fd}
 html[data-theme="light"] .booking-supervisor-table tbody td{border-bottom-color:#e1e8f1}
 html[data-theme="light"] .booking-supervisor-table tbody td:first-child{color:#19375c}
+html[data-theme="light"] #as .booking-summary{background:#e7eef8;border-color:#cbd8e8;color:#19375c}
+html[data-theme="light"] #as .booking-summary-item span{color:#475569}
+html[data-theme="light"] #as .booking-summary-item b{color:#0f172a}
 html[data-theme="light"] .booking-rate-value.high{color:#047857;background:#d1fae5}
 html[data-theme="light"] .booking-rate-value.good{color:#0e7490;background:#cffafe}
 html[data-theme="light"] .booking-rate-value.mid{color:#a16207;background:#fef3c7}
@@ -488,8 +491,8 @@ html[data-theme="light"] .header-supervisor-rank{background:#fef3c7;border-color
  #as .booking-controls .multi-filter-menu{min-width:min(260px,calc(100vw - 32px));max-width:calc(100vw - 32px);max-height:55vh}
  #as .booking-controls .multi-filter-menu .multi-filter-option{min-height:36px;padding:5px 8px;font-size:12px}
  #as .booking-next-hour{min-height:40px;padding:5px 7px}
- #as .booking-summary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin:7px 0;padding:8px}
- #as .booking-summary-item{justify-content:space-between;gap:4px;min-width:0}
+ #as .booking-summary{display:flex;flex-wrap:nowrap;gap:8px;margin:7px 0;padding:8px;overflow-x:auto}
+ #as .booking-summary-item{justify-content:flex-start;gap:4px;min-width:max-content}
  #as .booking-summary-item span{font-size:10px;line-height:1.35}
  #as .booking-summary-item b{font-size:14px}
  #as #bookingTable{max-height:58vh;overflow:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
@@ -901,15 +904,15 @@ html[data-theme="light"] #deductionsMessage.warning{border-color:#a1620755;backg
 #liveFilters .live-filter-grid{display:grid;grid-template-columns:minmax(200px,2fr) repeat(4,minmax(120px,1fr)) auto;align-items:end;gap:10px}
 #liveFilters label{display:block;margin-bottom:3px;color:var(--mut);font-size:11px}
 #liveFilters input,#liveFilters select{width:100%;min-width:0}
+#liveFilters .live-filter-toolbar{grid-column:1/-1;display:flex;align-items:end;gap:6px;flex-wrap:wrap;min-width:0}
+#liveFilters .live-filter-toolbar .live-search{flex:1 1 120px;min-width:100px;grid-column:auto}
+#liveFilters .live-filter-toolbar .live-search input{min-height:38px;padding:5px 8px;font-size:12px}
+#liveFilters .live-filter-toolbar .btn{flex:0 0 auto;width:auto;min-width:0;min-height:38px;padding:5px 7px;font-size:11px;white-space:nowrap}
 #liveClear{white-space:nowrap}
-.live-quick-filters{grid-column:span 2;width:max-content;max-width:100%;min-width:0}
-.live-quick-buttons{display:flex;gap:6px;min-width:0}
-#liveFilters .live-quick-buttons .btn{flex:0 0 auto;width:auto;min-width:112px;min-height:38px;padding:5px 9px;font-size:12px;white-space:nowrap}
 html[data-theme="light"] #livePanel .live-head{background:rgba(237,243,249,.96)}
 html[data-theme="light"] #liveMessage.error{border-color:#be123c55;background:#be123c0d;color:#9f1239}
 @media(min-width:700px) and (max-width:1000px){
  #liveFilters .live-filter-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
- #liveFilters .live-search{grid-column:span 2}
 }
 @media(max-width:699px){
  #livePanel>.live-wrap{min-width:0;padding:0 8px calc(18px + env(safe-area-inset-bottom))}
@@ -923,11 +926,9 @@ html[data-theme="light"] #liveMessage.error{border-color:#be123c55;background:#b
  .live-summary-table{min-width:600px}
  .live-summary-table th,.live-summary-table td{padding:7px 8px}
  #liveFilters .live-filter-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
- #liveFilters .live-search{grid-column:1/-1}
- #liveFilters .live-quick-filters{grid-column:1/-1}
- #liveFilters .live-quick-buttons{gap:7px}
- #liveFilters .live-quick-buttons .btn{min-height:40px;padding:6px 9px}
- #liveClear{min-height:42px}
+ #liveFilters .live-filter-toolbar{gap:5px}
+ #liveFilters .live-filter-toolbar .live-search{flex:1 1 100px;min-width:92px}
+ #liveFilters .live-filter-toolbar .btn{min-height:38px;padding:5px 6px;font-size:10px}
  #liveTable{max-height:none;overflow:visible}
  #liveTable table{min-width:0;width:100%;border-collapse:separate;border-spacing:0 8px}
  #liveTable th,#liveTable td{width:auto!important}
@@ -1149,6 +1150,8 @@ html[data-theme="light"] #liveMessage.error{border-color:#be123c55;background:#b
     <div class="booking-summary-item"><span>إجمالي الساعات المحجوزة</span><b id="bookingHoursTotal">—</b></div>
     <div class="booking-summary-item" id="bookingHybridRiderItem" hidden><span>مناديب Hybrid</span><b id="bookingHybridRiderTotal">—</b></div>
     <div class="booking-summary-item" id="bookingHybridHoursItem" hidden><span>إجمالي ساعات Hybrid</span><b id="bookingHybridHoursTotal">—</b></div>
+    <div class="booking-summary-item"><span>مناديب بارت تايم</span><b id="bookingPartTimeRiderTotal">—</b></div>
+    <div class="booking-summary-item"><span>إجمالي ساعات بارت تايم</span><b id="bookingPartTimeHoursTotal">—</b></div>
     <div class="booking-summary-item" id="bookingSupervisorRateItem" hidden><span>نسبة الحجز لمناديبك</span><b id="bookingSupervisorRate">—</b></div>
    </div>
    <div id="bookingMessage" role="status" aria-live="polite" class="sub" style="margin:6px 0 10px"></div>
@@ -1298,14 +1301,12 @@ html[data-theme="light"] #liveMessage.error{border-color:#be123c55;background:#b
   </div>
   <div class="card" id="liveFilters">
    <div class="live-filter-grid">
-    <div class="live-search"><label for="liveSearch">🔎 بحث بالاسم أو الكود أو الهاتف</label><input id="liveSearch" type="search" placeholder="اكتب اسم المندوب أو الكود أو رقم الهاتف"></div>
+    <div class="live-filter-toolbar"><div class="live-search"><label for="liveSearch">🔎 بحث بالاسم أو الكود أو الهاتف</label><input id="liveSearch" type="search" placeholder="اكتب اسم المندوب أو الكود أو رقم الهاتف"></div><button class="btn booking-hybrid-button" id="liveHybridOnly" type="button" aria-pressed="false">⚡ Hybrid</button><button class="btn booking-part-time-button" id="livePartTimeOnly" type="button" aria-pressed="false">🕘 بارت تايم</button><button class="btn booking-bicycle-button" id="liveBicycleOnly" type="button" aria-pressed="false">🚲 Bicycle</button><button class="btn" id="liveClear" type="button">✕ مسح الفلاتر</button></div>
     <div><label for="liveGovernorate">المحافظة</label><select id="liveGovernorate"><option value="">كل المحافظات</option></select></div>
     <div><label for="liveZone">الزون</label><select id="liveZone"><option value="">كل الزونات</option></select></div>
     <div><label for="liveSupervisor">المشرف</label><select id="liveSupervisor"><option value="">كل المشرفين</option></select></div>
     <div><label for="liveState">حالة المندوب</label><select id="liveState"><option value="">كل الحالات</option></select></div>
     <div><label for="liveStartingPoint">Starting Point</label><select id="liveStartingPoint"><option value="">كل نقاط البداية</option></select></div>
-    <div class="live-quick-filters"><label>عرض سريع</label><div class="live-quick-buttons"><button class="btn booking-hybrid-button" id="liveHybridOnly" type="button" aria-pressed="false">⚡ Hybrid</button><button class="btn booking-part-time-button" id="livePartTimeOnly" type="button" aria-pressed="false">🕘 بارت تايم</button><button class="btn booking-bicycle-button" id="liveBicycleOnly" type="button" aria-pressed="false">🚲 Bicycle</button></div></div>
-    <button class="btn" id="liveClear" type="button">✕ مسح الفلاتر</button>
    </div>
   </div>
   <div class="card"><div class="tw" id="liveTable"><table><thead id="liveHead"></thead><tbody id="liveBody"></tbody></table></div></div>
@@ -4003,10 +4004,13 @@ function bookingRender(){
     filterMatches('bookingRiderState',row.liveStatus)&&
     (maxMinutes===null||!Number.isFinite(maxMinutes)||maxMinutes<0||(row.isBooked&&row.minutes<maxMinutes*60))
   );
-  const hybridSelected=BOOKING_HYBRID_ONLY||filterValues('bookingStartingPoint').some(point=>/hybrid/i.test(point)),hybridVisible=hybridSelected?BOOKING_VISIBLE.filter(row=>/hybrid/i.test(row.startingPoint)):[];
-  $('bookingHybridRiderItem').hidden=!hybridSelected;$('bookingHybridHoursItem').hidden=!hybridSelected;
+  const hybridVisible=BOOKING_ALL_VISIBLE.filter(row=>/hybrid/i.test(row.startingPoint));
+  $('bookingHybridRiderItem').hidden=false;$('bookingHybridHoursItem').hidden=false;
   $('bookingHybridRiderTotal').textContent=NF(hybridVisible.length);
   $('bookingHybridHoursTotal').textContent=F1(hybridVisible.reduce((sum,row)=>sum+row.minutes,0)/60)+' ساعة';
+  const partTimeVisible=BOOKING_ALL_VISIBLE.filter(row=>/part/i.test(row.startingPoint));
+  $('bookingPartTimeRiderTotal').textContent=NF(partTimeVisible.length);
+  $('bookingPartTimeHoursTotal').textContent=F1(partTimeVisible.reduce((sum,row)=>sum+row.minutes,0)/60)+' ساعة';
   const upcomingMinutesByRider=new Map;
   for(const row of upcomingRows){
     const riderId=bookingNormalizeRiderId(row.id);
@@ -4068,7 +4072,7 @@ async function bookingRefresh(){
     }
     $('bookingUpdated').textContent='آخر تحديث: '+new Date().toLocaleString('ar-EG');
     BOOKING_STATUS_MESSAGE=databaseResult.status==='fulfilled'
-      ?'✅ تم تحديث '+NF(BOOKING_ROWS.length)+' حجزًا ومقارنة IDs مع '+NF(BOOKING_DB_ROWS.length)+' مندوبًا في قاعدة البيانات.'
+      ?''
       :'⚠️ تم تحديث '+NF(BOOKING_ROWS.length)+' حجز، لكن تعذّر تحديث قاعدة البيانات: '+(databaseResult.reason&&databaseResult.reason.message?databaseResult.reason.message:String(databaseResult.reason))+(BOOKING_DB_LOADED?' · تم الاحتفاظ بآخر نسخة من قاعدة البيانات.':'');
     BOOKING_PAGE=0;bookingRender();
   }catch(error){
