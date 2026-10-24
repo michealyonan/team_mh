@@ -466,8 +466,28 @@ html[data-theme="light"] .supervisor-rank.rank-2{background:#f1f5f9;border-color
 html[data-theme="light"] .supervisor-rank.rank-3{background:#ffedd5;border-color:#fdba74;color:#9a3412}
 html[data-theme="light"] .supervisor-rank.rank-other{background:#eff6ff;border-color:#bfdbfe;color:#1d4ed8}
 html[data-theme="light"] .header-supervisor-rank{background:#fef3c7;border-color:#fcd34d;color:#92400e}
+/* القائمة الجانبية لأقسام لوحة التحكم */
+.header-actions{flex-wrap:nowrap;min-width:0}.header-actions #who{max-width:min(38vw,360px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nav-drawer-backdrop{position:fixed;inset:0;z-index:90;display:flex;justify-content:flex-start;background:#020817b8;backdrop-filter:blur(4px)}
+.nav-drawer-backdrop[hidden]{display:none}
+.nav-drawer{width:min(340px,88vw);height:100%;overflow:auto;padding:calc(16px + env(safe-area-inset-top)) 14px calc(18px + env(safe-area-inset-bottom));background:linear-gradient(155deg,#142840,#0b1525 72%);border-inline-end:1px solid #3a5b7b;box-shadow:-16px 0 48px #0008;animation:navDrawerIn .2s ease-out}
+.nav-drawer-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:4px 2px 14px;margin-bottom:12px;border-bottom:1px solid #ffffff20}.nav-drawer-heading h2{font-size:17px;font-weight:900;color:#eff8ff}
+.nav-drawer-links{display:grid;gap:8px}.nav-drawer-links .btn{width:100%;min-height:48px;text-align:start;padding:10px 14px;background:linear-gradient(110deg,#1b3550,#14263b);border-color:#345575;border-radius:12px;color:#eef7ff;box-shadow:0 4px 12px #0003}.nav-drawer-links .btn:hover{background:linear-gradient(110deg,#245073,#19324b);border-color:#4e94bd;transform:translateX(-2px)}
+@keyframes navDrawerIn{from{transform:translateX(22px);opacity:.7}to{transform:translateX(0);opacity:1}}
+@media(max-width:699px){.header-actions{gap:6px}.header-actions #who{max-width:30vw}.header-actions .btn{padding:7px 9px;min-height:36px;font-size:12px}.nav-drawer{width:min(320px,86vw)}}
+@media(prefers-reduced-motion:reduce){.nav-drawer{animation:none}.nav-drawer-links .btn{transition:none}}
 </style>
-<style>@media(max-width:699px){.tghint{display:none}#tgMs{font-size:12px!important}#tg .card h3{font-size:13px}#tg .card h3 .sub{display:block;margin-top:2px}#tgMc .row input{flex:1;max-width:none!important}#tg .cw{min-height:240px}}</style>
+<style>@media(max-width:699px){.tghint{display:none}#tgMs{font-size:12px!important}#tg .card h3{font-size:13px}#tg .card h3 .sub{display:block;margin-top:2px}#tgMc .row input{flex:1;max-width:none!important}#tg .cw{min-height:240px}}/* القائمة الجانبية لأقسام لوحة التحكم */
+.header-actions{flex-wrap:nowrap;min-width:0}.header-actions #who{max-width:min(38vw,360px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nav-drawer-backdrop{position:fixed;inset:0;z-index:90;display:flex;justify-content:flex-start;background:#020817b8;backdrop-filter:blur(4px)}
+.nav-drawer-backdrop[hidden]{display:none}
+.nav-drawer{width:min(340px,88vw);height:100%;overflow:auto;padding:calc(16px + env(safe-area-inset-top)) 14px calc(18px + env(safe-area-inset-bottom));background:linear-gradient(155deg,#142840,#0b1525 72%);border-inline-end:1px solid #3a5b7b;box-shadow:-16px 0 48px #0008;animation:navDrawerIn .2s ease-out}
+.nav-drawer-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:4px 2px 14px;margin-bottom:12px;border-bottom:1px solid #ffffff20}.nav-drawer-heading h2{font-size:17px;font-weight:900;color:#eff8ff}
+.nav-drawer-links{display:grid;gap:8px}.nav-drawer-links .btn{width:100%;min-height:48px;text-align:start;padding:10px 14px;background:linear-gradient(110deg,#1b3550,#14263b);border-color:#345575;border-radius:12px;color:#eef7ff;box-shadow:0 4px 12px #0003}.nav-drawer-links .btn:hover{background:linear-gradient(110deg,#245073,#19324b);border-color:#4e94bd;transform:translateX(-2px)}
+@keyframes navDrawerIn{from{transform:translateX(22px);opacity:.7}to{transform:translateX(0);opacity:1}}
+@media(max-width:699px){.header-actions{gap:6px}.header-actions #who{max-width:30vw}.header-actions .btn{padding:7px 9px;min-height:36px;font-size:12px}.nav-drawer{width:min(320px,86vw)}}
+@media(prefers-reduced-motion:reduce){.nav-drawer{animation:none}.nav-drawer-links .btn{transition:none}}
+</style>
 <style>
 @media(max-width:699px){
  #as{padding:0!important}
@@ -554,6 +574,16 @@ html[data-theme="light"] .header-supervisor-rank{background:#fef3c7;border-color
  #asCharts .cw{height:220px}
  #asSummary .chip{font-size:11px}
 }
+/* القائمة الجانبية لأقسام لوحة التحكم */
+.header-actions{flex-wrap:nowrap;min-width:0}.header-actions #who{max-width:min(38vw,360px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nav-drawer-backdrop{position:fixed;inset:0;z-index:90;display:flex;justify-content:flex-start;background:#020817b8;backdrop-filter:blur(4px)}
+.nav-drawer-backdrop[hidden]{display:none}
+.nav-drawer{width:min(340px,88vw);height:100%;overflow:auto;padding:calc(16px + env(safe-area-inset-top)) 14px calc(18px + env(safe-area-inset-bottom));background:linear-gradient(155deg,#142840,#0b1525 72%);border-inline-end:1px solid #3a5b7b;box-shadow:-16px 0 48px #0008;animation:navDrawerIn .2s ease-out}
+.nav-drawer-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:4px 2px 14px;margin-bottom:12px;border-bottom:1px solid #ffffff20}.nav-drawer-heading h2{font-size:17px;font-weight:900;color:#eff8ff}
+.nav-drawer-links{display:grid;gap:8px}.nav-drawer-links .btn{width:100%;min-height:48px;text-align:start;padding:10px 14px;background:linear-gradient(110deg,#1b3550,#14263b);border-color:#345575;border-radius:12px;color:#eef7ff;box-shadow:0 4px 12px #0003}.nav-drawer-links .btn:hover{background:linear-gradient(110deg,#245073,#19324b);border-color:#4e94bd;transform:translateX(-2px)}
+@keyframes navDrawerIn{from{transform:translateX(22px);opacity:.7}to{transform:translateX(0);opacity:1}}
+@media(max-width:699px){.header-actions{gap:6px}.header-actions #who{max-width:30vw}.header-actions .btn{padding:7px 9px;min-height:36px;font-size:12px}.nav-drawer{width:min(320px,86vw)}}
+@media(prefers-reduced-motion:reduce){.nav-drawer{animation:none}.nav-drawer-links .btn{transition:none}}
 </style>
 <style>
 :root{
@@ -954,6 +984,43 @@ html[data-theme="light"] #liveMessage.error{border-color:#be123c55;background:#b
  #liveTable tbody td:first-child{border-top:0}
  #liveTable tbody td:before{content:attr(data-label);flex:0 0 38%;color:var(--mut);font-size:10px;font-weight:700}
 }
+/* القائمة الجانبية لأقسام لوحة التحكم */
+.header-actions{flex-wrap:nowrap;min-width:0}.header-actions #who{max-width:min(38vw,360px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nav-drawer-backdrop{position:fixed;inset:0;z-index:90;display:flex;justify-content:flex-start;background:#020817b8;backdrop-filter:blur(4px)}
+.nav-drawer-backdrop[hidden]{display:none}
+.nav-drawer{width:min(340px,88vw);height:100%;overflow:auto;padding:calc(16px + env(safe-area-inset-top)) 14px calc(18px + env(safe-area-inset-bottom));background:linear-gradient(155deg,#142840,#0b1525 72%);border-inline-end:1px solid #3a5b7b;box-shadow:-16px 0 48px #0008;animation:navDrawerIn .2s ease-out}
+.nav-drawer-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:4px 2px 14px;margin-bottom:12px;border-bottom:1px solid #ffffff20}.nav-drawer-heading h2{font-size:17px;font-weight:900;color:#eff8ff}
+.nav-drawer-links{display:grid;gap:8px}.nav-drawer-links .btn{width:100%;min-height:48px;text-align:start;padding:10px 14px;background:linear-gradient(110deg,#1b3550,#14263b);border-color:#345575;border-radius:12px;color:#eef7ff;box-shadow:0 4px 12px #0003}.nav-drawer-links .btn:hover{background:linear-gradient(110deg,#245073,#19324b);border-color:#4e94bd;transform:translateX(-2px)}
+@keyframes navDrawerIn{from{transform:translateX(22px);opacity:.7}to{transform:translateX(0);opacity:1}}
+@media(max-width:699px){.header-actions{gap:6px}.header-actions #who{max-width:30vw}.header-actions .btn{padding:7px 9px;min-height:36px;font-size:12px}.nav-drawer{width:min(320px,86vw)}}
+@media(prefers-reduced-motion:reduce){.nav-drawer{animation:none}.nav-drawer-links .btn{transition:none}}
+</style>
+<style id="premium-visual-refresh">
+:root{--bg:#07101d;--card:#101f33;--bd:#2a4968;--tx:#f5f9ff;--mut:#b4c8de;--pr:#42d2ff;--ok:#41e0aa;--wa:#ffc45e;--bad:#ff7187;--pu:#b39aff;--cy:#4be5e8;--surface-raised:#172c44;--surface-inset:#091628;--shadow:0 14px 36px rgba(0,0,0,.28)}
+body{line-height:1.6;background:radial-gradient(ellipse at 8% 0%,rgba(22,144,196,.24),transparent 32%),radial-gradient(ellipse at 96% 16%,rgba(112,80,205,.18),transparent 28%),linear-gradient(155deg,#07101d,#0a1728 52%,#08111e);background-attachment:fixed}
+header{isolation:isolate;background:linear-gradient(110deg,#06101e,#0c1e32 58%,#171a32);box-shadow:0 10px 28px #0006}header:after{content:"";position:absolute;z-index:-1;inset-inline:0;bottom:-1px;height:2px;background:linear-gradient(90deg,transparent,#42d2ff,#9d8bff,#42d2ff,transparent)}
+h1{font-size:21px;color:#f6fbff;text-shadow:0 2px 18px #42d2ff55}main{max-width:1720px;padding-block:22px;gap:18px}
+.card{background:linear-gradient(145deg,#12243a,#0b192b);border-color:#2d4d6d;border-radius:18px;box-shadow:0 12px 30px #0004,inset 0 1px #ffffff08}.card h3{color:#eff8ff;font-size:15px;font-weight:900;border-inline-start:3px solid #42d2ff;padding-inline-start:9px}
+.btn,select,input,.chip{border-radius:11px}.btn.pr{background:linear-gradient(130deg,#55dcff,#2ab9ed);border-color:#61ddff;color:#062033;box-shadow:0 7px 20px #2ab9ed40}.chip.on{background:linear-gradient(120deg,#07577a,#173f66);border-color:#42d2ff;color:#e4faff;box-shadow:0 0 0 1px #42d2ff29}
+#periodControls{position:relative;isolation:isolate;overflow:hidden;background:linear-gradient(120deg,#102d47,#132341 60%,#1a2040);border-color:#397298;box-shadow:0 14px 32px #0004}#periodControls:before{content:"";position:absolute;z-index:-1;inset-inline-end:-70px;top:-140px;width:300px;height:300px;border-radius:50%;background:radial-gradient(circle,#39caf53d,transparent 68%);pointer-events:none}#periodControls>*{position:relative}
+#kpis{gap:12px}.kpi{position:relative;isolation:isolate;overflow:hidden;min-height:102px;padding:14px 15px;background:linear-gradient(145deg,#182d46,#0c1a2c);border:1px solid #2d4d6d;border-inline-start:4px solid var(--c,var(--pr));border-top-color:#2d4d6d;border-radius:16px;box-shadow:0 9px 24px #0004}.kpi:after{content:"";position:absolute;z-index:-1;inset-inline-end:-28px;top:-36px;width:112px;height:112px;border-radius:50%;background:radial-gradient(circle,var(--c,var(--pr)),transparent 70%);opacity:.17;pointer-events:none}.kpi .l{font-size:12px;font-weight:800;color:#c4d7eb}.kpi .v{font-size:27px;line-height:1.28;color:#fff;text-shadow:0 2px 18px #42d2ff30;font-variant-numeric:tabular-nums}.kpi .s{font-size:11px;color:#b4c8de}.kpi:hover{transform:translateY(-2px);border-color:#4c7699;box-shadow:0 14px 28px #0005}
+.charts{gap:16px}.charts>.card{background:linear-gradient(150deg,#12243a,#091525)}.cw{min-height:250px}.tw{border:1px solid #2d4d6d;border-radius:14px}th{background:linear-gradient(110deg,#1c3550,#203751);color:#f1f8ff;border-bottom:1px solid #3b5c7b}td{border-color:#263f5b}tbody tr:nth-child(even) td{background:#07122099}tr:hover td{background:#2e659149}.b{border-radius:999px;padding:3px 9px;font-weight:800}#msg{border-radius:14px;padding:12px 16px}
+html[data-theme="light"] body{background:radial-gradient(ellipse at 8% 0%,#d6f4ff,transparent 32%),radial-gradient(ellipse at 96% 16%,#eee6ff,transparent 28%),linear-gradient(155deg,#edf5fc,#f7f9fd 55%,#edf4fa);background-attachment:fixed}html[data-theme="light"] header{background:linear-gradient(110deg,#f9fcff,#e7f4fc 58%,#f1edff)}html[data-theme="light"] h1{color:#17334f;text-shadow:none}html[data-theme="light"] .card,html[data-theme="light"] .charts>.card{background:linear-gradient(145deg,#fff,#f4f8fc);border-color:#cbdbea;box-shadow:0 10px 26px #1f394f17}html[data-theme="light"] .card h3{color:#18334d}html[data-theme="light"] #periodControls{background:linear-gradient(120deg,#e0f6ff,#edf3ff 60%,#f3efff);border-color:#acd4e8}html[data-theme="light"] .kpi{background:linear-gradient(145deg,#fff,#f1f7fc);border-color:#d0deeb;border-top-color:#d0deeb}html[data-theme="light"] .kpi .l{color:#526a82}html[data-theme="light"] .kpi .v{color:#142b42;text-shadow:none}html[data-theme="light"] th{background:linear-gradient(110deg,#e4eef7,#edf3fa);color:#203a54}html[data-theme="light"] tbody tr:nth-child(even) td{background:#f4f8fc}html[data-theme="light"] tr:hover td{background:#e5f2fa}
+@media(min-width:700px){main{padding-block:24px;gap:19px}.card{padding:18px}.kpi{min-height:110px;padding:16px}.kpi .v{font-size:29px}}
+@media(max-width:699px){body{background-attachment:scroll}header{background:#06101efc}main{padding:11px;gap:12px}.card{padding:12px;border-radius:15px}.card h3{font-size:14px}h1{font-size:16px}#kpis{gap:8px}.kpi{min-height:88px;padding:10px 11px;border-radius:13px}.kpi .l,.kpi .s{font-size:10px}.kpi .v{font-size:20px}.cw{min-height:220px}}
+/* القائمة الجانبية لأقسام لوحة التحكم */
+.header-actions{flex-wrap:nowrap;min-width:0}.header-actions #who{max-width:min(38vw,360px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nav-drawer-backdrop{position:fixed;inset:0;z-index:90;display:flex;justify-content:flex-start;background:#020817b8;backdrop-filter:blur(4px)}
+.nav-drawer-backdrop[hidden]{display:none}
+.nav-drawer{width:min(340px,88vw);height:100%;overflow:auto;padding:calc(16px + env(safe-area-inset-top)) 14px calc(18px + env(safe-area-inset-bottom));background:linear-gradient(155deg,#142840,#0b1525 72%);border-inline-end:1px solid #3a5b7b;box-shadow:-16px 0 48px #0008;animation:navDrawerIn .2s ease-out}
+.nav-drawer-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:4px 2px 14px;margin-bottom:12px;border-bottom:1px solid #ffffff20}.nav-drawer-heading h2{font-size:17px;font-weight:900;color:#eff8ff}
+.nav-drawer-links{display:grid;gap:8px}.nav-drawer-links .btn{width:100%;min-height:48px;text-align:start;padding:10px 14px;background:linear-gradient(110deg,#1b3550,#14263b);border-color:#345575;border-radius:12px;color:#eef7ff;box-shadow:0 4px 12px #0003}.nav-drawer-links .btn:hover{background:linear-gradient(110deg,#245073,#19324b);border-color:#4e94bd;transform:translateX(-2px)}
+@keyframes navDrawerIn{from{transform:translateX(22px);opacity:.7}to{transform:translateX(0);opacity:1}}
+@media(max-width:699px){.header-actions{gap:6px}.header-actions #who{max-width:30vw}.header-actions .btn{padding:7px 9px;min-height:36px;font-size:12px}.nav-drawer{width:min(320px,86vw)}}
+@media(prefers-reduced-motion:reduce){.nav-drawer{animation:none}.nav-drawer-links .btn{transition:none}}
+</style>
+<style id="one-row-kpis">
+@media(min-width:1650px){#kpis.kpis{grid-template-columns:repeat(11,minmax(0,1fr));gap:8px}#kpis .kpi{min-width:0;min-height:96px;padding:9px 8px}#kpis .kpi .l{font-size:11px;line-height:1.35}#kpis .kpi .v{font-size:21px;line-height:1.2}#kpis .kpi .s{font-size:10px;line-height:1.35}}
 </style>
 </head>
 <body>
@@ -961,10 +1028,23 @@ html[data-theme="light"] #liveMessage.error{border-color:#be123c55;background:#b
 <div id="load"><div style="font-weight:900">جارٍ سحب البيانات من Google Sheets…</div><div class="bar"><i></i></div><div class="sub" id="lt">قد يستغرق دقيقة لأول مرة</div></div>
 <header><div class="hr">
  <div><h1>🚀 داش بورد أداء الطيارين</h1><div class="sub" id="sync">—</div></div>
- <div class="row" style="margin:0">
-  <span class="sub" id="who"></span><button class="btn" id="prB" style="display:none">💰 أسعار الباتشات</button><button class="btn" id="usrB" style="display:none">👥 المستخدمين</button><button class="btn" id="loginAuditB" style="display:none">🕵️ سجل الدخول</button><button class="btn" id="tgB" style="display:none">🎯 التارجت</button><button class="btn" id="hcB" style="display:none">👥 هيد كونت</button><button class="btn" id="dedB" style="display:none">🏢 الشركة</button><button class="btn" id="bookingDashboardB" style="display:none">🗓️ ان اصين</button><button class="btn" id="queriesB" style="display:none">📨 الاستعلامات</button><button class="btn" id="payB" type="button" style="display:none" aria-controls="payPanel" aria-expanded="false">💵 القبض</button><button class="btn" id="liveB" type="button" style="display:none" aria-controls="livePanel" aria-expanded="false">🔴 Live</button><button class="btn" id="out">خروج</button>
+ <div class="row header-actions" style="margin:0">
+  <span class="sub" id="who"></span>
+  <button class="btn" id="navMenuToggle" type="button" aria-controls="navDrawer" aria-expanded="false" onclick="toggleNavDrawer(true)">☰ القائمة</button>
+  <button class="btn" id="themeToggle" type="button" aria-pressed="false">☀️ وضع نهاري</button>
+  <button class="btn" id="out">خروج</button>
   <button class="btn pr" id="rf">🔄 تحديث</button>
  </div></div></header>
+<div id="navDrawerBackdrop" class="nav-drawer-backdrop" hidden onclick="if(event.target===this)toggleNavDrawer(false)">
+ <aside id="navDrawer" class="nav-drawer" role="dialog" aria-modal="true" aria-labelledby="navDrawerTitle" dir="rtl">
+  <div class="nav-drawer-heading"><h2 id="navDrawerTitle">☰ أقسام لوحة التحكم</h2><button class="btn" type="button" aria-label="إغلاق القائمة" onclick="toggleNavDrawer(false)">✕</button></div>
+  <nav class="nav-drawer-links" aria-label="أقسام لوحة التحكم">
+   <button class="btn" id="riderDetailsB" type="button" aria-expanded="false">📋 تفاصيل الطيارين</button>
+   <button class="btn" id="liveB" type="button" style="display:none" aria-controls="livePanel" aria-expanded="false">🔴 Live</button><button class="btn" id="bookingDashboardB" style="display:none">🗓️ ان اصين</button>
+   <button class="btn" id="reportsB" type="button" aria-expanded="false">📊 تقارير أداء</button><button class="btn" id="prB" style="display:none">💰 أسعار الباتشات</button><button class="btn" id="usrB" style="display:none">👥 المستخدمين</button><button class="btn" id="loginAuditB" style="display:none">🕵️ سجل الدخول</button><button class="btn" id="tgB" style="display:none">🎯 التارجت</button><button class="btn" id="hcB" style="display:none">👥 هيد كونت</button><button class="btn" id="dedB" style="display:none">🏢 الشركة</button><button class="btn" id="queriesB" style="display:none">📨 الاستعلامات</button><button class="btn" id="payB" type="button" style="display:none" aria-controls="payPanel" aria-expanded="false">💵 القبض</button>
+  </nav>
+ </aside>
+</div>
  <div id="loginAuditModal" style="display:none;position:fixed;inset:0;background:#000c;z-index:75;overflow:auto;padding:12px" onclick="if(event.target===this)this.style.display='none'">
   <div class="card" style="max-width:900px;margin:auto">
    <div class="row"><h3 style="margin:0">🕵️ مرات دخول المشرفين اليوم</h3><button class="btn" id="loginAuditScreenshot" type="button">📸 اسكرين الجدول</button><button class="btn pr" id="loginAuditRefresh">🔄 تحديث</button><button class="btn" style="margin-inline-start:auto" onclick="$('loginAuditModal').style.display='none'">✕</button></div>
@@ -983,6 +1063,18 @@ html[data-theme="light"] #liveMessage.error{border-color:#be123c55;background:#b
    <button class="btn pr" type="submit">فتح سجل الدخول</button>
   </form>
  </div>
+<div class="ov section-screen" id="performanceReportsPanel" style="display:none" role="dialog" aria-modal="true" aria-labelledby="performanceReportsTitle" aria-hidden="true" onclick="if(event.target===this)closePerformanceReports()">
+ <section class="section-screen-wrap">
+  <div class="section-screen-heading"><h2 id="performanceReportsTitle">📊 تقارير أداء</h2><button class="btn" type="button" aria-label="إغلاق تقارير الأداء" onclick="closePerformanceReports()">✕ إغلاق</button></div>
+  <div class="charts" id="performanceReportsContent"></div>
+ </section>
+</div>
+<div class="ov section-screen" id="riderDetailsPanel" style="display:none" role="dialog" aria-modal="true" aria-labelledby="riderDetailsTitle" aria-hidden="true" onclick="if(event.target===this)closeRiderDetails()">
+ <section class="section-screen-wrap">
+  <div class="section-screen-heading"><h2 id="riderDetailsTitle">📋 تفاصيل الطيارين</h2><button class="btn" type="button" aria-label="إغلاق تفاصيل الطيارين" onclick="closeRiderDetails()">✕ إغلاق</button></div>
+  <div id="riderDetailsContent"></div>
+ </section>
+</div>
  <main>
  <div id="msg"></div>
  <div class="card" id="periodControls">
@@ -1301,7 +1393,7 @@ html[data-theme="light"] #liveMessage.error{border-color:#be123c55;background:#b
   <div class="card"><div class="tw" id="queryTable"><table><thead id="queryHead"></thead><tbody id="queryBody"></tbody></table></div></div>
  </div>
 </div>
-<div class="ov" id="livePanel" style="display:none" role="dialog" aria-modal="true" aria-labelledby="liveTitle" aria-hidden="true" onclick="if(event.target===this)closeLivePanel()">
+<div class="ov" id="livePanel" style="display:none" role="dialog" aria-modal="true" aria-labelledby="liveTitle" aria-hidden="true">
  <div class="live-wrap">
   <div class="row live-head">
    <h2 id="liveTitle">🔴 Live</h2><span class="sub" id="liveCount"></span>
@@ -1769,7 +1861,7 @@ function setSyncStatus(state,detail){
   const stateText=state==='online'?'✅ مباشر':state==='refreshing'?'🔄 جارٍ التحديث':state==='stale'?'⚠️ نسخة محفوظة':'⚠️ غير متصل';
   const latestDataDate=ALL.reduce((latest,row)=>Math.max(latest,row.t||0),0);
   const dataDate=latestDataDate?'📅 أحدث تاريخ بيانات: '+new Date(latestDataDate).toLocaleDateString('ar-EG'):'📅 تاريخ البيانات: غير متوفر';
-  $('sync').textContent=stateText+' · '+dataDate+(cached?' · آخر سحب ناجح: '+fdt(cached):'')+(detail?' · '+detail:'');
+  $('sync').textContent=stateText+' · '+dataDate+(cached?' · آخر سحب ناجح: '+fdt(cached):'')+(detail&&!/سجل\s*$/.test(String(detail))?' · '+detail:'');
 }
 
 function vehicleFromRiderName(name){
@@ -2072,7 +2164,7 @@ function apply(){
      if(i>=0)svTxt='ساعة<br><b style="color:#5eead4">👷 المشرف: '+F1(arr[i].v)+' س/يوم</b><br>🏅 الترتيب '+(i+1)+' من '+arr.length+' في '+esc(zz)}}}
   const remaining=T.p-T.a,reservedNote=remaining>=0?'متبقي '+NF(remaining)+' ساعة':'تجاوز المحجوز '+NF(-remaining)+' ساعة';
   const K=[['📦 الطلبات',NF(T.o),'مكتملة','--c:var(--pr)'],['⏱ ساعات فعلية',NF(T.a),'من '+NF(T.p)+' محجوز','--c:var(--ok)'],['🗓️ ساعات محجوزة',NF(T.p),reservedNote,'--c:#a78bfa'],['🎯 الالتزام',F1(commit)+'%','فعلي/محجوز','--c:var(--wa)'],['⚡ الإنتاجية',F1(oph),'طلب/ساعة','--c:var(--pu)'],
-   ['🛵 الطيارين',NF(list.length),'عاملين','--c:var(--cy)'],['⌛ متوسط ساعات/طيار',F1(list.length?T.a/list.length:0),svTxt,'--c:#14b8a6'],['☕ الاستراحة',NF(T.b),'ساعة','--c:#f43f5e'],...supervisorTargetKpis(a,b)];
+   ['🛵 الطيارين',NF(list.length),'عاملين','--c:var(--cy)'],['⌛ متوسط ساعات/طيار',F1(list.length?T.a/list.length:0),svTxt,'--c:#14b8a6'],['☕ الاستراحة',NF(T.b),'ساعة','--c:#f43f5e'],...supervisorTargetKpis(a,b).filter((_,index)=>index!==1||Boolean($('d1').value&&$('d1').value===$('d2').value))];
   [[0,T.o,P.o],[1,T.a,P.a],[2,T.p,P.p],[3,commit,P.p?P.a/P.p*100:0],[4,oph,P.a?P.o/P.a:0]].forEach(([i,c,p])=>{if(p){const d=(c-p)/p*100;K[i][2]=(d>=0?'▲ ':'▼ ')+Math.abs(d).toFixed(1)+'% عن الفترة السابقة'}});
   const canViewTargets=Boolean(CUR&&['admin','manager'].includes(CUR.r));
   $('kpis').innerHTML=K.map((k,index)=>{const targetCard=index>=8&&index<=10;return`<div class="kpi"${targetCard&&canViewTargets?' data-target-details role="button" tabindex="0" aria-label="عرض تفاصيل تارجت المشرفين"':''} style="${k[3]}"><div class="l">${k[0]}</div><div class="v">${k[1]}</div><div class="s">${k[2]}</div></div>`}).join('');
@@ -4138,8 +4230,6 @@ $('bookingDashboardB').onclick=()=>{
   if(!BOOKING_LOADED||!BOOKING_DB_LOADED)bookingRefresh();else bookingRender();
 };
 $('bookingDashboardClose').onclick=()=>{$('as').style.display='none';document.body.style.overflow=''};
-$('as').addEventListener('click',event=>{if(event.target===$('as'))$('bookingDashboardClose').click()});
-addEventListener('keydown',event=>{if(event.key==='Escape'&&$('as').style.display==='block')$('bookingDashboardClose').click()});
 [
   {button:'bookingZoneSummary',panel:'bookingZonePanel',label:'📍 ملخص الزونات',open:'✕ إخفاء ملخص الزونات'},
   {button:'bookingSupervisorSummary',panel:'bookingSupervisorPanel',label:'👷 ملخص المشرفين',open:'✕ إخفاء ملخص المشرفين'}
@@ -5168,9 +5258,52 @@ function setTheme(theme){
 }
 let INITIAL_THEME='dark';try{INITIAL_THEME=localStorage.getItem(THEME_KEY)==='light'?'light':'dark'}catch(error){}
 $('themeLogin').onclick=()=>setTheme(document.documentElement.dataset.theme==='light'?'dark':'light');
+$('themeToggle').onclick=()=>setTheme(document.documentElement.dataset.theme==='light'?'dark':'light');
 setTheme(INITIAL_THEME);
 
-boot();
+function toggleNavDrawer(open){
+  const backdrop=$('navDrawerBackdrop'),toggle=$('navMenuToggle');
+  if(!backdrop||!toggle)return;
+  backdrop.hidden=!open;toggle.setAttribute('aria-expanded',String(open));
+  document.body.style.overflow=open?'hidden':'';
+  if(open){const first=backdrop.querySelector('.nav-drawer-heading button');if(first)first.focus()}
+  else toggle.focus();
+}
+$('navDrawer').addEventListener('click',event=>{if(event.target.closest('.nav-drawer-links .btn'))toggleNavDrawer(false)});
+document.addEventListener('keydown',event=>{if(event.key!=='Escape')return;if($('riderDetailsPanel').style.display==='flex')closeRiderDetails();else if($('performanceReportsPanel').style.display==='flex')closePerformanceReports();else if(!$('navDrawerBackdrop').hidden)toggleNavDrawer(false)});
+const PERFORMANCE_REPORT_IDS=['top','bot','lo1','zeroOrders','lo2','lo3','ch5'];
+PERFORMANCE_REPORT_IDS.forEach(id=>{const node=$(id),card=node&&node.closest('.card');if(card)card.classList.remove('performance-report-card')});
+const inactivePilotsNode=$('idL'),inactivePilotsCard=inactivePilotsNode&&inactivePilotsNode.closest('.card');
+if(inactivePilotsCard)inactivePilotsCard.id='inactivePilotsCard';
+const riderDetailsNode=$('tf'),riderDetailsCard=riderDetailsNode&&riderDetailsNode.closest('.card');
+if(riderDetailsCard){riderDetailsCard.id='riderDetailsCard';$('riderDetailsContent').appendChild(riderDetailsCard)}
+function togglePerformanceReports(){toggleNavDrawer(false);const target=$('filterPanel');if(target)target.scrollIntoView({behavior:'smooth',block:'start'})}
+$('reportsB').addEventListener('click',togglePerformanceReports);
+function toggleRiderDetails(){toggleNavDrawer(false);if($('riderDetailsPanel').style.display==='flex')closeRiderDetails();else openSectionScreen('riderDetailsPanel','riderDetailsB')}
+function closeRiderDetails(){closeSectionScreen('riderDetailsPanel','riderDetailsB')}
+$('riderDetailsB').addEventListener('click',toggleRiderDetails);boot();
 </script>
-</body>
+<style id="one-row-kpis-final">
+@media(min-width:1200px){#kpis.kpis{display:grid!important;grid-template-columns:repeat(11,minmax(0,1fr))!important;grid-auto-flow:row;gap:7px!important}#kpis .kpi{width:auto!important;min-width:0!important;min-height:92px;padding:8px 7px!important}#kpis .kpi .l{font-size:10px!important;line-height:1.3;overflow-wrap:anywhere}#kpis .kpi .v{font-size:18px!important;line-height:1.2;overflow-wrap:anywhere}#kpis .kpi .s{font-size:9px!important;line-height:1.3;overflow-wrap:anywhere}}
+</style>
+
+
+<style id="hide-record-count">#cnt{display:none!important}</style>
+<style id="full-width-dashboard-content">
+@media(min-width:1000px){main{width:100%!important;max-width:none!important;margin-inline:0!important;padding-inline:clamp(12px,1vw,22px)!important}main>.card,main>.charts,main>#kpis{width:100%;max-width:none!important;min-width:0}.tw{width:100%;max-width:100%}.charts{min-width:0}}
+</style>
+<style id="section-screens-style">
+.section-screen{z-index:110;align-items:flex-start;justify-content:center;padding:clamp(8px,1.5vw,22px);overflow:auto;overscroll-behavior:contain}
+.section-screen-wrap{width:100%;max-width:none;margin:0 auto;padding-bottom:env(safe-area-inset-bottom)}
+.section-screen-heading{position:sticky;top:0;z-index:5;display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 12px;padding:10px 12px;background:var(--card);border:1px solid var(--bd);border-radius:14px;box-shadow:0 8px 24px #0003}
+.section-screen-heading h2{font-size:18px;font-weight:900}
+#performanceReportsContent{grid-template-columns:repeat(12,minmax(0,1fr));gap:12px}
+#performanceReportsContent>.c4{grid-column:span 4!important}
+#performanceReportsContent>.report-wide-card{grid-column:1/-1!important}
+#riderDetailsContent>.card{width:100%;max-width:none;margin:0}
+@media(max-width:699px){.section-screen{padding:8px}.section-screen-heading{padding:8px 10px;margin-bottom:8px}.section-screen-heading h2{font-size:15px}#performanceReportsContent{grid-template-columns:1fr;gap:9px}#performanceReportsContent>.c4,#performanceReportsContent>.report-wide-card{grid-column:1/-1!important}}
+</style>
+<style id="center-kpi-card-content">
+#kpis .kpi,#kpis .kpi .l,#kpis .kpi .v,#kpis .kpi .s{text-align:center!important}
+</style></body>
 </html>
