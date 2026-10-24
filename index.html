@@ -957,7 +957,7 @@ html[data-theme="light"] #liveMessage.error{border-color:#be123c55;background:#b
 </style>
 </head>
 <body>
-<div class="ov" id="lg" style="display:none"><form class="lb card" id="lf" onsubmit="return false" autocomplete="on"><button type="button" class="btn" id="themeLogin" style="justify-self:start">☀️ وضع نهاري</button><div class="login-brand"><div class="login-logo" aria-hidden="true">🚀</div><h2>أهلًا بيك</h2><div class="sub">سجّل دخولك لمتابعة أداء الطيارين</div></div><div class="login-highlights" aria-label="مميزات لوحة الأداء"><div class="login-highlight"><span aria-hidden="true">📊</span>مؤشرات الأداء</div><div class="login-highlight"><span aria-hidden="true">🔎</span>فلاتر مرنة</div><div class="login-highlight"><span aria-hidden="true">📈</span>رسوم وتقارير</div></div><label for="lu">اسم المستخدم</label><input id="lu" name="username" placeholder="اكتب اسم المستخدم" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="next" dir="ltr" style="text-align:right"><label for="lp">كلمة المرور</label><div class="pw"><input id="lp" name="password" type="password" placeholder="اكتب كلمة المرور" autocomplete="current-password" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="go" dir="ltr" style="text-align:right"><button type="button" class="eye" id="lpe" aria-label="إظهار كلمة المرور">👁</button></div><div id="le" role="alert"></div><button type="submit" class="btn pr" id="lgB" style="min-height:46px;font-size:15px">دخول ←</button><a class="btn" id="downloadAppBtn" href="./micheal.apk" download="micheal.apk" style="min-height:44px;display:flex;align-items:center;justify-content:center;text-decoration:none" aria-label="تحميل تطبيق داشبورد الطيارين للأندرويد">⬇️ تحميل التطبيق للأندرويد</a><div class="sub" id="lh" style="display:none;line-height:1.7"></div><p class="login-signature">مايكل يونان</p><a class="login-signature-phone" href="tel:01101278881" dir="ltr" aria-label="اتصل على 01101278881">01101278881</a></form></div>
+<div class="ov" id="lg" style="display:none"><form class="lb card" id="lf" onsubmit="return false" autocomplete="on"><button type="button" class="btn" id="themeLogin" style="justify-self:start">☀️ وضع نهاري</button><div class="login-brand"><div class="login-logo" aria-hidden="true">🚀</div><h2>أهلًا بيك</h2><div class="sub">سجّل دخولك لمتابعة أداء الطيارين</div></div><div class="login-highlights" aria-label="مميزات لوحة الأداء"><div class="login-highlight"><span aria-hidden="true">📊</span>مؤشرات الأداء</div><div class="login-highlight"><span aria-hidden="true">🔎</span>فلاتر مرنة</div><div class="login-highlight"><span aria-hidden="true">📈</span>رسوم وتقارير</div></div><label for="lu">اسم المستخدم</label><input id="lu" name="username" placeholder="اكتب اسم المستخدم" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="next" dir="ltr" style="text-align:right"><label for="lp">كلمة المرور</label><div class="pw"><input id="lp" name="password" type="password" placeholder="اكتب كلمة المرور" autocomplete="current-password" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="go" dir="ltr" style="text-align:right"><button type="button" class="eye" id="lpe" aria-label="إظهار كلمة المرور">👁</button></div><label for="rememberLogin" style="display:flex;align-items:center;gap:8px;font-weight:500;cursor:pointer"><input id="rememberLogin" type="checkbox" style="width:18px;height:18px;margin:0;accent-color:var(--pr)">تذكرني لمدة 7 أيام</label><div id="le" role="alert"></div><button type="submit" class="btn pr" id="lgB" style="min-height:46px;font-size:15px">دخول ←</button><a class="btn" id="downloadAppBtn" href="./micheal.apk" download="micheal.apk" style="min-height:44px;display:flex;align-items:center;justify-content:center;text-decoration:none" aria-label="تحميل تطبيق داشبورد الطيارين للأندرويد">⬇️ تحميل التطبيق للأندرويد</a><div class="sub" id="lh" style="display:none;line-height:1.7"></div><p class="login-signature">مايكل يونان</p><a class="login-signature-phone" href="tel:01101278881" dir="ltr" aria-label="اتصل على 01101278881">01101278881</a></form></div>
 <div id="load"><div style="font-weight:900">جارٍ سحب البيانات من Google Sheets…</div><div class="bar"><i></i></div><div class="sub" id="lt">قد يستغرق دقيقة لأول مرة</div></div>
 <header><div class="hr">
  <div><h1>🚀 داش بورد أداء الطيارين</h1><div class="sub" id="sync">—</div></div>
@@ -2690,7 +2690,7 @@ function saveU(a){DRAFT=a;try{localStorage.setItem('pd_draft',JSON.stringify(a))
 function gstat(){const e=$('gst');if(e)e.textContent=DRAFT?'⚠️ فيه تعديلات محفوظة على الجهاز — نزّل users.json وارفعه يدويًا على GitHub':'✅ مفيش تعديلات معلّقة'}
 function scope(rows){if(!CUR||CUR.r==='admin')return rows;const k=CUR.r==='manager'?'m':'s',userName=nameMatchKey(CUR.s);return rows.filter(r=>nameMatchKey(r[k])===userName)}
 function findU(u,h){return USERS.find(y=>y.u.toLowerCase()===u&&y.h===h)||(DRAFT&&DRAFT.find(y=>y.u.toLowerCase()===u&&y.h===h))}
-function enter(x){CUR=x;updateLiveRoleControls(x);idleReset();logDashboardOpen(x);try{sessionStorage.setItem('pd_sess',x.u.toLowerCase()+'|'+x.h)}catch(e){}
+const REMEMBER_LOGIN_KEY='pd_remember_login',REMEMBER_LOGIN_MS=7*24*60*60*1000;function enter(x,remember){CUR=x;updateLiveRoleControls(x);try{if(remember===true)localStorage.setItem(REMEMBER_LOGIN_KEY,JSON.stringify({s:x.u.toLowerCase()+'|'+x.h,expires:Date.now()+REMEMBER_LOGIN_MS}));else if(remember===false)localStorage.removeItem(REMEMBER_LOGIN_KEY);sessionStorage.setItem('pd_sess',x.u.toLowerCase()+'|'+x.h)}catch(e){}idleReset();logDashboardOpen(x);
   const canViewSupervisorCharts=['admin','manager'].includes(x.r);
   $('supervisorPerformanceCard').style.display=canViewSupervisorCharts?'':'none';
   $('supervisorHoursCard').style.display=canViewSupervisorCharts?'':'none';
@@ -2707,7 +2707,7 @@ async function loadUsers(){
     if(d&&JSON.stringify(d)!==JSON.stringify(USERS))DRAFT=d;else if(d)localStorage.removeItem('pd_draft')}catch(e){}
 }
 async function boot(){await loadUsers();boot0();loadSupervisorTargets()}
-function boot0(){let s='';try{localStorage.removeItem('pd_sess');s=sessionStorage.getItem('pd_sess')||''}catch(e){}const [u,h]=s.split('|'),x=u&&findU(u,h);if(x)enter(x);else $('lg').style.display='flex'}
+function boot0(){let s='';try{localStorage.removeItem('pd_sess');s=sessionStorage.getItem('pd_sess')||'';const saved=JSON.parse(localStorage.getItem(REMEMBER_LOGIN_KEY)||'null');if(saved&&saved.expires>Date.now())s=saved.s;else if(saved)localStorage.removeItem(REMEMBER_LOGIN_KEY)}catch(e){}const [u,h]=s.split('|'),x=u&&findU(u,h);if(x)enter(x);else $('lg').style.display='flex'}
 const AR_D=t=>String(t).replace(/[٠-٩]/g,d=>'٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/[۰-۹]/g,d=>'۰۱۲۳۴۵۶۷۸۹'.indexOf(d));
 let LGBUSY=false,FAIL=0,LOCK=0;
 function doLogin(){
@@ -2725,7 +2725,7 @@ function doLogin(){
     h.textContent='لو الحساب جديد، اتأكد إن الأدمن رفع ملف users.json المحدّث على GitHub، وبعدها حدّث الصفحة وجرّب تاني.';
     return}
   LGBUSY=true;btn.disabled=true;btn.textContent='جارٍ الدخول…';
-  try{$('lp').value='';enter(x)}catch(err){E.textContent='تعذّر الدخول: '+err.message;$('lg').style.display='flex'}
+  try{$('lp').value='';enter(x,$('rememberLogin').checked)}catch(err){E.textContent='تعذّر الدخول: '+err.message;$('lg').style.display='flex'}
   finally{LGBUSY=false;btn.disabled=false;btn.textContent='دخول'}
 }
 $('lf').addEventListener('submit',e=>{e.preventDefault();doLogin()});
@@ -2745,7 +2745,7 @@ addEventListener('keydown',e=>{if(e.key==='Escape'&&$('loginAuditGate').style.di
 $('loginAuditRefresh').onclick=loadTodayLoginAudit;
 $('loginAuditScreenshot').onclick=event=>captureLoginAuditTable(event.currentTarget);
 $('loginAuditSearch').addEventListener('input',renderLoginAuditRows);
-$('out').onclick=()=>{try{sessionStorage.removeItem('pd_sess');localStorage.removeItem('pd_sess')}catch(e){}location.reload()};
+$('out').onclick=()=>{try{sessionStorage.removeItem('pd_sess');localStorage.removeItem('pd_sess');localStorage.removeItem(REMEMBER_LOGIN_KEY)}catch(e){}location.reload()};
 /* ---------- خزنة الباسوردات (مشفرة AES-GCM بكلمة سر الأدمن) ---------- */
 const b64=u=>btoa(String.fromCharCode(...u)),ub64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
 let VP=null,VL=0;
@@ -2817,7 +2817,7 @@ $('exportSupervisors').onclick=()=>{if(!CUR||CUR.r!=='admin')return;
   dlCSV(rows,'أسماء_المشرفين.csv')};
 function eu(i){const x=getU()[i];EDITING_USER=x.u.toLowerCase();$('nu').value=x.u;$('nn').value=x.n;$('nr').value=x.r;$('nz').value='';sc();if(x.s)$('ns').value=x.s;$('np').value='';$('na').textContent='💾 حفظ تعديل';$('np').focus()}
 const PW='abcdefghjkmnpqrstuvwxyz23456789',rp=()=>Array.from(crypto.getRandomValues(new Uint8Array(6)),b=>PW[b%PW.length]).join('');
-let IT;function idleReset(){clearTimeout(IT);if(CUR)IT=setTimeout(()=>$('out').click(),30*60*1000)}
+let IT;function idleReset(){clearTimeout(IT);if(CUR){let delay=30*60*1000;try{const saved=JSON.parse(localStorage.getItem(REMEMBER_LOGIN_KEY)||'null');if(saved&&saved.expires>Date.now())delay=saved.expires-Date.now()}catch(e){}IT=setTimeout(()=>$('out').click(),delay)}}
 ['click','keydown','touchstart'].forEach(e=>addEventListener(e,idleReset,{passive:true}));
 /* ================= 🎯 التارجت (أدمن فقط) — تابة "تارجت المكاتب" A:J ================= */
 const TGGID='1428075881';
