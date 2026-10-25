@@ -346,7 +346,7 @@ html[data-theme="light"] .booking-rate-value.low{color:#be123c;background:#ffe4e
 html[data-theme="light"] .login-signature{color:#0369a1}
 html[data-theme="light"] .login-signature:after{background:#0284c766}
 html[data-theme="light"] .login-signature-phone{color:#075985}
-.fm{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-bottom:10px}.fm input,.fm select{width:100%}
+.fm{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-bottom:10px}.fm input,.fm select{width:100%}#tfPeriodControls{grid-column:1/-1}#tfPeriodControls .chips{margin-bottom:8px}#tfPeriodControls .tf-date-row{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:8px;align-items:center}#tfPeriodControls .tf-date-row input[type=date]{width:100%;min-width:0}
 
 html{-webkit-text-size-adjust:100%}body{overflow-x:hidden}
 .row input[type=date]{flex:1;min-width:130px}
@@ -1126,15 +1126,13 @@ html[data-theme="light"] body{background:radial-gradient(ellipse at 8% 0%,#d6f4f
  <div class="card">
   <div class="row"><h3 style="margin:0">📋 تفاصيل الطيارين</h3><span class="sub" id="tc"></span><button class="btn" id="exp" style="margin-inline-start:auto">⬇ تصدير CSV</button></div>
   <div class="fm" id="tf" style="margin:10px 0">
-    <input id="tf_q" placeholder="🔎 بحث بالاسم أو الكود">
-    <select id="tf_z"></select><select id="tf_s"></select><select id="tf_v"></select><select id="tf_bt"></select>
+    <div id="tfPeriodControls"><div class="chips" id="tfChips"></div><div class="tf-date-row"><input type="date" id="tf_date_from" aria-label="من تاريخ"><span class="sub">إلى</span><input type="date" id="tf_date_to" aria-label="إلى تاريخ"></div></div>
+    <input id="tf_q" placeholder="🔎 بحث بالاسم أو الكود"><select id="tf_z"></select><select id="tf_s"></select><select id="tf_v"></select><select id="tf_bt"></select>
     <input id="tf_rank" type="number" min="1" step="1" placeholder="🏅 رقم الترتيب">
     <select id="tf_c"><option value="">الالتزام: الكل</option><option value="90">90% فأكثر</option><option value="60">من 60% إلى 90%</option><option value="lt60">أقل من 60%</option></select>
     <select id="tf_r"><option value="">التقييم: الكل</option><option>ممتاز</option><option>جيد</option><option>متوسط</option><option>ضعيف</option></select>
     <select id="tf_w"><option value="">المحفظة: الكل</option><option value="neg">سالبة</option><option value="zero">صفر</option><option value="pos">موجبة</option></select>
-    <select id="tf_l"><option value="">العقد: الكل</option><option value="exp">منتهي</option><option value="7">ينتهي خلال 7 أيام</option><option value="30">ينتهي خلال 30 يوم</option><option value="ok">أكثر من 30 يوم</option></select>
-    <button class="btn" id="tf_x">✕ مسح فلاتر الجدول</button>
-    <span class="sub" style="align-self:center">الترتيب بالساعات الفعلية: عام بين الزونات، وداخل الزون عند اختيارها</span>
+    <select id="tf_l"><option value="">العقد: الكل</option><option value="exp">منتهي</option><option value="7">ينتهي خلال 7 أيام</option><option value="30">ينتهي خلال 30 يوم</option><option value="ok">أكثر من 30 يوم</option></select><button class="btn" id="tf_x">✕ مسح فلاتر الجدول</button>
   </div>
   <div class="tw rt"><table><thead><tr id="th"></tr></thead><tbody id="tb"></tbody></table></div>
   <div class="pg"><button class="btn" id="pp">‹</button><span id="pi"></span><button class="btn" id="pn">›</button></div>
@@ -2140,15 +2138,15 @@ function apply(){
   };
   updateOwnRank();
   const managers=filterValues('fm'),zones=filterValues('fz'),supervisors=filterValues('fs'),vehicles=filterValues('fv'),batches=filterValues('fb'),q=$('q').value.trim().toLowerCase(),groups=filterValues('mainZoneGroup');
-  const ok=r=>(!groups.length||groups.some(group=>tgGroupHasZone(group,r.z)))&&(!managers.length||managers.some(manager=>nameMatchKey(r.m)===nameMatchKey(manager)))&&(!zones.length||zones.includes(r.z))&&(!supervisors.length||supervisors.some(supervisor=>nameMatchKey(r.s)===nameMatchKey(supervisor)))&&(!vehicles.length||vehicles.includes(r.v))&&(!batches.length||batches.includes(String(r.bt)))&&(!q||r.n.toLowerCase().includes(q)||r.id.toLowerCase().includes(q));
+  const ok=r=>(!groups.length||groups.some(group=>tgGroupHasZone(group,r.z)))&&(!managers.length||managers.some(manager=>nameMatchKey(r.m)===nameMatchKey(manager)))&&(!zones.length||zones.includes(r.z))&&(!supervisors.length||supervisors.some(supervisor=>nameMatchKey(r.s)===nameMatchKey(supervisor)))&&(!vehicles.length||vehicles.includes(r.v))&&(!batches.length||batches.includes(String(r.bt)))&&(!q||String(r.n||'').toLowerCase().includes(q)||String(r.id||'').toLowerCase().includes(q));
   const len=b-a+DAY,P={o:0,a:0,p:0},fr=[];
   for(const r of ROWS){if(ok(r)){if(r.t>=a&&r.t<=b)fr.push(r);else if(r.t>=a-len&&r.t<a){P.o+=r.o;P.a+=r.a;P.p+=r.p}}}
   FR=fr;
   const day={},zn={},vh={},bh={},rd={};let T={o:0,a:0,p:0,b:0};
   const add=(M,k,r)=>{const x=M[k]||(M[k]={o:0,a:0,p:0,b:0,rs:new Set});x.o+=r.o;x.a+=r.a;x.p+=r.p;x.b+=r.b;x.rs.add(r.id)};
   for(const r of fr){T.o+=r.o;T.a+=r.a;T.p+=r.p;T.b+=r.b;add(day,r.t,r);if(r.z)add(zn,r.z,r);if(r.v)add(vh,r.v,r);if(r.bt)add(bh,r.bt,r);
-    const x=rd[r.id]||(rd[r.id]={id:r.id,n:r.n,z:r.z,s:r.s,m:r.m,v:r.v,bt:r.bt,o:0,a:0,p:0,b:0,days:0,wd:0,pay:0,lt:0,w:0,e:0});
-    x.o+=r.o;x.a+=r.a;x.p+=r.p;x.b+=r.b;x.days++;if(r.a>0||r.o>0)x.wd++;x.pay+=r.o*pr(r.s,r.bt,r.v);if(r.t>=x.lt){x.lt=r.t;x.w=r.w;x.e=r.e;x.n=r.n||x.n}}
+    const x=rd[r.id]||(rd[r.id]={id:r.id,n:r.n,z:r.z,s:r.s,m:r.m,v:r.v,bt:r.bt,o:0,a:0,p:0,b:0,days:0,wd:0,workDays:new Set,pay:0,lt:0,w:0,e:0});
+    x.o+=r.o;x.a+=r.a;x.p+=r.p;x.b+=r.b;x.days++;if(r.a>0||r.o>0){x.workDays.add(ds(r.t));x.wd=x.workDays.size}x.pay+=r.o*pr(r.s,r.bt,r.v);if(r.t>=x.lt){x.lt=r.t;x.w=r.w;x.e=r.e;x.n=r.n||x.n}}
   const now=Date.now();let list=Object.values(rd).map(x=>({...x,c:x.p?x.a/x.p*100:0,oph:x.a?x.o/x.a:0,avg:x.wd?x.a/x.wd:0,left:x.e?Math.ceil((x.e-now)/DAY):null}));
   const contractFilters=filterValues('fc'),walletFilters=filterValues('fw');
   list=list.filter(x=>(!contractFilters.length||contractFilters.some(value=>x.left!==null&&(value==='exp'?x.left<0:x.left>=0&&x.left<=+value)))&&(!walletFilters.length||walletFilters.some(value=>value==='neg'?x.w<0:value==='zero'?x.w===0:x.w>0)));
@@ -2339,8 +2337,14 @@ function showR(id){
 /* ---------- table ---------- */
 let VW=[],tfSrc=null;
 const TF={z:'tf_z',s:'tf_s',v:'tf_v',bt:'tf_bt'},TFL={z:'كل المناطق',s:'كل المشرفين',v:'كل المركبات',bt:'كل الباتشات'};
-function tfFill(){if(tfSrc===AGG)return;tfSrc=AGG;
-  for(const k in TF){const u=[...new Set(AGG.map(x=>x[k]).filter(Boolean))].sort((a,b)=>String(a).localeCompare(String(b),'ar',{numeric:true}));setSel(TF[k],u,TFL[k])}}
+function tfDateRows(){
+  const from=$('tf_date_from').value?new Date($('tf_date_from').value+'T00:00:00').getTime():-Infinity,to=$('tf_date_to').value?new Date($('tf_date_to').value+'T00:00:00').getTime()+DAY-1:Infinity;if(from>to)return[];
+  const managers=filterValues('fm'),zones=filterValues('fz'),supervisors=filterValues('fs'),vehicles=filterValues('fv'),batches=filterValues('fb'),q=$('q').value.trim().toLowerCase(),groups=filterValues('mainZoneGroup');
+  const rows=ROWS.filter(r=>(!groups.length||groups.some(group=>tgGroupHasZone(group,r.z)))&&(!managers.length||managers.some(manager=>nameMatchKey(r.m)===nameMatchKey(manager)))&&(!zones.length||zones.includes(r.z))&&(!supervisors.length||supervisors.some(supervisor=>nameMatchKey(r.s)===nameMatchKey(supervisor)))&&(!vehicles.length||vehicles.includes(r.v))&&(!batches.length||batches.includes(String(r.bt)))&&(!q||String(r.n||'').toLowerCase().includes(q)||String(r.id||'').toLowerCase().includes(q))&&r.t>=from&&r.t<=to);
+  const grouped=new Map;for(const r of rows){const x=grouped.get(r.id)||{id:r.id,n:r.n,z:r.z,s:r.s,m:r.m,v:r.v,bt:r.bt,o:0,a:0,p:0,b:0,days:0,wd:0,workDays:new Set,pay:0,lt:0,w:0,e:0};x.o+=r.o;x.a+=r.a;x.p+=r.p;x.b+=r.b;x.days++;if(r.a>0||r.o>0){x.workDays.add(ds(r.t));x.wd=x.workDays.size}x.pay+=r.o*pr(r.s,r.bt,r.v);if(r.t>=x.lt){x.lt=r.t;x.w=r.w;x.e=r.e;x.n=r.n||x.n}grouped.set(r.id,x)}
+  const now=Date.now(),contractFilters=filterValues('fc'),walletFilters=filterValues('fw');return[...grouped.values()].map(x=>({...x,c:x.p?x.a/x.p*100:0,oph:x.a?x.o/x.a:0,avg:x.wd?x.a/x.wd:0,left:x.e?Math.ceil((x.e-now)/DAY):null})).filter(x=>(!contractFilters.length||contractFilters.some(value=>x.left!==null&&(value==='exp'?x.left<0:x.left>=0&&x.left<=+value)))&&(!walletFilters.length||walletFilters.some(value=>value==='neg'?x.w<0:value==='zero'?x.w===0:x.w>0)));
+}
+function tfFill(rows=AGG){if(tfSrc===rows)return;tfSrc=rows;for(const k in TF){const u=[...new Set(rows.map(x=>x[k]).filter(Boolean))].sort((a,b)=>String(a).localeCompare(String(b),'ar',{numeric:true}));setSel(TF[k],u,TFL[k])}}
 function tfOk(ignoreRank=false){const g=i=>$(i).value,q=g('tf_q').trim().toLowerCase(),f={};for(const k in TF)f[k]=filterValues(TF[k]);
   const c=filterValues('tf_c'),r=filterValues('tf_r'),w=filterValues('tf_w'),l=filterValues('tf_l');
   return x=>{for(const k in TF)if(f[k].length&&!f[k].includes(String(x[k])))return false;
@@ -2351,26 +2355,36 @@ function tfOk(ignoreRank=false){const g=i=>$(i).value,q=g('tf_q').trim().toLower
     if(w.length&&!w.some(value=>value==='neg'?x.w<0:value==='zero'?x.w===0:x.w>0))return false;
     if(l.length&&!l.some(value=>x.left!==null&&(value==='exp'?x.left<0:value==='ok'?x.left>30:x.left>=0&&x.left<=+value)))return false;
     return true}}
-document.querySelectorAll('#tf select,#tf input').forEach(e=>{const h=()=>{page=0;render()};e.onchange=h;if(e.tagName==='INPUT')e.oninput=h});
-$('tf_x').onclick=()=>{document.querySelectorAll('#tf select').forEach(e=>MULTI_FILTER_VALUES.has(e.id)?setFilterValues(e.id,[]):e.value='');document.querySelectorAll('#tf input').forEach(e=>e.value='');page=0;render()};
-const ALLCOLS=[['id','الكود'],['n','الاسم'],['rank','ترتيب الساعات'],['z','المنطقة'],['s','المشرف'],['v','المركبة'],['bt','باتش'],['p','مخطط'],['a','فعلي'],['avg','متوسط س/يوم'],['b','راحة'],['c','الالتزام'],['o','طلبات'],['oph','طلب/س'],['pay','قبض تقريبي'],['w','المحفظة'],['left','العقد'],['r','التقييم']];
+document.querySelectorAll('#tf select,#tf input').forEach(e=>{const h=()=>{page=0;render()};e.onchange=h;if(e.tagName==='INPUT')e.oninput=h});const tfPeriodButtons=[['yest','أمس'],['7','آخر 7 أيام'],['30','آخر 30 يوم'],['month','هذا الشهر'],['last','الشهر الماضي'],['all','كل الفترة']];
+function tfSetPreset(p){
+  const mx=ROWS.reduce((a,r)=>r.t>a?r.t:a,0),mn=ROWS.reduce((a,r)=>!a||r.t<a?r.t:a,0),M=new Date(mx);let a=mn,b=mx;
+  if(p==='yest')a=b;else if(p==='7')a=mx-6*DAY;else if(p==='30')a=mx-29*DAY;
+  else if(p==='month')a=new Date(M.getFullYear(),M.getMonth(),1).getTime();
+  else if(p==='last'){a=new Date(M.getFullYear(),M.getMonth()-1,1).getTime();b=new Date(M.getFullYear(),M.getMonth(),0).getTime()}
+  $('tf_date_from').value=ds(Math.max(a,mn));$('tf_date_to').value=ds(b);
+  document.querySelectorAll('#tfChips .chip').forEach(button=>button.classList.toggle('on',button.dataset.p===p));page=0;render();
+}
+tfPeriodButtons.forEach(([p,label])=>{const button=document.createElement('button');button.type='button';button.className='chip';button.dataset.p=p;button.textContent=label;button.addEventListener('click',event=>{event.preventDefault();tfSetPreset(p)});$('tfChips').appendChild(button)});['tf_date_from','tf_date_to'].forEach(id=>$(id).onchange=()=>{document.querySelectorAll('#tfChips .chip').forEach(c=>c.classList.remove('on'));page=0;render()});
+$('tf_x').onclick=()=>{document.querySelectorAll('#tf select').forEach(e=>MULTI_FILTER_VALUES.has(e.id)?setFilterValues(e.id,[]):e.value='');document.querySelectorAll('#tf input').forEach(e=>e.value='');document.querySelectorAll('#tfChips .chip').forEach(e=>e.classList.remove('on'));page=0;render()};
+const ALLCOLS=[['id','الكود'],['n','الاسم'],['rank','ترتيب الساعات'],['wd','أيام العمل'],['z','المنطقة'],['s','المشرف'],['v','المركبة'],['bt','باتش'],['p','مخطط'],['a','فعلي'],['avg','متوسط س/يوم'],['b','راحة'],['c','الالتزام'],['o','طلبات'],['oph','طلب/س'],['pay','قبض تقريبي'],['w','المحفظة'],['left','العقد'],['r','التقييم']];
 let COLS=ALLCOLS;const drawTH=()=>{$('th').innerHTML='<th>#</th>'+COLS.map(c=>`<th data-k="${c[0]}">${c[1]}${c[0]===sortK?(sortD>0?' ▲':' ▼'):' ↕'}</th>`).join('')};drawTH();
 $('th').onclick=e=>{const k=e.target.dataset.k;if(!k||k==='r')return;sortD=sortK===k?-sortD:-1;sortK=k;drawTH();render()};
 function rate(x){return x.c>=90&&x.oph>=1.5?['ممتاز','g']:x.c>=75?['جيد','g']:x.c>=50?['متوسط','y']:['ضعيف','r']}
 function render(){
-  const hasPay=AGG.some(x=>x.pay>0),want=hasPay?ALLCOLS:ALLCOLS.filter(c=>c[0]!=='pay');
+  const tableRows=$('tf_date_from').value||$('tf_date_to').value?tfDateRows():[...AGG];
+  const hasPay=tableRows.some(x=>x.pay>0),want=hasPay?ALLCOLS:ALLCOLS.filter(c=>c[0]!=='pay');
   if(want.length!==COLS.length){COLS=want;if(!hasPay&&sortK==='pay')sortK='o';drawTH()}
-  const k=sortK;if(k!=='rank')AGG.sort((x,y)=>{let a=x[k],b=y[k];if(a==null)a=-1e9;if(b==null)b=-1e9;return(typeof a==='string'?a.localeCompare(b,'ar'):a-b)*sortD});
-  tfFill();const rankRows=AGG.filter(tfOk(true));
+  const k=sortK;if(k!=='rank')tableRows.sort((x,y)=>{let a=x[k],b=y[k];if(a==null)a=-1e9;if(b==null)b=-1e9;return(typeof a==='string'?a.localeCompare(b,'ar'):a-b)*sortD});
+  tfFill(tableRows);const rankRows=tableRows.filter(tfOk(true));
   const rankGroups={all:[]};for(const x of rankRows){const groupKey=filterValues('tf_z').length?(x.z||'—'):'all';(rankGroups[groupKey]||(rankGroups[groupKey]=[])).push(x)}
   for(const group of Object.values(rankGroups)){group.sort((a,b)=>b.a-a.a);let rank=0,prev=null;group.forEach((x,i)=>{if(prev===null||x.a!==prev)rank=i+1;x.rank=rank;prev=x.a})}
   VW=rankRows.filter(tfOk());
   if(k==='rank')VW.sort((a,b)=>(a.rank-b.rank)*sortD||(b.a-a.a)||String(a.n||'').localeCompare(String(b.n||''),'ar'));
   const tp=Math.max(1,Math.ceil(VW.length/PS));page=Math.min(page,tp-1);const sl=VW.slice(page*PS,page*PS+PS);
   $('tb').innerHTML=sl.map((x,i)=>{const [rt,rc]=rate(x);const cl=x.left===null?'<span class="b n">—</span>':x.left<0?`<span class="b r">منتهي (${-x.left}ي)</span>`:`<span class="b ${x.left<=7?'y':'g'}">${x.left} يوم</span>`;
-   return`<tr><td>${page*PS+i+1}</td><td>${x.id}</td><td><b style="cursor:pointer;color:#93c5fd" onclick="showR('${x.id}')">${esc(x.n)}</b></td><td><span class="b ${x.rank===1?'g':'n'}">${x.rank}</span></td><td>${esc(x.z)}</td><td>${esc(x.s)}</td><td>${esc(x.v)}</td><td>${esc(x.bt)}</td><td>${F1(x.p)}</td><td>${F1(x.a)}</td><td>${F1(x.avg)}</td><td>${F1(x.b)}</td><td><span class="b ${x.c>=90?'g':x.c>=60?'y':'r'}">${F1(x.c)}%</span></td><td>${NF(x.o)}</td><td>${F1(x.oph)}</td>${hasPay?`<td>${x.pay?NF(x.pay)+' ج':'—'}</td>`:''}<td style="color:${x.w<0?'#f87171':'inherit'}">${NF(x.w)}</td><td>${cl}</td><td><span class="b ${rc}">${rt}</span></td></tr>`}).join('');
+   return`<tr><td>${page*PS+i+1}</td><td>${x.id}</td><td><b style="cursor:pointer;color:#93c5fd" onclick="showR('${x.id}')">${esc(x.n)}</b></td><td><span class="b ${x.rank===1?'g':'n'}">${x.rank}</span></td><td>${NF(x.wd||0)}</td><td>${esc(x.z)}</td><td>${esc(x.s)}</td><td>${esc(x.v)}</td><td>${esc(x.bt)}</td><td>${F1(x.p)}</td><td>${F1(x.a)}</td><td>${F1(x.avg)}</td><td>${F1(x.b)}</td><td><span class="b ${x.c>=90?'g':x.c>=60?'y':'r'}">${F1(x.c)}%</span></td><td>${NF(x.o)}</td><td>${F1(x.oph)}</td>${hasPay?`<td>${x.pay?NF(x.pay)+' ج':'—'}</td>`:''}<td style="color:${x.w<0?'#f87171':'inherit'}">${NF(x.w)}</td><td>${cl}</td><td><span class="b ${rc}">${rt}</span></td></tr>`}).join('');
   const H=['#',...COLS.map(c=>c[1])];[...$('tb').rows].forEach(r=>[...r.cells].forEach((c,j)=>c.dataset.l=H[j]));
-  {const sp=VW.reduce((s,x)=>s+x.pay,0);$('tc').textContent=NF(VW.length)+(VW.length!==AGG.length?' من '+NF(AGG.length):'')+' طيار'+(sp?' · إجمالي القبض التقريبي '+NF(sp)+' ج':'')}$('pi').textContent=(page+1)+' / '+tp;$('pp').disabled=page===0;$('pn').disabled=page>=tp-1;
+  {const sp=VW.reduce((s,x)=>s+x.pay,0);$('tc').textContent=NF(VW.length)+(VW.length!==tableRows.length?' من '+NF(tableRows.length):'')+' طيار'+(sp?' · إجمالي القبض التقريبي '+NF(sp)+' ج':'')}$('pi').textContent=(page+1)+' / '+tp;$('pp').disabled=page===0;$('pn').disabled=page>=tp-1;
 }
 $('pp').onclick=()=>{page--;render()};$('pn').onclick=()=>{page++;render()};
 $('exp').onclick=()=>{const h=COLS.filter(c=>c[0]!=='r').map(c=>c[1]);const rows=VW.map(x=>COLS.filter(c=>c[0]!=='r').map(c=>x[c[0]]??''));
