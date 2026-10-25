@@ -4768,7 +4768,7 @@ function queryUpdateFilters(data){
   const supervisorIndex=headerKeys.findIndex(header=>/مشرف|supervisor/.test(header));
   const requestedOfficeIndex=headerKeys.findIndex(header=>header.includes('مكتبطلبات')&&header.includes('حضورالمحاضره'));
   const officeIndex=requestedOfficeIndex>=0?requestedOfficeIndex:
-    headerKeys.findIndex(header=>/^(?:اسم)?المكتب/.test(header)||/^(?:اسم)?مكتب/.test(header)||header.includes('مكتبالطلبات'));
+    headerKeys.findIndex(header=>header.includes('مكتب')||header.includes('office'));
   for(const id of ['queryDateFrom','queryDateTo']){
     $(id).disabled=dateIndex<0;
     $(id).title=dateIndex<0?'التاريخ غير متاح في هذه التابة':'';
@@ -4880,9 +4880,10 @@ function queryRender(){
   const pageCount=Math.max(1,Math.ceil(QUERY_FILTERED.length/QUERY_PAGE_SIZE));
   QUERY_PAGE=Math.min(QUERY_PAGE,pageCount-1);
   const start=QUERY_PAGE*QUERY_PAGE_SIZE,shown=QUERY_FILTERED.slice(start,start+QUERY_PAGE_SIZE);
-  $('queryHead').innerHTML='<tr>'+data.headers.map(header=>`<th>${esc(header)}</th>`).join('')+'</tr>';
-  $('queryBody').innerHTML=shown.map(row=>'<tr>'+row.map((value,index)=>`<td data-label="${esc(data.headers[index]||'')}">${esc(value)}</td>`).join('')+'</tr>').join('')||
-    `<tr><td colspan="${data.headers.length}" class="sub">مفيش نتائج مطابقة للبحث</td></tr>`;
+  const visibleIndexes=data.headers.map((_,index)=>index).filter(index=>index!==officeIndex);
+  $('queryHead').innerHTML='<tr>'+visibleIndexes.map(index=>`<th>${esc(data.headers[index])}</th>`).join('')+'</tr>';
+  $('queryBody').innerHTML=shown.map(row=>'<tr>'+visibleIndexes.map(index=>`<td data-label="${esc(data.headers[index]||'')}">${esc(row[index]||'')}</td>`).join('')+'</tr>').join('')||
+    `<tr><td colspan="${visibleIndexes.length}" class="sub">مفيش نتائج مطابقة للبحث</td></tr>`;
   $('queryCount').textContent=NF(QUERY_FILTERED.length)+' نتيجة من '+NF(data.rows.length)+' سجل';
   $('queryPage').textContent=(QUERY_FILTERED.length?start+1:0)+'–'+Math.min(start+QUERY_PAGE_SIZE,QUERY_FILTERED.length)+' من '+NF(QUERY_FILTERED.length)+' · صفحة '+(QUERY_PAGE+1)+' / '+pageCount;
   $('queryPrev').disabled=QUERY_PAGE===0;$('queryNext').disabled=QUERY_PAGE>=pageCount-1;
@@ -4891,7 +4892,10 @@ function queryRender(){
 function queryExport(){
   const data=QUERY_CACHE[QUERY_ACTIVE];if(!data||!QUERY_FILTERED.length)return alert('مفيش بيانات مطابقة للتصدير.');
   const safeName=QUERY_ACTIVE.replace(/[\\/:*?"<>|]/g,'_');
-  const link=document.createElement('a');link.href=URL.createObjectURL(new Blob(['\ufeff'+Papa.unparse([data.headers,...QUERY_FILTERED])],{type:'text/csv;charset=utf-8'}));
+  const headerKeys=data.headers.map(queryHeaderKey),requestedOfficeIndex=headerKeys.findIndex(header=>header.includes('مكتبطلبات')&&header.includes('حضورالمحاضره'));
+  const officeIndex=requestedOfficeIndex>=0?requestedOfficeIndex:headerKeys.findIndex(header=>header.includes('مكتب')||header.includes('office'));
+  const visibleIndexes=data.headers.map((_,index)=>index).filter(index=>index!==officeIndex),exportRows=QUERY_FILTERED.map(row=>visibleIndexes.map(index=>row[index]||''));
+  const link=document.createElement('a');link.href=URL.createObjectURL(new Blob(['\ufeff'+Papa.unparse([visibleIndexes.map(index=>data.headers[index]),...exportRows])],{type:'text/csv;charset=utf-8'}));
   link.download=safeName+'_'+new Date().toISOString().slice(0,10)+'.csv';link.click();
 }
 $('queriesB').onclick=queryOpen;$('queryClose').onclick=queryClose;$('queryRefresh').onclick=()=>QUERY_ACTIVE&&querySet(QUERY_ACTIVE,true);
@@ -5277,6 +5281,8 @@ const inactivePilotsNode=$('idL'),inactivePilotsCard=inactivePilotsNode&&inactiv
 if(inactivePilotsCard)inactivePilotsCard.id='inactivePilotsCard';
 const riderDetailsNode=$('tf'),riderDetailsCard=riderDetailsNode&&riderDetailsNode.closest('.card');
 if(riderDetailsCard){riderDetailsCard.id='riderDetailsCard';$('riderDetailsContent').appendChild(riderDetailsCard)}
+function openSectionScreen(id,buttonId){const panel=$(id),button=$(buttonId);if(!panel)return;panel.style.display='flex';panel.setAttribute('aria-hidden','false');document.body.style.overflow='hidden';if(button)button.setAttribute('aria-expanded','true');const close=panel.querySelector('.section-screen-heading button');if(close)close.focus()}
+function closeSectionScreen(id,buttonId){const panel=$(id),button=$(buttonId);if(!panel)return;panel.style.display='none';panel.setAttribute('aria-hidden','true');document.body.style.overflow='';if(button){button.setAttribute('aria-expanded','false');button.focus()}}
 function togglePerformanceReports(){toggleNavDrawer(false);const target=$('filterPanel');if(target)target.scrollIntoView({behavior:'smooth',block:'start'})}
 $('reportsB').addEventListener('click',togglePerformanceReports);
 function toggleRiderDetails(){toggleNavDrawer(false);if($('riderDetailsPanel').style.display==='flex')closeRiderDetails();else openSectionScreen('riderDetailsPanel','riderDetailsB')}
