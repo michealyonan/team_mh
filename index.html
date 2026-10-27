@@ -1414,7 +1414,7 @@ html[data-theme="light"] body{background:radial-gradient(ellipse at 8% 0%,#d6f4f
  <div class="live-wrap">
   <div class="row live-head">
    <h2 id="liveTitle">🔴 Live</h2><span class="sub" id="liveCount"></span>
-   <span id="liveActions" style="margin-inline-start:auto;display:flex;gap:6px"><button class="btn live-supervisor-action" id="liveStatusSummaryToggle" type="button" aria-controls="liveSupervisorStatusSummary" aria-expanded="false" style="display:none">📊 نسب حالات مناديبي</button><button class="btn live-monitor-action" id="liveAllStatusToggle" type="button" aria-controls="liveAllStatusSummary" aria-expanded="false" style="display:none">📊 نسب كل الحالات</button><button class="btn live-monitor-action" id="liveZoneStatusToggle" type="button" aria-controls="liveZoneStatusSummary" aria-expanded="false" style="display:none">🗺️ نسب الحالات لكل زون</button><button class="btn live-manager-action" id="liveSupervisorSummaryToggle" type="button" aria-controls="liveSupervisorSummary" aria-expanded="false">عرض المشرفين</button><button class="btn live-manager-action" id="liveZoneSummaryToggle" type="button" aria-controls="liveZoneSummary" aria-expanded="false">عرض الزون</button><button class="btn live-manager-action" id="liveScreenshot" type="button">📸 سكرين</button><button class="btn" id="liveClose" type="button">✕ إغلاق</button></span>
+   <span id="liveActions" style="margin-inline-start:auto;display:flex;gap:6px"><button class="btn live-supervisor-action" id="liveStatusSummaryToggle" type="button" aria-controls="liveSupervisorStatusSummary" aria-expanded="false" style="display:none">📊 نسب حالات مناديبي</button><button class="btn live-monitor-action" id="liveAllStatusToggle" type="button" aria-controls="liveAllStatusSummary" aria-expanded="false" style="display:none">📊 نسب كل الحالات</button><button class="btn live-monitor-action" id="liveZoneStatusToggle" type="button" aria-controls="liveZoneStatusSummary" aria-expanded="false" style="display:none">🗺️ نسب الحالات لكل زون</button><button class="btn live-manager-action" id="liveSupervisorSummaryToggle" type="button" aria-controls="liveSupervisorSummary" aria-expanded="false">عرض المشرفين</button><button class="btn live-manager-action" id="liveZoneSummaryToggle" type="button" aria-controls="liveZoneSummary" aria-expanded="false">عرض الزون</button><button class="btn live-manager-action" id="liveScreenshot" type="button">📸 سكرين</button><button class="btn live-monitor-action" id="liveMonitorLogout" type="button" style="display:none">🚪 خروج</button><button class="btn" id="liveClose" type="button">✕ إغلاق</button></span>
   </div>
   <div id="liveMessage" role="status" aria-live="polite"></div>
   <section class="card" id="liveAllStatusSummary" style="display:none" aria-live="polite"><h3 style="margin:0 0 4px">نسبة كل الحالات</h3><div class="sub" id="liveAllStatusMeta" style="margin:0 0 10px"></div><div id="liveAllStatusRows"></div><div class="live-status-details" id="liveAllStatusDetails" hidden></div></section>
@@ -1732,6 +1732,7 @@ function updateLiveRoleControls(user=CUR){
   document.querySelectorAll('.live-manager-action').forEach(button=>button.style.display=allowed?'':'none');
   document.querySelectorAll('.live-supervisor-action').forEach(button=>button.style.display=supervisor?'':'none');
   document.querySelectorAll('.live-monitor-action').forEach(button=>button.style.display=monitor?'':'none');
+  $('liveMonitorLogout').style.display=monitor?'':'';
   if(!monitor){
     $('liveAllStatusSummary').style.display='none';$('liveZoneStatusSummary').style.display='none';
     $('liveAllStatusToggle').setAttribute('aria-expanded','false');$('liveZoneStatusToggle').setAttribute('aria-expanded','false');
@@ -3028,6 +3029,7 @@ $('loginAuditRefresh').onclick=loadTodayLoginAudit;
 $('loginAuditScreenshot').onclick=event=>captureLoginAuditTable(event.currentTarget);
 $('loginAuditSearch').addEventListener('input',renderLoginAuditRows);
 $('out').onclick=()=>{try{sessionStorage.removeItem('pd_sess');localStorage.removeItem('pd_sess');localStorage.removeItem(REMEMBER_LOGIN_KEY)}catch(e){}location.reload()};
+$('liveMonitorLogout').onclick=()=>$('out').click();
 /* ---------- خزنة الباسوردات (مشفرة AES-GCM بكلمة سر الأدمن) ---------- */
 const b64=u=>btoa(String.fromCharCode(...u)),ub64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
 let VP=null,VL=0;
@@ -5508,5 +5510,32 @@ $('riderDetailsB').addEventListener('click',toggleRiderDetails);boot();
 <style id="center-kpi-card-content">
 #kpis .kpi,#kpis .kpi .l,#kpis .kpi .v,#kpis .kpi .s{text-align:center!important}
 #dailyHistoryCard{grid-column:1/-1!important}
+</style><style id="mobile-layout-fix">
+@media(max-width:699px){
+ html,body{width:100%;max-width:100%;overflow-x:clip}
+ body{min-width:0}
+ header,main{width:100%;min-width:0;max-width:100%}
+ .hr,main,.card,.charts,.charts>.card,.tw{min-width:0;max-width:100%}
+ main{padding-inline:10px}
+ .hr>div:first-child{min-width:0;max-width:100%}
+ .hr>.row{grid-template-columns:repeat(4,minmax(0,1fr))!important}
+ .hr>.row #who{grid-column:1/-1;min-width:0}
+ .tw{overflow-x:auto;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch}
+ table{max-width:none}
+ #lg{position:fixed;inset:0;width:100%;height:100%;height:100dvh;min-width:0;padding:calc(10px + env(safe-area-inset-top)) 10px calc(10px + env(safe-area-inset-bottom));overflow-x:hidden;overflow-y:auto;align-items:flex-start}
+ #lg .lb{width:min(100%,480px);max-width:480px;min-width:0;margin:auto;padding:clamp(14px,4vw,22px);gap:10px}
+ #lf>*{min-width:0;max-width:100%}
+ #lf input,#lf .pw,#lf .btn,#downloadAppBtn{width:100%;min-width:0}
+ #lf .pw{display:flex}
+ #lf .pw input{flex:1;width:0}
+ #lf .login-highlights{grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}
+ #lf .login-highlight{min-width:0;padding:8px 4px;font-size:11px;text-align:center;overflow-wrap:anywhere}
+ #lf .login-brand h2{font-size:21px!important}
+}
+@media(max-width:380px){
+ main{padding-inline:8px}
+ #lf .login-highlights{grid-template-columns:1fr}
+ #lf .login-highlight{padding:6px;font-size:12px}
+}
 </style></body>
 </html>
