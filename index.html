@@ -1130,8 +1130,8 @@ html[data-theme="light"] body{background:radial-gradient(ellipse at 8% 0%,#d6f4f
  </div>
  <div class="card"><div class="row"><h3 style="margin:0">📊 تحليل مجمّع حسب</h3><select id="gb"><option value="m">مدير المنطقة</option><option value="z">المنطقة</option><option value="s">المشرف</option><option value="bt">الباتش</option><option value="v">المركبة</option></select><button class="btn" id="gx" style="margin-inline-start:auto">⬇ CSV</button></div><div class="sub" id="groupDrillHint" style="margin:-2px 0 8px">اضغط على اسم مدير المنطقة لعرض قائمة المناديب.</div><div class="tw rt2"><table style="min-width:620px"><thead id="gh"></thead><tbody id="gt"></tbody></table></div></div>
  <div class="charts">
-  <div class="card c8"><div class="row" style="margin-bottom:6px"><h3 style="margin:0">📈 المسار اليومي</h3><span style="margin-inline-start:auto;display:flex;gap:6px"><button class="chip on" id="m1o" onclick="setM1('o')">📦 طلبات</button><button class="chip" id="m1a" onclick="setM1('a')">⏱ ساعات</button></span></div><div class="cw"><canvas id="ch1"></canvas></div></div>
-  <div class="card c4"><h3>🏷 الباتشات (طلب/ساعة)</h3><div class="cw"><canvas id="ch4"></canvas></div><div class="tw" style="max-height:230px;margin-top:8px"><table style="min-width:0"><thead><tr><th>الباتش</th><th>طيارين</th><th>ساعات</th><th>طلبات</th><th>طلب/س</th></tr></thead><tbody id="bkb"></tbody></table></div><div class="sub" style="margin-top:6px">اضغط على أي باتش (في الجدول أو العمود) لعرض المناديب.</div></div>
+  <div class="card c8" id="dailyTrendCard"><div class="row" style="margin-bottom:6px"><h3 style="margin:0">📈 المسار اليومي</h3><span style="margin-inline-start:auto;display:flex;gap:6px;flex-wrap:wrap"><button class="chip on" id="m1o" type="button" onclick="setM1('o')">📦 طلبات</button><button class="chip" id="m1a" type="button" onclick="setM1('a')">⏱ ساعات</button><button class="chip" id="m1r" type="button" onclick="setM1('r')">👥 مناديب</button></span></div><div class="cw"><canvas id="ch1"></canvas></div></div>
+  <div class="card c4"><h3>🏷 الباتشات (طلب/ساعة)</h3><div class="tw" style="max-height:340px;margin-top:8px"><table style="min-width:0"><thead><tr><th>الباتش</th><th>طيارين</th><th>ساعات</th><th>طلبات</th><th>طلب/س</th></tr></thead><tbody id="bkb"></tbody></table></div><div class="sub" style="margin-top:6px">اضغط على أي باتش في الجدول لعرض المناديب.</div></div>
   <div class="card c4" id="vehicleChartCard"><div class="row" style="margin-bottom:6px"><h3 id="vehicleChartTitle" style="margin:0">🛵 المركبات (الطلبات)</h3><span style="margin-inline-start:auto;display:flex;gap:6px"><button class="chip on" id="vehicleOrders" type="button" onclick="setVehicleMetric('o')">📦 طلبات</button><button class="chip" id="vehicleHours" type="button" onclick="setVehicleMetric('a')">⏱ ساعات</button></span></div><div class="cw"><canvas id="ch2"></canvas></div></div>
   <div class="card c8" id="zonePerformanceCard"><h3>📍 أفضل المناطق (الطلبات + الالتزام %)</h3><div class="cw"><canvas id="ch3"></canvas></div></div>
  </div>
@@ -2281,7 +2281,7 @@ function apply(){
   FR=fr;
   const day={},zn={},vh={},bh={},rd={};let T={o:0,a:0,p:0,b:0};
   const add=(M,k,r)=>{const x=M[k]||(M[k]={o:0,a:0,p:0,b:0,rs:new Set});x.o+=r.o;x.a+=r.a;x.p+=r.p;x.b+=r.b;x.rs.add(r.id)};
-  for(const r of fr){T.o+=r.o;T.a+=r.a;T.p+=r.p;T.b+=r.b;add(day,r.t,r);if(r.z)add(zn,r.z,r);if(r.v)add(vh,r.v,r);if(r.bt)add(bh,r.bt,r);
+  for(const r of fr){T.o+=r.o;T.a+=r.a;T.p+=r.p;T.b+=r.b;add(day,r.t,r);if(r.id&&(r.o>0||r.a>0)){if(!day[r.t].activeRiders)day[r.t].activeRiders=new Set;day[r.t].activeRiders.add(r.id)}if(r.z)add(zn,r.z,r);if(r.v)add(vh,r.v,r);if(r.bt)add(bh,r.bt,r);
     const x=rd[r.id]||(rd[r.id]={id:r.id,n:r.n,z:r.z,s:r.s,m:r.m,v:r.v,bt:r.bt,o:0,a:0,p:0,b:0,days:0,wd:0,workDays:new Set,pay:0,lt:0,w:0,e:0});
     x.o+=r.o;x.a+=r.a;x.p+=r.p;x.b+=r.b;x.days++;if(r.a>0||r.o>0){x.workDays.add(ds(r.t));x.wd=x.workDays.size}x.pay+=r.o*pr(r.s,r.bt,r.v);if(r.t>=x.lt){x.lt=r.t;x.w=r.w;x.e=r.e;x.n=r.n||x.n}}
   const now=Date.now();let list=Object.values(rd).map(x=>({...x,c:x.p?x.a/x.p*100:0,oph:x.a?x.o/x.a:0,avg:x.wd?x.a/x.wd:0,left:x.e?Math.ceil((x.e-now)/DAY):null}));
@@ -2312,7 +2312,6 @@ function apply(){
   const zk=Object.keys(zn).sort((x,y)=>zn[y].o-zn[x].o).slice(0,12);
   draw('ch3',{type:'bar',data:{labels:zk,datasets:[{label:'طلبات',data:zk.map(k=>zn[k].o),backgroundColor:'#8b5cf6aa',yAxisID:'y'},{label:'الالتزام %',type:'line',data:zk.map(k=>+(zn[k].p?zn[k].a/zn[k].p*100:0).toFixed(1)),borderColor:'#f59e0b',yAxisID:'y1'}]},options:{scales:{y:{position:'left'},y1:{position:'right',grid:{display:false}}}}});
   const bk=Object.keys(bh).sort((x,y)=>x-y);
-  draw('ch4',{type:'bar',data:{labels:bk.map(k=>'باتش '+k),datasets:[{label:'طلب/ساعة',data:bk.map(k=>+(bh[k].a?bh[k].o/bh[k].a:0).toFixed(2)),backgroundColor:'#06b6d4aa'}]},options:{onClick:(e,els)=>{if(els.length)showB(bk[els[0].index])},onHover:(e,els)=>{e.native.target.style.cursor=els.length?'pointer':'default'}}});
   $('bkb').innerHTML=bk.map(k=>{const x=bh[k];return`<tr data-k="${esc(k)}" style="cursor:pointer"><td><b style="color:#93c5fd">باتش ${esc(k)}</b></td><td>${x.rs.size}</td><td>${F1(x.a)}</td><td>${NF(x.o)}</td><td>${F1(x.a?x.o/x.a:0)}</td></tr>`}).join('')||'<tr><td colspan="5" class="sub">لا توجد بيانات</td></tr>';
   $('bkb').onclick=e=>{const tr=e.target.closest('tr');if(tr&&tr.dataset.k)showB(tr.dataset.k)};
   {const g={};for(const r of fr){if(!r.s)continue;const key=nameMatchKey(r.s),x=g[key]||(g[key]={s:r.s,ids:new Set,days:new Set,a:0,o:0,wd:0});x.a+=r.a;x.o+=r.o;if(r.a>0||r.o>0){x.ids.add(r.id);x.days.add(String(r.t));x.wd++}}
@@ -2795,15 +2794,15 @@ function drawCh2(keys,values){
   $('vehicleChartTitle').textContent='🛵 المركبات ('+(orders?'الطلبات':'الساعات')+')';
   draw('ch2',{type:'doughnut',data:{labels:keys,datasets:[{label:orders?'طلبات':'ساعات',data:keys.map(k=>values[k][VEHICLE_METRIC]),backgroundColor:['#3b82f6','#10b981','#f59e0b','#8b5cf6','#06b6d4','#ef4444']}]},options:{scales:{}}});
 }
-/* ---------- المسار اليومي: اختيار طلبات أو ساعات ---------- */
+/* ---------- المسار اليومي ---------- */
 let M1='o',D1=null;
-function setM1(m){M1=m;drawCh1()}
+function setM1(metric){M1=metric;drawCh1()}
 function drawCh1(){
-  if(!D1)return;const {days,day}=D1,o=M1==='o';
-  $('m1o').classList.toggle('on',o);$('m1a').classList.toggle('on',!o);
-  draw('ch1',{type:o?'bar':'line',plugins:[dashboardValueLabels],data:{labels:days.map(d=>new Date(d).toLocaleDateString('en-GB',{day:'2-digit',month:'2-digit'})),
-    datasets:[{label:o?'طلبات':'ساعات فعلية',data:days.map(d=>o?day[d].o:+day[d].a.toFixed(1)),
-      backgroundColor:o?'#3b82f6aa':'#10b98133',borderColor:o?'#3b82f6':'#10b981',fill:!o,tension:.3,pointRadius:days.length>31?0:3}]},options:{}});
+  if(!D1)return;const {days,day}=D1,orders=M1==='o',riders=M1==='r',metric=orders?'طلبات':riders?'عدد المناديب':'ساعات فعلية',color=orders?'#3b82f6':riders?'#8b5cf6':'#10b981',type=orders||riders?'bar':'line';
+  $('m1o').classList.toggle('on',orders);$('m1a').classList.toggle('on',!orders&&!riders);$('m1r').classList.toggle('on',riders);
+  draw('ch1',{type,plugins:[dashboardValueLabels],data:{labels:days.map(d=>new Date(d).toLocaleDateString('en-GB',{day:'2-digit',month:'2-digit'})),
+    datasets:[{label:metric,data:days.map(d=>orders?day[d].o:riders?(day[d].activeRiders?day[d].activeRiders.size:0):+day[d].a.toFixed(1)),
+      backgroundColor:type==='line'?color+'33':color+'aa',borderColor:color,fill:type==='line',tension:.3,pointRadius:type==='line'&&days.length>31?0:3}]},options:{}});
 }
 var TXD={};
 const TOPN={top:10,bot:10,lo1:10,zeroOrders:10,lo2:10,lo3:10};try{Object.assign(TOPN,JSON.parse(localStorage.getItem('pd_topn'))||{})}catch(e){}
