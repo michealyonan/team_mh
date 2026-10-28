@@ -1441,7 +1441,6 @@ html[data-theme="light"] body{background:radial-gradient(ellipse at 8% 0%,#d6f4f
  <section class="section-screen-wrap">
   <div class="section-screen-heading"><h2 id="riderMapTitle">🗺️ خريطة مواقع المناديب</h2><button class="btn" id="riderMapClose" type="button">✕ إغلاق</button></div>
   <div class="card" id="riderMapTools">
-   <div class="row" style="justify-content:space-between;align-items:end"><label class="sub" for="riderMapKey">مفتاح عرض الخريطة<input id="riderMapKey" type="password" autocomplete="off" placeholder="اكتب مفتاح العرض" style="display:block;min-width:min(360px,75vw);margin-top:5px"></label><button class="btn pr" id="riderMapRefresh" type="button">🔄 تحديث الاتصال</button></div>
    <div id="riderMapStatus" class="sub" role="status" aria-live="polite" style="min-height:24px;margin:4px 0 8px">الخريطة جاهزة.</div>
    <div class="rider-map-toolbar">
     <button class="btn" id="riderMapZoomIn" type="button">＋ تكبير</button><button class="btn" id="riderMapZoomOut" type="button">－ تصغير</button><button class="btn" id="riderMapFit" type="button">🎯 عرض الكل</button><button class="btn" id="riderMapStatsToggle" type="button">📊 إحصائيات الأوردرات</button><button class="btn" id="riderMapDetailsToggle" type="button">📋 تفاصيل المندوب</button>
@@ -5531,7 +5530,8 @@ function togglePerformanceReports(){toggleNavDrawer(false);const target=$('filte
 $('reportsB').addEventListener('click',togglePerformanceReports);
 function toggleRiderDetails(){toggleNavDrawer(false);if($('riderDetailsPanel').style.display==='flex')closeRiderDetails();else openSectionScreen('riderDetailsPanel','riderDetailsB')}
 function closeRiderDetails(){closeSectionScreen('riderDetailsPanel','riderDetailsB')}
-const RIDER_MAP_API_URL=''; // ضع هنا رابط Worker مع /api/riders بعد نشره
+const RIDER_MAP_API_URL='https://riders-map-relay.michealuonanayad.workers.dev/api/riders';
+const RIDER_MAP_VIEW_SESSION_KEY='rider-map-view-token';
 let riderMapInstance=null,riderMapMarkers=[],RIDER_MAP_BUSY=false,RIDER_MAP_SOCKET=null,RIDER_MAP_RECONNECT=null,RIDER_MAP_OPEN=false,RIDER_MAP_INIT_PROMISE=null;
 let RIDER_MAP_DATA=[],RIDER_MAP_ORDER_MODE='all',RIDER_MAP_NAMES_HIDDEN=false,RIDER_MAP_ORDERS_HIDDEN=false,RIDER_MAP_SHORT_NAMES=false,RIDER_MAP_SELECTED=null;
 function riderMapStatus(text,isError=false){const node=$('riderMapStatus');node.textContent=text;node.style.color=isError?'var(--bad)':'var(--mut)'}
@@ -5568,7 +5568,8 @@ function riderMapUpdateFilterOptions(){
 }
 function riderMapFiltered(){
   const search=$('riderMapSearch').value.trim().toLocaleLowerCase(),city=$('riderMapCity').value,zone=$('riderMapZone').value,state=$('riderMapState').value;
-  return RIDER_MAP_DATA.filter(r=>{
+  const scopedRows=CUR&&CUR.r==='sup'?RIDER_MAP_DATA.filter(r=>nameMatchKey(r.supervisor||'')===nameMatchKey(CUR.s||'')):RIDER_MAP_DATA;
+  return scopedRows.filter(r=>{
     if(search&&!`${r.id||''} ${r.name||''} ${r.city||''} ${r.zone||''}`.toLocaleLowerCase().includes(search))return false;
     if(city&&String(r.city||'')!==city)return false;if(zone&&String(r.zone||'')!==zone)return false;if(state&&String(r.state||'')!==state)return false;
     const orders=riderMapOrdersCount(r);if(RIDER_MAP_ORDER_MODE==='with'&&orders<=0)return false;if(RIDER_MAP_ORDER_MODE==='without'&&orders>0)return false;
@@ -5606,7 +5607,8 @@ function riderMapUpdateStats(){
 }
 function riderMapRender(payload){
   const rows=Array.isArray(payload)?payload:payload.riders;if(!Array.isArray(rows))throw new Error('صيغة بيانات الخريطة غير صحيحة');
-  RIDER_MAP_DATA=rows.filter(r=>Number.isFinite(Number(r.latitude))&&Number.isFinite(Number(r.longitude)));
+  const visibleRows=CUR&&CUR.r==='sup'?rows.filter(r=>nameMatchKey(r.supervisor||'')===nameMatchKey(CUR.s||'')):rows;
+  RIDER_MAP_DATA=visibleRows.filter(r=>Number.isFinite(Number(r.latitude))&&Number.isFinite(Number(r.longitude)));
   riderMapUpdateFilterOptions();riderMapUpdateStats();riderMapDraw(riderMapFiltered());
   riderMapStatus(`تحديث مباشر · ${RIDER_MAP_DATA.length} مندوب${payload.updated_at?' · آخر سحبة: '+payload.updated_at:''}`);
 }
@@ -5637,15 +5639,17 @@ function riderMapShowList(type){
 }
 async function riderMapRefresh(){
   if(!await riderMapInit())return;
-  if(!RIDER_MAP_API_URL){riderMapStatus('الخريطة الأساسية تعمل. اربط خدمة استقبال السحبة الآمنة لإظهار المناديب والتحديث اللحظي.');return}
-  const viewKey=$('riderMapKey').value.trim();if(!viewKey){riderMapStatus('اكتب مفتاح عرض الخريطة أولًا.');$('riderMapKey').focus();return}
-  if(RIDER_MAP_BUSY)return;RIDER_MAP_BUSY=true;$('riderMapRefresh').disabled=true;riderMapStatus('جاري الاتصال بالخريطة وتحميل آخر سحبة…');
+  if(!RIDER_MAP_API_URL){riderMapStatus('خدمة الخريطة غير مهيأة.',true);return}
+  if(!CUR){riderMapStatus('سجّل الدخول أولًا لعرض خريطة المناديب.',true);return}
+  if(RIDER_MAP_BUSY)return;RIDER_MAP_BUSY=true;riderMapStatus('جاري الاتصال بالخريطة وتحميل آخر سحبة…');
   try{
+    let viewKey='';try{viewKey=sessionStorage.getItem(RIDER_MAP_VIEW_SESSION_KEY)||''}catch{}
+    if(!viewKey){viewKey=window.prompt('أدخل مفتاح عرض الخريطة مرة واحدة لهذه الجلسة:')||'';if(!viewKey){riderMapStatus('تم إلغاء الاتصال بالخريطة.');return}try{sessionStorage.setItem(RIDER_MAP_VIEW_SESSION_KEY,viewKey)}catch{}}
     const headers={Accept:'application/json',Authorization:'Bearer '+viewKey},response=await fetch(RIDER_MAP_API_URL,{headers,cache:'no-store'});
-    if(!response.ok)throw new Error(response.status===401?'مفتاح العرض غير صحيح':('HTTP '+response.status));
+    if(!response.ok){if(response.status===401){try{sessionStorage.removeItem(RIDER_MAP_VIEW_SESSION_KEY)}catch{};throw new Error('مفتاح العرض غير صحيح. افتح الخريطة مجددًا وأدخل الرمز الصحيح')}throw new Error('HTTP '+response.status)}
     riderMapRender(await response.json());await riderMapConnect(viewKey,headers);
   }catch(error){riderMapStatus('تعذّر تحميل المواقع: '+(error.message||error),true)}
-  finally{RIDER_MAP_BUSY=false;$('riderMapRefresh').disabled=false}
+  finally{RIDER_MAP_BUSY=false}
 }
 async function riderMapConnect(viewKey,headers){
   if(RIDER_MAP_SOCKET&&(RIDER_MAP_SOCKET.readyState===WebSocket.OPEN||RIDER_MAP_SOCKET.readyState===WebSocket.CONNECTING))return;
@@ -5677,7 +5681,6 @@ $('riderMapCustomerWait').addEventListener('click',()=>riderMapShowList('waiting
 $('riderMapListClose').addEventListener('click',()=>$('riderMapListPanel').style.display='none');
 $('riderMapB').addEventListener('click',event=>{event.stopPropagation();openRiderMap()});
 $('riderMapClose').addEventListener('click',closeRiderMap);
-$('riderMapRefresh').addEventListener('click',riderMapRefresh);
 document.addEventListener('keydown',event=>{if(event.key==='Escape'&&$('riderMapPanel').style.display==='flex')closeRiderMap()});
 $('riderDetailsB').addEventListener('click',toggleRiderDetails);boot();
 </script>

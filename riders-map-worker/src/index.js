@@ -49,7 +49,7 @@ export default {
         const activeDeliveryIds = Array.isArray(row.active_delivery_ids)
           ? row.active_delivery_ids.slice(0, 20).map((id) => clean(id, 60)) : [];
         return {
-          id: clean(row.id, 60), name: clean(row.name, 120), city: clean(row.city, 80),
+          id: clean(row.id, 60), name: clean(row.name, 120), supervisor: clean(row.supervisor, 120), city: clean(row.city, 80),
           zone: clean(row.zone, 100), state: clean(row.state, 40), latitude, longitude,
           updated_at: clean(row.updated_at, 40),
           deliveries: clean(row.deliveries, 30), time_worked: clean(row.time_worked, 40),
