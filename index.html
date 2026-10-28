@@ -5585,9 +5585,13 @@ function riderMapOptions(id,values,allLabel){
   if(unique.includes(previous))select.value=previous;
 }
 function riderMapUpdateFilterOptions(){
-  riderMapOptions('riderMapSupervisor',RIDER_MAP_DATA.map(r=>r.supervisor),'كل المشرفين');
+  const city=$('riderMapCity').value;
+  const cityRows=city?RIDER_MAP_DATA.filter(r=>String(r.city||'')===city):RIDER_MAP_DATA;
+  riderMapOptions('riderMapSupervisor',cityRows.map(r=>r.supervisor),'كل المشرفين');
+  const supervisor=$('riderMapSupervisor').value;
+  const zoneRows=supervisor?cityRows.filter(r=>nameMatchKey(r.supervisor||'')===nameMatchKey(supervisor)):cityRows;
   riderMapOptions('riderMapCity',RIDER_MAP_DATA.map(r=>r.city),'كل المحافظات');
-  riderMapOptions('riderMapZone',RIDER_MAP_DATA.map(r=>r.zone),'كل الزونات');
+  riderMapOptions('riderMapZone',zoneRows.map(r=>r.zone),'كل الزونات');
   riderMapOptions('riderMapState',RIDER_MAP_DATA.map(r=>r.state),'كل الحالات');
 }
 function riderMapFiltered(){
@@ -5620,7 +5624,7 @@ function riderMapDraw(rows){
     const orderLabel=document.createElement('span');orderLabel.className='rider-map-orders';orderLabel.textContent=riderMapOrdersCount(rider)>0?`معاه أوردر (${riderMapOrdersCount(rider)})`:'مفيش أوردر';
     element.append(avatar,label,orderLabel);
     const marker=new maplibregl.Marker({element,anchor:'bottom'}).setLngLat([longitude,latitude]).setPopup(new maplibregl.Popup({offset:22}).setDOMContent(riderMapTextPopup(rider))).addTo(riderMapInstance);
-    element.addEventListener('click',()=>{RIDER_MAP_SELECTED=rider;riderMapShowDetails()});
+    element.addEventListener('click',()=>{RIDER_MAP_SELECTED=rider});
     riderMapMarkers.push({marker,rider,coords:[longitude,latitude]});
   }
 }
@@ -5700,7 +5704,9 @@ $('riderMapNamesToggle').addEventListener('click',event=>{RIDER_MAP_NAMES_HIDDEN
 $('riderMapShortNamesToggle').addEventListener('click',event=>{RIDER_MAP_SHORT_NAMES=!RIDER_MAP_SHORT_NAMES;event.currentTarget.textContent=RIDER_MAP_SHORT_NAMES?'🔤 اسم ثنائي: تشغيل':'🔤 اسم ثنائي: إيقاف';riderMapDraw(riderMapFiltered())});
 $('riderMapOrdersToggle').addEventListener('click',event=>{RIDER_MAP_ORDERS_HIDDEN=!RIDER_MAP_ORDERS_HIDDEN;$('riderMapCanvas').classList.toggle('hide-rider-orders',RIDER_MAP_ORDERS_HIDDEN);event.currentTarget.textContent=RIDER_MAP_ORDERS_HIDDEN?'👁️ إظهار الأوردرات':'📦 إخفاء الأوردرات'});
 $('riderMapFiltersToggle').addEventListener('click',event=>{const open=$('riderMapFilters').style.display==='none';$('riderMapFilters').style.display=open?'grid':'none';event.currentTarget.setAttribute('aria-expanded',String(open))});
-['riderMapSearch','riderMapSupervisor','riderMapCity','riderMapZone','riderMapState'].forEach(id=>$(id).addEventListener(id==='riderMapSearch'?'input':'change',()=>riderMapDraw(riderMapFiltered())));
+['riderMapSearch','riderMapZone','riderMapState'].forEach(id=>$(id).addEventListener(id==='riderMapSearch'?'input':'change',()=>riderMapDraw(riderMapFiltered())));
+$('riderMapSupervisor').addEventListener('change',()=>{riderMapUpdateFilterOptions();riderMapDraw(riderMapFiltered())});
+$('riderMapCity').addEventListener('change',()=>{riderMapUpdateFilterOptions();riderMapDraw(riderMapFiltered())});
 $('riderMapWithOrders').addEventListener('click',event=>{RIDER_MAP_ORDER_MODE=RIDER_MAP_ORDER_MODE==='with'?'all':'with';event.currentTarget.classList.toggle('on',RIDER_MAP_ORDER_MODE==='with');$('riderMapWithoutOrders').classList.remove('on');riderMapDraw(riderMapFiltered())});
 $('riderMapWithoutOrders').addEventListener('click',event=>{RIDER_MAP_ORDER_MODE=RIDER_MAP_ORDER_MODE==='without'?'all':'without';event.currentTarget.classList.toggle('on',RIDER_MAP_ORDER_MODE==='without');$('riderMapWithOrders').classList.remove('on');riderMapDraw(riderMapFiltered())});
 $('riderMapRestaurants').addEventListener('click',()=>riderMapShowList('restaurants'));
