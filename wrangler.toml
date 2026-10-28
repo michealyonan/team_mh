@@ -1,0 +1,14 @@
+name = "riders-map-relay"
+main = "riders-map-worker/src/index.js"
+compatibility_date = "2026-10-28"
+
+[[durable_objects.bindings]]
+name = "RIDER_MAP_HUB"
+class_name = "RiderMapHub"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = [ "RiderMapHub" ]
+
+[vars]
+ALLOWED_ORIGIN = "https://michealyonan.github.io"
