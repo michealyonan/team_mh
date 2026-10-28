@@ -1041,6 +1041,32 @@ html[data-theme="light"] body{background:radial-gradient(ellipse at 8% 0%,#d6f4f
 <style id="one-row-kpis">
 @media(min-width:1650px){#kpis.kpis{grid-template-columns:repeat(11,minmax(0,1fr));gap:8px}#kpis .kpi{min-width:0;min-height:96px;padding:9px 8px}#kpis .kpi .l{font-size:11px;line-height:1.35}#kpis .kpi .v{font-size:21px;line-height:1.2}#kpis .kpi .s{font-size:10px;line-height:1.35}}
 </style>
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.6.1/dist/maplibre-gl.css">
+<script src="https://unpkg.com/maplibre-gl@5.6.1/dist/maplibre-gl.js"></script>
+<style>
+#riderMapCanvas{width:100%;height:min(72vh,760px);min-height:420px;border:1px solid var(--bd);border-radius:12px;background:#dbeafe;z-index:1}
+#riderMapStatus{min-height:24px}
+@media(max-width:699px){#riderMapCanvas{height:65vh;min-height:360px}}
+</style>
+
+<style id="rider-map-live-controls">
+#riderMapTools{display:grid;gap:8px}
+.rider-map-toolbar{display:flex;flex-wrap:wrap;gap:6px}
+.rider-map-toolbar .btn{min-height:38px;font-size:11px;padding:6px 9px}
+.rider-map-filters{display:grid;grid-template-columns:2fr repeat(3,minmax(130px,1fr));gap:7px}
+.rider-map-info{padding:10px 12px;border:1px solid var(--bd);border-radius:10px;background:var(--surface-inset)}
+.rider-map-info>strong{display:block;margin-bottom:6px}
+.rider-map-list{display:grid;gap:6px;max-height:32vh;overflow:auto}
+.rider-map-list-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;padding:8px;border:1px solid var(--bd);border-radius:8px;background:var(--surface-raised);font-size:12px}
+.rider-live-marker{display:flex;align-items:center;gap:4px;max-width:300px;transform:translateY(-8px);cursor:pointer;filter:drop-shadow(0 1px 2px #0005)}
+.rider-live-avatar{display:grid;place-items:center;flex:0 0 30px;width:30px;height:30px;border:2px solid white;border-radius:50%;background:#0f766e;color:white;font-size:10px;font-weight:900}
+.rider-live-marker.has-order .rider-live-avatar{background:#2563eb}
+.rider-map-label{max-width:240px;padding:1px 5px;background:#fff;color:#111827;border:1px solid #cbd5e1;font:700 11px Arial,sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rider-map-orders{padding:1px 4px;background:#fff;color:#334155;border:1px solid #cbd5e1;font:10px Arial,sans-serif;white-space:nowrap}
+#riderMapCanvas.hide-rider-names .rider-map-label{display:none}
+#riderMapCanvas.hide-rider-orders .rider-map-orders{display:none}
+@media(max-width:699px){.rider-map-filters{grid-template-columns:repeat(2,minmax(0,1fr))}.rider-map-filters input{grid-column:1/-1}.rider-map-toolbar .btn{flex:1 1 calc(50% - 6px);white-space:normal}.rider-live-marker{max-width:210px}.rider-map-label{max-width:150px}}
+</style>
 </head>
 <body>
 <div class="ov" id="lg" style="display:none"><form class="lb card" id="lf" onsubmit="return false" autocomplete="on"><button type="button" class="btn" id="themeLogin" style="justify-self:start">☀️ وضع نهاري</button><div class="login-brand"><div class="login-logo" aria-hidden="true">🚀</div><h2>أهلًا بيك</h2><div class="sub">سجّل دخولك لمتابعة أداء الطيارين</div></div><div class="login-highlights" aria-label="مميزات لوحة الأداء"><div class="login-highlight"><span aria-hidden="true">📊</span>مؤشرات الأداء</div><div class="login-highlight"><span aria-hidden="true">🔎</span>فلاتر مرنة</div><div class="login-highlight"><span aria-hidden="true">📈</span>رسوم وتقارير</div></div><label for="lu">اسم المستخدم</label><input id="lu" name="username" placeholder="اكتب اسم المستخدم" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="next" dir="ltr" style="text-align:right"><label for="lp">كلمة المرور</label><div class="pw"><input id="lp" name="password" type="password" placeholder="اكتب كلمة المرور" autocomplete="current-password" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="go" dir="ltr" style="text-align:right"><button type="button" class="eye" id="lpe" aria-label="إظهار كلمة المرور">👁</button></div><label for="rememberLogin" style="display:flex;align-items:center;gap:8px;font-weight:500;cursor:pointer"><input id="rememberLogin" type="checkbox" style="width:18px;height:18px;margin:0;accent-color:var(--pr)">تذكرني لمدة 7 أيام</label><div id="le" role="alert"></div><button type="submit" class="btn pr" id="lgB" style="min-height:46px;font-size:15px">دخول ←</button><a class="btn" id="downloadAppBtn" href="./micheal.apk" download="micheal.apk" style="min-height:44px;display:flex;align-items:center;justify-content:center;text-decoration:none" aria-label="تحميل تطبيق داشبورد الطيارين للأندرويد">⬇️ تحميل التطبيق للأندرويد</a><div class="sub" id="lh" style="display:none;line-height:1.7"></div><p class="login-signature">مايكل يونان</p><a class="login-signature-phone" href="tel:01101278881" dir="ltr" aria-label="اتصل على 01101278881">01101278881</a></form></div>
@@ -1059,6 +1085,7 @@ html[data-theme="light"] body{background:radial-gradient(ellipse at 8% 0%,#d6f4f
   <div class="nav-drawer-heading"><h2 id="navDrawerTitle">☰ أقسام لوحة التحكم</h2><button class="btn" type="button" aria-label="إغلاق القائمة" onclick="toggleNavDrawer(false)">✕</button></div>
   <nav class="nav-drawer-links" aria-label="أقسام لوحة التحكم">
    <button class="btn" id="riderDetailsB" type="button" aria-expanded="false">📋 تفاصيل الطيارين</button>
+   <button class="btn" id="riderMapB" type="button" aria-expanded="false" aria-controls="riderMapPanel" style="display:none">🗺️ خريطة المناديب</button>
    <button class="btn" id="liveB" type="button" style="display:none" aria-controls="livePanel" aria-expanded="false">🔴 Live</button><button class="btn" id="bookingDashboardB" style="display:none">🗓️ ان اصين</button>
    <button class="btn" id="reportsB" type="button" aria-expanded="false">📊 تقارير أداء</button><button class="btn" id="prB" style="display:none">💰 أسعار الباتشات</button><button class="btn" id="usrB" style="display:none">👥 المستخدمين</button><button class="btn" id="loginAuditB" style="display:none">🕵️ سجل الدخول</button><button class="btn" id="tgB" style="display:none">🎯 التارجت</button><button class="btn" id="hcB" style="display:none">👥 هيد كونت</button><button class="btn" id="dedB" style="display:none">🏢 الشركة</button><button class="btn" id="queriesB" style="display:none">📨 الاستعلامات</button><button class="btn" id="payB" type="button" style="display:none" aria-controls="payPanel" aria-expanded="false">💵 القبض</button>
   </nav>
@@ -1409,6 +1436,25 @@ html[data-theme="light"] body{background:radial-gradient(ellipse at 8% 0%,#d6f4f
   <div id="queryMessage" role="status" aria-live="polite"></div>
   <div class="card"><div class="tw" id="queryTable"><table><thead id="queryHead"></thead><tbody id="queryBody"></tbody></table></div></div>
  </div>
+</div>
+<div class="ov section-screen" id="riderMapPanel" style="display:none" role="dialog" aria-modal="true" aria-labelledby="riderMapTitle" aria-hidden="true">
+ <section class="section-screen-wrap">
+  <div class="section-screen-heading"><h2 id="riderMapTitle">🗺️ خريطة مواقع المناديب</h2><button class="btn" id="riderMapClose" type="button">✕ إغلاق</button></div>
+  <div class="card" id="riderMapTools">
+   <div class="row" style="justify-content:space-between;align-items:end"><label class="sub" for="riderMapKey">مفتاح عرض الخريطة<input id="riderMapKey" type="password" autocomplete="off" placeholder="اكتب مفتاح العرض" style="display:block;min-width:min(360px,75vw);margin-top:5px"></label><button class="btn pr" id="riderMapRefresh" type="button">🔄 تحديث الاتصال</button></div>
+   <div id="riderMapStatus" class="sub" role="status" aria-live="polite" style="min-height:24px;margin:4px 0 8px">الخريطة جاهزة.</div>
+   <div class="rider-map-toolbar">
+    <button class="btn" id="riderMapZoomIn" type="button">＋ تكبير</button><button class="btn" id="riderMapZoomOut" type="button">－ تصغير</button><button class="btn" id="riderMapFit" type="button">🎯 عرض الكل</button><button class="btn" id="riderMapStatsToggle" type="button">📊 إحصائيات الأوردرات</button><button class="btn" id="riderMapDetailsToggle" type="button">📋 تفاصيل المندوب</button>
+    <button class="btn" id="riderMapNamesToggle" type="button">🙈 إخفاء الاسم</button><button class="btn" id="riderMapShortNamesToggle" type="button">🔤 اسم ثنائي: إيقاف</button><button class="btn" id="riderMapOrdersToggle" type="button">📦 إخفاء الأوردرات</button><button class="btn" id="riderMapFiltersToggle" type="button">🔎 فلترة الخريطة</button>
+    <button class="btn" id="riderMapWithOrders" type="button">📦 معاهم أوردر</button><button class="btn" id="riderMapWithoutOrders" type="button">✅ بدون أوردر</button><button class="btn" id="riderMapRestaurants" type="button">🍽️ مطاعم المناديب</button><button class="btn" id="riderMapCustomerWait" type="button">⏱️ عند العميل +30 دقيقة</button>
+   </div>
+   <div id="riderMapFilters" class="rider-map-filters" style="display:none"><input id="riderMapSearch" type="search" placeholder="🔎 ابحث بالاسم أو ID"><select id="riderMapCity"><option value="">كل المحافظات</option></select><select id="riderMapZone"><option value="">كل الزونات</option></select><select id="riderMapState"><option value="">كل الحالات</option></select></div>
+   <section class="rider-map-info" id="riderMapStats" style="display:none"><strong>إحصائيات Live</strong><div id="riderMapStatsBody" class="sub"></div></section>
+   <section class="rider-map-info" id="riderMapDetails" style="display:none"><strong>تفاصيل المندوب المحدد</strong><div id="riderMapDetailsBody" class="sub">اضغط على علامة مندوب لعرض بياناته.</div></section>
+   <section class="rider-map-info" id="riderMapListPanel" style="display:none"><div class="row" style="justify-content:space-between"><strong id="riderMapListTitle">تفاصيل</strong><button class="btn" id="riderMapListClose" type="button">✕ إغلاق</button></div><div id="riderMapListBody" class="rider-map-list"></div></section>
+   <div id="riderMapCanvas" role="region" aria-label="خريطة مواقع المناديب"></div>
+  </div>
+ </section>
 </div>
 <div class="ov" id="livePanel" style="display:none" role="dialog" aria-modal="true" aria-labelledby="liveTitle" aria-hidden="true">
  <div class="live-wrap">
@@ -2981,7 +3027,7 @@ const REMEMBER_LOGIN_KEY='pd_remember_login',REMEMBER_LOGIN_MS=7*24*60*60*1000;f
   $('riderRatingsCard').style.display=x.r==='sup'?'none':'';
   $('dailyHistoryCard').style.display=x.r==='sup'?'none':'';
   $('vehicleChartCard').style.display=x.r==='sup'?'none':'';
-  $('lg').style.display='none';$('who').textContent='👤 '+x.n+' · '+ROLE[x.r]+(x.r==='admin'&&!LOGIN_AUDIT_ENDPOINT?' · ⚠️ سجل الدخول المركزي غير مفعّل':'');$('usrB').style.display=x.r==='admin'?'':'none';$('loginAuditB').style.display=x.r==='admin'?'':'none';$('tgB').style.display=x.r==='admin'?'':'none';$('supCaptureAll').style.display=x.r==='admin'?'':'none';$('zoneCaptureAll').style.display=['admin','manager'].includes(x.r)?'':'none';$('zoneCaptureAll').textContent=x.r==='manager'?'🗺️📸 تنزيل صور مناطقي':'🗺️📸 تنزيل صور كل المناطق';$('hcB').style.display=hcCanAccess(x)?'':'none';$('dedB').style.display=['admin','manager','sup'].includes(x.r)?'':'none';$('bookingDashboardB').style.display=bookingCanAccessDashboard(x)?'':'none';bookingApplyRoleAccess(x);$('payB').style.display=['admin','manager','sup'].includes(x.r)?'':'none';$('prB').style.display=monitor?'none':'';$('queriesB').style.display=monitor?'none':'';$('reportsB').style.display=monitor?'none':'';$('riderDetailsB').style.display=monitor?'none':'';load().then(()=>{if(x.r==='admin'&&x.h===DEF_H){const m=$('msg');m.style.display='block';m.textContent='⚠️ كلمة مرور الأدمن الافتراضية لسه شغالة — غيّره من 👥 المستخدمين.'}})}
+  $('lg').style.display='none';$('who').textContent='👤 '+x.n+' · '+ROLE[x.r]+(x.r==='admin'&&!LOGIN_AUDIT_ENDPOINT?' · ⚠️ سجل الدخول المركزي غير مفعّل':'');$('usrB').style.display=x.r==='admin'?'':'none';$('loginAuditB').style.display=x.r==='admin'?'':'none';$('tgB').style.display=x.r==='admin'?'':'none';$('supCaptureAll').style.display=x.r==='admin'?'':'none';$('zoneCaptureAll').style.display=['admin','manager'].includes(x.r)?'':'none';$('zoneCaptureAll').textContent=x.r==='manager'?'🗺️📸 تنزيل صور مناطقي':'🗺️📸 تنزيل صور كل المناطق';$('hcB').style.display=hcCanAccess(x)?'':'none';$('dedB').style.display=['admin','manager','sup'].includes(x.r)?'':'none';$('bookingDashboardB').style.display=bookingCanAccessDashboard(x)?'':'none';bookingApplyRoleAccess(x);$('payB').style.display=['admin','manager','sup'].includes(x.r)?'':'none';$('prB').style.display=monitor?'none':'';$('queriesB').style.display=monitor?'none':'';$('reportsB').style.display=monitor?'none':'';$('riderDetailsB').style.display=monitor?'none':'';$('riderMapB').style.display=x.r==='admin'?'':'none';load().then(()=>{if(x.r==='admin'&&x.h===DEF_H){const m=$('msg');m.style.display='block';m.textContent='⚠️ كلمة مرور الأدمن الافتراضية لسه شغالة — غيّره من 👥 المستخدمين.'}})}
 let USERS=USERS_EMBED.concat(MONITOR_USERS_EMBED),DRAFT=null,VAULT=PW_EMBED;
 async function loadUsers(){
   try{const r=await fetch('users.json?_='+Date.now(),{cache:'no-store'});if(r.ok){const d=await r.json();if(d&&Array.isArray(d.users)&&d.users.length){USERS=d.users;if(d.vault)VAULT=d.vault}}}catch(e){}
@@ -5485,6 +5531,154 @@ function togglePerformanceReports(){toggleNavDrawer(false);const target=$('filte
 $('reportsB').addEventListener('click',togglePerformanceReports);
 function toggleRiderDetails(){toggleNavDrawer(false);if($('riderDetailsPanel').style.display==='flex')closeRiderDetails();else openSectionScreen('riderDetailsPanel','riderDetailsB')}
 function closeRiderDetails(){closeSectionScreen('riderDetailsPanel','riderDetailsB')}
+const RIDER_MAP_API_URL=''; // ضع هنا رابط Worker مع /api/riders بعد نشره
+let riderMapInstance=null,riderMapMarkers=[],RIDER_MAP_BUSY=false,RIDER_MAP_SOCKET=null,RIDER_MAP_RECONNECT=null,RIDER_MAP_OPEN=false,RIDER_MAP_INIT_PROMISE=null;
+let RIDER_MAP_DATA=[],RIDER_MAP_ORDER_MODE='all',RIDER_MAP_NAMES_HIDDEN=false,RIDER_MAP_ORDERS_HIDDEN=false,RIDER_MAP_SHORT_NAMES=false,RIDER_MAP_SELECTED=null;
+function riderMapStatus(text,isError=false){const node=$('riderMapStatus');node.textContent=text;node.style.color=isError?'var(--bad)':'var(--mut)'}
+async function riderMapInit(){
+  if(riderMapInstance)return true;
+  if(!window.maplibregl){riderMapStatus('تعذّر تحميل الخريطة. تحقق من اتصال الإنترنت ثم أعد فتحها.',true);return false}
+  if(RIDER_MAP_INIT_PROMISE)return RIDER_MAP_INIT_PROMISE;
+  RIDER_MAP_INIT_PROMISE=(async()=>{
+    try{await maplibregl.setRTLTextPlugin('https://unpkg.com/@mapbox/mapbox-gl-rtl-text@0.3.0/dist/mapbox-gl-rtl-text.js',false)}
+    catch(error){console.warn('تعذّر تحميل دعم اتجاه العربية في الخريطة',error)}
+  riderMapInstance=new maplibregl.Map({container:'riderMapCanvas',style:'https://tiles.openfreemap.org/styles/bright',center:[29.5,26.8],zoom:5,attributionControl:true});
+  riderMapInstance.addControl(new maplibregl.NavigationControl(),'top-left');
+  riderMapInstance.on('error',event=>{if(event&&event.error)riderMapStatus('تعذّر تحميل أجزاء من الخريطة الأساسية: '+event.error.message,true)});
+    return true;
+  })();
+  return RIDER_MAP_INIT_PROMISE;
+}
+function riderMapOrdersCount(rider){
+  const value=rider.ongoing_orders;
+  if(value!==null&&value!==undefined&&value!==''&&Number.isFinite(Number(value)))return Math.max(0,Number(value));
+  if(Array.isArray(rider.active_orders))return rider.active_orders.length;
+  return Array.isArray(rider.active_delivery_ids)?rider.active_delivery_ids.length:0;
+}
+function riderMapOrderName(rider){const name=String(rider.name||rider.id||'مندوب').trim();return RIDER_MAP_SHORT_NAMES?name.split(/\s+/).slice(0,2).join(' '):name}
+function riderMapOptions(id,values,allLabel){
+  const select=$(id),previous=select.value,unique=[...new Set(values.map(value=>String(value||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ar'));
+  select.replaceChildren(new Option(allLabel,''),...unique.map(value=>new Option(value,value)));
+  if(unique.includes(previous))select.value=previous;
+}
+function riderMapUpdateFilterOptions(){
+  riderMapOptions('riderMapCity',RIDER_MAP_DATA.map(r=>r.city),'كل المحافظات');
+  riderMapOptions('riderMapZone',RIDER_MAP_DATA.map(r=>r.zone),'كل الزونات');
+  riderMapOptions('riderMapState',RIDER_MAP_DATA.map(r=>r.state),'كل الحالات');
+}
+function riderMapFiltered(){
+  const search=$('riderMapSearch').value.trim().toLocaleLowerCase(),city=$('riderMapCity').value,zone=$('riderMapZone').value,state=$('riderMapState').value;
+  return RIDER_MAP_DATA.filter(r=>{
+    if(search&&!`${r.id||''} ${r.name||''} ${r.city||''} ${r.zone||''}`.toLocaleLowerCase().includes(search))return false;
+    if(city&&String(r.city||'')!==city)return false;if(zone&&String(r.zone||'')!==zone)return false;if(state&&String(r.state||'')!==state)return false;
+    const orders=riderMapOrdersCount(r);if(RIDER_MAP_ORDER_MODE==='with'&&orders<=0)return false;if(RIDER_MAP_ORDER_MODE==='without'&&orders>0)return false;
+    return true;
+  });
+}
+function riderMapTextPopup(rider){
+  const box=document.createElement('div'),title=document.createElement('strong'),meta=document.createElement('div'),order=document.createElement('div');
+  title.textContent=rider.name||rider.id||'مندوب';meta.textContent=[rider.id?'ID: '+rider.id:'',rider.city||'',rider.zone||'',rider.state||''].filter(Boolean).join(' · ');
+  const count=riderMapOrdersCount(rider);order.textContent=count?`الأوردرات الحالية: ${count}`:'لا يوجد أوردر حاليًا';box.append(title,meta,order);
+  const info=[['عدد التسليمات',rider.deliveries],['وقت الشيفت',rider.time_worked],['التأخير',rider.late_time],['عدد البريكات',rider.breaks],['وقت البريك',rider.breaks_time],['معدل القبول',rider.acceptance_rate],['UTR',rider.utilization_rate],['رصيد المحفظة',rider.wallet_balance],['آخر تحديث موقع',rider.updated_at]];
+  for(const [label,value] of info){if(value===null||value===undefined||value==='')continue;const line=document.createElement('div');line.textContent=`${label}: ${value}`;box.append(line)}
+  return box;
+}
+function riderMapDraw(rows){
+  for(const item of riderMapMarkers)item.marker.remove();riderMapMarkers=[];
+  $('riderMapCanvas').classList.toggle('hide-rider-names',RIDER_MAP_NAMES_HIDDEN);$('riderMapCanvas').classList.toggle('hide-rider-orders',RIDER_MAP_ORDERS_HIDDEN);
+  for(const rider of rows){
+    const latitude=Number(rider.latitude),longitude=Number(rider.longitude);if(!Number.isFinite(latitude)||!Number.isFinite(longitude))continue;
+    const element=document.createElement('div');element.className='rider-live-marker'+(riderMapOrdersCount(rider)>0?' has-order':'');element.setAttribute('role','button');element.setAttribute('aria-label',String(rider.name||rider.id||'مندوب'));
+    const avatar=document.createElement('span');avatar.className='rider-live-avatar';avatar.textContent=String(rider.name||rider.id||'؟').split(/\s+/).slice(0,2).map(part=>part[0]||'').join('').slice(0,2);
+    const label=document.createElement('span');label.className='rider-map-label';label.textContent=riderMapOrderName(rider);
+    const orderLabel=document.createElement('span');orderLabel.className='rider-map-orders';orderLabel.textContent=riderMapOrdersCount(rider)>0?`معاه أوردر (${riderMapOrdersCount(rider)})`:'مفيش أوردر';
+    element.append(avatar,label,orderLabel);
+    const marker=new maplibregl.Marker({element,anchor:'bottom'}).setLngLat([longitude,latitude]).setPopup(new maplibregl.Popup({offset:22}).setDOMContent(riderMapTextPopup(rider))).addTo(riderMapInstance);
+    element.addEventListener('click',()=>{RIDER_MAP_SELECTED=rider;riderMapShowDetails()});
+    riderMapMarkers.push({marker,rider,coords:[longitude,latitude]});
+  }
+}
+function riderMapUpdateStats(){
+  const total=RIDER_MAP_DATA.length,withOrders=RIDER_MAP_DATA.filter(r=>riderMapOrdersCount(r)>0).length,withoutOrders=total-withOrders,states=new Map;
+  for(const rider of RIDER_MAP_DATA){const state=String(rider.state||'غير محدد');states.set(state,(states.get(state)||0)+1)}
+  $('riderMapStatsBody').textContent=`المواقع: ${total} · معاهم أوردر: ${withOrders} · بدون أوردر: ${withoutOrders} · الحالات: ${[...states].map(([name,count])=>`${name} ${count}`).join('، ')||'—'}`;
+  $('riderMapWithOrders').textContent=`📦 معاهم أوردر (${withOrders})`;$('riderMapWithoutOrders').textContent=`✅ بدون أوردر (${withoutOrders})`;
+}
+function riderMapRender(payload){
+  const rows=Array.isArray(payload)?payload:payload.riders;if(!Array.isArray(rows))throw new Error('صيغة بيانات الخريطة غير صحيحة');
+  RIDER_MAP_DATA=rows.filter(r=>Number.isFinite(Number(r.latitude))&&Number.isFinite(Number(r.longitude)));
+  riderMapUpdateFilterOptions();riderMapUpdateStats();riderMapDraw(riderMapFiltered());
+  riderMapStatus(`تحديث مباشر · ${RIDER_MAP_DATA.length} مندوب${payload.updated_at?' · آخر سحبة: '+payload.updated_at:''}`);
+}
+function riderMapFit(){
+  if(!riderMapInstance)return;const coords=riderMapMarkers.map(item=>item.coords);if(coords.length===1)riderMapInstance.setCenter(coords[0]);else if(coords.length>1)riderMapInstance.fitBounds(coords.reduce((bounds,coord)=>bounds.extend(coord),new maplibregl.LngLatBounds()),{padding:48,maxZoom:14});
+}
+function riderMapShowDetails(){
+  const rider=RIDER_MAP_SELECTED;if(!rider){$('riderMapDetails').style.display='block';$('riderMapDetailsBody').textContent='اضغط على علامة مندوب لعرض بياناته.';return}
+  $('riderMapDetails').style.display='block';$('riderMapDetailsBody').replaceChildren(riderMapTextPopup(rider));
+}
+function riderMapWaitMinutes(order){
+  if(order.wait_minutes!==null&&order.wait_minutes!==undefined&&Number.isFinite(Number(order.wait_minutes)))return Number(order.wait_minutes);
+  const stamp=Date.parse(order.waiting_since||'');return Number.isFinite(stamp)?Math.max(0,(Date.now()-stamp)/60000):null;
+}
+function riderMapShowList(type){
+  const rows=[];
+  for(const rider of RIDER_MAP_DATA){
+    for(const order of Array.isArray(rider.active_orders)?rider.active_orders:[]){
+      const wait=riderMapWaitMinutes(order),restaurant=String(order.restaurant||'').trim();
+      if(type==='restaurants'&&!restaurant)continue;if(type==='waiting'&&!(wait>30))continue;
+      rows.push({rider,order,wait,restaurant});
+    }
+  }
+  $('riderMapListPanel').style.display='block';$('riderMapListTitle').textContent=type==='restaurants'?`🍽️ مطاعم المناديب (${rows.length})`:`⏱️ عند العميل +30 دقيقة (${rows.length})`;
+  const body=$('riderMapListBody');body.replaceChildren();
+  if(!rows.length){const empty=document.createElement('div');empty.className='sub';empty.textContent=type==='restaurants'?'لا توجد بيانات مطاعم في السحبة الحالية.':'لا توجد طلبات متاحة تجاوز انتظار العميل فيها 30 دقيقة.';body.append(empty);return}
+  for(const row of rows){const line=document.createElement('div');line.className='rider-map-list-row';for(const value of [row.rider.name||row.rider.id,row.rider.city,row.rider.zone,row.restaurant||row.order.status||'طلب',row.wait===null?'وقت الانتظار غير متاح':`انتظار ${Math.floor(row.wait)} دقيقة`,row.order.id?'طلب '+row.order.id:'']){const cell=document.createElement('span');cell.textContent=String(value||'—');line.append(cell)}body.append(line)}
+}
+async function riderMapRefresh(){
+  if(!await riderMapInit())return;
+  if(!RIDER_MAP_API_URL){riderMapStatus('الخريطة الأساسية تعمل. اربط خدمة استقبال السحبة الآمنة لإظهار المناديب والتحديث اللحظي.');return}
+  const viewKey=$('riderMapKey').value.trim();if(!viewKey){riderMapStatus('اكتب مفتاح عرض الخريطة أولًا.');$('riderMapKey').focus();return}
+  if(RIDER_MAP_BUSY)return;RIDER_MAP_BUSY=true;$('riderMapRefresh').disabled=true;riderMapStatus('جاري الاتصال بالخريطة وتحميل آخر سحبة…');
+  try{
+    const headers={Accept:'application/json',Authorization:'Bearer '+viewKey},response=await fetch(RIDER_MAP_API_URL,{headers,cache:'no-store'});
+    if(!response.ok)throw new Error(response.status===401?'مفتاح العرض غير صحيح':('HTTP '+response.status));
+    riderMapRender(await response.json());await riderMapConnect(viewKey,headers);
+  }catch(error){riderMapStatus('تعذّر تحميل المواقع: '+(error.message||error),true)}
+  finally{RIDER_MAP_BUSY=false;$('riderMapRefresh').disabled=false}
+}
+async function riderMapConnect(viewKey,headers){
+  if(RIDER_MAP_SOCKET&&(RIDER_MAP_SOCKET.readyState===WebSocket.OPEN||RIDER_MAP_SOCKET.readyState===WebSocket.CONNECTING))return;
+  const api=new URL(RIDER_MAP_API_URL),ticketResponse=await fetch(new URL('/api/ws-ticket',api.origin),{method:'POST',headers,cache:'no-store'});
+  if(!ticketResponse.ok)throw new Error(ticketResponse.status===401?'مفتاح العرض غير صحيح':('HTTP '+ticketResponse.status));
+  const {ticket}=await ticketResponse.json(),socketUrl=new URL('/ws',api.origin);socketUrl.protocol=api.protocol==='https:'?'wss:':'ws:';socketUrl.searchParams.set('ticket',ticket);
+  const socket=new WebSocket(socketUrl);RIDER_MAP_SOCKET=socket;
+  socket.onopen=()=>{if(RIDER_MAP_OPEN)riderMapStatus('متصل — التحديث لحظي عند وصول كل سحبة جديدة.')};
+  socket.onmessage=event=>{try{const message=JSON.parse(event.data);if(message.type==='snapshot')riderMapRender(message.snapshot)}catch(error){console.error('Invalid rider map update',error)}};
+  socket.onerror=()=>{if(RIDER_MAP_OPEN)riderMapStatus('الاتصال اللحظي انقطع؛ جاري إعادة المحاولة…',true)};
+  socket.onclose=()=>{if(RIDER_MAP_SOCKET===socket)RIDER_MAP_SOCKET=null;if(RIDER_MAP_OPEN){clearTimeout(RIDER_MAP_RECONNECT);RIDER_MAP_RECONNECT=setTimeout(()=>riderMapRefresh(),4000)}};
+}
+function openRiderMap(){toggleNavDrawer(false);RIDER_MAP_OPEN=true;openSectionScreen('riderMapPanel','riderMapB');requestAnimationFrame(async()=>{if(await riderMapInit())riderMapInstance.resize();riderMapRefresh()})}
+function closeRiderMap(){RIDER_MAP_OPEN=false;clearTimeout(RIDER_MAP_RECONNECT);RIDER_MAP_RECONNECT=null;if(RIDER_MAP_SOCKET){RIDER_MAP_SOCKET.onclose=null;RIDER_MAP_SOCKET.close(1000,'map closed');RIDER_MAP_SOCKET=null}closeSectionScreen('riderMapPanel','riderMapB')}
+$('riderMapZoomIn').addEventListener('click',()=>riderMapInstance&&riderMapInstance.zoomIn());
+$('riderMapZoomOut').addEventListener('click',()=>riderMapInstance&&riderMapInstance.zoomOut());
+$('riderMapFit').addEventListener('click',riderMapFit);
+$('riderMapStatsToggle').addEventListener('click',()=>{$('riderMapStats').style.display=$('riderMapStats').style.display==='none'?'block':'none'});
+$('riderMapDetailsToggle').addEventListener('click',riderMapShowDetails);
+$('riderMapNamesToggle').addEventListener('click',event=>{RIDER_MAP_NAMES_HIDDEN=!RIDER_MAP_NAMES_HIDDEN;$('riderMapCanvas').classList.toggle('hide-rider-names',RIDER_MAP_NAMES_HIDDEN);event.currentTarget.textContent=RIDER_MAP_NAMES_HIDDEN?'👁️ إظهار الاسم':'🙈 إخفاء الاسم'});
+$('riderMapShortNamesToggle').addEventListener('click',event=>{RIDER_MAP_SHORT_NAMES=!RIDER_MAP_SHORT_NAMES;event.currentTarget.textContent=RIDER_MAP_SHORT_NAMES?'🔤 اسم ثنائي: تشغيل':'🔤 اسم ثنائي: إيقاف';riderMapDraw(riderMapFiltered())});
+$('riderMapOrdersToggle').addEventListener('click',event=>{RIDER_MAP_ORDERS_HIDDEN=!RIDER_MAP_ORDERS_HIDDEN;$('riderMapCanvas').classList.toggle('hide-rider-orders',RIDER_MAP_ORDERS_HIDDEN);event.currentTarget.textContent=RIDER_MAP_ORDERS_HIDDEN?'👁️ إظهار الأوردرات':'📦 إخفاء الأوردرات'});
+$('riderMapFiltersToggle').addEventListener('click',()=>{$('riderMapFilters').style.display=$('riderMapFilters').style.display==='none'?'grid':'none'});
+['riderMapSearch','riderMapCity','riderMapZone','riderMapState'].forEach(id=>$(id).addEventListener(id==='riderMapSearch'?'input':'change',()=>riderMapDraw(riderMapFiltered())));
+$('riderMapWithOrders').addEventListener('click',event=>{RIDER_MAP_ORDER_MODE=RIDER_MAP_ORDER_MODE==='with'?'all':'with';event.currentTarget.classList.toggle('on',RIDER_MAP_ORDER_MODE==='with');$('riderMapWithoutOrders').classList.remove('on');riderMapDraw(riderMapFiltered())});
+$('riderMapWithoutOrders').addEventListener('click',event=>{RIDER_MAP_ORDER_MODE=RIDER_MAP_ORDER_MODE==='without'?'all':'without';event.currentTarget.classList.toggle('on',RIDER_MAP_ORDER_MODE==='without');$('riderMapWithOrders').classList.remove('on');riderMapDraw(riderMapFiltered())});
+$('riderMapRestaurants').addEventListener('click',()=>riderMapShowList('restaurants'));
+$('riderMapCustomerWait').addEventListener('click',()=>riderMapShowList('waiting'));
+$('riderMapListClose').addEventListener('click',()=>$('riderMapListPanel').style.display='none');
+$('riderMapB').addEventListener('click',event=>{event.stopPropagation();openRiderMap()});
+$('riderMapClose').addEventListener('click',closeRiderMap);
+$('riderMapRefresh').addEventListener('click',riderMapRefresh);
+document.addEventListener('keydown',event=>{if(event.key==='Escape'&&$('riderMapPanel').style.display==='flex')closeRiderMap()});
 $('riderDetailsB').addEventListener('click',toggleRiderDetails);boot();
 </script>
 <style id="one-row-kpis-final">
