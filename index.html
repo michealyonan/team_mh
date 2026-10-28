@@ -1052,7 +1052,9 @@ html[data-theme="light"] body{background:radial-gradient(ellipse at 8% 0%,#d6f4f
 <style id="rider-map-live-controls">
 #riderMapTools{display:grid;gap:8px}
 .rider-map-toolbar{display:flex;flex-wrap:wrap;gap:6px}
-.rider-map-toolbar .btn{min-height:38px;font-size:11px;padding:6px 9px}
+.rider-map-toolbar .btn,.rider-map-toolbar input,.rider-map-toolbar select{min-height:38px;font-size:12px;padding:6px 9px}
+.rider-map-toolbar input{flex:1 1 220px;min-width:170px}
+.rider-map-toolbar select{flex:0 1 200px;min-width:150px}
 .rider-map-filters{display:grid;grid-template-columns:2fr repeat(3,minmax(130px,1fr));gap:7px}
 .rider-map-info{padding:10px 12px;border:1px solid var(--bd);border-radius:10px;background:var(--surface-inset)}
 .rider-map-info>strong{display:block;margin-bottom:6px}
@@ -1065,7 +1067,28 @@ html[data-theme="light"] body{background:radial-gradient(ellipse at 8% 0%,#d6f4f
 .rider-map-orders{padding:1px 4px;background:#fff;color:#334155;border:1px solid #cbd5e1;font:10px Arial,sans-serif;white-space:nowrap}
 #riderMapCanvas.hide-rider-names .rider-map-label{display:none}
 #riderMapCanvas.hide-rider-orders .rider-map-orders{display:none}
-@media(max-width:699px){.rider-map-filters{grid-template-columns:repeat(2,minmax(0,1fr))}.rider-map-filters input{grid-column:1/-1}.rider-map-toolbar .btn{flex:1 1 calc(50% - 6px);white-space:normal}.rider-live-marker{max-width:210px}.rider-map-label{max-width:150px}}
+@media(max-width:699px){.rider-map-filters{grid-template-columns:repeat(2,minmax(0,1fr))}.rider-map-toolbar .btn{flex:1 1 calc(50% - 6px);white-space:normal}.rider-live-marker{max-width:210px}.rider-map-label{max-width:150px}}
+@media(max-width:699px){
+  #riderMapPanel.section-screen{padding:env(safe-area-inset-top) 0 0;}
+  #riderMapPanel .section-screen-wrap{min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;padding-bottom:env(safe-area-inset-bottom);}
+  #riderMapPanel .section-screen-heading{flex:0 0 auto;margin:0 6px 6px;padding:7px 9px;border-radius:10px;}
+  #riderMapPanel .section-screen-heading h2{font-size:14px;line-height:1.25;margin:0;}
+  #riderMapPanel .section-screen-heading .btn{min-height:38px;padding:6px 9px;font-size:12px;white-space:nowrap;}
+  #riderMapPanel #riderMapTools{flex:1 0 auto;min-height:0;margin:0 6px;padding:8px;border-radius:10px;gap:7px;}
+  #riderMapPanel #riderMapStatus{font-size:11px;line-height:1.4;margin:0 2px 2px;}
+  #riderMapPanel .rider-map-toolbar{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px;}
+  #riderMapPanel .rider-map-toolbar .btn,#riderMapPanel .rider-map-toolbar input,#riderMapPanel .rider-map-toolbar select{box-sizing:border-box;width:100%;min-width:0;min-height:40px;padding:5px 6px;font-size:11px;line-height:1.25;}
+  #riderMapPanel .rider-map-toolbar input{grid-column:1/-1;}
+  #riderMapPanel .rider-map-filters{grid-template-columns:repeat(2,minmax(0,1fr));gap:5px;}
+  #riderMapPanel .rider-map-filters select{box-sizing:border-box;width:100%;min-width:0;min-height:38px;font-size:12px;}
+  #riderMapPanel #riderMapCanvas{box-sizing:border-box;width:100%;height:calc(100vh - 330px);height:calc(100dvh - 330px);min-height:260px;max-height:560px;border-radius:9px;}
+  #riderMapPanel .rider-map-info{padding:8px;font-size:12px;}
+  #riderMapPanel .rider-live-marker{max-width:170px;gap:3px;}
+  #riderMapPanel .rider-live-avatar{width:26px;height:26px;flex-basis:26px;font-size:9px;}
+  #riderMapPanel .rider-map-label{max-width:116px;font-size:10px;}
+  #riderMapPanel .rider-map-orders{max-width:88px;overflow:hidden;text-overflow:ellipsis;font-size:9px;}
+}
+@media(max-width:360px){#riderMapPanel #riderMapCanvas{height:calc(100vh - 360px);height:calc(100dvh - 360px);min-height:230px}#riderMapPanel .rider-map-toolbar .btn{font-size:10px;padding-inline:4px}}
 </style>
 </head>
 <body>
@@ -1443,11 +1466,11 @@ html[data-theme="light"] body{background:radial-gradient(ellipse at 8% 0%,#d6f4f
   <div class="card" id="riderMapTools">
    <div id="riderMapStatus" class="sub" role="status" aria-live="polite" style="min-height:24px;margin:4px 0 8px">الخريطة جاهزة.</div>
    <div class="rider-map-toolbar">
-    <button class="btn" id="riderMapZoomIn" type="button">＋ تكبير</button><button class="btn" id="riderMapZoomOut" type="button">－ تصغير</button><button class="btn" id="riderMapFit" type="button">🎯 عرض الكل</button><button class="btn" id="riderMapStatsToggle" type="button">📊 إحصائيات الأوردرات</button><button class="btn" id="riderMapDetailsToggle" type="button">📋 تفاصيل المندوب</button>
-    <button class="btn" id="riderMapNamesToggle" type="button">🙈 إخفاء الاسم</button><button class="btn" id="riderMapShortNamesToggle" type="button">🔤 اسم ثنائي: إيقاف</button><button class="btn" id="riderMapOrdersToggle" type="button">📦 إخفاء الأوردرات</button><button class="btn" id="riderMapFiltersToggle" type="button">🔎 فلترة الخريطة</button>
-    <button class="btn" id="riderMapWithOrders" type="button">📦 معاهم أوردر</button><button class="btn" id="riderMapWithoutOrders" type="button">✅ بدون أوردر</button><button class="btn" id="riderMapRestaurants" type="button">🍽️ مطاعم المناديب</button>
+    <button class="btn" id="riderMapFiltersToggle" type="button" aria-expanded="false">🔎 فلتر الخريطة</button><select id="riderMapSupervisor" aria-label="فلتر المشرف"><option value="">كل المشرفين</option></select><input id="riderMapSearch" type="search" inputmode="numeric" placeholder="🔎 بحث برقم ID المندوب" aria-label="بحث برقم ID المندوب">
+    <button class="btn" id="riderMapZoomIn" type="button" style="display:none">＋ تكبير</button><button class="btn" id="riderMapZoomOut" type="button" style="display:none">－ تصغير</button><button class="btn" id="riderMapFit" type="button" style="display:none">🎯 عرض الكل</button><button class="btn" id="riderMapStatsToggle" type="button" style="display:none">📊 إحصائيات الأوردرات</button><button class="btn" id="riderMapDetailsToggle" type="button" style="display:none">📋 تفاصيل المندوب</button>
+    <button class="btn" id="riderMapNamesToggle" type="button" style="display:none">🙈 إخفاء الاسم</button><button class="btn" id="riderMapShortNamesToggle" type="button" style="display:none">🔤 اسم ثنائي: إيقاف</button><button class="btn" id="riderMapOrdersToggle" type="button" style="display:none">📦 إخفاء الأوردرات</button><button class="btn" id="riderMapWithOrders" type="button" style="display:none">📦 معاهم أوردر</button><button class="btn" id="riderMapWithoutOrders" type="button" style="display:none">✅ بدون أوردر</button><button class="btn" id="riderMapRestaurants" type="button" style="display:none">🍽️ مطاعم المناديب</button>
    </div>
-   <div id="riderMapFilters" class="rider-map-filters" style="display:none"><input id="riderMapSearch" type="search" placeholder="🔎 ابحث بالاسم أو ID"><select id="riderMapCity"><option value="">كل المحافظات</option></select><select id="riderMapZone"><option value="">كل الزونات</option></select><select id="riderMapState"><option value="">كل الحالات</option></select></div>
+   <div id="riderMapFilters" class="rider-map-filters" style="display:none"><select id="riderMapCity"><option value="">كل المحافظات</option></select><select id="riderMapZone"><option value="">كل الزونات</option></select><select id="riderMapState"><option value="">كل الحالات</option></select></div>
    <section class="rider-map-info" id="riderMapStats" style="display:none"><strong>إحصائيات Live</strong><div id="riderMapStatsBody" class="sub"></div></section>
    <section class="rider-map-info" id="riderMapDetails" style="display:none"><strong>تفاصيل المندوب المحدد</strong><div id="riderMapDetailsBody" class="sub">اضغط على علامة مندوب لعرض بياناته.</div></section>
    <section class="rider-map-info" id="riderMapListPanel" style="display:none"><div class="row" style="justify-content:space-between"><strong id="riderMapListTitle">تفاصيل</strong><button class="btn" id="riderMapListClose" type="button">✕ إغلاق</button></div><div id="riderMapListBody" class="rider-map-list"></div></section>
@@ -5562,15 +5585,17 @@ function riderMapOptions(id,values,allLabel){
   if(unique.includes(previous))select.value=previous;
 }
 function riderMapUpdateFilterOptions(){
+  riderMapOptions('riderMapSupervisor',RIDER_MAP_DATA.map(r=>r.supervisor),'كل المشرفين');
   riderMapOptions('riderMapCity',RIDER_MAP_DATA.map(r=>r.city),'كل المحافظات');
   riderMapOptions('riderMapZone',RIDER_MAP_DATA.map(r=>r.zone),'كل الزونات');
   riderMapOptions('riderMapState',RIDER_MAP_DATA.map(r=>r.state),'كل الحالات');
 }
 function riderMapFiltered(){
-  const search=$('riderMapSearch').value.trim().toLocaleLowerCase(),city=$('riderMapCity').value,zone=$('riderMapZone').value,state=$('riderMapState').value;
+  const search=$('riderMapSearch').value.trim().toLocaleLowerCase(),supervisor=$('riderMapSupervisor').value,city=$('riderMapCity').value,zone=$('riderMapZone').value,state=$('riderMapState').value;
   const scopedRows=CUR&&CUR.r==='sup'?RIDER_MAP_DATA.filter(r=>nameMatchKey(r.supervisor||'')===nameMatchKey(CUR.s||'')):RIDER_MAP_DATA;
   return scopedRows.filter(r=>{
-    if(search&&!`${r.id||''} ${r.name||''} ${r.city||''} ${r.zone||''}`.toLocaleLowerCase().includes(search))return false;
+    if(search&&!String(r.id||'').toLocaleLowerCase().includes(search))return false;
+    if(supervisor&&nameMatchKey(r.supervisor||'')!==nameMatchKey(supervisor))return false;
     if(city&&String(r.city||'')!==city)return false;if(zone&&String(r.zone||'')!==zone)return false;if(state&&String(r.state||'')!==state)return false;
     const orders=riderMapOrdersCount(r);if(RIDER_MAP_ORDER_MODE==='with'&&orders<=0)return false;if(RIDER_MAP_ORDER_MODE==='without'&&orders>0)return false;
     return true;
@@ -5672,8 +5697,8 @@ $('riderMapDetailsToggle').addEventListener('click',riderMapShowDetails);
 $('riderMapNamesToggle').addEventListener('click',event=>{RIDER_MAP_NAMES_HIDDEN=!RIDER_MAP_NAMES_HIDDEN;$('riderMapCanvas').classList.toggle('hide-rider-names',RIDER_MAP_NAMES_HIDDEN);event.currentTarget.textContent=RIDER_MAP_NAMES_HIDDEN?'👁️ إظهار الاسم':'🙈 إخفاء الاسم'});
 $('riderMapShortNamesToggle').addEventListener('click',event=>{RIDER_MAP_SHORT_NAMES=!RIDER_MAP_SHORT_NAMES;event.currentTarget.textContent=RIDER_MAP_SHORT_NAMES?'🔤 اسم ثنائي: تشغيل':'🔤 اسم ثنائي: إيقاف';riderMapDraw(riderMapFiltered())});
 $('riderMapOrdersToggle').addEventListener('click',event=>{RIDER_MAP_ORDERS_HIDDEN=!RIDER_MAP_ORDERS_HIDDEN;$('riderMapCanvas').classList.toggle('hide-rider-orders',RIDER_MAP_ORDERS_HIDDEN);event.currentTarget.textContent=RIDER_MAP_ORDERS_HIDDEN?'👁️ إظهار الأوردرات':'📦 إخفاء الأوردرات'});
-$('riderMapFiltersToggle').addEventListener('click',()=>{$('riderMapFilters').style.display=$('riderMapFilters').style.display==='none'?'grid':'none'});
-['riderMapSearch','riderMapCity','riderMapZone','riderMapState'].forEach(id=>$(id).addEventListener(id==='riderMapSearch'?'input':'change',()=>riderMapDraw(riderMapFiltered())));
+$('riderMapFiltersToggle').addEventListener('click',event=>{const open=$('riderMapFilters').style.display==='none';$('riderMapFilters').style.display=open?'grid':'none';event.currentTarget.setAttribute('aria-expanded',String(open))});
+['riderMapSearch','riderMapSupervisor','riderMapCity','riderMapZone','riderMapState'].forEach(id=>$(id).addEventListener(id==='riderMapSearch'?'input':'change',()=>riderMapDraw(riderMapFiltered())));
 $('riderMapWithOrders').addEventListener('click',event=>{RIDER_MAP_ORDER_MODE=RIDER_MAP_ORDER_MODE==='with'?'all':'with';event.currentTarget.classList.toggle('on',RIDER_MAP_ORDER_MODE==='with');$('riderMapWithoutOrders').classList.remove('on');riderMapDraw(riderMapFiltered())});
 $('riderMapWithoutOrders').addEventListener('click',event=>{RIDER_MAP_ORDER_MODE=RIDER_MAP_ORDER_MODE==='without'?'all':'without';event.currentTarget.classList.toggle('on',RIDER_MAP_ORDER_MODE==='without');$('riderMapWithOrders').classList.remove('on');riderMapDraw(riderMapFiltered())});
 $('riderMapRestaurants').addEventListener('click',()=>riderMapShowList('restaurants'));
