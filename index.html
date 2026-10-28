@@ -5632,7 +5632,9 @@ function riderMapUpdateStats(){
 }
 function riderMapRender(payload){
   const rows=Array.isArray(payload)?payload:payload.riders;if(!Array.isArray(rows))throw new Error('صيغة بيانات الخريطة غير صحيحة');
-  const visibleRows=CUR&&CUR.r==='sup'?rows.filter(r=>nameMatchKey(r.supervisor||'')===nameMatchKey(CUR.s||'')):rows;
+  const rosterById=new Map((Array.isArray(ALL)?ALL:[]).map(r=>[String(r.id||'').trim().replace(/\.0$/,''),r]));
+  const enrichedRows=rows.map(r=>{const roster=rosterById.get(String(r.id||'').trim().replace(/\.0$/,''));return{...r,supervisor:String(r.supervisor||roster&&roster.s||'').trim(),zone:String(r.zone||roster&&roster.z||'').trim()}});
+  const visibleRows=CUR&&CUR.r==='sup'?enrichedRows.filter(r=>nameMatchKey(r.supervisor||'')===nameMatchKey(CUR.s||'')):enrichedRows;
   RIDER_MAP_DATA=visibleRows.filter(r=>Number.isFinite(Number(r.latitude))&&Number.isFinite(Number(r.longitude)));
   riderMapUpdateFilterOptions();riderMapUpdateStats();riderMapDraw(riderMapFiltered());
   riderMapStatus(`تحديث مباشر · ${RIDER_MAP_DATA.length} مندوب${payload.updated_at?' · آخر سحبة: '+payload.updated_at:''}`);
