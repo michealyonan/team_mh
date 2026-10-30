@@ -1658,16 +1658,21 @@ function calendarDaysInclusive(start,end){
   return Math.floor((lastUtc-firstUtc)/DAY)+1;
 }
 
+function liveSourceTimestamp(year,month,day,hour=0,minute=0,second=0){
+  const wall=Date.UTC(year,month-1,day,hour,minute,second),check=new Date(wall);
+  if(check.getUTCFullYear()!==year||check.getUTCMonth()!==month-1||check.getUTCDate()!==day||check.getUTCHours()!==hour||check.getUTCMinutes()!==minute||check.getUTCSeconds()!==second)return 0;
+  return wall-3*60*60*1000;
+}
+function liveFormatTimestamp(timestamp){return new Intl.DateTimeFormat('ar-EG',{timeZone:'Africa/Cairo',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'}).format(new Date(timestamp))}
 function liveTimestamp(value){
   const text=String(value==null?'':value).trim();if(!text)return 0;
   const gviz=text.match(/^Date\((\d+),(\d+),(\d+)(?:,(\d+),(\d+),(\d+))?\)$/);
-  if(gviz){const date=new Date(+gviz[1],+gviz[2],+gviz[3],+(gviz[4]||0),+(gviz[5]||0),+(gviz[6]||0));return date.getFullYear()===+gviz[1]&&date.getMonth()===+gviz[2]&&date.getDate()===+gviz[3]?date.getTime():0}
+  if(gviz)return liveSourceTimestamp(+gviz[1],+gviz[2]+1,+gviz[3],+(gviz[4]||0),+(gviz[5]||0),+(gviz[6]||0));
   const match=text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})[ T]+(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?$/i);
   if(match){
     let hour=+match[4];const meridiem=(match[7]||'').toUpperCase();
     if(meridiem){if(hour<1||hour>12)return 0;hour=hour%12+(meridiem==='PM'?12:0)}
-    const date=new Date(+match[1],+match[2]-1,+match[3],hour,+match[5],+(match[6]||0));
-    return date.getFullYear()===+match[1]&&date.getMonth()===+match[2]-1&&date.getDate()===+match[3]&&date.getHours()===hour&&date.getMinutes()===+match[5]?date.getTime():0;
+    return liveSourceTimestamp(+match[1],+match[2],+match[3],hour,+match[5],+(match[6]||0));
   }
   if(!/[T ]\d{1,2}:\d{2}/.test(text))return 0;
   const timestamp=Date.parse(text);return Number.isFinite(timestamp)?timestamp:0;
@@ -1714,10 +1719,10 @@ async function liveFetchRows(){
   throw new Error(errors.join(' · ')||'تأكد إن تابة Live_Riders متاحة للعرض.');
 }
 function liveEligibleRows(now=Date.now()){
-  const today=new Date(now),earliest=now-LIVE_WINDOW_MS;
+  const earliest=now-LIVE_WINDOW_MS;
   const eligible=LIVE_ROWS.map(cells=>({cells,timestamp:liveTimestamp(cells[15])})).filter(row=>{
     if(!row.timestamp||row.timestamp<earliest||row.timestamp>now)return false;
-    const date=new Date(row.timestamp);return date.getFullYear()===today.getFullYear()&&date.getMonth()===today.getMonth()&&date.getDate()===today.getDate();
+    return true;
   }).map(({cells,timestamp})=>({cells:[...cells,liveStartingPointForCells(cells)],timestamp}));
   if(!CUR||CUR.r==='admin')return eligible;
   if(CUR.r==='monitor')return eligible.filter(({cells})=>!/(قاهر|cairo)/i.test(nameMatchKey(cells[0])));
@@ -1923,7 +1928,7 @@ function renderLive(){
   if($('liveZoneStatusSummary').style.display!=='none'&&CUR&&CUR.r==='monitor')renderLiveZoneStatus(active);
   $('liveCount').textContent='عرض '+NF(visible.length)+' من '+NF(active.length)+' مندوب خلال آخر 10 دقائق';
   $('liveMessage').classList.toggle('error',!!LIVE_ERROR);
-  const sheetUpdated=LIVE_SHEET_UPDATE_TIME?'آخر تحديث: '+fdt(LIVE_SHEET_UPDATE_TIME):'وقت آخر تحديث غير متاح';
+  const sheetUpdated=LIVE_SHEET_UPDATE_TIME?'آخر تحديث بتوقيت مصر: '+liveFormatTimestamp(LIVE_SHEET_UPDATE_TIME):'وقت آخر تحديث غير متاح';
   $('liveMessage').textContent=LIVE_ERROR?'تعذّر تحديث بيانات Live: '+LIVE_ERROR+(LIVE_LAST_SUCCESS?' · '+sheetUpdated:''):LIVE_LOADING?'جارٍ تحديث بيانات Live_Riders…':LIVE_LAST_SUCCESS?sheetUpdated:'جارٍ تحميل بيانات Live_Riders…';
   if(!LIVE_HEADERS.length){thead.innerHTML='';tbody.innerHTML='';return}
   const liveStartingPointHeader=LIVE_HEADERS.findIndex(header=>/^starting\s*point$/i.test(String(header||'').trim())),displayIndices=[2,3,16,...[4,5,6,7,8,9,10,11,12,13,14].filter(index=>index!==liveStartingPointHeader)],columns=displayIndices.map(index=>LIVE_HEADERS[index]|| (index===16?'المشرف':`Column ${index+1}`));
