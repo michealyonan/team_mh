@@ -4417,7 +4417,8 @@ function bookingRender(){
   const alertRows=BOOKING_ROWS.filter(row=>{
     const riderId=bookingNormalizeRiderId(row.id),start=bookingShiftStartTimestamp(row),end=bookingShiftEndTimestamp(row);
     if(row.date!==today||!scopedRiderIds.has(riderId))return false;
-    return alertIsStart?(!workingRiderIds.has(riderId)&&start>now&&start<=alertLimit):(!BOOKING_SHIFT_ALERT||start<=now)&&end>now&&end<=alertLimit;
+    const afterFirstHour=BOOKING_SHIFT_ALERT.endsWith('2');
+    return alertIsStart?(!workingRiderIds.has(riderId)&&start>(afterFirstHour?nextHour:now)&&start<=alertLimit):(start<=now&&end>(afterFirstHour?nextHour:now)&&end<=alertLimit);
   }),alertIds=new Set(alertRows.map(row=>bookingNormalizeRiderId(row.id)));
   const alertSelect=$('bookingShiftAlert');
   alertSelect.disabled=false;
@@ -4425,7 +4426,8 @@ function bookingRender(){
   const alertCounts={start1:0,start2:0,end1:0,end2:0};
   for(const mode of Object.keys(alertCounts)){
     const limit=mode.endsWith('2')?now+2*60*60*1000:nextHour,isStart=mode.startsWith('start'),ids=new Set();
-    for(const row of BOOKING_ROWS){const id=bookingNormalizeRiderId(row.id),start=bookingShiftStartTimestamp(row),end=bookingShiftEndTimestamp(row);if(row.date===today&&scopedRiderIds.has(id)&&(isStart?(!workingRiderIds.has(id)&&start>now&&start<=limit):(start<=now&&end>now&&end<=limit)))ids.add(id)}
+    const lowerBound=mode.endsWith('2')?nextHour:now;
+    for(const row of BOOKING_ROWS){const id=bookingNormalizeRiderId(row.id),start=bookingShiftStartTimestamp(row),end=bookingShiftEndTimestamp(row);if(row.date===today&&scopedRiderIds.has(id)&&(isStart?(!workingRiderIds.has(id)&&start>lowerBound&&start<=limit):(start<=now&&end>lowerBound&&end<=limit)))ids.add(id)}
     alertCounts[mode]=ids.size;
   }
   for(const option of alertSelect.options){if(alertCounts[option.value]!==undefined){const base={start1:'مناديب هيبدأوا خلال ساعة',start2:'مناديب هيبدأوا خلال ساعتين',end1:'شفتات هتنتهي خلال ساعة',end2:'شفتات هتنتهي خلال ساعتين'}[option.value];option.textContent=base+' ('+NF(alertCounts[option.value])+')'}}
