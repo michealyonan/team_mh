@@ -1370,6 +1370,7 @@ html[data-theme="light"] body{background:radial-gradient(ellipse at 8% 0%,#d6f4f
     <div><label for="bookingStartingPoint">Starting Point</label><select id="bookingStartingPoint"><option value="">كل نقاط البداية</option></select></div>
     <div class="booking-quick-filters"><label>عرض سريع</label><div class="booking-quick-buttons"><button class="btn booking-hybrid-button" id="bookingHybridOnly" type="button" aria-pressed="false">⚡ Hybrid</button><button class="btn booking-part-time-button" id="bookingPartTimeOnly" type="button" aria-pressed="false">🕘 بارت تايم</button><button class="btn booking-bicycle-button" id="bookingBicycleOnly" type="button" aria-pressed="false">🚲 Bicycle</button></div></div>
     <div><label for="bookingStatus">✅ حالة الحجز</label><select id="bookingStatus"><option value="">كل المناديب</option><option value="booked">حاجز</option><option value="unbooked">مش حاجز</option></select></div>
+    <div><label for="bookingShiftCount">🗓️ عدد الشيفتات المحجوزة</label><select id="bookingShiftCount"><option value="">كل الأعداد</option></select></div>
     <div><label for="bookingRiderState">📡 حالة المندوب من Live</label><select id="bookingRiderState"><option value="">كل حالات المندوبين</option></select></div>
     <div><label for="bookingHoursMax">⏱️ ساعات المحجوزين أقل من</label><input type="number" id="bookingHoursMax" min="0" step="any" inputmode="decimal" placeholder="مثال: 40"></div>
     <div><label for="bookingSearch">🔎 بحث بالاسم أو الكود</label><input type="search" id="bookingSearch" placeholder="ابحث عن مندوب…"></div>
@@ -4445,11 +4446,16 @@ function bookingRender(){
       liveStatus:liveRider&&liveRider.status||bookingMissingLiveStatus(),
       phone:headcountPhones.get(bookingNormalizeRiderId(row.id))||liveRider&&liveRider.phone||''};
   }).sort((a,b)=>Number(b.isBooked)-Number(a.isBooked)||a.name.localeCompare(b.name,'ar'));
+  const shiftCountSelect=$('bookingShiftCount'),selectedShiftCount=shiftCountSelect.value,maxShiftCount=Math.max(0,...BOOKING_ALL_VISIBLE.map(row=>row.shifts.length));
+  shiftCountSelect.replaceChildren(new Option('كل الأعداد',''));
+  for(let count=1;count<=Math.max(maxShiftCount,Number(selectedShiftCount)||0);count++)shiftCountSelect.add(new Option(NF(count)+' '+(count===1?'شيفت':count===2?'شيفتين':'شيفتات'),String(count)));
+  shiftCountSelect.value=selectedShiftCount;
   bookingUpdateLiveStateFilter();
   const bookingStatus=filterValues('bookingStatus'),hoursLimit=$('bookingHoursMax').value.trim(),
     maxMinutes=hoursLimit===''?null:Number(hoursLimit);
   BOOKING_VISIBLE=BOOKING_ALL_VISIBLE.filter(row=>
     (!bookingStatus.length||bookingStatus.some(status=>status==='booked'?row.isBooked:!row.isBooked))&&
+    (!$('bookingShiftCount').value||row.shifts.length===Number($('bookingShiftCount').value))&&
     bookingStartingPointMatches(row.startingPoint)&&
     (!BOOKING_HYBRID_ONLY||/hybrid/i.test(row.startingPoint))&&
     (!BOOKING_PART_TIME_ONLY||/part/i.test(row.startingPoint))&&
@@ -4550,6 +4556,7 @@ BOOKING_FILTERS.forEach(filter=>$(filter.id).onchange=()=>{
   bookingUpdateFilters(filter.id);BOOKING_PAGE=0;bookingRender();
 });
 $('bookingStatus').onchange=()=>{BOOKING_PAGE=0;bookingRender()};
+$('bookingShiftCount').onchange=()=>{BOOKING_PAGE=0;bookingRender()};
 $('bookingRiderState').onchange=()=>{BOOKING_PAGE=0;bookingRender()};
 $('bookingHybridOnly').onclick=()=>{BOOKING_HYBRID_ONLY=!BOOKING_HYBRID_ONLY;$('bookingHybridOnly').setAttribute('aria-pressed',String(BOOKING_HYBRID_ONLY));BOOKING_PAGE=0;bookingRender()};
 $('bookingPartTimeOnly').onclick=()=>{BOOKING_PART_TIME_ONLY=!BOOKING_PART_TIME_ONLY;$('bookingPartTimeOnly').setAttribute('aria-pressed',String(BOOKING_PART_TIME_ONLY));BOOKING_PAGE=0;bookingRender()};
@@ -4564,6 +4571,7 @@ $('bookingClear').onclick=()=>{
   setFilterValues('bookingDate',[asTodayKey()]);setFilterValues('bookingStatus',[]);
   setFilterValues('bookingRiderState',[]);
   $('bookingHoursMax').value='';
+  $('bookingShiftCount').value='';
   $('bookingSearch').value='';bookingUpdateFilters();BOOKING_PAGE=0;bookingRender();
 };
 $('bookingShiftAlert').onchange=()=>{BOOKING_SHIFT_ALERT=$('bookingShiftAlert').value;BOOKING_PAGE=0;bookingRender()};
