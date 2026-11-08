@@ -1373,7 +1373,7 @@ html[data-theme="light"] body{background:radial-gradient(ellipse at 8% 0%,#d6f4f
     <div><label for="bookingRiderState">📡 حالة المندوب من Live</label><select id="bookingRiderState"><option value="">كل حالات المندوبين</option></select></div>
     <div><label for="bookingHoursMax">⏱️ ساعات المحجوزين أقل من</label><input type="number" id="bookingHoursMax" min="0" step="any" inputmode="decimal" placeholder="مثال: 40"></div>
     <div><label for="bookingSearch">🔎 بحث بالاسم أو الكود</label><input type="search" id="bookingSearch" placeholder="ابحث عن مندوب…"></div>
-    <div><label for="bookingNextHour">المناديب القريبون من بداية الشيفت</label><button class="btn booking-next-hour" id="bookingNextHour" type="button" aria-pressed="false" aria-label="عرض المناديب الذين يبدأ شيفتهم خلال ساعة" disabled><span aria-hidden="true">⏱️</span><span class="booking-next-hour-label">مناديب هيبدأوا خلال ساعة</span><span class="booking-next-hour-count" id="bookingNextHourCount">—</span></button></div>
+    <div><label for="bookingShiftAlert">⏱️ تنبيهات الشيفتات</label><select id="bookingShiftAlert" disabled><option value="">كل الشيفتات</option><option value="start1">مناديب هيبدأوا خلال ساعة</option><option value="start2">مناديب هيبدأوا خلال ساعتين</option><option value="end1">شفتات هتنتهي خلال ساعة</option><option value="end2">شفتات هتنتهي خلال ساعتين</option></select></div>
     <div style="align-self:end"><button class="btn" id="bookingClear" type="button" style="width:100%">✕ مسح فلاتر الحجوزات</button></div>
    </div>
    <div id="bookingPhoneMessage" role="status" aria-live="polite" class="sub" style="margin:6px 0;display:none"></div>
@@ -3940,7 +3940,7 @@ const asDateLabel=d=>new Date(d+'T00:00:00').toLocaleDateString('ar-EG',{weekday
 /* ---------- تحديث حجوزات الشيفتات أونلاين ---------- */
 const BOOKING_SHEET_ID='1OLvK2_Wi7k8jTa9K1FdLkNjQwpMD5ntMsG_pC8woTlk',BOOKING_GID='963721718',BOOKING_DB_GID='74019377',BOOKING_PAGE_SIZE=50;
 let BOOKING_ROWS=[],BOOKING_DB_ROWS=[],BOOKING_DB_ID_MAP=null,BOOKING_VISIBLE=[],BOOKING_ALL_VISIBLE=[],BOOKING_PAGE=0,BOOKING_JSONP_ID=0,BOOKING_LOADED=false,BOOKING_DB_LOADED=false,BOOKING_BUSY=false,BOOKING_SCREENSHOT_BUSY=false;
-let BOOKING_STATUS_MESSAGE='',BOOKING_NEXT_HOUR_ONLY=false;
+let BOOKING_STATUS_MESSAGE='',BOOKING_SHIFT_ALERT='';
 let BOOKING_PHONE_LOAD=null,BOOKING_PHONE_ERROR='';
 const BOOKING_FILTERS=[
   {id:'bookingDate',key:'date',label:'كل التواريخ'},
@@ -4412,23 +4412,31 @@ function bookingRender(){
     const start=bookingShiftStartTimestamp(row),end=bookingShiftEndTimestamp(row);
     return start&&end&&start<=now&&end>now;
   }))workingRiderIds.add(bookingNormalizeRiderId(row.id));
-  const upcomingRows=BOOKING_ROWS.filter(row=>{
-    const riderId=bookingNormalizeRiderId(row.id);
-    if(row.date!==today||!scopedRiderIds.has(riderId)||workingRiderIds.has(riderId))return false;
-    const start=bookingShiftStartTimestamp(row);return start>now&&start<=nextHour;
-  }),upcomingIds=new Set(upcomingRows.map(row=>bookingNormalizeRiderId(row.id)));
-  const nextHourButton=$('bookingNextHour');
-  nextHourButton.disabled=false;
-  nextHourButton.setAttribute('aria-pressed',String(BOOKING_NEXT_HOUR_ONLY));
-  $('bookingDate').disabled=BOOKING_NEXT_HOUR_ONLY;multiFilterRefresh('bookingDate');
+  const alertLimit=BOOKING_SHIFT_ALERT.endsWith('2')?now+2*60*60*1000:nextHour;
+  const alertIsStart=BOOKING_SHIFT_ALERT.startsWith('start');
+  const alertRows=BOOKING_ROWS.filter(row=>{
+    const riderId=bookingNormalizeRiderId(row.id),start=bookingShiftStartTimestamp(row),end=bookingShiftEndTimestamp(row);
+    if(row.date!==today||!scopedRiderIds.has(riderId))return false;
+    return alertIsStart?(!workingRiderIds.has(riderId)&&start>now&&start<=alertLimit):(!BOOKING_SHIFT_ALERT||start<=now)&&end>now&&end<=alertLimit;
+  }),alertIds=new Set(alertRows.map(row=>bookingNormalizeRiderId(row.id)));
+  const alertSelect=$('bookingShiftAlert');
+  alertSelect.disabled=false;
+  $('bookingDate').disabled=!!BOOKING_SHIFT_ALERT;multiFilterRefresh('bookingDate');
+  const alertCounts={start1:0,start2:0,end1:0,end2:0};
+  for(const mode of Object.keys(alertCounts)){
+    const limit=mode.endsWith('2')?now+2*60*60*1000:nextHour,isStart=mode.startsWith('start'),ids=new Set();
+    for(const row of BOOKING_ROWS){const id=bookingNormalizeRiderId(row.id),start=bookingShiftStartTimestamp(row),end=bookingShiftEndTimestamp(row);if(row.date===today&&scopedRiderIds.has(id)&&(isStart?(!workingRiderIds.has(id)&&start>now&&start<=limit):(start<=now&&end>now&&end<=limit)))ids.add(id)}
+    alertCounts[mode]=ids.size;
+  }
+  for(const option of alertSelect.options){if(alertCounts[option.value]!==undefined){const base={start1:'مناديب هيبدأوا خلال ساعة',start2:'مناديب هيبدأوا خلال ساعتين',end1:'شفتات هتنتهي خلال ساعة',end2:'شفتات هتنتهي خلال ساعتين'}[option.value];option.textContent=base+' ('+NF(alertCounts[option.value])+')'}}
   const groups=new Map;
   for(const row of BOOKING_ROWS){
-    if(BOOKING_NEXT_HOUR_ONLY
-      ?!upcomingIds.has(bookingNormalizeRiderId(row.id))||row.date!==today||bookingShiftStartTimestamp(row)<=now||bookingShiftStartTimestamp(row)>nextHour
+    if(BOOKING_SHIFT_ALERT
+      ?!alertIds.has(bookingNormalizeRiderId(row.id))||row.date!==today||!alertRows.includes(row)
       :!filterMatches('bookingDate',row.date))continue;
     const group=groups.get(row.id)||[];group.push(row);groups.set(row.id,group);
   }
-  BOOKING_ALL_VISIBLE=scopedRoster.filter(row=>!BOOKING_NEXT_HOUR_ONLY||upcomingIds.has(bookingNormalizeRiderId(row.id))).map(row=>{
+  BOOKING_ALL_VISIBLE=scopedRoster.filter(row=>!BOOKING_SHIFT_ALERT||alertIds.has(bookingNormalizeRiderId(row.id))).map(row=>{
     const shifts=groups.get(row.id)||[];
     const liveRider=liveRiders.get(bookingNormalizeRiderId(row.id));
     return{...row,shifts,startingPoint:[...new Set(shifts.map(shift=>shift.startingPoint).filter(Boolean))].join(' · '),minutes:shifts.reduce((sum,shift)=>sum+shift.minutes,0),isBooked:shifts.length>0,
@@ -4454,24 +4462,6 @@ function bookingRender(){
   const partTimeVisible=BOOKING_ALL_VISIBLE.filter(row=>/part/i.test(row.startingPoint));
   $('bookingPartTimeRiderTotal').textContent=NF(partTimeVisible.length);
   $('bookingPartTimeHoursTotal').textContent=F1(partTimeVisible.reduce((sum,row)=>sum+row.minutes,0)/60)+' ساعة';
-  const upcomingMinutesByRider=new Map;
-  for(const row of upcomingRows){
-    const riderId=bookingNormalizeRiderId(row.id);
-    upcomingMinutesByRider.set(riderId,(upcomingMinutesByRider.get(riderId)||0)+row.minutes);
-  }
-  const scopedRiderById=new Map(scopedRoster.map(row=>[bookingNormalizeRiderId(row.id),row]));
-  const matchingRiderCount=[...upcomingIds].filter(riderId=>{
-    const liveRider=liveRiders.get(riderId),liveStatus=liveRider&&liveRider.status||bookingMissingLiveStatus();
-    return(!bookingStatus.length||bookingStatus.some(status=>status==='booked'))&&
-      filterMatches('bookingRiderState',liveStatus)&&
-      (maxMinutes===null||!Number.isFinite(maxMinutes)||maxMinutes<0||(upcomingMinutesByRider.get(riderId)||0)<maxMinutes*60)&&
-      scopedRiderById.has(riderId);
-  }).length;
-  $('bookingNextHourCount').textContent=NF(matchingRiderCount);
-  nextHourButton.querySelector('.booking-next-hour-label').textContent=BOOKING_NEXT_HOUR_ONLY?'عرض كل المناديب':'مناديب هيبدأوا خلال ساعة';
-  nextHourButton.setAttribute('aria-label',BOOKING_NEXT_HOUR_ONLY
-    ?'إلغاء فلتر الساعة القادمة وعرض كل المناديب. عدد المناديب القريبين: '+NF(matchingRiderCount)
-    :'عرض '+NF(matchingRiderCount)+' مندوبًا يبدأ شيفتهم خلال الساعة القادمة');
   const pages=Math.max(1,Math.ceil(BOOKING_VISIBLE.length/BOOKING_PAGE_SIZE));
   BOOKING_PAGE=Math.min(BOOKING_PAGE,pages-1);
   const start=BOOKING_PAGE*BOOKING_PAGE_SIZE,visible=BOOKING_VISIBLE.slice(start,start+BOOKING_PAGE_SIZE);
@@ -4566,7 +4556,7 @@ $('bookingHoursMax').oninput=()=>{BOOKING_PAGE=0;bookingRender()};
 let bookingSearchTimer;
 $('bookingSearch').oninput=()=>{clearTimeout(bookingSearchTimer);bookingSearchTimer=setTimeout(()=>{bookingUpdateFilters('bookingSearch');BOOKING_PAGE=0;bookingRender()},180)};
 $('bookingClear').onclick=()=>{
-  BOOKING_NEXT_HOUR_ONLY=false;
+  BOOKING_SHIFT_ALERT='';$('bookingShiftAlert').value='';
   BOOKING_HYBRID_ONLY=false;$('bookingHybridOnly').setAttribute('aria-pressed','false');BOOKING_PART_TIME_ONLY=false;$('bookingPartTimeOnly').setAttribute('aria-pressed','false');BOOKING_BICYCLE_ONLY=false;$('bookingBicycleOnly').setAttribute('aria-pressed','false');
   BOOKING_FILTERS.forEach(filter=>setFilterValues(filter.id,[]));
   setFilterValues('bookingDate',[asTodayKey()]);setFilterValues('bookingStatus',[]);
@@ -4574,10 +4564,7 @@ $('bookingClear').onclick=()=>{
   $('bookingHoursMax').value='';
   $('bookingSearch').value='';bookingUpdateFilters();BOOKING_PAGE=0;bookingRender();
 };
-$('bookingNextHour').onclick=()=>{
-  if(!BOOKING_LOADED)return;
-  BOOKING_NEXT_HOUR_ONLY=!BOOKING_NEXT_HOUR_ONLY;BOOKING_PAGE=0;bookingRender();
-};
+$('bookingShiftAlert').onchange=()=>{BOOKING_SHIFT_ALERT=$('bookingShiftAlert').value;BOOKING_PAGE=0;bookingRender()};
 $('bookingRows').onclick=event=>{
   const toggle=event.target.closest('[data-booking-toggle]');
   if(!toggle)return;
