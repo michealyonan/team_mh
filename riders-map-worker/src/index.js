@@ -929,9 +929,9 @@ export default {
       const cityVal = zone || (city === 'الغردقة' ? 'الغرادقه' : city);
       let fields, pageHistory;
       if (isAlex) {
-        const m = duration.match(/(\d{1,2}):(\d{2})\s*(الفجر|الصبح|الضهر|العصر|بليل)/);
+        const m = action === 'break' ? ['','0','00',''] : duration.match(/^(\d{1,2}):(\d{2})$/) || duration.match(/(\d{1,2}):(\d{2})\s*(الفجر|الصبح|الضهر|العصر|بليل)/);
         if (!m) return json({ error: 'bad_duration_format' }, 400);
-        let hh = parseInt(m[1], 10);
+        let hh = parseInt(m[1], 10);if(hh>23||+m[2]>59)return json({error:'bad_duration_format'},400);
         if (m[3] === 'الضهر' || m[3] === 'العصر') { if (hh !== 12) hh += 12; }
         if (m[3] === 'بليل') { hh = hh === 12 ? 0 : hh + 12; }
         if (action === 'extend') {
