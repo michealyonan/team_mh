@@ -20,6 +20,7 @@ database_id = "d18873ef-070a-470c-8da8-9a8d447e1143"
 
 [vars]
 ALLOWED_ORIGIN = "https://michealyonan.github.io,https://team-mh.michealuonanayad.workers.dev"
+FORM_RELAY_SECRET = "0b51122c0dbb84f4cc243086340194e13f24011456c41b81a1bd924daad64e91"
 
 [ai]
 binding = "AI"
