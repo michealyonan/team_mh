@@ -248,22 +248,6 @@ async function handleAuth(request, env, json, url) {
     return json({ profile: profile(user) });
   }
 
-  if (p === '/api/notifications' && request.method === 'GET') {
-    const user = await getSessionUser(env, request);
-    if (!user) return json({ error: 'unauthorized' }, 401);
-    const day = cairoDay();
-    const rows = await env.DB.prepare('SELECT id,title,body,rider_id,ts FROM notifications WHERE u=? AND day=? ORDER BY id DESC LIMIT 100').bind(user.u, day).all();
-    return json({ day, count: (rows.results || []).length, items: rows.results || [] });
-  }
-
-  if (p === '/api/notifications/test' && request.method === 'POST') {
-    const user = await getSessionUser(env, request);
-    if (!user) return json({ error: 'unauthorized' }, 401);
-    if (user.r !== 'admin' && user.r !== 'manager') return json({ error: 'forbidden' }, 403);
-    await insertNotification(env, user.u, 'تجربة', 'إشعار تجريبي من لوحة التحكم', '');
-    return json({ ok: true });
-  }
-
   if (p === '/api/auth/logout' && request.method === 'POST') {
     const user = await getSessionUser(env, request);
     if (user) await env.DB.prepare('DELETE FROM sessions WHERE token=?').bind(user.token).run();
@@ -438,6 +422,27 @@ export default {
         return json({ error: 'server_error', detail: String(e && e.message || e) }, 500);
       }
       return json({ error: 'not_found' }, 404);
+    }
+
+    if (url.pathname === '/api/notifications' || url.pathname === '/api/notifications/test') {
+      try {
+        await ensureSchema(env);
+        const user = await getSessionUser(env, request);
+        if (!user) return json({ error: 'unauthorized' }, 401);
+        if (url.pathname === '/api/notifications' && request.method === 'GET') {
+          const day = cairoDay();
+          const rows = await env.DB.prepare('SELECT id,title,body,rider_id,ts FROM notifications WHERE u=? AND day=? ORDER BY id DESC LIMIT 100').bind(user.u, day).all();
+          return json({ day, count: (rows.results || []).length, items: rows.results || [] });
+        }
+        if (url.pathname === '/api/notifications/test' && request.method === 'POST') {
+          if (user.r !== 'admin' && user.r !== 'manager') return json({ error: 'forbidden' }, 403);
+          await insertNotification(env, user.u, 'تجربة', 'إشعار تجريبي من لوحة التحكم', '');
+          return json({ ok: true });
+        }
+        return json({ error: 'not_found' }, 404);
+      } catch (e) {
+        return json({ error: 'server_error', detail: String(e && e.message || e) }, 500);
+      }
     }
 
     if (url.pathname === '/health' && request.method === 'GET') return json({ ok: true });
