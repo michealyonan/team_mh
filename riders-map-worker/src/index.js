@@ -159,7 +159,8 @@ async function handleAuth(request, env, json, url) {
     const wait = await rateLimit(env, 'act:' + u, 10, 10 * 60 * 1000, 60 * 1000);
     if (wait) return json({ error: 'locked', wait }, 429);
     const user = await env.DB.prepare('SELECT * FROM users WHERE u=?').bind(u).first();
-    if (!user) return json({ error: 'invalid_credentials' }, 401);
+    if (!user) return json({ error: 'user_not_found' }, 404);
+    if (user.status === 'active') return json({ error: 'already_active' }, 409);
     const chk = await verifyCode(env, u, 'activate', body.code);
     if (chk !== 'ok') return json({ error: chk === 'expired' ? 'code_expired' : 'invalid_code' }, 401);
     const email = cleanContact.email(String(body.email || '').trim());
