@@ -1220,6 +1220,7 @@ html[data-theme="light"] body{background:radial-gradient(ellipse at 8% 0%,#d6f4f
     <button class="btn" id="riderMapB" type="button" aria-expanded="false" aria-controls="riderMapPanel" style="display:none">🗺️ خريطة المناديب</button>
     <button class="btn" id="liveB" type="button" style="display:none" aria-controls="livePanel" aria-expanded="false">🔴 Live</button>
     <button class="btn" id="bookingDashboardB" style="display:none">🗓️ ان اصين</button>
+    <button class="btn" id="mikeNavB" type="button" style="display:none" onclick="toggleNavDrawer(false);mkOpen()">🤖 مايكل المساعد</button>
     <button class="btn" id="extB" type="button" aria-expanded="false" aria-controls="extPanel" style="display:none">⏫ مد الشيفت</button>
     <button class="btn" id="brkB" type="button" aria-expanded="false" aria-controls="extPanel" style="display:none">☕ فك البريك</button>
    </div>
@@ -1259,7 +1260,7 @@ html[data-theme="light"] body{background:radial-gradient(ellipse at 8% 0%,#d6f4f
   </div>
  </div>
  <style>
-#mkFab{position:fixed;bottom:14px;inset-inline-end:14px;z-index:80;border:none;border-radius:999px;padding:11px 18px;font-weight:800;font-size:14px;cursor:pointer;background:linear-gradient(135deg,#6366f1,#2563eb);color:#fff;box-shadow:0 6px 22px #2563eb66}
+#mkFab{position:fixed;bottom:78px;inset-inline-end:14px;z-index:80;border:none;border-radius:999px;padding:11px 18px;font-weight:800;font-size:14px;cursor:pointer;background:linear-gradient(135deg,#6366f1,#2563eb);color:#fff;box-shadow:0 6px 22px #2563eb66}
 .nav-search{margin-bottom:10px}
 .nav-search input{width:100%;min-height:42px;border-radius:12px;background:rgba(255,255,255,.08);border:1px solid rgba(160,215,255,.3);color:#f0f9ff;padding:8px 12px;font-weight:600}
 .nav-group{margin-bottom:12px}
@@ -1286,16 +1287,16 @@ header{box-shadow:0 8px 24px rgba(2,8,23,.5)}
 <button id="mkFab" style="display:none" onclick="toggleMike()">🤖 مايكل</button>
 <div id="mkPanel" class="card">
  <div class="row" style="padding:10px 12px;border-bottom:1px solid var(--bd)"><b>🤖 مايكل</b><span class="sub">مساعد لوحة التحكم</span><button class="btn" style="margin-inline-start:auto" onclick="toggleMike()">✕</button></div>
- <div class="row" style="gap:6px;padding:8px 12px;overflow-x:auto;flex-wrap:nowrap">
+ <div id="mkMsgs" style="flex:1;overflow:auto;padding:10px 12px;display:grid;gap:8px;align-content:start"></div>
+ <div class="row" style="gap:6px;padding:6px 12px 0;overflow-x:auto;flex-wrap:nowrap;border-top:1px solid var(--bd)">
   <button class="mkchip" onclick="mkAsk('مين المتأخرين دلوقتي؟')">⏰ المتأخرين</button>
   <button class="mkchip" onclick="mkAsk('اديني ملخص أداء النهاردة')">📊 ملخص النهاردة</button>
   <button class="mkchip" onclick="mkAsk('مين أحسن ٥ مناديب؟')">🏆 أحسن ٥</button>
   <button class="mkchip" onclick="mkAsk('مين أقل ٥ في الأداء؟')">⚠️ أقل ٥</button>
  </div>
- <div id="mkMsgs" style="flex:1;overflow:auto;padding:10px 12px;display:grid;gap:8px;align-content:start"></div>
- <div class="row" style="gap:6px;padding:10px 12px;border-top:1px solid var(--bd)">
-  <input id="mkQ" placeholder="اسأل مايكل عن الشغل…" style="flex:1" onkeydown="if(event.key==='Enter')sendMike()">
-  <button class="btn pr" onclick="sendMike()">إرسال</button>
+ <div class="row" style="gap:6px;padding:8px 12px 12px">
+  <input id="mkQ" placeholder="اسأل مايكل أي حاجة عن الشغل…" style="flex:1;min-height:42px;font-size:15px" onkeydown="if(event.key==='Enter')sendMike()">
+  <button class="btn pr" style="min-height:42px" onclick="sendMike()">إرسال</button>
  </div>
 </div>
 <div id="notifModal" style="display:none;position:fixed;inset:0;background:#000c;z-index:75;overflow:auto;padding:12px" onclick="if(event.target===this)this.style.display='none'">
@@ -5960,19 +5961,33 @@ function initAndroidBridge(){
  try{const r=window.TeamMH.consumePendingRider&&window.TeamMH.consumePendingRider();if(r)setTimeout(()=>{try{showR(r)}catch(e){}},1500)}catch(e){}
 }
 window.teamMHRider=function(id){try{showR(id)}catch(e){}};
-function mkSetup(x){try{const f=$('mkFab');if(f)f.style.display=(x&&['admin','manager'].includes(x.r))?'':'none'}catch(e){}}
-function toggleMike(){const p=$('mkPanel');if(!p)return;const open=p.style.display!=='flex';p.style.display=open?'flex':'none';if(open&&!$('mkMsgs').children.length)mkMsg('أهلًا! أنا مايكل 🤖 اسألني عن أداء المناديب، المتأخرين، الإحصائيات… وأنا أجاوبك من بيانات اللوحة على طول.','m')}
+function mkSetup(x){try{const ok=(x&&['admin','manager'].includes(x.r))?'':'none';const f=$('mkFab');if(f)f.style.display=ok;const nb=$('mikeNavB');if(nb)nb.style.display=ok}catch(e){}}
+function mkOpen(){const p=$('mkPanel');if(!p)return;if(p.style.display!=='flex')toggleMike()}
+function toggleMike(){const p=$('mkPanel');if(!p)return;const open=p.style.display!=='flex';p.style.display=open?'flex':'none';if(open&&!$('mkMsgs').children.length)mkMsg('أهلًا! أنا مايكل 🤖 اسألني عن أداء المناديب، المتأخرين، الإحصائيات، أو أي يوم معين (مثال: مين أحسن مندوب يوم ٢٨/١٠)… وأنا أجاوبك من بيانات اللوحة على طول.','m');if(open)setTimeout(()=>{try{$('mkQ').focus()}catch(e){}},80)}
 function mkMsg(t,cls){const d=document.createElement('div');d.className='mkmsg '+(cls||'m');d.textContent=t;$('mkMsgs').append(d);$('mkMsgs').scrollTop=1e9;return d}
 function mkAsk(q){const p=$('mkPanel');if(p&&p.style.display!=='flex')toggleMike();$('mkQ').value=q;sendMike()}
-function buildMikeCtx(){
+function mkDayStats(rows){
+ if(!rows||!rows.length)return null;
+ const top=rows.slice().sort((a,b)=>(b.c||0)-(a.c||0));
+ return {riders_total:rows.length,active:rows.filter(x=>(x.a||0)>0).length,
+  avg_completion:Math.round(rows.reduce((s,x)=>s+(x.c||0),0)/rows.length)+'%',
+  top5:top.slice(0,5).map(x=>({name:x.n,completion:Math.round(x.c||0)+'%',actual_orders:x.a||0,zone:x.z})),
+  bottom5:top.slice(-5).reverse().map(x=>({name:x.n,completion:Math.round(x.c||0)+'%',actual_orders:x.a||0,zone:x.z}))};
+}
+function buildMikeCtx(q){
  const c={date:new Date().toLocaleDateString('ar-EG',{weekday:'long',year:'numeric',month:'long',day:'numeric'})};
  try{
   if(typeof ROWS!=='undefined'&&ROWS&&ROWS.length){
-   c.riders_total=ROWS.length;
-   c.active=ROWS.filter(x=>(x.a||0)>0).length;
-   c.avg_completion=Math.round(ROWS.reduce((s,x)=>s+(x.c||0),0)/ROWS.length)+'%';
-   c.top5=ROWS.slice().sort((a,b)=>(b.c||0)-(a.c||0)).slice(0,5).map(x=>({name:x.n,completion:Math.round(x.c||0)+'%',actual_orders:x.a||0,zone:x.z}));
-   c.bottom5=ROWS.slice().sort((a,b)=>(a.c||0)-(b.c||0)).slice(0,5).map(x=>({name:x.n,completion:Math.round(x.c||0)+'%',actual_orders:x.a||0,zone:x.z}));
+   const st=mkDayStats(ROWS);c.current_period=st;
+  }
+  if(q&&typeof ALL!=='undefined'&&ALL&&ALL.length){
+   let target=null;
+   const m=String(q).match(/(\d{1,2})\s*[-\/.]\s*(\d{1,2})/);
+   const todayDs=ds(Date.now());
+   if(/النهارد|اليوم|دلوقتي حالة/.test(q))target=todayDs;
+   else if(/امبارح|إمبارح|أمس|امس/.test(q))target=ds(Date.now()-864e5);
+   else if(m){const dd=+m[1],mm=+m[2];const y=new Date().getFullYear();target=y+'-'+String(mm).padStart(2,'0')+'-'+String(dd).padStart(2,'0')}
+   if(target){const dayRows=ALL.filter(x=>x.t&&ds(x.t)===target);const dst=mkDayStats(dayRows);if(dst)c.asked_date=target;c.asked_date_stats=dst}
   }
  }catch(e){}
  try{
@@ -5990,7 +6005,7 @@ async function sendMike(){
  mkMsg(q,'u');inp.value='';
  const load=mkMsg('بفكر في الأرقام… ⏳','m loading');
  try{
-  const d=await api('/api/assistant',{method:'POST',body:{q:q,ctx:buildMikeCtx()}});
+  const d=await api('/api/assistant',{method:'POST',body:{q:q,ctx:buildMikeCtx(q)}});
   load.textContent=d.answer||'معنديش إجابة واضحة من البيانات الحالية.';
  }catch(e){
   const m=(e&&e.message)||'';
