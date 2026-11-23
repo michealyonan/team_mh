@@ -5988,16 +5988,37 @@ function buildMikeCtx(q){
  try{const live=liveEligibleRows();c.live_as_of=LIVE_SHEET_UPDATE_TIME?liveFormatTimestamp(LIVE_SHEET_UPDATE_TIME):null;c.live_riders=live.length;c.late_now=live.filter(r=>String(r.cells[14]).trim()==='LATE').slice(0,15).map(r=>({name:r.cells[3],id:r.cells[2],late_time:r.cells[13]}));c.late_count=live.filter(r=>String(r.cells[14]).trim()==='LATE').length;if(!live.length)c.live_note='لا تتوفر سحبة حديثة خلال عشر دقائق، لا تستنتج أن الجميع أوفلاين أو أن لا أحد متأخر.'}catch(e){}
  return c;
 }
+function mkDirectAnswer(q,ctx){
+ const norm=String(q).replace(/[أإآ]/g,'ا'),asked=ctx.asked_date,period=asked?'يوم '+asked:(ctx.period?'من '+ctx.period.from+' لحد '+ctx.period.to:'الفترة الظاهرة');
+ const rows=scope(ALL||[]).filter(r=>asked?ds(r.t)===asked:(!ctx.period||(ds(r.t)>=ctx.period.from&&ds(r.t)<=ctx.period.to)));
+ if(asked&&!rows.length)return 'مفيش بيانات عندي ليوم '+asked+'. مش هستخدم يوم تاني بدل منه.';
+ if(/مشرف/.test(norm)&&/افضل|احسن|اعلى|اقوى|اقل|اضعف|اسوا/.test(norm)){
+  const groups=new Map();rows.forEach(r=>{if(!r.s)return;const g=groups.get(r.s)||[];g.push(r);groups.set(r.s,g)});
+  const rank=[...groups].map(([name,rs])=>({name,stats:mkDayStats(rs)})).sort((a,b)=>b.stats.total_orders-a.stats.total_orders);
+  if(!rank.length)return 'مفيش بيانات مشرفين كفاية للفترة دي.';
+  const worst=/اقل|اضعف|اسوا/.test(norm),best=worst?rank[rank.length-1]:rank[0],st=best.stats;
+  return (worst?'أقل':'أعلى')+' مشرف حسب إجمالي طلبات الفريق '+period+': '+best.name+'\nطلبات الفريق: '+st.total_orders+'\nعدد المناديب: '+st.riders_total+'\nساعات العمل: '+st.worked_hours+' من '+st.planned_hours+' مخططة\nالالتزام: '+(st.completion===null?'غير متاح':st.completion+'%')+'\nالمقارنة هنا بإجمالي الطلبات، وحجم الفريق بيأثر عليها.';
+ }
+ const st=asked?ctx.asked_date_stats:ctx.current_period;
+ if(/مندوب|مناديب|طيار/.test(norm)&&/افضل|احسن|اعلى|اقل|اضعف|اسوا/.test(norm)){
+  if(!st)return 'مفيش بيانات كفاية للفترة المطلوبة.';
+  const worst=/اقل|اضعف|اسوا/.test(norm),list=worst?st.bottom5_by_orders:st.top5;
+  return (worst?'أقل':'أعلى')+' مناديب حسب عدد الطلبات '+period+':\n'+list.map((r,i)=>(i+1)+'. '+r.name+' ('+r.id+'): '+r.orders+' طلب، '+r.worked_hours.toFixed(1)+' ساعة').join('\n');
+ }
+ if(/ملخص|اجمالي/.test(norm)&&st)return 'ملخص '+period+':\n'+st.riders_total+' مندوب، منهم '+st.active+' اشتغلوا\nإجمالي الطلبات: '+st.total_orders+'\nساعات العمل: '+st.worked_hours+' من '+st.planned_hours+' مخططة\nالالتزام: '+(st.completion===null?'غير متاح':st.completion+'%');
+ if(/متاخر|التاخير/.test(norm))return ctx.live_riders?('المتأخرين في آخر سحبة: '+ctx.late_count+'\n'+ctx.late_now.map(r=>r.name+' ('+r.id+')، '+r.late_time).join('\n')):'مفيش سحبة لايف حديثة خلال آخر عشر دقايق. حدّث اللايف الأول علشان أقولك المتأخرين صح.';
+ return null;
+}
 async function sendMike(){
  const inp=$('mkQ');const q=(inp.value||'').trim();if(!q)return;
  mkMsg(q,'u');inp.value='';
  const load=mkMsg('بفكر في الأرقام… ⏳','m loading');
  try{
-  const d=await api('/api/assistant',{method:'POST',body:{q:q,ctx:buildMikeCtx(q)}});
+  const ctx=buildMikeCtx(q),direct=mkDirectAnswer(q,ctx);if(direct){load.textContent=direct;load.classList.remove('loading');return}const d=await api('/api/assistant',{method:'POST',body:{q:q,ctx}});
   load.textContent=d.answer||'معنديش إجابة واضحة من البيانات الحالية.';
  }catch(e){
   const m=(e&&e.message)||'';
-  load.textContent=m.includes('daily_limit')?'وصلت للحد اليومي لأسئلة TEAM MH — جرّب بكرة 🙏':(m.includes('forbidden')?'مساعد TEAM MH متاح للأدمن والمديرين بس حاليًا':'مش قادر أرد دلوقتي — جرّب تاني كمان شوية');
+  load.textContent=m.includes('daily_limit')?'وصلت للحد اليومي لأسئلة TEAM MH — جرّب بكرة 🙏':(m.includes('forbidden')?'مساعد TEAM MH متاح للأدمن والمديرين بس حاليًا':(m.includes('ai_unavailable')?'خدمة المحادثة مش متوصلة حاليًا. أقدر أجاوب فورًا عن أفضل مندوب أو مشرف وملخص الأداء.':m.includes('preview_readonly')?'وضع المعاينة للعرض بس. أسئلة الأرقام المباشرة شغالة، والمحادثة محتاجة تسجيل دخول.':m.includes('unauthorized')?'جلسة الدخول خلصت. سجّل دخول تاني للمحادثة.':'المحادثة متوقفة حاليًا ('+m+'). أسئلة الأرقام المباشرة زي أفضل مندوب أو مشرف شغالة.'));
  }
  load.classList.remove('loading');
 }
