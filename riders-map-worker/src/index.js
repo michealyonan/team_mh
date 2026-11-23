@@ -135,6 +135,20 @@ async function sendMail(env, to, subject, text) {
   }
 }
 
+async function sendSms(env, to, content) {
+  if (!env.BREVO_API_KEY) return { ok: false, error: 'sms_not_configured' };
+  const num = String(to || '').replace(/[^0-9]/g, '');
+  const intl = num.startsWith('0020') ? '+' + num.slice(2) : (num.startsWith('20') ? '+' + num : (num.startsWith('0') ? '+2' + num : '+' + num));
+  try {
+    const r = await fetch('https://api.brevo.com/v3/transactionalSMS/sms', {
+      method: 'POST',
+      headers: { 'api-key': env.BREVO_API_KEY, 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify({ type: 'transactional', unicodeEnabled: true, sender: 'TeamMH', recipient: intl, content }),
+    });
+    return { ok: r.ok, status: r.status };
+  } catch (e) { return { ok: false, error: String(e) }; }
+}
+
 const codeHash = (env, code) => sha256hex((env.OTP_PEPPER || 'pd') + ':' + code);
 
 async function makeCode(env, u, purpose, digits, ttlMs) {
@@ -254,7 +268,25 @@ async function handleAuth(request, env, json, url) {
     const u = String(body.u).toLowerCase().slice(0, 60);
     const wait = await rateLimit(env, 'forgot:' + u, 3, 60 * 60 * 1000, 30 * 60 * 1000);
     if (wait) return json({ error: 'locked', wait }, 429);
-    const user = await env.DB.prepare('SELECT u FROM users WHERE u=?').bind(u).first();
+    const user = await env.DB.prepare('SELECT * FROM users WHERE u=?').bind(u).first();
+    if (user && user.status !== 'disabled' && (user.email || user.phone)) {
+      const code = await makeCode(env, u, 'reset', 8, 60 * 60 * 1000);
+      const text = 'أهلًا ' + user.n + ',\n\nكود إعادة تعيين كلمة المرور: ' + code + '\nصالح لمدة ساعة.\n\nلو مش انت اللي طلبت، كلم الأدمن فورًا.';
+      let sent = false, via = '';
+      if (user.email && user.channel !== 'whatsapp') {
+        const mail = await sendMail(env, user.email, 'كود إعادة تعيين كلمة المرور', text);
+        sent = mail.ok; via = 'email';
+      }
+      if (!sent && user.phone) {
+        const sm = await sendSms(env, user.phone, 'كود إعادة تعيين كلمة المرور: ' + code + ' (صالح لمدة ساعة)');
+        sent = sm.ok; via = 'sms';
+      }
+      if (!sent && user.email && via !== 'email') {
+        const mail = await sendMail(env, user.email, 'كود إعادة تعيين كلمة المرور', text);
+        sent = mail.ok; via = 'email';
+      }
+      if (sent) return json({ ok: true, self: true, via, hint: via === 'email' ? user.email.replace(/^(.{2}).+(@.+)$/, '$1***$2') : ('*****' + String(user.phone).replace(/[^0-9]/g, '').slice(-4)) });
+    }
     if (user) {
       const existing = await env.DB.prepare("SELECT id FROM recoveries WHERE u=? AND status='pending'").bind(u).first();
       if (!existing) await env.DB.prepare('INSERT INTO recoveries(u,created) VALUES(?,?)').bind(u, Date.now()).run();
