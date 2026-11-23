@@ -1172,6 +1172,7 @@ html[data-theme="light"] body{background:radial-gradient(ellipse at 8% 0%,#d6f4f
     <input id="ncTitle" placeholder="العنوان" style="width:100%;margin-bottom:6px">
     <textarea id="ncBody" rows="2" placeholder="نص الإشعار" style="width:100%;margin-bottom:6px"></textarea>
     <label style="display:flex;align-items:center;gap:6px;font-size:13px;margin-bottom:4px"><input type="checkbox" id="ncAll" checked onchange="$('ncList').style.opacity=this.checked?'.45':'1';$('ncList').style.pointerEvents=this.checked?'none':'auto'"> كل المشرفين والمديرين</label>
+    <input id="ncSearch" placeholder="🔍 ابحث عن مشرف بالاسم أو اسم المستخدم…" oninput="filterNcList()" style="width:100%;margin-bottom:6px">
     <div id="ncList" style="max-height:130px;overflow:auto;display:grid;gap:4px;margin-bottom:6px;opacity:.45;pointer-events:none"></div>
     <div class="row" style="gap:6px;flex-wrap:wrap">
      <button class="btn pr" type="button" onclick="sendAnnounce()">إرسال 📨</button>
@@ -5776,6 +5777,11 @@ async function sendAnnounce(){
   const d=await api('/api/notifications/send',{method:'POST',body:payload});
   st.textContent='اتبعت ✅ ('+d.sent+' مستلم)';$('ncTitle').value='';$('ncBody').value='';
  }catch(e){st.textContent='فشل الإرسال: '+(e.message||e)}
+}
+function normAr(s){return (s||'').toLowerCase().replace(/[أإآ]/g,'ا').replace(/ة/g,'ه').replace(/ى/g,'ي')}
+function filterNcList(){
+ const q=normAr(($('ncSearch')||{}).value||'').trim();
+ [...$('ncList').children].forEach(l=>{l.style.display=(!q||normAr(l.textContent).includes(q))?'':'none'});
 }
 async function fillAnnounceTargets(){
  const box=$('ncList');if(!box||box.dataset.filled)return;box.dataset.filled='1';
