@@ -2,6 +2,9 @@ name = "riders-map-relay"
 main = "riders-map-worker/src/index.js"
 compatibility_date = "2026-10-28"
 
+[assets]
+directory = "./"
+
 [[durable_objects.bindings]]
 name = "RIDER_MAP_HUB"
 class_name = "RiderMapHub"
