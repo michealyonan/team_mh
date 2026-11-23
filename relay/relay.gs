@@ -1,11 +1,12 @@
 // team_mh Google Forms relay - deploy as Web App (execute as: Me, access: Anyone) under each work account.
 // Manifest scopes needed: https://www.googleapis.com/auth/forms + https://www.googleapis.com/auth/script.external_request
-const SECRET = '0b51122c0dbb84f4cc243086340194e13f24011456c41b81a1bd924daad64e91';
+// Set FORM_RELAY_SECRET in this project's Script Properties, never in source.
+const SECRET = PropertiesService.getScriptProperties().getProperty('FORM_RELAY_SECRET');
 function doPost(e) {
   const out = (o) => ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);
   try {
     const body = JSON.parse(e.postData.contents || '{}');
-    if (body.secret !== SECRET) return out({ error: 'unauthorized' });
+    if (!SECRET || body.secret !== SECRET) return out({ error: 'unauthorized' });
     const token = ScriptApp.getOAuthToken();
     const vf = UrlFetchApp.fetch('https://docs.google.com/forms/d/e/' + body.formId + '/viewform', { headers: { Authorization: 'Bearer ' + token }, muteHttpExceptions: true });
     const html = vf.getContentText();
