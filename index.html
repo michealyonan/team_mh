@@ -6374,6 +6374,7 @@ const EXT_CITIES=['الغردقة','الإسكندرية','المنصورة','ا
 const EXT_DURATIONS=['إلي 01:00 الفجر','إلي 02:00 الفجر','إلي 03:00 الفجر','إلي 04:00 الفجر','إلي 05:00 الفجر','إلي 08:00 الصبح','إلي 09:00 الصبح','إلي 10:00 الصبح','إلي 11:00 الصبح','إلي 12:00 الضهر','إلي 01:00 الضهر','إلي 02:00 الضهر'];
 let extAction='extend',extRider=null,extRiders=[];
 let extHoursAsc=true,extBreakAsc=true;
+function extClock24(v){const m=String(v||'').trim().match(/^(\d{1,2}):([0-5]\d)(?::[0-5]\d)?\s*(AM|PM)?$/i);if(!m)return '';let h=+m[1];if(m[3])h=h%12+(m[3].toUpperCase()==='PM'?12:0);if(h>23)return '';return String(h).padStart(2,'0')+':'+m[2]}
 function extClockLabel(v){const m=String(v||'').match(/^(\d{1,2}):(\d{2})/);if(!m)return '—';const h=+m[1];return (h%12||12)+':'+m[2]+(h<12?' صباحًا':' مساءً')}
 function extSeconds(v){const p=String(v||'').split(':').map(Number);return p.length===3?p[0]*3600+p[1]*60+p[2]:p.length===2?p[0]*3600+p[1]*60:0}
 function extCopyButton(id){return '<button class="chip" type="button" data-copy-rider="'+esc(id)+'" aria-label="نسخ كود '+esc(id)+'">'+esc(id)+'</button>'}
@@ -6417,7 +6418,7 @@ async function extRenderShiftTable(){extBookingError='';$('extTableTitle').textC
   const sd=parseD(c[7]),ed=parseD(c[8]);if(sd>extBookingLatestDay)extBookingLatestDay=sd;if(ed>extBookingLatestDay)extBookingLatestDay=ed;if(sd!==todayKey&&ed!==todayKey)continue;
   const cur=extBookingMap.get(id)||{name:String(c[2]||''),count:0,mins:0,lastEnd:'',lastEndKey:''};cur.count++;
   const dur=String(c[11]||'').split(':');if(dur.length>=2)cur.mins+=(+dur[0])*60+(+dur[1]);
-  const endKey=ed+' '+String(c[10]||'').trim().split(':').slice(0,2).map(v=>v.padStart(2,'0')).join(':');if(endKey.trim()>cur.lastEndKey){cur.lastEndKey=endKey.trim();cur.lastEnd=String(c[10]||'').trim()}
+  const endKey=ed+' '+extClock24(c[10]);if(endKey.trim()>cur.lastEndKey){cur.lastEndKey=endKey.trim();cur.lastEnd=extClock24(c[10])}
   extBookingMap.set(id,cur)}extBookingFetchedAt=Date.now()}catch(e){extBookingError=e.message||String(e);extBookingMap=new Map()}
  extDrawShiftTable();extSourceStatus()}
 function extCairoDay(){const parts=new Intl.DateTimeFormat('en-US',{timeZone:'Africa/Cairo',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());const get=t=>parts.find(p=>p.type===t).value;return get('year')+'-'+get('month')+'-'+get('day')}
