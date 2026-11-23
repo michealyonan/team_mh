@@ -55,14 +55,18 @@ async function ensureSchema(env) {
 async function rateLimit(env, key, max, windowMs, lockMs) {
   const now = Date.now();
   const row = await env.DB.prepare('SELECT n, until FROM rl WHERE k=?').bind(key).first();
-  if (row && row.until && row.until > now) return Math.ceil((row.until - now) / 1000);
-  if (!row || now - (row.until || 0) >= 0) {
-    const fresh = !row || (row.until || 0) <= now - windowMs;
-    const n = fresh ? 1 : row.n + 1;
-    const until = n >= max ? now + lockMs : now + windowMs;
-    await env.DB.prepare('INSERT INTO rl(k,n,until) VALUES(?,?,?) ON CONFLICT(k) DO UPDATE SET n=excluded.n, until=excluded.until').bind(key, n, until).run();
-    if (n >= max) return Math.ceil(lockMs / 1000);
+  if (row) {
+    if (row.n >= max && row.until > now) return Math.ceil((row.until - now) / 1000);
+    if (row.until <= now) {
+      await env.DB.prepare('UPDATE rl SET n=1, until=? WHERE k=?').bind(now + windowMs, key).run();
+      return 0;
+    }
+    const n = row.n + 1;
+    const until = n >= max ? now + lockMs : row.until;
+    await env.DB.prepare('UPDATE rl SET n=?, until=? WHERE k=?').bind(n, until, key).run();
+    return n >= max ? Math.ceil(lockMs / 1000) : 0;
   }
+  await env.DB.prepare('INSERT INTO rl(k,n,until) VALUES(?,1,?)').bind(key, now + windowMs).run();
   return 0;
 }
 
