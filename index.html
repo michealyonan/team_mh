@@ -3152,7 +3152,7 @@ function saveU(a){gstat()}
 function gstat(){const e=$('gst');if(e)e.textContent='✅ كل التعديلات بتتحفظ على السيرفر مباشرة وتتطبق على كل الأجهزة فورًا'}
 function scope(rows){if(!CUR||CUR.r==='admin')return rows;if(CUR.r==='monitor')return[];const k=CUR.r==='manager'?'m':'s',userName=nameMatchKey(CUR.s);return rows.filter(r=>nameMatchKey(r[k])===userName)}
 
-const REMEMBER_LOGIN_KEY='pd_remember_login',REMEMBER_LOGIN_MS=7*24*60*60*1000;async function enter(x,remember){CUR=x;updateLiveRoleControls(x);const monitor=x.r==='monitor';document.querySelector('main').style.display=monitor?'none':'';$('navMenuToggle').style.display=monitor?'none':'';document.querySelectorAll('.nav-drawer-links>button').forEach(button=>button.style.display=monitor?'none':'');if(monitor){$('liveB').style.display='';$('liveClose').style.display='none';openLivePanel()}else $('liveClose').style.display='';try{if(remember===true)localStorage.setItem(REMEMBER_LOGIN_KEY,JSON.stringify({t:x.token||'',expires:Date.now()+REMEMBER_LOGIN_MS}));else if(remember===false)localStorage.removeItem(REMEMBER_LOGIN_KEY);sessionStorage.setItem('pd_token',x.token||'')}catch(e){}idleReset();startNotifLoop(monitor);if(!monitor){captureGeo();if(!x.has_email||!x.has_phone){const nk='pd_contact_nudged_'+(x.u||'');let seen=false;try{seen=!!localStorage.getItem(nk)}catch(e){}if(!seen){try{localStorage.setItem(nk,'1')}catch(e){}openProfile();setTimeout(()=>{const e=$("pfErr");if(e){e.style.color="#fbbf24";e.textContent="📇 كمّل الجيميل ورقم الواتساب من هنا - مرة واحدة، وأي تعديل بعد كده من الملف الشخصي"}},400)}}}logDashboardOpen(x);
+const REMEMBER_LOGIN_KEY='pd_remember_login',REMEMBER_LOGIN_MS=7*24*60*60*1000;async function enter(x,remember){CUR=x;updateLiveRoleControls(x);const monitor=x.r==='monitor';document.querySelector('main').style.display=monitor?'none':'';$('navMenuToggle').style.display=monitor?'none':'';document.querySelectorAll('.nav-drawer-links>button').forEach(button=>button.style.display=monitor?'none':'');if(monitor){$('liveB').style.display='';$('liveClose').style.display='none';openLivePanel()}else $('liveClose').style.display='';try{if(remember===true)localStorage.setItem(REMEMBER_LOGIN_KEY,JSON.stringify({t:x.token||'',expires:Date.now()+REMEMBER_LOGIN_MS}));else if(remember===false)localStorage.removeItem(REMEMBER_LOGIN_KEY);sessionStorage.setItem('pd_token',x.token||'')}catch(e){}idleReset();startNotifLoop(monitor);initAndroidBridge();if(!monitor){captureGeo();if(!x.has_email||!x.has_phone){const nk='pd_contact_nudged_'+(x.u||'');let seen=false;try{seen=!!localStorage.getItem(nk)}catch(e){}if(!seen){try{localStorage.setItem(nk,'1')}catch(e){}openProfile();setTimeout(()=>{const e=$("pfErr");if(e){e.style.color="#fbbf24";e.textContent="📇 كمّل الجيميل ورقم الواتساب من هنا - مرة واحدة، وأي تعديل بعد كده من الملف الشخصي"}},400)}}}logDashboardOpen(x);
   const canViewSupervisorCharts=['admin','manager'].includes(x.r);
   $('supervisorPerformanceCard').style.display=canViewSupervisorCharts?'':'none';
   $('supervisorHoursCard').style.display=canViewSupervisorCharts?'':'none';
@@ -5766,6 +5766,13 @@ async function loadNotifs(show){
   }
  }catch(e){if(show)$('notifStatus').textContent='مش قادر أحمل الإشعارات — '+(e.message||e)}
 }
+function initAndroidBridge(){
+ if(!window.TeamMH)return;
+ const reg=()=>{try{const t=window.TeamMH.getFcmToken&&window.TeamMH.getFcmToken();if(t)api('/api/push/register',{method:'POST',body:{token:t}}).catch(()=>{})}catch(e){}};
+ reg();setTimeout(reg,8000);setTimeout(reg,30000);
+ try{const r=window.TeamMH.consumePendingRider&&window.TeamMH.consumePendingRider();if(r)setTimeout(()=>{try{showR(r)}catch(e){}},1500)}catch(e){}
+}
+window.teamMHRider=function(id){try{showR(id)}catch(e){}};
 async function sendAnnounce(){
  const st=$('ncStatus');st.textContent='جاري الإرسال…';
  try{
