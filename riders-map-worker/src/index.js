@@ -905,6 +905,54 @@ export default {
       return json(await response.json());
     }
 
+    if (url.pathname === '/api/forms/submit' && request.method === 'POST') {
+      const user = await getSessionUser(env, request);
+      if (!user) return json({ error: 'unauthorized' }, 401);
+      if (!['admin', 'manager', 'sup'].includes(user.r)) return json({ error: 'forbidden' }, 403);
+      const body = await request.json().catch(() => ({}));
+      const action = String(body.action || '');
+      const riderId = String(body.rider_id || '').replace(/[^0-9]/g, '');
+      const city = String(body.city || '').trim();
+      const duration = String(body.duration || '').trim();
+      const reason = String(body.reason || '').trim();
+      const zone = String(body.zone || '').trim();
+      if (!['extend', 'break'].includes(action)) return json({ error: 'bad_action' }, 400);
+      if (!riderId) return json({ error: 'bad_rider' }, 400);
+      if (!city) return json({ error: 'bad_city' }, 400);
+      if (action === 'extend' && !duration) return json({ error: 'bad_duration' }, 400);
+      const isAlex = city === 'الإسكندرية';
+      if (action === 'break' && isAlex && !reason) return json({ error: 'bad_reason' }, 400);
+      const relayUrl = isAlex ? env.FORM_RELAY_ALEX : env.FORM_RELAY_GENERAL;
+      if (!relayUrl || !env.FORM_RELAY_SECRET) return json({ error: 'relay_not_configured' }, 503);
+      const cityVal = zone || (city === 'الغردقة' ? 'الغرادقه' : city);
+      let fields, pageHistory;
+      if (isAlex) {
+        const m = duration.match(/(\d{1,2}):(\d{2})\s*(الفجر|الصبح|الضهر|العصر|بليل)/);
+        if (!m) return json({ error: 'bad_duration_format' }, 400);
+        let hh = parseInt(m[1], 10);
+        if (m[3] === 'الضهر' || m[3] === 'العصر') { if (hh !== 12) hh += 12; }
+        if (m[3] === 'بليل') { hh = hh === 12 ? 0 : hh + 12; }
+        if (action === 'extend') {
+          fields = { 'entry.1976663790': 'شيفتات الطيارين', 'entry.186608000': riderId, 'entry.2117629487': 'تزويدات شيفتات الطيارين', 'entry.536642639_hour': String(hh), 'entry.536642639_minute': m[2] };
+          pageHistory = '0,1,2';
+        } else {
+          fields = { 'entry.1976663790': 'شيفتات الطيارين', 'entry.186608000': riderId, 'entry.2117629487': 'البريكات', 'entry.1290442973': 'فك بريك', 'entry.1831411232': reason };
+          pageHistory = '0,1,15';
+        }
+      } else if (action === 'extend') {
+        fields = { 'entry.302135773': 'شيفتات الطيارين', 'entry.1941659317': 'تزويدات شيفتات الطيارين', 'entry.1552166535': duration, 'entry.1026285494': riderId, 'entry.1529435164': cityVal };
+        pageHistory = '0,1,2';
+      } else {
+        fields = { 'entry.302135773': 'شيفتات الطيارين', 'entry.1941659317': 'فك بريك', 'entry.264752225': riderId, 'entry.1551386634': cityVal };
+        pageHistory = '0,1,6';
+      }
+      const resp = await fetch(relayUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ secret: env.FORM_RELAY_SECRET, formId: isAlex ? '1FAIpQLSffSwyTh0w4AYjTU9AG-kj-0UfJHcSTSYnR1DrWJ_h8iPYm3Q' : '1FAIpQLSekxaUQPgiWq-Y_IPfsTx7wTANA324a2JklFJZ_Gxg9CGPaKA', fields, pageHistory }) });
+      const result = await resp.json().catch(() => ({}));
+      try { await env.DB.prepare('INSERT INTO form_submissions(u,action,rider_id,city,payload,result,ts) VALUES(?,?,?,?,?,?,?)').bind(user.u, action, riderId, city, JSON.stringify(fields), JSON.stringify(result), Date.now()).run(); } catch (e) {}
+      if (!resp.ok || result.error || (result.status && result.status >= 400)) return json({ error: 'relay_failed', detail: result.error || ('HTTP ' + (result.status || resp.status)) }, 502);
+      return json({ ok: true, result });
+    }
+
     if (url.pathname === '/api/ws-ticket' && request.method === 'POST') {
       if (!env.MAP_VIEW_TOKEN || !safeEqual(request.headers.get('Authorization') || '', `Bearer ${env.MAP_VIEW_TOKEN}`)) return json({ error: 'unauthorized' }, 401);
       const ticket = `${crypto.randomUUID()}${crypto.randomUUID()}`;
