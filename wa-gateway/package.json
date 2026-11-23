@@ -1,0 +1,17 @@
+{
+  "name": "wa-gw",
+  "version": "1.0.0",
+  "private": true,
+  "type": "commonjs",
+  "main": "server.cjs",
+  "scripts": {
+    "start": "node server.cjs"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "6.7.24",
+    "qrcode": "1.5.4"
+  },
+  "engines": {
+    "node": "22.x"
+  }
+}
