@@ -649,6 +649,7 @@ export default {
       'Access-Control-Max-Age': '86400',
       'Vary': 'Origin',
     };
+    const serverErr = (e) => { const m = String(e && e.message || e); return /daily|quota|exceed|storage limit/i.test(m) ? json({ error: 'writes_paused' }, 503) : json({ error: 'server_error', detail: m }, 500); };
     const json = (data, status = 200) => new Response(JSON.stringify(data), {
       status,
       headers: { ...cors, 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' },
@@ -664,7 +665,7 @@ export default {
         const handled = await handleAuth(request, env, json, url);
         if (handled) return handled;
       } catch (e) {
-        return json({ error: 'server_error', detail: String(e && e.message || e) }, 500);
+        return serverErr(e);
       }
       return json({ error: 'not_found' }, 404);
     }
@@ -730,7 +731,7 @@ export default {
         for (const u2 of targets) await insertNotification(env, u2, head, full, '');
         return json({ ok: true, sent: targets.length });
       } catch (e) {
-        return json({ error: 'server_error', detail: String(e && e.message || e) }, 500);
+        return serverErr(e);
       }
     }
 
@@ -754,7 +755,7 @@ export default {
         }
         return json({ error: 'not_found' }, 404);
       } catch (e) {
-        return json({ error: 'server_error', detail: String(e && e.message || e) }, 500);
+        return serverErr(e);
       }
     }
 
@@ -790,7 +791,7 @@ export default {
         if (!token) return json({ error: 'missing_fields' }, 400);
         await env.DB.prepare('INSERT INTO push_tokens(u,token,ts) VALUES(?,?,?) ON CONFLICT(u,token) DO UPDATE SET ts=excluded.ts').bind(user.u, token, Date.now()).run();
         return json({ ok: true });
-      } catch (e) { return json({ error: 'server_error', detail: String(e && e.message || e) }, 500); }
+      } catch (e) { return serverErr(e); }
     }
 
     if (url.pathname === '/api/assistant' && request.method === 'POST') {
@@ -819,7 +820,7 @@ export default {
         });
         const ans = String((r && r.response) || '').trim();
         return json({ ok: true, answer: ans || 'معنديش إجابة واضحة من البيانات الحالية.' });
-      } catch (e) { return json({ error: 'server_error', detail: String(e && e.message || e) }, 500); }
+      } catch (e) { return serverErr(e); }
     }
 
     if (url.pathname === '/api/notifications' || url.pathname === '/api/notifications/test') {
@@ -846,7 +847,7 @@ export default {
         }
         return json({ error: 'not_found' }, 404);
       } catch (e) {
-        return json({ error: 'server_error', detail: String(e && e.message || e) }, 500);
+        return serverErr(e);
       }
     }
 
