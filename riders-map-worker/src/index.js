@@ -602,18 +602,26 @@ async function runStatusCron(env) {
       sup: String(r[16] || '').trim().slice(0, 80),
     });
   }
-  const prevRows = await env.DB.prepare('SELECT rider_id,state FROM rider_states').all();
-  const prev = new Map((prevRows.results || []).map(r => [r.rider_id, r.state]));
+  const prevRows = await env.DB.prepare('SELECT rider_id,name,state,sup FROM rider_states').all();
+  const prev = new Map((prevRows.results || []).map(r => [r.rider_id, { state: r.state, name: r.name, sup: r.sup }]));
   const seeded = prev.size > 0;
   const stmts = [];
+  const changed = [];
   for (const [id, cur] of current) {
+    const old = prev.get(id);
+    if (old && old.state === cur.state && old.name === cur.name && old.sup === cur.sup) continue; // unchanged: no write
     stmts.push(env.DB.prepare('INSERT INTO rider_states(rider_id,name,state,sup,updated) VALUES(?,?,?,?,?) ON CONFLICT(rider_id) DO UPDATE SET name=excluded.name, state=excluded.state, sup=excluded.sup, updated=excluded.updated')
       .bind(id, cur.name, cur.state, cur.sup, Date.now()));
+    changed.push([id, cur, old]);
   }
+  // riders that vanished from the sheet: drop their state rows
+  const gone = [];
+  for (const id of prev.keys()) if (!current.has(id)) gone.push(env.DB.prepare('DELETE FROM rider_states WHERE rider_id=?').bind(id));
+  if (gone.length) stmts.push(...gone);
   if (stmts.length) await env.DB.batch(stmts);
   if (!seeded) return; // first run seeds state without notifying
-  for (const [id, cur] of current) {
-    const oldState = prev.get(id);
+  for (const [id, cur, old] of changed) {
+    const oldState = old ? old.state : undefined;
     if (oldState === undefined || oldState === cur.state || !cur.state) continue;
     const targets = new Map();
     if (cur.sup) {
