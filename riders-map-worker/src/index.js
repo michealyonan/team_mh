@@ -53,6 +53,8 @@ async function ensureSchema(env) {
       title TEXT NOT NULL DEFAULT '', body TEXT NOT NULL DEFAULT '', rider_id TEXT NOT NULL DEFAULT '',
       ts INTEGER NOT NULL)`),
     env.DB.prepare(`CREATE INDEX IF NOT EXISTS notif_ud ON notifications(u, day, id)`),
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS login_fails(
+      u TEXT PRIMARY KEY, n INTEGER NOT NULL DEFAULT 0)`),
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS geo(
       u TEXT PRIMARY KEY, lat REAL, lon REAL, acc REAL, ts INTEGER NOT NULL)`),
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS rider_states(
@@ -96,6 +98,13 @@ function cairoDay(ts) {
 async function insertNotification(env, u, title, body, riderId) {
   await env.DB.prepare('INSERT INTO notifications(u,day,title,body,rider_id,ts) VALUES(?,?,?,?,?,?)')
     .bind(u, cairoDay(), String(title || '').slice(0, 120), String(body || '').slice(0, 500), String(riderId || '').slice(0, 40), Date.now()).run();
+}
+
+async function enforceDeviceLimit(env, u, maxSessions) {
+  const rows = await env.DB.prepare('SELECT token FROM sessions WHERE u=? AND expires>? ORDER BY created DESC').bind(u, Date.now()).all();
+  const list = (rows.results || []).map(r => r.token);
+  const excess = list.slice(Math.max(0, (maxSessions || 4) - 1));
+  for (const t of excess) await env.DB.prepare('DELETE FROM sessions WHERE token=?').bind(t).run();
 }
 
 async function issueSession(env, u, remember) {
@@ -166,7 +175,20 @@ async function handleAuth(request, env, json, url) {
     const wait = await rateLimit(env, 'login:' + u, 8, 10 * 60 * 1000, 60 * 1000);
     if (wait) return json({ error: 'locked', wait }, 429);
     const user = await env.DB.prepare('SELECT * FROM users WHERE u=?').bind(u).first();
-    if (!user || user.status === 'disabled' || !safeEqual(user.h, await hp(u, String(body.p)))) return json({ error: 'invalid_credentials' }, 401);
+    if (!user || user.status === 'disabled') return json({ error: 'invalid_credentials' }, 401);
+    if (user.status === 'suspended') return json({ error: 'suspended' }, 403);
+    if (!safeEqual(user.h, await hp(u, String(body.p)))) {
+      await env.DB.prepare('INSERT INTO login_fails(u,n) VALUES(?,1) ON CONFLICT(u) DO UPDATE SET n=n+1').bind(u).run();
+      const f = await env.DB.prepare('SELECT n FROM login_fails WHERE u=?').bind(u).first();
+      if (f && f.n >= 5) {
+        await env.DB.prepare("UPDATE users SET status='suspended', updated_at=? WHERE u=?").bind(Date.now(), u).run();
+        await env.DB.prepare('DELETE FROM sessions WHERE u=?').bind(u).run();
+        return json({ error: 'suspended' }, 403);
+      }
+      return json({ error: 'invalid_credentials', attempts_left: 5 - (f ? f.n : 1) }, 401);
+    }
+    await env.DB.prepare('DELETE FROM login_fails WHERE u=?').bind(u).run();
+    await enforceDeviceLimit(env, u, 4);
     const token = await issueSession(env, u, !!body.remember);
     await env.DB.prepare('DELETE FROM rl WHERE k=?').bind('login:' + u).run();
     return json({ token, profile: profile(user) });
@@ -347,6 +369,14 @@ async function handleAuth(request, env, json, url) {
       }
       await env.DB.prepare('DELETE FROM users WHERE u=?').bind(u).run();
       await env.DB.prepare('DELETE FROM sessions WHERE u=?').bind(u).run();
+      return json({ ok: true });
+    }
+
+    if (p === '/api/auth/admin/users/reactivate' && request.method === 'POST') {
+      const u2 = String(body && body.u || '').toLowerCase();
+      if (!u2) return json({ error: 'missing_fields' }, 400);
+      await env.DB.prepare("UPDATE users SET status='active', updated_at=? WHERE u=?").bind(Date.now(), u2).run();
+      await env.DB.prepare('DELETE FROM login_fails WHERE u=?').bind(u2).run();
       return json({ ok: true });
     }
 
