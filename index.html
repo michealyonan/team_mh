@@ -1149,7 +1149,7 @@ html[data-theme="light"] body{background:radial-gradient(ellipse at 8% 0%,#d6f4f
    <button class="btn" id="riderDetailsB" type="button" aria-expanded="false">📋 تفاصيل الطيارين</button>
    <button class="btn" id="riderMapB" type="button" aria-expanded="false" aria-controls="riderMapPanel" style="display:none">🗺️ خريطة المناديب</button>
    <button class="btn" id="liveB" type="button" style="display:none" aria-controls="livePanel" aria-expanded="false">🔴 Live</button><button class="btn" id="bookingDashboardB" style="display:none">🗓️ ان اصين</button>
-   <button class="btn" id="reportsB" type="button" aria-expanded="false">📊 تقارير أداء</button><button class="btn" id="prB" style="display:none">💰 أسعار الباتشات</button><button class="btn" id="usrB" style="display:none">👥 المستخدمين</button><button class="btn" id="contactsB" style="display:none" onclick="toggleNavDrawer(false);openContacts()">📇 دليل الاتصالات</button><button class="btn" id="loginAuditB" style="display:none">🕵️ سجل الدخول</button><button class="btn" id="tgB" style="display:none">🎯 التارجت</button><button class="btn" id="hcB" style="display:none">👥 هيد كونت</button><button class="btn" id="dedB" style="display:none">🏢 الشركة</button><button class="btn" id="queriesB" style="display:none">📨 الاستعلامات</button><button class="btn" id="payB" type="button" style="display:none" aria-controls="payPanel" aria-expanded="false">💵 القبض</button>
+   <button class="btn" id="reportsB" type="button" aria-expanded="false">📊 تقارير أداء</button><button class="btn" id="prB" style="display:none">💰 أسعار الباتشات</button><button class="btn" id="usrB" style="display:none">👥 المستخدمين</button><button class="btn" id="contactsB" style="display:none" onclick="toggleNavDrawer(false);openContacts()">📇 دليل الاتصالات</button><button class="btn" id="profileB" style="display:none" onclick="toggleNavDrawer(false);openProfile()">👤 الملف الشخصي</button><button class="btn" id="loginAuditB" style="display:none">🕵️ سجل الدخول</button><button class="btn" id="tgB" style="display:none">🎯 التارجت</button><button class="btn" id="hcB" style="display:none">👥 هيد كونت</button><button class="btn" id="dedB" style="display:none">🏢 الشركة</button><button class="btn" id="queriesB" style="display:none">📨 الاستعلامات</button><button class="btn" id="payB" type="button" style="display:none" aria-controls="payPanel" aria-expanded="false">💵 القبض</button>
   </nav>
  </aside>
 </div>
@@ -1187,6 +1187,23 @@ html[data-theme="light"] body{background:radial-gradient(ellipse at 8% 0%,#d6f4f
    <input id="cs" type="search" placeholder="🔎 ابحث بالاسم أو المستخدم أو الرقم" oninput="renderContacts()" style="width:100%;margin:10px 0">
    <div class="sub" id="cstat" style="margin-bottom:6px"></div>
    <div id="clist" style="display:grid;gap:8px;max-height:65vh;overflow:auto"></div>
+  </div>
+ </div>
+<div id="profileModal" style="display:none;position:fixed;inset:0;background:#000c;z-index:75;overflow:auto;padding:12px" onclick="if(event.target===this)this.style.display='none'">
+  <div class="card" style="max-width:520px;margin:auto">
+   <div class="row"><h3 style="margin:0">👤 الملف الشخصي</h3><button class="btn" style="margin-inline-start:auto" onclick="$('profileModal').style.display='none'">✕</button></div>
+   <div style="text-align:center;margin:12px 0">
+    <img id="pfImg" style="display:none;width:112px;height:112px;border-radius:50%;object-fit:cover;border:2px solid var(--pr)" alt="الصورة الشخصية">
+    <div id="pfNoImg" style="width:112px;height:112px;border-radius:50%;border:2px dashed var(--bd);display:inline-flex;align-items:center;justify-content:center;font-size:40px">👤</div>
+    <div style="margin-top:8px"><button class="btn" type="button" onclick="$('pfFile').click()">📷 تغيير الصورة</button><input id="pfFile" type="file" accept="image/*" style="display:none" onchange="uploadPhoto(this)"></div>
+    <div class="sub" id="pfStatus" role="status" style="margin-top:4px"></div>
+   </div>
+   <div id="pfInfo" class="sub" style="line-height:2;margin-bottom:10px"></div>
+   <label for="pfE">الجيميل</label><input id="pfE" type="email" inputmode="email" dir="ltr" style="text-align:left;width:100%">
+   <label for="pfP">رقم الواتساب</label><input id="pfP" inputmode="tel" dir="ltr" style="text-align:left;width:100%">
+   <label for="pfC">أكواد الدخول توصلني على</label><select id="pfC" style="width:100%"><option value="email">الجيميل</option><option value="whatsapp">الواتساب</option></select>
+   <div class="sub" id="pfErr" role="alert" style="color:#f87171;margin-top:4px"></div>
+   <button class="btn pr" type="button" style="min-height:44px;margin-top:8px" onclick="saveProfile()">حفظ ←</button>
   </div>
  </div>
  <div id="loginAuditModal" style="display:none;position:fixed;inset:0;background:#000c;z-index:75;overflow:auto;padding:12px" onclick="if(event.target===this)this.style.display='none'">
@@ -3131,7 +3148,7 @@ const REMEMBER_LOGIN_KEY='pd_remember_login',REMEMBER_LOGIN_MS=7*24*60*60*1000;a
   $('riderRatingsCard').style.display=x.r==='sup'?'none':'';
   $('dailyHistoryCard').style.display=x.r==='sup'?'none':'';
   $('vehicleChartCard').style.display=x.r==='sup'?'none':'';
-  $('lg').style.display='none';$('who').textContent='👤 '+x.n+' · '+ROLE[x.r]+(x.r==='admin'&&!LOGIN_AUDIT_ENDPOINT?' · ⚠️ سجل الدخول المركزي غير مفعّل':'');$('usrB').style.display=x.r==='admin'?'':'none';$('contactsB').style.display=x.r==='admin'?'':'none';$('loginAuditB').style.display=x.r==='admin'?'':'none';$('tgB').style.display=x.r==='admin'?'':'none';$('supCaptureAll').style.display=x.r==='admin'?'':'none';$('zoneCaptureAll').style.display=['admin','manager'].includes(x.r)?'':'none';$('zoneCaptureAll').textContent=x.r==='manager'?'🗺️📸 تنزيل صور مناطقي':'🗺️📸 تنزيل صور كل المناطق';$('hcB').style.display=hcCanAccess(x)?'':'none';$('dedB').style.display=['admin','manager','sup'].includes(x.r)?'':'none';$('bookingDashboardB').style.display=bookingCanAccessDashboard(x)?'':'none';bookingApplyRoleAccess(x);$('payB').style.display=['admin','manager','sup'].includes(x.r)?'':'none';$('payB').classList.toggle('pay-access',['admin','manager','sup'].includes(x.r));$('prB').style.display=monitor?'none':'';$('queriesB').style.display=monitor?'none':'';$('reportsB').style.display=monitor?'none':'';$('riderDetailsB').style.display=monitor?'none':'';$('riderMapB').style.display=['admin','sup'].includes(x.r)?'':'none';if(x.r==='viewer')await initViewer(x);load()}
+  $('lg').style.display='none';$('who').textContent='👤 '+x.n+' · '+ROLE[x.r]+(x.r==='admin'&&!LOGIN_AUDIT_ENDPOINT?' · ⚠️ سجل الدخول المركزي غير مفعّل':'');$('usrB').style.display=x.r==='admin'?'':'none';$('contactsB').style.display=x.r==='admin'?'':'none';$('loginAuditB').style.display=x.r==='admin'?'':'none';$('tgB').style.display=x.r==='admin'?'':'none';$('supCaptureAll').style.display=x.r==='admin'?'':'none';$('zoneCaptureAll').style.display=['admin','manager'].includes(x.r)?'':'none';$('zoneCaptureAll').textContent=x.r==='manager'?'🗺️📸 تنزيل صور مناطقي':'🗺️📸 تنزيل صور كل المناطق';$('hcB').style.display=hcCanAccess(x)?'':'none';$('dedB').style.display=['admin','manager','sup'].includes(x.r)?'':'none';$('bookingDashboardB').style.display=bookingCanAccessDashboard(x)?'':'none';bookingApplyRoleAccess(x);$('payB').style.display=['admin','manager','sup'].includes(x.r)?'':'none';$('payB').classList.toggle('pay-access',['admin','manager','sup'].includes(x.r));$('prB').style.display=monitor?'none':'';$('profileB').style.display=monitor?'none':'';$('queriesB').style.display=monitor?'none':'';$('reportsB').style.display=monitor?'none':'';$('riderDetailsB').style.display=monitor?'none':'';$('riderMapB').style.display=['admin','sup'].includes(x.r)?'':'none';if(x.r==='viewer')await initViewer(x);load()}
 let USERS=USERS_EMBED.concat(MONITOR_USERS_EMBED),DRAFT=null,VAULT=PW_EMBED;
 async function loadUsers(){}
 async function boot(){await loadUsers();boot0();loadSupervisorTargets()}
@@ -5750,6 +5767,46 @@ function renderContacts(){
  const rows=(USERS||[]).filter(x=>['sup','manager','admin'].includes(x.r)&&(!q||[x.n,x.u,x.email,x.phone].join(' ').toLowerCase().includes(q)));
  $('cstat').textContent='العدد: '+rows.length;
  $('clist').innerHTML=rows.map(x=>'<div class="card" style="padding:10px 12px"><div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><b>'+esc(x.n)+'</b><span class="sub">'+esc(ROLE[x.r]||x.r)+'</span></div><div class="sub" dir="ltr" style="text-align:left;margin-top:2px">'+esc(x.u)+'</div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">'+(x.phone?'<a class="btn" href="tel:'+esc(x.phone)+'" style="text-decoration:none;min-height:36px">📱 '+esc(x.phone)+'</a>':'<span class="sub">📱 لسه مش متسجل</span>')+(x.email?'<a class="btn" href="mailto:'+esc(x.email)+'" style="text-decoration:none;min-height:36px" dir="ltr">✉️ '+esc(x.email)+'</a>':'<span class="sub">✉️ لسه مش متسجل</span>')+'</div></div>').join('')||'<div class="sub">مفيش نتائج</div>';
+}
+async function openProfile(){
+ $('profileModal').style.display='';$('pfErr').textContent='';$('pfStatus').textContent='';
+ let zones=[];try{if(CUR&&!['admin','monitor'].includes(CUR.r))zones=zOf(CUR.r==='manager'?'m':'s',CUR.s)}catch(e){}
+ $('pfInfo').innerHTML='<b style="font-size:16px">'+esc(CUR.n)+'</b><br>المستخدم: <span dir="ltr">'+esc(CUR.u)+'</span> · '+esc(ROLE[CUR.r]||CUR.r)+(CUR.s?'<br>مرتبط بـ: '+esc(CUR.s):'')+(zones.length?'<br>📍 '+esc(zones.join('، ')):'');
+ $('pfE').value=CUR.email||'';$('pfP').value=CUR.phone||'';$('pfC').value=CUR.channel||'email';
+ try{
+  const d=await api('/api/auth/profile/photo');
+  if(d.photo){$('pfImg').src=d.photo;$('pfImg').style.display='inline-block';$('pfNoImg').style.display='none'}
+  else{$('pfImg').style.display='none';$('pfNoImg').style.display='inline-flex'}
+ }catch(e){}
+}
+async function saveProfile(){
+ const err=$('pfErr');err.textContent='';
+ try{
+  await api('/api/auth/complete-contact',{method:'POST',body:{email:$('pfE').value.trim(),phone:$('pfP').value.trim(),channel:$('pfC').value}});
+  CUR.email=$('pfE').value.trim();CUR.phone=$('pfP').value.trim();CUR.channel=$('pfC').value;CUR.has_email=!!CUR.email;CUR.has_phone=!!CUR.phone;
+  err.style.color='#4ade80';err.textContent='اتحفظ ✅';setTimeout(()=>{err.style.color='#f87171';err.textContent=''},2000);
+ }catch(e){err.textContent=authErr(e)}
+}
+function uploadPhoto(input){
+ const file=input.files&&input.files[0];input.value='';if(!file)return;
+ const st=$('pfStatus');st.textContent='جاري معالجة الصورة…';
+ const reader=new FileReader();
+ reader.onload=()=>{const img=new Image();
+  img.onload=()=>{
+   const size=256,scale=Math.min(1,size/Math.max(img.width,img.height));
+   const cv=document.createElement('canvas');cv.width=Math.round(img.width*scale);cv.height=Math.round(img.height*scale);
+   cv.getContext('2d').drawImage(img,0,0,cv.width,cv.height);
+   const data=cv.toDataURL('image/jpeg',0.8);
+   if(data.length>170000){st.textContent='الصورة كبيرة حتى بعد الضغط — جرب صورة أصغر';return}
+   st.textContent='جاري الرفع…';
+   api('/api/auth/profile/photo',{method:'POST',body:{photo:data}}).then(()=>{
+    st.textContent='اتحفظت ✅';$('pfImg').src=data;$('pfImg').style.display='inline-block';$('pfNoImg').style.display='none';
+   }).catch(e=>{st.textContent='فشل الرفع: '+(e.message||e)});
+  };
+  img.onerror=()=>{st.textContent='الملف مش صورة صالحة'};
+  img.src=reader.result;
+ };
+ reader.readAsDataURL(file);
 }
 function toggleNavDrawer(open){
   const backdrop=$('navDrawerBackdrop'),toggle=$('navMenuToggle');

@@ -63,6 +63,7 @@ async function ensureSchema(env) {
       rider_id TEXT PRIMARY KEY, name TEXT NOT NULL DEFAULT '', state TEXT NOT NULL DEFAULT '',
       sup TEXT NOT NULL DEFAULT '', updated INTEGER NOT NULL)`),
   ]);
+  try { await env.DB.prepare("ALTER TABLE users ADD COLUMN photo TEXT NOT NULL DEFAULT ''").run(); } catch {}
   schemaReady = true;
 }
 
@@ -169,7 +170,7 @@ async function handleAuth(request, env, json, url) {
   const p = url.pathname;
   let body = request.method === 'POST' ? await request.json().catch(() => null) : null;
   if (typeof body === 'string') { try { body = JSON.parse(body); } catch { body = null; } }
-  const profile = (u) => ({ u: u.u, n: u.n, r: u.r, s: u.s, has_email: !!u.email, has_phone: !!u.phone });
+  const profile = (u) => ({ u: u.u, n: u.n, r: u.r, s: u.s, has_email: !!u.email, has_phone: !!u.phone, email: u.email || '', phone: u.phone || '', channel: u.channel || '' });
 
   // --- public ---
   if (p === '/api/auth/login' && request.method === 'POST') {
@@ -270,6 +271,24 @@ async function handleAuth(request, env, json, url) {
     await env.DB.prepare('UPDATE users SET h=?, updated_at=? WHERE u=?').bind(await hp(u, p2), Date.now(), u).run();
     await env.DB.prepare('DELETE FROM sessions WHERE u=?').bind(u).run();
     return json({ ok: true });
+  }
+
+  if (p === '/api/auth/profile/photo' && request.method === 'POST') {
+    const user = await getSessionUser(env, request);
+    if (!user) return json({ error: 'unauthorized' }, 401);
+    const photo = String(body && body.photo || '');
+    if (!/^data:image\/(jpeg|png);base64,[A-Za-z0-9+/=]+$/.test(photo) || photo.length > 180000) return json({ error: 'invalid_photo' }, 400);
+    await env.DB.prepare('UPDATE users SET photo=?, updated_at=? WHERE u=?').bind(photo, Date.now(), user.u).run();
+    return json({ ok: true });
+  }
+
+  if (p === '/api/auth/profile/photo' && request.method === 'GET') {
+    const user = await getSessionUser(env, request);
+    if (!user) return json({ error: 'unauthorized' }, 401);
+    const q = String(url.searchParams.get('u') || '').toLowerCase().slice(0, 60);
+    const target = (q && ['admin', 'manager'].includes(user.r)) ? q : user.u;
+    const row = await env.DB.prepare('SELECT photo FROM users WHERE u=?').bind(target).first();
+    return json({ photo: (row && row.photo) || '' });
   }
 
   if (p === '/api/auth/viewer-access' && request.method === 'GET') {
