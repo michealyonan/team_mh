@@ -1204,6 +1204,7 @@ html[data-theme="light"] body{background:radial-gradient(ellipse at 8% 0%,#d6f4f
     <button class="btn" id="riderMapB" type="button" aria-expanded="false" aria-controls="riderMapPanel" style="display:none">🗺️ خريطة المناديب</button>
     <button class="btn" id="liveB" type="button" style="display:none" aria-controls="livePanel" aria-expanded="false">🔴 Live</button>
     <button class="btn" id="bookingDashboardB" style="display:none">🗓️ ان اصين</button>
+    <button class="btn" id="extB" type="button" aria-expanded="false" aria-controls="extPanel" style="display:none">⚡ المد وفك البريك</button>
    </div>
    <div class="nav-group"><div class="nav-group-title">📊 التقارير والأداء</div>
     <button class="btn" id="reportsB" type="button" aria-expanded="false">📊 تقارير أداء</button>
@@ -1656,6 +1657,18 @@ header{box-shadow:0 8px 24px rgba(2,8,23,.5)}
    </div>
   </div>
  </div>
+<div class="ov section-screen" id="extPanel" style="display:none" role="dialog" aria-modal="true" aria-labelledby="extTitle" aria-hidden="true" onclick="if(event.target===this)closeExtPanel()">
+ <section class="section-screen-wrap">
+  <div class="section-screen-heading"><h2 id="extTitle">⚡ المد وفك البريك</h2><button class="btn" type="button" aria-label="إغلاق" onclick="closeExtPanel()">✕ إغلاق</button></div>
+  <div class="card"><label for="extRiderSearch">🔎 المندوب</label><input id="extRiderSearch" type="search" placeholder="ابحث بالاسم أو كود المندوب" style="width:100%;min-height:42px"><div id="extRiderList" style="max-height:200px;overflow:auto;display:grid;gap:6px;margin-top:8px"></div></div>
+  <div class="card"><div class="sub" style="margin-bottom:6px">الإجراء:</div><div class="chips" id="extActionChips"><button class="chip on" data-extaction="extend" type="button">⏫ مد الشيفت</button><button class="chip" data-extaction="break" type="button">☕ فك بريك</button></div></div>
+  <div class="card" id="extDurationCard"><label for="extDuration">⏱ المد لحد الساعة:</label><select id="extDuration" style="width:100%;min-height:42px"></select></div>
+  <div class="card"><label for="extCity">🏙 المدينة / الزون:</label><select id="extCity" style="width:100%;min-height:42px"></select></div>
+  <div id="extMessage" role="status" aria-live="polite" class="sub" style="margin:6px 0"></div>
+  <button class="btn pr" id="extSubmit" type="button" style="min-height:46px;font-size:15px">إرسال الطلب ✅</button>
+  <div class="sub" style="margin-top:8px">الطلب بيتبعت على فورم الشركة مباشرة، زي برنامج الكمبيوتر بالظبط.</div>
+ </section>
+</div>
  <div class="ov" id="queries">
  <div class="queries-wrap">
   <div class="row queries-head" style="margin:0">
@@ -3276,7 +3289,7 @@ const REMEMBER_LOGIN_KEY='pd_remember_login',REMEMBER_LOGIN_MS=7*24*60*60*1000;a
   $('riderRatingsCard').style.display=x.r==='sup'?'none':'';
   $('dailyHistoryCard').style.display=x.r==='sup'?'none':'';
   $('vehicleChartCard').style.display=x.r==='sup'?'none':'';
-  $('lg').style.display='none';$('who').textContent='👤 '+x.n+' · '+ROLE[x.r]+(x.r==='admin'&&!LOGIN_AUDIT_ENDPOINT?' · ⚠️ سجل الدخول المركزي غير مفعّل':'');$('usrB').style.display=x.r==='admin'?'':'none';$('loginAuditB').style.display=x.r==='admin'?'':'none';$('themeB').style.display=x.r==='admin'?'':'none';$('tgB').style.display=x.r==='admin'?'':'none';$('supCaptureAll').style.display=x.r==='admin'?'':'none';$('zoneCaptureAll').style.display=['admin','manager'].includes(x.r)?'':'none';$('zoneCaptureAll').textContent=x.r==='manager'?'🗺️📸 تنزيل صور مناطقي':'🗺️📸 تنزيل صور كل المناطق';$('hcB').style.display=hcCanAccess(x)?'':'none';$('dedB').style.display=['admin','manager','sup'].includes(x.r)?'':'none';$('bookingDashboardB').style.display=bookingCanAccessDashboard(x)?'':'none';bookingApplyRoleAccess(x);$('payB').style.display=['admin','manager','sup'].includes(x.r)?'':'none';$('payB').classList.toggle('pay-access',['admin','manager','sup'].includes(x.r));$('prB').style.display=monitor?'none':'';$('profileB').style.display=monitor?'none':'';$('queriesB').style.display=monitor?'none':'';$('reportsB').style.display=monitor?'none':'';$('riderDetailsB').style.display=monitor?'none':'';$('riderMapB').style.display=['admin','sup'].includes(x.r)?'':'none';if(x.r==='viewer'){syncNavGroups();await initViewer(x)}else syncNavGroups();load()}
+  $('lg').style.display='none';$('who').textContent='👤 '+x.n+' · '+ROLE[x.r]+(x.r==='admin'&&!LOGIN_AUDIT_ENDPOINT?' · ⚠️ سجل الدخول المركزي غير مفعّل':'');$('usrB').style.display=x.r==='admin'?'':'none';$('loginAuditB').style.display=x.r==='admin'?'':'none';$('themeB').style.display=x.r==='admin'?'':'none';$('tgB').style.display=x.r==='admin'?'':'none';$('supCaptureAll').style.display=x.r==='admin'?'':'none';$('zoneCaptureAll').style.display=['admin','manager'].includes(x.r)?'':'none';$('zoneCaptureAll').textContent=x.r==='manager'?'🗺️📸 تنزيل صور مناطقي':'🗺️📸 تنزيل صور كل المناطق';$('hcB').style.display=hcCanAccess(x)?'':'none';$('dedB').style.display=['admin','manager','sup'].includes(x.r)?'':'none';$('bookingDashboardB').style.display=bookingCanAccessDashboard(x)?'':'none';$('extB').style.display=['admin','manager','sup'].includes(x.r)?'':'none';bookingApplyRoleAccess(x);$('payB').style.display=['admin','manager','sup'].includes(x.r)?'':'none';$('payB').classList.toggle('pay-access',['admin','manager','sup'].includes(x.r));$('prB').style.display=monitor?'none':'';$('profileB').style.display=monitor?'none':'';$('queriesB').style.display=monitor?'none':'';$('reportsB').style.display=monitor?'none':'';$('riderDetailsB').style.display=monitor?'none':'';$('riderMapB').style.display=['admin','sup'].includes(x.r)?'':'none';if(x.r==='viewer'){syncNavGroups();await initViewer(x)}else syncNavGroups();load()}
 let USERS=USERS_EMBED.concat(MONITOR_USERS_EMBED),DRAFT=null,VAULT=PW_EMBED;
 async function loadUsers(){}
 const LOGIN_THEMES=[
@@ -6308,6 +6321,20 @@ $('riderMapRestaurants').addEventListener('click',()=>riderMapShowList('restaura
 $('riderMapListClose').addEventListener('click',()=>$('riderMapListPanel').style.display='none');
 $('riderMapCopyKey').style.display=CUR&&CUR.r==='sup'?'':'none';
 $('riderMapCopyKey').addEventListener('click',async event=>{const button=event.currentTarget;try{await navigator.clipboard.writeText(RIDER_MAP_SUPERVISOR_KEY)}catch{const input=document.createElement('textarea');input.value=RIDER_MAP_SUPERVISOR_KEY;input.style.position='fixed';input.style.opacity='0';document.body.appendChild(input);input.select();document.execCommand('copy');input.remove()}const old=button.textContent;button.textContent='✅ تم نسخ كلمة المرور';setTimeout(()=>button.textContent=old,1800)});
+const EXT_CITIES=['الغردقة','الإسكندرية','المنصورة','السويس','الإسماعيلية','طنطا','المنيا','الزقازيق','Cairo city centre','Nasr city','Heliopolis','Maadi','Mokattam','Helwan','Shobra','Hadayek el qobba','Mohandiseen','Giza','Sheikh zayed','October','October wahat','October palm hills','6th of october','Smart village','Tagammoa north','Tagammoa south','Tagammoa golden square','El rehab city','Madinaty','Shorouk city','Hadayek el ahram'];
+const EXT_DURATIONS=['إلي 01:00 الفجر','إلي 02:00 الفجر','إلي 03:00 الفجر','إلي 04:00 الفجر','إلي 05:00 الفجر','إلي 08:00 الصبح','إلي 09:00 الصبح','إلي 10:00 الصبح','إلي 11:00 الصبح','إلي 12:00 الضهر','إلي 01:00 الضهر','إلي 02:00 الضهر'];
+let extAction='extend',extRider=null,extRiders=[];
+function extRenderCities(){const s=$('extCity');s.innerHTML='<option value="">اختار المدينة / الزون…</option>'+EXT_CITIES.map(c=>`<option value="${c}">${c}</option>`).join('')}
+function extRenderDurations(){$('extDuration').innerHTML='<option value="">اختار مدة المد…</option>'+EXT_DURATIONS.map(d=>`<option value="${d}">${d}</option>`).join('')}
+function extRenderRiders(){const q=($('extRiderSearch').value||'').trim().toLowerCase();const list=extRiders.filter(r=>!q||String(r.name||'').toLowerCase().includes(q)||String(r.rider_id||r.id||'').includes(q)).slice(0,30);$('extRiderList').innerHTML=list.length?list.map(r=>{const id=r.rider_id||r.id||'';const sel=extRider&&String(extRider.rider_id||extRider.id)===String(id);return `<button class="btn${sel?' pr':''}" type="button" data-extid="${id}" data-extname="${String(r.name||'').replace(/"/g,'')}" style="text-align:start">${sel?'✅ ':''}${r.name||'مندوب'} · ${id}</button>`}).join(''):'<div class="sub">مفيش مناديب مطابقة</div>'}
+async function extLoadRiders(){try{const d=await api('/api/riders');extRiders=(d&&d.riders)||[]}catch(e){extRiders=[]}extRenderRiders()}
+function openExtPanel(){toggleNavDrawer(false);extRenderCities();extRenderDurations();extRenderRiders();openSectionScreen('extPanel','extB');extLoadRiders()}
+function closeExtPanel(){closeSectionScreen('extPanel','extB')}
+$('extB').addEventListener('click',event=>{event.stopPropagation();openExtPanel()});
+$('extRiderSearch').addEventListener('input',extRenderRiders);
+$('extRiderList').addEventListener('click',event=>{const b=event.target.closest('[data-extid]');if(!b)return;extRider={rider_id:b.dataset.extid,name:b.dataset.extname};extRenderRiders()});
+$('extActionChips').addEventListener('click',event=>{const b=event.target.closest('[data-extaction]');if(!b)return;extAction=b.dataset.extaction;[...$('extActionChips').children].forEach(c=>c.classList.toggle('on',c===b));$('extDurationCard').style.display=extAction==='extend'?'':'none'});
+$('extSubmit').addEventListener('click',async()=>{const m=$('extMessage');m.style.color='';if(!extRider){m.style.color='#fbbf24';m.textContent='اختار المندوب الأول';return}if(!$('extCity').value){m.style.color='#fbbf24';m.textContent='اختار المدينة / الزون';return}if(extAction==='extend'&&!$('extDuration').value){m.style.color='#fbbf24';m.textContent='اختار مدة المد';return}m.textContent='⏳ بيتم الإرسال…';$('extSubmit').disabled=true;try{await api('/api/forms/submit',{method:'POST',body:{action:extAction,rider_id:extRider.rider_id,city:$('extCity').value,duration:$('extDuration').value}});m.style.color='#4ade80';m.textContent='✅ اتبعت الطلب بنجاح'}catch(e){m.style.color='#f87171';m.textContent='حصل خطأ: '+(e.message||e)}finally{$('extSubmit').disabled=false}});
 $('riderMapB').addEventListener('click',event=>{event.stopPropagation();openRiderMap()});
 $('riderMapClose').addEventListener('click',closeRiderMap);
 document.addEventListener('keydown',event=>{if(event.key==='Escape'&&$('riderMapPanel').style.display==='flex')closeRiderMap()});
