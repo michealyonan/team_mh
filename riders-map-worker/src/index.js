@@ -525,6 +525,35 @@ export default {
       return json({ error: 'not_found' }, 404);
     }
 
+    if (url.pathname === '/api/notifications/send' && request.method === 'POST') {
+      try {
+        await ensureSchema(env);
+        const user = await getSessionUser(env, request);
+        if (!user) return json({ error: 'unauthorized' }, 401);
+        if (user.r !== 'admin' && user.r !== 'manager') return json({ error: 'forbidden' }, 403);
+        const body = await request.json().catch(() => null);
+        const title = String(body && body.title || '').trim().slice(0, 120);
+        const text = String(body && body.body || '').trim().slice(0, 500);
+        const target = String(body && body.target || 'all').trim().toLowerCase().slice(0, 60);
+        if (!title && !text) return json({ error: 'missing_fields' }, 400);
+        let targets = [];
+        if (target === 'all') {
+          const rows = await env.DB.prepare("SELECT u FROM users WHERE status='active' AND r IN ('sup','manager')").all();
+          targets = (rows.results || []).map(r => r.u);
+        } else {
+          const t = await env.DB.prepare("SELECT u FROM users WHERE u=? AND status='active'").bind(target).first();
+          if (!t) return json({ error: 'user_not_found' }, 404);
+          targets = [t.u];
+        }
+        const head = '📢 ' + (title || 'إشعار من الإدارة');
+        const full = (text ? text : '') + ' — ' + (user.n || user.u);
+        for (const u2 of targets) await insertNotification(env, u2, head, full, '');
+        return json({ ok: true, sent: targets.length });
+      } catch (e) {
+        return json({ error: 'server_error', detail: String(e && e.message || e) }, 500);
+      }
+    }
+
     if (url.pathname === '/api/geo') {
       try {
         await ensureSchema(env);
