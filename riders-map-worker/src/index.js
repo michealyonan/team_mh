@@ -53,6 +53,8 @@ async function ensureSchema(env) {
       title TEXT NOT NULL DEFAULT '', body TEXT NOT NULL DEFAULT '', rider_id TEXT NOT NULL DEFAULT '',
       ts INTEGER NOT NULL)`),
     env.DB.prepare(`CREATE INDEX IF NOT EXISTS notif_ud ON notifications(u, day, id)`),
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS viewer_access(
+      viewer_u TEXT NOT NULL, sup_name TEXT NOT NULL, PRIMARY KEY(viewer_u, sup_name))`),
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS login_fails(
       u TEXT PRIMARY KEY, n INTEGER NOT NULL DEFAULT 0)`),
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS geo(
@@ -269,6 +271,15 @@ async function handleAuth(request, env, json, url) {
     return json({ ok: true });
   }
 
+  if (p === '/api/auth/viewer-access' && request.method === 'GET') {
+    const user = await getSessionUser(env, request);
+    if (!user) return json({ error: 'unauthorized' }, 401);
+    const q = String(url.searchParams.get('u') || '').toLowerCase().slice(0, 60);
+    const target = (q && (user.r === 'admin' || user.r === 'manager')) ? q : user.u;
+    const rows = await env.DB.prepare('SELECT sup_name FROM viewer_access WHERE viewer_u=? ORDER BY sup_name').bind(target).all();
+    return json({ sups: (rows.results || []).map(r => r.sup_name) });
+  }
+
   if (p === '/api/auth/complete-contact' && request.method === 'POST') {
     const user = await getSessionUser(env, request);
     if (!user) return json({ error: 'unauthorized' }, 401);
@@ -339,7 +350,7 @@ async function handleAuth(request, env, json, url) {
     if (p === '/api/auth/admin/users' && request.method === 'POST') {
       if (!body || !body.u || !body.r) return json({ error: 'missing_fields' }, 400);
       const u = String(body.u).toLowerCase().replace(/[^a-z0-9._-]/g, '').slice(0, 60);
-      const r = ['admin', 'manager', 'sup', 'monitor'].includes(body.r) ? body.r : 'sup';
+      const r = ['admin', 'manager', 'sup', 'monitor', 'viewer'].includes(body.r) ? body.r : 'sup';
       const s = ['admin', 'monitor'].includes(r) ? '' : String(body.s || '').slice(0, 120);
       const n = String(body.n || u).slice(0, 120);
       if (!u) return json({ error: 'invalid_username' }, 400);
@@ -382,6 +393,17 @@ async function handleAuth(request, env, json, url) {
       await env.DB.prepare('DELETE FROM users WHERE u=?').bind(u).run();
       await env.DB.prepare('DELETE FROM sessions WHERE u=?').bind(u).run();
       return json({ ok: true });
+    }
+
+    if (p === '/api/auth/admin/viewer-access' && request.method === 'POST') {
+      const u2 = String(body && body.u || '').toLowerCase();
+      if (!u2 || !Array.isArray(body.sups)) return json({ error: 'missing_fields' }, 400);
+      const t = await env.DB.prepare('SELECT r FROM users WHERE u=?').bind(u2).first();
+      if (!t) return json({ error: 'not_found' }, 404);
+      const sups = [...new Set(body.sups.map(v => String(v).trim().slice(0, 120)).filter(Boolean))].slice(0, 100);
+      await env.DB.prepare('DELETE FROM viewer_access WHERE viewer_u=?').bind(u2).run();
+      for (const n of sups) await env.DB.prepare('INSERT INTO viewer_access(viewer_u,sup_name) VALUES(?,?)').bind(u2, n).run();
+      return json({ ok: true, count: sups.length });
     }
 
     if (p === '/api/auth/admin/users/reactivate' && request.method === 'POST') {
