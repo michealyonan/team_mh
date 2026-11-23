@@ -6149,13 +6149,15 @@ async function loadSupMapPins(){
   const d=await api('/api/geo');const items=d.items||[];
   for(const m of SUP_MAP_MARKERS)m.remove();SUP_MAP_MARKERS=[];
   if(!items.length){$('supMapStatus').textContent='لسه مفيش مواقع متسجلة — بتتسجل تلقائياً مع كل تسجيل دخول بعد ما المشرف يوافق على إذن الموقع.';return}
-  const pts=[];
+  const pts=[];const seen={};
   for(const g of items){
    const time=new Date(g.ts).toLocaleString('ar-EG',{hour:'2-digit',minute:'2-digit',day:'numeric',month:'short'});
+   const key=(+g.lat).toFixed(4)+','+(+g.lon).toFixed(4);const dup=seen[key]||0;seen[key]=dup+1;
+   let lon=+g.lon,lat=+g.lat;if(dup>0){const ang=dup*2.4;lon+=Math.cos(ang)*0.0012*dup;lat+=Math.sin(ang)*0.0012*dup}
    const el=document.createElement('div');el.style.cssText='font-size:24px;cursor:pointer';el.textContent='📍';
    const popup=new maplibregl.Popup({offset:20}).setHTML('<div style="direction:rtl"><b>'+esc(g.n||g.u)+'</b><br><span dir="ltr">'+esc(g.u)+'</span><br>آخر تسجيل دخول: '+time+'</div>');
-   SUP_MAP_MARKERS.push(new maplibregl.Marker({element:el}).setLngLat([g.lon,g.lat]).setPopup(popup).addTo(SUP_MAP));
-   pts.push([g.lon,g.lat]);
+   SUP_MAP_MARKERS.push(new maplibregl.Marker({element:el}).setLngLat([lon,lat]).setPopup(popup).addTo(SUP_MAP));
+   pts.push([lon,lat]);
   }
   if(pts.length>1){const b=new maplibregl.LngLatBounds(pts[0],pts[0]);for(const c of pts)b.extend(c);SUP_MAP.fitBounds(b,{padding:70,maxZoom:12})}
   else SUP_MAP.jumpTo({center:pts[0],zoom:12});
