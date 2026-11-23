@@ -53,6 +53,7 @@ async function ensureSchema(env) {
       title TEXT NOT NULL DEFAULT '', body TEXT NOT NULL DEFAULT '', rider_id TEXT NOT NULL DEFAULT '',
       ts INTEGER NOT NULL)`),
     env.DB.prepare(`CREATE INDEX IF NOT EXISTS notif_ud ON notifications(u, day, id)`),
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS notifications_read(u TEXT PRIMARY KEY, ts INTEGER NOT NULL DEFAULT 0)`),
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS viewer_access(
       viewer_u TEXT NOT NULL, sup_name TEXT NOT NULL, PRIMARY KEY(viewer_u, sup_name))`),
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS login_fails(
@@ -675,7 +676,14 @@ export default {
         if (url.pathname === '/api/notifications' && request.method === 'GET') {
           const day = cairoDay();
           const rows = await env.DB.prepare('SELECT id,title,body,rider_id,ts FROM notifications WHERE u=? AND day=? ORDER BY id DESC LIMIT 100').bind(user.u, day).all();
-          return json({ day, count: (rows.results || []).length, items: rows.results || [] });
+          const rd = await env.DB.prepare('SELECT ts FROM notifications_read WHERE u=?').bind(user.u).first();
+          const readTs = (rd && rd.ts) || 0;
+          const items = rows.results || [];
+          return json({ day, count: items.length, unread: items.filter(i => i.ts > readTs).length, items });
+        }
+        if (url.pathname === '/api/notifications/read' && request.method === 'POST') {
+          await env.DB.prepare('INSERT INTO notifications_read(u,ts) VALUES(?,?) ON CONFLICT(u) DO UPDATE SET ts=excluded.ts').bind(user.u, Date.now()).run();
+          return json({ ok: true });
         }
         if (url.pathname === '/api/notifications/test' && request.method === 'POST') {
           if (user.r !== 'admin' && user.r !== 'manager') return json({ error: 'forbidden' }, 403);

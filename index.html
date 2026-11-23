@@ -5693,12 +5693,14 @@ async function loadNotifs(show){
   const d=await api('/api/notifications');const items=d.items||[];
   if(typeof window._notifPrev==='number'&&items.length>window._notifPrev){playNotifSound()}
   window._notifPrev=items.length;
-  if(badge){badge.textContent=items.length>99?'99+':String(items.length);badge.style.display=items.length?'':'none'}
+  const unread=typeof d.unread==='number'?d.unread:items.length;
+  if(badge){badge.textContent=unread>99?'99+':String(unread);badge.style.display=unread?'':'none'}
   if(show){
    const compose=$('notifCompose');
    if(compose&&CUR&&['admin','manager'].includes(CUR.r)){compose.style.display='';fillAnnounceTargets()}
    const st=$('notifStatus'),list=$('notifList');
    st.textContent=items.length?('إشعارات اليوم: '+items.length):'مفيش إشعارات النهاردة 🎉';
+   api('/api/notifications/read',{method:'POST'}).then(()=>{if(badge)badge.style.display='none'}).catch(()=>{});
    list.innerHTML=items.map(it=>{
     const t=new Date(it.ts).toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'});
     return '<div class="card" style="padding:10px 12px"><div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><b>'+esc(it.title)+'</b><span class="sub" style="white-space:nowrap">'+t+'</span></div>'+(it.body?'<div class="sub" style="margin-top:4px">'+esc(it.body)+'</div>':'')+'</div>'
