@@ -66,6 +66,8 @@ async function ensureSchema(env) {
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS rider_states(
       rider_id TEXT PRIMARY KEY, name TEXT NOT NULL DEFAULT '', state TEXT NOT NULL DEFAULT '',
       sup TEXT NOT NULL DEFAULT '', updated INTEGER NOT NULL)`),
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS form_submissions(id INTEGER PRIMARY KEY AUTOINCREMENT,u TEXT NOT NULL,action TEXT NOT NULL,rider_id TEXT NOT NULL,city TEXT NOT NULL,payload TEXT NOT NULL,result TEXT NOT NULL,ts INTEGER NOT NULL)`),
+    env.DB.prepare(`CREATE INDEX IF NOT EXISTS form_submissions_user_ts ON form_submissions(u,ts)`),
   ]);
   try { await env.DB.prepare("ALTER TABLE users ADD COLUMN photo TEXT NOT NULL DEFAULT ''").run(); } catch {}
   schemaReady = true;
@@ -903,6 +905,22 @@ export default {
       return json(await response.json());
     }
 
+    if (url.pathname === '/api/forms/log' && request.method === 'GET') {
+      const user = await getSessionUser(env, request);
+      if (!user) return json({error:'unauthorized'},401);
+      if (!['admin','manager','sup'].includes(user.r)) return json({error:'forbidden'},403);
+      const action = url.searchParams.get('action');
+      if (!['extend','break'].includes(action)) return json({error:'bad_action'},400);
+      await ensureSchema(env);
+      const since=Date.now()-48*3600000;
+      const query=user.r==='admin'
+        ?env.DB.prepare('SELECT id,u,action,rider_id,city,payload,result,ts FROM form_submissions WHERE action=? AND ts>=? ORDER BY ts DESC LIMIT 1000').bind(action,since)
+        :env.DB.prepare('SELECT id,u,action,rider_id,city,payload,result,ts FROM form_submissions WHERE action=? AND ts>=? AND u=? ORDER BY ts DESC LIMIT 1000').bind(action,since,user.u);
+      const data=await query.all();
+      const today=cairoDay();
+      return json({day:today,scope:user.r==='admin'?'all':'own',rows:(data.results||[]).filter(r=>cairoDay(r.ts)===today).map(r=>{let p={},v={};try{p=JSON.parse(r.payload)}catch{}try{v=JSON.parse(r.result)}catch{}return {id:r.id,u:r.u,rider_id:r.rider_id,city:r.city,ts:r.ts,duration:p.duration||p['entry.1552166535']||((p['entry.536642639_hour']||'')+':'+(p['entry.536642639_minute']||'')),reason:p.reason||p['entry.1831411232']||'',confirmed:v.ok===true,status:v.status||null}})});
+    }
+
     if (url.pathname === '/api/forms/submit' && request.method === 'POST') {
       const user = await getSessionUser(env, request);
       if (!user) return json({ error: 'unauthorized' }, 401);
@@ -945,10 +963,11 @@ export default {
         pageHistory = '0,1,6';
       }
       const resp = await fetch(relayUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ secret: env.FORM_RELAY_SECRET, formId: isAlex ? '1FAIpQLSffSwyTh0w4AYjTU9AG-kj-0UfJHcSTSYnR1DrWJ_h8iPYm3Q' : '1FAIpQLSekxaUQPgiWq-Y_IPfsTx7wTANA324a2JklFJZ_Gxg9CGPaKA', fields, pageHistory }) });
-      const result = await resp.json().catch(() => ({}));
-      try { await env.DB.prepare('INSERT INTO form_submissions(u,action,rider_id,city,payload,result,ts) VALUES(?,?,?,?,?,?,?)').bind(user.u, action, riderId, city, JSON.stringify(fields), JSON.stringify(result), Date.now()).run(); } catch (e) {}
-      if (!resp.ok || result.error || (result.status && result.status >= 400)) return json({ error: 'relay_failed', detail: result.error || ('HTTP ' + (result.status || resp.status)) }, 502);
-      return json({ ok: true, result });
+      const result = await resp.json().catch(() => ({error:'invalid_relay_response'}));
+      let logSaved=true;
+      try { await ensureSchema(env);await env.DB.prepare('INSERT INTO form_submissions(u,action,rider_id,city,payload,result,ts) VALUES(?,?,?,?,?,?,?)').bind(user.u, action, riderId, city, JSON.stringify({...fields,duration,reason}), JSON.stringify(result), Date.now()).run(); } catch (e) {logSaved=false;}
+      if (!resp.ok || result.ok !== true || result.error || (result.status && result.status >= 400)) return json({ error: 'relay_failed', detail: result.error || ('HTTP ' + (result.status || resp.status)) }, 502);
+      return json({ ok: true, result,log_saved:logSaved });
     }
 
     if (url.pathname === '/api/ws-ticket' && request.method === 'POST') {
