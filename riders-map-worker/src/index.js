@@ -534,11 +534,10 @@ async function runStatusCron(env) {
     if (oldState === undefined || oldState === cur.state || !cur.state) continue;
     const targets = new Map();
     if (cur.sup) {
-      const supRows = await env.DB.prepare("SELECT u FROM users WHERE status='active' AND (n=? OR u=?)").bind(cur.sup, cur.sup.toLowerCase()).all();
+      let supRows = await env.DB.prepare("SELECT u FROM users WHERE status='active' AND (n=? OR u=?)").bind(cur.sup, cur.sup.toLowerCase()).all();
+      if (!(supRows.results || []).length) supRows = await env.DB.prepare("SELECT u FROM users WHERE status='active' AND n LIKE ?").bind('%' + cur.sup.replace(/%/g, '') + '%').all();
       for (const t of (supRows.results || [])) targets.set(t.u, 1);
     }
-    const admins = await env.DB.prepare("SELECT u FROM users WHERE status='active' AND r='admin'").all();
-    for (const t of (admins.results || [])) targets.set(t.u, 1);
     for (const u of targets.keys()) {
       await insertNotification(env, u, 'تغيير حالة مندوب', `${cur.name}: من "${oldState || 'بدون حالة'}" إلى "${cur.state}"`, id);
     }
@@ -590,17 +589,23 @@ export default {
       const mins = Math.min(999, Math.max(1, parseInt(opts && opts.minutes, 10) || 25));
       const bodyText = String(opts && opts.body || ('المندوب ' + rider + ' (كود ' + code + ')' + (zone ? ' - ' + zone : '') + ' سجّل تأخير ' + mins + ' دقيقة عن ميعاد الشيفت')).slice(0, 500);
       let targets = [];
+      let matched = [];
       if (opts && opts.to) {
         const who = String(opts.to).trim().slice(0, 80);
-        const rows = await env.DB.prepare("SELECT u FROM users WHERE status='active' AND (n=? OR u=?)").bind(who, who.toLowerCase()).all();
-        targets = (rows.results || []).map(r => r.u);
+        const zoneF = String(opts && opts.zoneFilter || '').trim().slice(0, 60);
+        let rows = await env.DB.prepare("SELECT u,n,s FROM users WHERE status='active' AND (n=? OR u=?)").bind(who, who.toLowerCase()).all();
+        if (!(rows.results || []).length) rows = await env.DB.prepare("SELECT u,n,s FROM users WHERE status='active' AND n LIKE ?").bind('%' + who.replace(/%/g, '') + '%').all();
+        let list = rows.results || [];
+        if (zoneF && list.length > 1) { const z = list.filter(r => String(r.s || '').includes(zoneF)); if (z.length) list = z; }
+        targets = [...new Set(list.map(r => r.u))];
+        matched = list.map(r => r.n);
         if (!targets.length) return json({ error: 'user_not_found' }, 404);
       } else {
         const rows = await env.DB.prepare("SELECT u FROM users WHERE status='active' AND r='admin'").all();
         targets = (rows.results || []).map(r => r.u);
       }
       for (const t of targets) await insertNotification(env, t, title, bodyText, code);
-      return json({ ok: true, sent: targets.length });
+      return json({ ok: true, sent: targets.length, matched });
     }
 
     if (url.pathname === '/api/notifications/send' && request.method === 'POST') {
