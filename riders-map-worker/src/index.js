@@ -27,6 +27,7 @@ const randPassword = () => {
   return s;
 };
 
+const _aiUse = new Map();
 let schemaReady = false;
 async function ensureSchema(env) {
   if (schemaReady) return;
