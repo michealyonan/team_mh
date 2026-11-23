@@ -582,9 +582,25 @@ export default {
     if (url.pathname === '/api/notifications/test-seed' && request.method === 'POST') {
       if (!env.SEED_TOKEN || !safeEqual(request.headers.get('Authorization') || '', 'Bearer ' + env.SEED_TOKEN)) return json({ error: 'unauthorized' }, 401);
       await ensureSchema(env);
-      const admins = await env.DB.prepare("SELECT u FROM users WHERE status='active' AND r='admin'").all();
-      for (const t of (admins.results || [])) await insertNotification(env, t.u, '⚠️ مندوب سمع تأخير', 'المندوب أحمد سامي (كود 2171071) سجّل تأخير 25 دقيقة عن ميعاد الشيفت', '2171071');
-      return json({ ok: true, sent: (admins.results || []).length });
+      const opts = await request.json().catch(() => null);
+      const title = String(opts && opts.title || '⚠️ مندوب سمع تأخير').slice(0, 120);
+      const rider = String(opts && opts.rider || 'أحمد سامي').slice(0, 80);
+      const code = String(opts && opts.code || '2171071').replace(/[^0-9]/g, '').slice(0, 12);
+      const zone = String(opts && opts.zone || '').trim().slice(0, 60);
+      const mins = Math.min(999, Math.max(1, parseInt(opts && opts.minutes, 10) || 25));
+      const bodyText = String(opts && opts.body || ('المندوب ' + rider + ' (كود ' + code + ')' + (zone ? ' - ' + zone : '') + ' سجّل تأخير ' + mins + ' دقيقة عن ميعاد الشيفت')).slice(0, 500);
+      let targets = [];
+      if (opts && opts.to) {
+        const who = String(opts.to).trim().slice(0, 80);
+        const rows = await env.DB.prepare("SELECT u FROM users WHERE status='active' AND (n=? OR u=?)").bind(who, who.toLowerCase()).all();
+        targets = (rows.results || []).map(r => r.u);
+        if (!targets.length) return json({ error: 'user_not_found' }, 404);
+      } else {
+        const rows = await env.DB.prepare("SELECT u FROM users WHERE status='active' AND r='admin'").all();
+        targets = (rows.results || []).map(r => r.u);
+      }
+      for (const t of targets) await insertNotification(env, t, title, bodyText, code);
+      return json({ ok: true, sent: targets.length });
     }
 
     if (url.pathname === '/api/notifications/send' && request.method === 'POST') {

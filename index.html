@@ -5682,11 +5682,17 @@ function captureGeoNow(){
   },()=>{},{timeout:12000,maximumAge:300000});
  }catch(e){}
 }
-function startNotifLoop(monitor){const b=$('notifB');if(b)b.style.display=monitor?'none':'';clearInterval(window._notifT);loadNotifs(false);if(!monitor)window._notifT=setInterval(()=>loadNotifs(false),60000)}
+let _notifAC=null;
+function _notifAudio(){try{if(!_notifAC)_notifAC=new (window.AudioContext||window.webkitAudioContext)();if(_notifAC&&_notifAC.state==='suspended')_notifAC.resume();return _notifAC}catch(e){return null}}
+document.addEventListener('pointerdown',()=>{_notifAudio()},{passive:true});
+function playNotifSound(){try{const ac=_notifAudio();if(!ac)return;const t0=ac.currentTime;[880,1174.66].forEach((f,i)=>{const o=ac.createOscillator(),g=ac.createGain();o.type='sine';o.frequency.value=f;g.gain.setValueAtTime(0.0001,t0+i*0.18);g.gain.exponentialRampToValueAtTime(0.22,t0+i*0.18+0.02);g.gain.exponentialRampToValueAtTime(0.0001,t0+i*0.18+0.16);o.connect(g);g.connect(ac.destination);o.start(t0+i*0.18);o.stop(t0+i*0.18+0.18)});if(navigator.vibrate)navigator.vibrate(150)}catch(e){}}
+function startNotifLoop(monitor){const b=$('notifB');if(b)b.style.display=monitor?'none':'';clearInterval(window._notifT);loadNotifs(false);if(!monitor)window._notifT=setInterval(()=>loadNotifs(false),30000)}
 async function loadNotifs(show){
  const badge=$('notifBadge');
  try{
   const d=await api('/api/notifications');const items=d.items||[];
+  if(typeof window._notifPrev==='number'&&items.length>window._notifPrev){playNotifSound()}
+  window._notifPrev=items.length;
   if(badge){badge.textContent=items.length>99?'99+':String(items.length);badge.style.display=items.length?'':'none'}
   if(show){
    const compose=$('notifCompose');
