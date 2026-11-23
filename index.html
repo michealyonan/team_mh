@@ -1170,6 +1170,16 @@ html[data-theme="light"] body{background:radial-gradient(ellipse at 8% 0%,#d6f4f
    <div id="notifList" style="display:grid;gap:8px;max-height:65vh;overflow:auto"></div>
   </div>
  </div>
+<div id="ccModal" style="display:none;position:fixed;inset:0;background:#000d;z-index:99;overflow:auto;padding:12px">
+  <form class="lb card" style="max-width:420px;margin:8vh auto" onsubmit="return false">
+   <div class="login-brand"><div class="login-logo">📇</div><h2>كمّل بياناتك</h2><div class="sub">الإدارة محتاجة رقم الواتساب والجيميل بتاعك - مرة واحدة بس، وأكواد الدخول هتوصلك عليهم</div></div>
+   <label for="ccE">الجيميل</label><input id="ccE" type="email" dir="ltr" placeholder="name@gmail.com">
+   <label for="ccP">رقم الواتساب</label><input id="ccP" inputmode="tel" dir="ltr" placeholder="01xxxxxxxxx">
+   <label for="ccC">أكواد الدخول توصلني على</label><select id="ccC"><option value="email">الجيميل</option><option value="whatsapp">الواتساب</option></select>
+   <div id="ccErr" role="alert" style="color:#f87171;font-size:13px"></div>
+   <button class="btn pr" id="ccB" style="min-height:46px" onclick="submitContactGate()">حفظ ودخول ←</button>
+  </form>
+ </div>
  <div id="loginAuditModal" style="display:none;position:fixed;inset:0;background:#000c;z-index:75;overflow:auto;padding:12px" onclick="if(event.target===this)this.style.display='none'">
   <div class="card" style="max-width:900px;margin:auto">
    <div class="row"><h3 style="margin:0">🕵️ مرات دخول المشرفين اليوم</h3><button class="btn" id="loginAuditScreenshot" type="button">📸 اسكرين الجدول</button><button class="btn pr" id="loginAuditRefresh">🔄 تحديث</button><button class="btn" style="margin-inline-start:auto" onclick="$('loginAuditModal').style.display='none'">✕</button></div>
@@ -1274,7 +1284,7 @@ html[data-theme="light"] body{background:radial-gradient(ellipse at 8% 0%,#d6f4f
 </div>
 <div id="um" style="display:none;position:fixed;inset:0;background:#000c;z-index:70;overflow:auto;padding:12px" onclick="if(event.target===this)this.style.display='none'"><div class="card" style="max-width:820px;margin:auto"><div class="row"><h3 style="margin:0">👥 إدارة المستخدمين</h3><button class="btn" style="margin-inline-start:auto" onclick="$('um').style.display='none'">✕</button></div>
 <div class="fm"><input id="nu" placeholder="اسم المستخدم" autocapitalize="off"><input id="nn" placeholder="الاسم الظاهر"><select id="nr"><option value="sup">مشرف</option><option value="manager">مدير منطقة</option><option value="monitor">مشرف متابعة</option><option value="admin">أدمن</option></select><select id="nz" title="فلتر بالمنطقة"></select><select id="ns"></select><input id="np" type="text" placeholder="كلمة المرور (فاضية = تفضل زي ما هي)"><button class="btn pr" id="na">➕ إضافة / تحديث</button></div>
-<input id="us" placeholder="🔍 ابحث بالمشرف أو الاسم أو المستخدم أو المنطقة..." style="width:100%;margin:10px 0"><div class="tw rt3" style="max-height:45vh"><table style="min-width:600px"><thead><tr><th>الاسم</th><th>المستخدم</th><th>الدور</th><th>مرتبط بـ</th><th>كلمة المرور</th><th></th></tr></thead><tbody id="ut"></tbody></table></div>
+<button class="btn" type="button" onclick="copyContacts()" style="margin-top:10px">📋 نسخ كل الأرقام والإيميلات</button><input id="us" placeholder="🔍 ابحث بالمشرف أو الاسم أو المستخدم أو المنطقة..." style="width:100%;margin:10px 0"><div class="tw rt3" style="max-height:45vh"><table style="min-width:600px"><thead><tr><th>الاسم</th><th>المستخدم</th><th>الدور</th><th>مرتبط بـ</th><th>كلمة المرور</th><th></th></tr></thead><tbody id="ut"></tbody></table></div>
 <div id="recWrap" style="margin:12px 0"><h4 style="margin:6px 0">🆘 طلبات استرجاع كلمة المرور</h4><div id="recList" class="sub">مفيش طلبات معلّقة</div></div><div class="sub" id="gst" style="margin:10px 0 4px;font-weight:700"></div><button class="btn pr" id="downloadUpdated">⬇️ تحميل نسخة احتياطية من المستخدمين</button> <button class="btn" id="nx">📥 تحميل ملف اليوزرات والباسوردات</button> <button class="btn" id="exportSupervisors">⬇️ تحميل أسماء المشرفين</button></div></div>
 <div id="bm" style="display:none;position:fixed;inset:0;background:#000c;z-index:55;overflow:auto;padding:12px" onclick="if(event.target===this)this.style.display='none'"><div class="card" style="max-width:1100px;margin:auto"><div class="row"><h3 id="bmt" style="margin:0"></h3><button class="btn pr" id="bmx" onclick="exportDrillExcel()">⬇ تصدير Excel</button><button class="btn" style="margin-inline-start:auto" onclick="$('bm').style.display='none'">✕</button></div><div id="bms" class="sub" style="margin:8px 0"></div><div class="tw" style="max-height:65vh"><table style="min-width:0"><thead id="bmh"><tr><th>#</th><th>الكود</th><th>الاسم</th><th>المنطقة</th><th>المشرف</th><th>المركبة</th><th>أيام</th><th>ساعات مخططة</th><th>ساعات فعلية</th><th>طلبات</th><th>الالتزام</th><th>طلب/س</th></tr></thead><tbody id="bmb"></tbody></table></div></div></div>
 <div id="pm" style="display:none;position:fixed;inset:0;background:#000c;z-index:70;overflow:auto;padding:12px" onclick="if(event.target===this)this.style.display='none'"><div class="card" style="max-width:820px;margin:auto"><div class="row"><h3 style="margin:0">💰 أسعار الباتشات (سعر الطلب بالجنيه) لكل مشرف</h3><button class="btn" style="margin-inline-start:auto" onclick="$('pm').style.display='none'">✕</button></div><div class="row" style="margin:10px 0"><label style="font-weight:700">👷 المشرف</label><select id="psS" style="flex:1;min-width:0"></select></div><div class="tw" style="max-height:60vh"><table style="min-width:0"><thead id="ph"></thead><tbody id="pb"></tbody></table></div><div class="sub" style="margin:10px 0">كل مشرف له أسعاره الخاصة ومفيش أي ارتباط بينه وبين باقي المشرفين. القبض التقريبي = عدد الطلبات × سعر (باتش الطيار + مركبته) حسب مشرف الطيار. الأسعار بتتحفظ على هذا الجهاز؛ علشان تتطبق على كل الأجهزة اضغط "نسخ الكود" واستبدل به سطر <b>PRICES_EMBED</b> في الملف.</div><button class="btn pr" id="ps">💾 حفظ</button> <button class="btn" id="pc">📋 نسخ كود الأسعار</button></div></div>
@@ -3104,7 +3114,7 @@ function saveU(a){gstat()}
 function gstat(){const e=$('gst');if(e)e.textContent='✅ كل التعديلات بتتحفظ على السيرفر مباشرة وتتطبق على كل الأجهزة فورًا'}
 function scope(rows){if(!CUR||CUR.r==='admin')return rows;if(CUR.r==='monitor')return[];const k=CUR.r==='manager'?'m':'s',userName=nameMatchKey(CUR.s);return rows.filter(r=>nameMatchKey(r[k])===userName)}
 
-const REMEMBER_LOGIN_KEY='pd_remember_login',REMEMBER_LOGIN_MS=7*24*60*60*1000;function enter(x,remember){CUR=x;updateLiveRoleControls(x);const monitor=x.r==='monitor';document.querySelector('main').style.display=monitor?'none':'';$('navMenuToggle').style.display=monitor?'none':'';document.querySelectorAll('.nav-drawer-links>button').forEach(button=>button.style.display=monitor?'none':'');if(monitor){$('liveB').style.display='';$('liveClose').style.display='none';openLivePanel()}else $('liveClose').style.display='';try{if(remember===true)localStorage.setItem(REMEMBER_LOGIN_KEY,JSON.stringify({t:x.token||'',expires:Date.now()+REMEMBER_LOGIN_MS}));else if(remember===false)localStorage.removeItem(REMEMBER_LOGIN_KEY);sessionStorage.setItem('pd_token',x.token||'')}catch(e){}idleReset();startNotifLoop(monitor);if(!monitor)captureGeo();logDashboardOpen(x);
+const REMEMBER_LOGIN_KEY='pd_remember_login',REMEMBER_LOGIN_MS=7*24*60*60*1000;function enter(x,remember){CUR=x;updateLiveRoleControls(x);const monitor=x.r==='monitor';document.querySelector('main').style.display=monitor?'none':'';$('navMenuToggle').style.display=monitor?'none':'';document.querySelectorAll('.nav-drawer-links>button').forEach(button=>button.style.display=monitor?'none':'');if(monitor){$('liveB').style.display='';$('liveClose').style.display='none';openLivePanel()}else $('liveClose').style.display='';try{if(remember===true)localStorage.setItem(REMEMBER_LOGIN_KEY,JSON.stringify({t:x.token||'',expires:Date.now()+REMEMBER_LOGIN_MS}));else if(remember===false)localStorage.removeItem(REMEMBER_LOGIN_KEY);sessionStorage.setItem('pd_token',x.token||'')}catch(e){}idleReset();startNotifLoop(monitor);if(!monitor){captureGeo();if(!x.has_email||!x.has_phone)showContactGate()}logDashboardOpen(x);
   const canViewSupervisorCharts=['admin','manager'].includes(x.r);
   $('supervisorPerformanceCard').style.display=canViewSupervisorCharts?'':'none';
   $('supervisorHoursCard').style.display=canViewSupervisorCharts?'':'none';
@@ -5685,6 +5695,22 @@ async function fillAnnounceTargets(){
    l.append(c,document.createTextNode(x.n+' ('+x.u+')'));box.append(l);
   }
  }catch(e){}
+}
+function showContactGate(){$('ccModal').style.display=''}
+async function submitContactGate(){
+ const err=$('ccErr');err.textContent='';
+ try{
+  await api('/api/auth/complete-contact',{method:'POST',body:JSON.stringify({email:$('ccE').value.trim(),phone:$('ccP').value.trim(),channel:$('ccC').value})});
+  $('ccModal').style.display='none';loadNotifs(false);
+ }catch(e){err.textContent=authErr(e)}
+}
+function copyContacts(){
+ try{
+  const rows=(USERS||[]).map(x=>[x.n,x.u,x.email||'',x.phone||''].join('\t')).join('\n');
+  const txt='الاسم\tالمستخدم\tالجيميل\tالواتساب\n'+rows;
+  const done=()=>alert('اتنسخت كل بيانات الاتصال ✅ ('+(USERS||[]).length+' مستخدم) - الصقها في أي شيت');
+  if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(txt).then(done,()=>prompt('انسخ البيانات:',txt));else prompt('انسخ البيانات:',txt);
+ }catch(e){alert('تعذّر النسخ: '+(e.message||e))}
 }
 function toggleNavDrawer(open){
   const backdrop=$('navDrawerBackdrop'),toggle=$('navMenuToggle');

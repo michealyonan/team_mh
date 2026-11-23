@@ -166,7 +166,7 @@ const cleanContact = {
 async function handleAuth(request, env, json, url) {
   const p = url.pathname;
   const body = request.method === 'POST' ? await request.json().catch(() => null) : null;
-  const profile = (u) => ({ u: u.u, n: u.n, r: u.r, s: u.s });
+  const profile = (u) => ({ u: u.u, n: u.n, r: u.r, s: u.s, has_email: !!u.email, has_phone: !!u.phone });
 
   // --- public ---
   if (p === '/api/auth/login' && request.method === 'POST') {
@@ -266,6 +266,18 @@ async function handleAuth(request, env, json, url) {
     if (chk !== 'ok') return json({ error: chk === 'expired' ? 'code_expired' : 'invalid_code' }, 401);
     await env.DB.prepare('UPDATE users SET h=?, updated_at=? WHERE u=?').bind(await hp(u, p2), Date.now(), u).run();
     await env.DB.prepare('DELETE FROM sessions WHERE u=?').bind(u).run();
+    return json({ ok: true });
+  }
+
+  if (p === '/api/auth/complete-contact' && request.method === 'POST') {
+    const user = await getSessionUser(env, request);
+    if (!user) return json({ error: 'unauthorized' }, 401);
+    const email = cleanContact.email(String(body && body.email || '').trim());
+    const phone = cleanContact.phone(body && body.phone || '');
+    const channel = body && body.channel === 'whatsapp' ? 'whatsapp' : 'email';
+    if (!email) return json({ error: 'invalid_email' }, 400);
+    if (!phone) return json({ error: 'invalid_phone' }, 400);
+    await env.DB.prepare('UPDATE users SET email=?, phone=?, channel=?, updated_at=? WHERE u=?').bind(email, phone, channel, Date.now(), user.u).run();
     return json({ ok: true });
   }
 
