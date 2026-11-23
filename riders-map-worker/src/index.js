@@ -3,12 +3,381 @@ import { DurableObject } from 'cloudflare:workers';
 const MAX_BODY_BYTES = 2_000_000;
 const SNAPSHOT_TTL_MS = 15 * 60 * 1000;
 
+/* ---------------- auth / users API (phase 2) ---------------- */
+
+const te = new TextEncoder();
+async function sha256hex(s) {
+  const b = await crypto.subtle.digest('SHA-256', te.encode(s));
+  return [...new Uint8Array(b)].map((x) => x.toString(16).padStart(2, '0')).join('');
+}
+// legacy password hash scheme (kept so existing passwords keep working)
+const hp = (u, p) => sha256hex(String(u).toLowerCase() + ':' + p + ':pd1');
+const randHex = (n) => [...crypto.getRandomValues(new Uint8Array(n))].map((x) => x.toString(16).padStart(2, '0')).join('');
+const randCode = (digits) => {
+  let s = '';
+  const b = crypto.getRandomValues(new Uint8Array(digits));
+  for (let i = 0; i < digits; i++) s += String(b[i] % 10);
+  return s;
+};
+const randPassword = () => {
+  const abc = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789';
+  const b = crypto.getRandomValues(new Uint8Array(8));
+  let s = '';
+  for (let i = 0; i < 8; i++) s += abc[b[i] % abc.length];
+  return s;
+};
+
+let schemaReady = false;
+async function ensureSchema(env) {
+  if (schemaReady) return;
+  await env.DB.batch([
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS users(
+      u TEXT PRIMARY KEY, n TEXT NOT NULL DEFAULT '', r TEXT NOT NULL DEFAULT 'sup',
+      s TEXT NOT NULL DEFAULT '', h TEXT NOT NULL DEFAULT '',
+      email TEXT NOT NULL DEFAULT '', phone TEXT NOT NULL DEFAULT '', channel TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'active', created_at INTEGER, updated_at INTEGER)`),
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS sessions(
+      token TEXT PRIMARY KEY, u TEXT NOT NULL, expires INTEGER NOT NULL, created INTEGER NOT NULL)`),
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS codes(
+      id INTEGER PRIMARY KEY AUTOINCREMENT, u TEXT NOT NULL, purpose TEXT NOT NULL,
+      code_hash TEXT NOT NULL, expires INTEGER NOT NULL, attempts INTEGER NOT NULL DEFAULT 0,
+      used INTEGER NOT NULL DEFAULT 0, created INTEGER NOT NULL)`),
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS recoveries(
+      id INTEGER PRIMARY KEY AUTOINCREMENT, u TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending',
+      created INTEGER NOT NULL, resolved INTEGER)`),
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS rl(k TEXT PRIMARY KEY, n INTEGER NOT NULL DEFAULT 0, until INTEGER)`),
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS audit(
+      id INTEGER PRIMARY KEY AUTOINCREMENT, u TEXT, n TEXT, r TEXT, ip TEXT, ts INTEGER)`),
+  ]);
+  schemaReady = true;
+}
+
+async function rateLimit(env, key, max, windowMs, lockMs) {
+  const now = Date.now();
+  const row = await env.DB.prepare('SELECT n, until FROM rl WHERE k=?').bind(key).first();
+  if (row && row.until && row.until > now) return Math.ceil((row.until - now) / 1000);
+  if (!row || now - (row.until || 0) >= 0) {
+    const fresh = !row || (row.until || 0) <= now - windowMs;
+    const n = fresh ? 1 : row.n + 1;
+    const until = n >= max ? now + lockMs : now + windowMs;
+    await env.DB.prepare('INSERT INTO rl(k,n,until) VALUES(?,?,?) ON CONFLICT(k) DO UPDATE SET n=excluded.n, until=excluded.until').bind(key, n, until).run();
+    if (n >= max) return Math.ceil(lockMs / 1000);
+  }
+  return 0;
+}
+
+async function getSessionUser(env, request) {
+  const h = request.headers.get('Authorization') || '';
+  const m = h.match(/^Bearer\s+([0-9a-f]{64})$/i);
+  if (!m) return null;
+  const row = await env.DB.prepare('SELECT s.token, s.expires, u.u, u.n, u.r, u.s, u.status FROM sessions s JOIN users u ON u.u=s.u WHERE s.token=?').bind(m[1].toLowerCase()).first();
+  if (!row || row.expires < Date.now() || row.status === 'disabled') return null;
+  return { u: row.u, n: row.n, r: row.r, s: row.s, token: row.token };
+}
+
+async function issueSession(env, u, remember) {
+  const token = randHex(32);
+  const ttl = remember ? 7 * 24 * 60 * 60 * 1000 : 12 * 60 * 60 * 1000;
+  await env.DB.prepare('INSERT INTO sessions(token,u,expires,created) VALUES(?,?,?,?)').bind(token, u, Date.now() + ttl, Date.now()).run();
+  return token;
+}
+
+async function sendMail(env, to, subject, text) {
+  if (!env.BREVO_API_KEY) return { ok: false, error: 'mail_not_configured' };
+  try {
+    const r = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: { 'api-key': env.BREVO_API_KEY, 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify({
+        sender: { email: env.MAIL_FROM || 'michealuonanayad@gmail.com', name: 'لوحة أداء الطيارين' },
+        to: [{ email: to }], subject, textContent: text,
+      }),
+    });
+    return { ok: r.ok, status: r.status };
+  } catch (e) {
+    return { ok: false, error: String(e) };
+  }
+}
+
+const codeHash = (env, code) => sha256hex((env.OTP_PEPPER || 'pd') + ':' + code);
+
+async function makeCode(env, u, purpose, digits, ttlMs) {
+  const code = randCode(digits);
+  await env.DB.prepare('UPDATE codes SET used=1 WHERE u=? AND purpose=? AND used=0').bind(u, purpose).run();
+  await env.DB.prepare('INSERT INTO codes(u,purpose,code_hash,expires,created) VALUES(?,?,?,?,?)')
+    .bind(u, purpose, await codeHash(env, code), Date.now() + ttlMs, Date.now()).run();
+  return code;
+}
+
+async function verifyCode(env, u, purpose, code) {
+  const row = await env.DB.prepare('SELECT id, code_hash, expires, attempts FROM codes WHERE u=? AND purpose=? AND used=0 ORDER BY id DESC LIMIT 1').bind(u, purpose).first();
+  if (!row) return 'no_code';
+  if (row.expires < Date.now()) return 'expired';
+  if (row.attempts >= 5) return 'locked';
+  const ok = safeEqual(row.code_hash, await codeHash(env, String(code).trim()));
+  if (!ok) {
+    await env.DB.prepare('UPDATE codes SET attempts=attempts+1 WHERE id=?').bind(row.id).run();
+    return 'wrong';
+  }
+  await env.DB.prepare('UPDATE codes SET used=1 WHERE id=?').bind(row.id).run();
+  return 'ok';
+}
+
+const cleanContact = {
+  email: (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) ? v.slice(0, 120) : '',
+  phone: (v) => {
+    const d = String(v).replace(/[٠-٩]/g, (c) => '٠١٢٣٤٥٦٧٨٩'.indexOf(c)).replace(/\D/g, '');
+    return d.length >= 8 && d.length <= 15 ? d : '';
+  },
+};
+
+async function handleAuth(request, env, json, url) {
+  const p = url.pathname;
+  const body = request.method === 'POST' ? await request.json().catch(() => null) : null;
+  const profile = (u) => ({ u: u.u, n: u.n, r: u.r, s: u.s });
+
+  // --- public ---
+  if (p === '/api/auth/login' && request.method === 'POST') {
+    if (!body || !body.u || !body.p) return json({ error: 'missing_fields' }, 400);
+    const u = String(body.u).toLowerCase().slice(0, 60);
+    const wait = await rateLimit(env, 'login:' + u, 8, 10 * 60 * 1000, 60 * 1000);
+    if (wait) return json({ error: 'locked', wait }, 429);
+    const user = await env.DB.prepare('SELECT * FROM users WHERE u=?').bind(u).first();
+    if (!user || user.status === 'disabled' || !safeEqual(user.h, await hp(u, String(body.p)))) return json({ error: 'invalid_credentials' }, 401);
+    const token = await issueSession(env, u, !!body.remember);
+    await env.DB.prepare('DELETE FROM rl WHERE k=?').bind('login:' + u).run();
+    return json({ token, profile: profile(user) });
+  }
+
+  if (p === '/api/auth/activate' && request.method === 'POST') {
+    if (!body || !body.u || !body.code) return json({ error: 'missing_fields' }, 400);
+    const u = String(body.u).toLowerCase().slice(0, 60);
+    const wait = await rateLimit(env, 'act:' + u, 10, 10 * 60 * 1000, 60 * 1000);
+    if (wait) return json({ error: 'locked', wait }, 429);
+    const user = await env.DB.prepare('SELECT * FROM users WHERE u=?').bind(u).first();
+    if (!user) return json({ error: 'invalid_credentials' }, 401);
+    const chk = await verifyCode(env, u, 'activate', body.code);
+    if (chk !== 'ok') return json({ error: chk === 'expired' ? 'code_expired' : 'invalid_code' }, 401);
+    const email = cleanContact.email(String(body.email || '').trim());
+    const phone = cleanContact.phone(body.phone || '');
+    const channel = body.channel === 'whatsapp' ? 'whatsapp' : 'email';
+    if (!email) return json({ error: 'invalid_email' }, 400);
+    await env.DB.prepare('UPDATE users SET email=?, phone=?, channel=?, status=?, updated_at=? WHERE u=?')
+      .bind(email, phone, channel, 'active', Date.now(), u).run();
+    const mail = await sendMail(env, email, 'تم تفعيل حسابك ✅',
+      'أهلًا ' + user.n + ',\n\nتم تفعيل حسابك في لوحة أداء الطيارين بنجاح.\nاسم المستخدم: ' + u +
+      '\nرقم الواتساب المسجل: ' + (phone || '—') +
+      '\nأكواد الدخول هتوصلك على: ' + (channel === 'whatsapp' ? 'الواتساب' : 'الجيميل') +
+      '\n\nلو مش انت اللي عملت كده، كلم الأدمن فورًا.');
+    return json({ ok: true, emailed: mail.ok });
+  }
+
+  if (p === '/api/auth/otp/request' && request.method === 'POST') {
+    if (!body || !body.u) return json({ error: 'missing_fields' }, 400);
+    const u = String(body.u).toLowerCase().slice(0, 60);
+    const wait = await rateLimit(env, 'otp:' + u, 5, 10 * 60 * 1000, 60 * 1000);
+    if (wait) return json({ error: 'locked', wait }, 429);
+    const user = await env.DB.prepare('SELECT * FROM users WHERE u=?').bind(u).first();
+    if (!user || user.status === 'disabled') return json({ error: 'invalid_credentials' }, 401);
+    if (!user.email) return json({ error: 'no_email' }, 400);
+    const code = await makeCode(env, u, 'login', 6, 10 * 60 * 1000);
+    const mail = await sendMail(env, user.email, 'كود الدخول: ' + code,
+      'أهلًا ' + user.n + ',\n\nكود الدخول بتاعك: ' + code + '\nصالح لمدة 10 دقائق.\n\nلو انت مش اللي طلبته، تجاهل الرسالة وكلم الأدمن.');
+    if (!mail.ok) return json({ error: 'mail_failed' }, 503);
+    return json({ ok: true, email: user.email.replace(/^(.{2}).+(@.+)$/, '$1***$2') });
+  }
+
+  if (p === '/api/auth/otp/verify' && request.method === 'POST') {
+    if (!body || !body.u || !body.code) return json({ error: 'missing_fields' }, 400);
+    const u = String(body.u).toLowerCase().slice(0, 60);
+    const user = await env.DB.prepare('SELECT * FROM users WHERE u=?').bind(u).first();
+    if (!user || user.status === 'disabled') return json({ error: 'invalid_credentials' }, 401);
+    const chk = await verifyCode(env, u, 'login', body.code);
+    if (chk !== 'ok') return json({ error: chk === 'expired' ? 'code_expired' : 'invalid_code' }, 401);
+    const token = await issueSession(env, u, !!body.remember);
+    return json({ token, profile: profile(user) });
+  }
+
+  if (p === '/api/auth/forgot' && request.method === 'POST') {
+    if (!body || !body.u) return json({ error: 'missing_fields' }, 400);
+    const u = String(body.u).toLowerCase().slice(0, 60);
+    const wait = await rateLimit(env, 'forgot:' + u, 3, 60 * 60 * 1000, 30 * 60 * 1000);
+    if (wait) return json({ error: 'locked', wait }, 429);
+    const user = await env.DB.prepare('SELECT u FROM users WHERE u=?').bind(u).first();
+    if (user) {
+      const existing = await env.DB.prepare("SELECT id FROM recoveries WHERE u=? AND status='pending'").bind(u).first();
+      if (!existing) await env.DB.prepare('INSERT INTO recoveries(u,created) VALUES(?,?)').bind(u, Date.now()).run();
+    }
+    return json({ ok: true });
+  }
+
+  if (p === '/api/auth/reset' && request.method === 'POST') {
+    if (!body || !body.u || !body.code || !body.p) return json({ error: 'missing_fields' }, 400);
+    const u = String(body.u).toLowerCase().slice(0, 60);
+    const p2 = String(body.p);
+    if (p2.length < 4) return json({ error: 'weak_password' }, 400);
+    const chk = await verifyCode(env, u, 'reset', body.code);
+    if (chk !== 'ok') return json({ error: chk === 'expired' ? 'code_expired' : 'invalid_code' }, 401);
+    await env.DB.prepare('UPDATE users SET h=?, updated_at=? WHERE u=?').bind(await hp(u, p2), Date.now(), u).run();
+    await env.DB.prepare('DELETE FROM sessions WHERE u=?').bind(u).run();
+    return json({ ok: true });
+  }
+
+  if (p === '/api/auth/me' && request.method === 'GET') {
+    const user = await getSessionUser(env, request);
+    if (!user) return json({ error: 'unauthorized' }, 401);
+    return json({ profile: profile(user) });
+  }
+
+  if (p === '/api/auth/logout' && request.method === 'POST') {
+    const user = await getSessionUser(env, request);
+    if (user) await env.DB.prepare('DELETE FROM sessions WHERE token=?').bind(user.token).run();
+    return json({ ok: true });
+  }
+
+  if (p === '/api/auth/audit' && request.method === 'POST') {
+    const user = await getSessionUser(env, request);
+    if (!user) return json({ error: 'unauthorized' }, 401);
+    await env.DB.prepare('INSERT INTO audit(u,n,r,ip,ts) VALUES(?,?,?,?,?)')
+      .bind(user.u, user.n, user.r, request.headers.get('CF-Connecting-IP') || '', Date.now()).run();
+    if (env.LOGIN_AUDIT_URL) {
+      try {
+        await fetch(env.LOGIN_AUDIT_URL, {
+          method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ username: user.u, displayName: user.n, role: user.r }),
+        });
+      } catch {}
+    }
+    return json({ ok: true });
+  }
+
+  // --- one-time seed (requires SEED_TOKEN secret; remove secret after use) ---
+  if (p === '/api/auth/seed' && request.method === 'POST') {
+    if (!env.SEED_TOKEN || !safeEqual(request.headers.get('Authorization') || '', 'Bearer ' + env.SEED_TOKEN)) return json({ error: 'unauthorized' }, 401);
+    if (!body || !Array.isArray(body.users) || body.users.length > 1000) return json({ error: 'invalid_body' }, 400);
+    let n = 0;
+    const stmts = [];
+    for (const x of body.users) {
+      if (!x || !x.u || !x.h) continue;
+      stmts.push(env.DB.prepare('INSERT INTO users(u,n,r,s,h,status,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(u) DO UPDATE SET n=excluded.n, r=excluded.r, s=excluded.s, h=excluded.h, updated_at=excluded.updated_at')
+        .bind(String(x.u).toLowerCase(), String(x.n || ''), String(x.r || 'sup'), String(x.s || ''), String(x.h), 'active', Date.now(), Date.now()));
+      n++;
+      if (stmts.length >= 50) { await env.DB.batch(stmts.splice(0)); }
+    }
+    if (stmts.length) await env.DB.batch(stmts);
+    return json({ ok: true, count: n });
+  }
+
+  // --- admin ---
+  if (p.startsWith('/api/auth/admin/')) {
+    const admin = await getSessionUser(env, request);
+    if (!admin || admin.r !== 'admin') return json({ error: 'unauthorized' }, 401);
+
+    if (p === '/api/auth/admin/users' && request.method === 'GET') {
+      const rows = await env.DB.prepare('SELECT u,n,r,s,email,phone,channel,status FROM users ORDER BY r, u').all();
+      return json({ users: rows.results || [] });
+    }
+
+    if (p === '/api/auth/admin/users' && request.method === 'POST') {
+      if (!body || !body.u || !body.r) return json({ error: 'missing_fields' }, 400);
+      const u = String(body.u).toLowerCase().replace(/[^a-z0-9._-]/g, '').slice(0, 60);
+      const r = ['admin', 'manager', 'sup', 'monitor'].includes(body.r) ? body.r : 'sup';
+      const s = ['admin', 'monitor'].includes(r) ? '' : String(body.s || '').slice(0, 120);
+      const n = String(body.n || u).slice(0, 120);
+      if (!u) return json({ error: 'invalid_username' }, 400);
+      const rename = body.rename ? String(body.rename).toLowerCase() : null;
+      const existing = await env.DB.prepare('SELECT u FROM users WHERE u=?').bind(u).first();
+      if (rename) {
+        if (rename !== u) {
+          if (!body.p) return json({ error: 'password_required_for_rename' }, 400);
+          if (existing) return json({ error: 'username_taken' }, 409);
+          await env.DB.prepare('UPDATE users SET u=?, n=?, r=?, s=?, h=?, updated_at=? WHERE u=?')
+            .bind(u, n, r, s, await hp(u, String(body.p)), Date.now(), rename).run();
+          await env.DB.prepare('UPDATE sessions SET u=? WHERE u=?').bind(u, rename).run();
+          return json({ ok: true });
+        }
+        if (!existing) return json({ error: 'not_found' }, 404);
+        if (body.p) await env.DB.prepare('UPDATE users SET n=?, r=?, s=?, h=?, updated_at=? WHERE u=?').bind(n, r, s, await hp(u, String(body.p)), Date.now(), u).run();
+        else await env.DB.prepare('UPDATE users SET n=?, r=?, s=?, updated_at=? WHERE u=?').bind(n, r, s, Date.now(), u).run();
+        return json({ ok: true });
+      }
+      if (existing) {
+        if (body.p) await env.DB.prepare('UPDATE users SET n=?, r=?, s=?, h=?, updated_at=? WHERE u=?').bind(n, r, s, await hp(u, String(body.p)), Date.now(), u).run();
+        else await env.DB.prepare('UPDATE users SET n=?, r=?, s=?, updated_at=? WHERE u=?').bind(n, r, s, Date.now(), u).run();
+        return json({ ok: true });
+      }
+      const p2 = body.p ? String(body.p) : randPassword();
+      await env.DB.prepare('INSERT INTO users(u,n,r,s,h,status,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)')
+        .bind(u, n, r, s, await hp(u, p2), 'active', Date.now(), Date.now()).run();
+      return json({ ok: true, password: body.p ? undefined : p2 });
+    }
+
+    if (p === '/api/auth/admin/users/delete' && request.method === 'POST') {
+      if (!body || !body.u) return json({ error: 'missing_fields' }, 400);
+      const u = String(body.u).toLowerCase();
+      const target = await env.DB.prepare('SELECT r FROM users WHERE u=?').bind(u).first();
+      if (!target) return json({ error: 'not_found' }, 404);
+      if (target.r === 'admin') {
+        const c = await env.DB.prepare("SELECT COUNT(*) c FROM users WHERE r='admin'").first();
+        if (c.c < 2) return json({ error: 'last_admin' }, 400);
+      }
+      await env.DB.prepare('DELETE FROM users WHERE u=?').bind(u).run();
+      await env.DB.prepare('DELETE FROM sessions WHERE u=?').bind(u).run();
+      return json({ ok: true });
+    }
+
+    if (p === '/api/auth/admin/invite' && request.method === 'POST') {
+      if (!body || !body.u) return json({ error: 'missing_fields' }, 400);
+      const u = String(body.u).toLowerCase();
+      const user = await env.DB.prepare('SELECT u FROM users WHERE u=?').bind(u).first();
+      if (!user) return json({ error: 'not_found' }, 404);
+      const code = await makeCode(env, u, 'activate', 8, 7 * 24 * 60 * 60 * 1000);
+      return json({ ok: true, code });
+    }
+
+    if (p === '/api/auth/admin/recoveries' && request.method === 'GET') {
+      const rows = await env.DB.prepare("SELECT rc.id, rc.u, rc.created, us.n FROM recoveries rc LEFT JOIN users us ON us.u=rc.u WHERE rc.status='pending' ORDER BY rc.id DESC LIMIT 50").all();
+      return json({ items: rows.results || [] });
+    }
+
+    if (p === '/api/auth/admin/recoveries/approve' && request.method === 'POST') {
+      if (!body || !body.id) return json({ error: 'missing_fields' }, 400);
+      const rec = await env.DB.prepare("SELECT * FROM recoveries WHERE id=? AND status='pending'").bind(Number(body.id)).first();
+      if (!rec) return json({ error: 'not_found' }, 404);
+      const user = await env.DB.prepare('SELECT * FROM users WHERE u=?').bind(rec.u).first();
+      if (!user) return json({ error: 'not_found' }, 404);
+      const code = await makeCode(env, rec.u, 'reset', 8, 24 * 60 * 60 * 1000);
+      await env.DB.prepare("UPDATE recoveries SET status='approved', resolved=? WHERE id=?").bind(Date.now(), rec.id).run();
+      let emailed = false;
+      if (user.email) {
+        const mail = await sendMail(env, user.email, 'كود إعادة تعيين كلمة المرور',
+          'أهلًا ' + user.n + ',\n\nالأدمن وافق على طلبك. كود إعادة تعيين كلمة المرور: ' + code + '\nصالح لمدة 24 ساعة.\n\nلو مش انت اللي طلبت، كلم الأدمن فورًا.');
+        emailed = mail.ok;
+      }
+      return json({ ok: true, code, emailed, phone: user.phone || '' });
+    }
+
+    if (p === '/api/auth/admin/recoveries/reject' && request.method === 'POST') {
+      if (!body || !body.id) return json({ error: 'missing_fields' }, 400);
+      await env.DB.prepare("UPDATE recoveries SET status='rejected', resolved=? WHERE id=?").bind(Date.now(), Number(body.id)).run();
+      return json({ ok: true });
+    }
+
+    return json({ error: 'not_found' }, 404);
+  }
+
+  return null; // not an auth route
+}
+
+/* ---------------- main fetch ---------------- */
+
 export default {
   async fetch(request, env) {
     const origin = request.headers.get('Origin') || '';
-    const allowedOrigin = env.ALLOWED_ORIGIN || '*';
-    if (origin && allowedOrigin !== '*' && origin !== allowedOrigin) return new Response('Origin not allowed', { status: 403 });
-    const corsOrigin = allowedOrigin === '*' ? '*' : allowedOrigin;
+    const allowedList = String(env.ALLOWED_ORIGIN || '*').split(',').map((x) => x.trim()).filter(Boolean);
+    const allowAll = allowedList.includes('*');
+    if (origin && !allowAll && !allowedList.includes(origin)) return new Response('Origin not allowed', { status: 403 });
+    const corsOrigin = allowAll ? '*' : (allowedList.includes(origin) ? origin : allowedList[0]);
     const cors = {
       'Access-Control-Allow-Origin': corsOrigin,
       'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
@@ -24,6 +393,18 @@ export default {
     const hub = env.RIDER_MAP_HUB.get(env.RIDER_MAP_HUB.idFromName('riders-global'));
 
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
+
+    if (url.pathname.startsWith('/api/auth/')) {
+      try {
+        await ensureSchema(env);
+        const handled = await handleAuth(request, env, json, url);
+        if (handled) return handled;
+      } catch (e) {
+        return json({ error: 'server_error', detail: String(e && e.message || e) }, 500);
+      }
+      return json({ error: 'not_found' }, 404);
+    }
+
     if (url.pathname === '/health' && request.method === 'GET') return json({ ok: true });
 
     if (url.pathname === '/api/publish' && request.method === 'POST') {
@@ -90,6 +471,7 @@ export default {
       return hub.fetch(doRequest);
     }
 
+    // static assets are served automatically by the assets binding before this
     return json({ error: 'not_found' }, 404);
   },
 };
@@ -159,6 +541,7 @@ function finiteNumber(value, min, max) {
 }
 
 function safeEqual(a, b) {
+  a = String(a); b = String(b);
   if (a.length !== b.length) return false;
   let mismatch = 0;
   for (let index = 0; index < a.length; index++) mismatch |= a.charCodeAt(index) ^ b.charCodeAt(index);
