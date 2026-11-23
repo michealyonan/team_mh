@@ -1208,9 +1208,9 @@ html[data-theme="light"] body{background:radial-gradient(ellipse at 8% 0%,#d6f4f
  </div>
  <div id="loginAuditModal" style="display:none;position:fixed;inset:0;background:#000c;z-index:75;overflow:auto;padding:12px" onclick="if(event.target===this)this.style.display='none'">
   <div class="card" style="max-width:900px;margin:auto">
-   <div class="row"><h3 style="margin:0">🕵️ مرات دخول المشرفين اليوم</h3><button class="btn" id="loginAuditScreenshot" type="button">📸 اسكرين الجدول</button><button class="btn pr" id="loginAuditRefresh">🔄 تحديث</button><button class="btn" style="margin-inline-start:auto" onclick="$('loginAuditModal').style.display='none'">✕</button></div>
+   <div class="row"><h3 style="margin:0">🕵️ مرات دخول المشرفين اليوم</h3><button class="btn" id="loginAuditScreenshot" type="button">📸 اسكرين الجدول</button><button class="btn pr" id="loginAuditRefresh">🔄 تحديث</button><button class="btn" id="supMapToggle" type="button" onclick="toggleSupMap()">🗺️ الخريطة</button><button class="btn" style="margin-inline-start:auto" onclick="$('loginAuditModal').style.display='none'">✕</button></div>
    <div class="sub" id="loginAuditStatus" role="status" style="margin:8px 0">اضغط تحديث لعرض السجل.</div>
-   <input id="loginAuditSearch" type="search" placeholder="🔎 ابحث باسم المشرف أو اسم المستخدم" aria-label="ابحث باسم المشرف أو اسم المستخدم" style="width:100%;margin:0 0 10px">
+   <input id="loginAuditSearch" type="search" placeholder="🔎 ابحث باسم المشرف أو اسم المستخدم" aria-label="ابحث باسم المشرف أو اسم المستخدم" style="width:100%;margin:0 0 10px"><div id="supMapWrap" style="display:none;margin-bottom:10px"><div id="supMapCanvas" style="height:55vh;border-radius:10px;overflow:hidden"></div><div class="sub" id="supMapStatus" role="status" style="margin-top:4px"></div></div>
    <div class="tw" style="max-height:65vh;overflow:auto"><table style="min-width:0"><thead><tr><th>#</th><th>المشرف</th><th>اسم المستخدم</th><th>عدد مرات الدخول</th><th>الدور</th></tr></thead><tbody id="loginAuditBody"></tbody></table></div>
    <div class="sub" id="loginAuditScreenshotStatus" role="status" aria-live="polite" style="margin-top:8px;display:none"></div>
   </div>
@@ -5807,6 +5807,40 @@ function uploadPhoto(input){
   img.src=reader.result;
  };
  reader.readAsDataURL(file);
+}
+let SUP_MAP=null,SUP_MAP_MARKERS=[];
+async function toggleSupMap(){
+ const wrap=$('supMapWrap');
+ if(wrap.style.display!=='none'){wrap.style.display='none';return}
+ wrap.style.display='';$('supMapStatus').textContent='جاري تحميل المواقع…';
+ try{
+  if(!SUP_MAP){
+   if(!window.maplibregl){$('supMapStatus').textContent='تعذّر تحميل مكتبة الخريطة — اتأكد من النت';return}
+   try{await maplibregl.setRTLTextPlugin('https://unpkg.com/@mapbox/mapbox-gl-rtl-text@0.3.0/dist/mapbox-gl-rtl-text.js',false)}catch(e){}
+   SUP_MAP=new maplibregl.Map({container:'supMapCanvas',style:'https://tiles.openfreemap.org/styles/bright',center:[30.8,30.0],zoom:9,attributionControl:true});
+   SUP_MAP.addControl(new maplibregl.NavigationControl(),'top-left');
+  }
+  setTimeout(()=>SUP_MAP.resize(),100);
+  loadSupMapPins();
+ }catch(e){$('supMapStatus').textContent='تعذّر فتح الخريطة: '+(e.message||e)}
+}
+async function loadSupMapPins(){
+ try{
+  const d=await api('/api/geo');const items=d.items||[];
+  for(const m of SUP_MAP_MARKERS)m.remove();SUP_MAP_MARKERS=[];
+  if(!items.length){$('supMapStatus').textContent='لسه مفيش مواقع متسجلة — بتتسجل تلقائياً مع كل تسجيل دخول بعد ما المشرف يوافق على إذن الموقع.';return}
+  const pts=[];
+  for(const g of items){
+   const time=new Date(g.ts).toLocaleString('ar-EG',{hour:'2-digit',minute:'2-digit',day:'numeric',month:'short'});
+   const el=document.createElement('div');el.style.cssText='font-size:24px;cursor:pointer';el.textContent='📍';
+   const popup=new maplibregl.Popup({offset:20}).setHTML('<div style="direction:rtl"><b>'+esc(g.n||g.u)+'</b><br><span dir="ltr">'+esc(g.u)+'</span><br>آخر تسجيل دخول: '+time+'</div>');
+   SUP_MAP_MARKERS.push(new maplibregl.Marker({element:el}).setLngLat([g.lon,g.lat]).setPopup(popup).addTo(SUP_MAP));
+   pts.push([g.lon,g.lat]);
+  }
+  if(pts.length>1){const b=new maplibregl.LngLatBounds(pts[0],pts[0]);for(const c of pts)b.extend(c);SUP_MAP.fitBounds(b,{padding:70,maxZoom:12})}
+  else SUP_MAP.jumpTo({center:pts[0],zoom:12});
+  $('supMapStatus').textContent='عدد المواقع المسجلة: '+items.length+' — دوس على أي 📍 لعرض التفاصيل.';
+ }catch(e){$('supMapStatus').textContent='تعذّر تحميل المواقع: '+(e.message||e)}
 }
 function toggleNavDrawer(open){
   const backdrop=$('navDrawerBackdrop'),toggle=$('navMenuToggle');
