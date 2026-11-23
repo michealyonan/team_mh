@@ -91,7 +91,7 @@ async function getSessionUser(env, request) {
   if (!m) return null;
   const row = await env.DB.prepare('SELECT s.token, s.expires, u.u, u.n, u.r, u.s, u.status, u.email, u.phone, u.channel FROM sessions s JOIN users u ON u.u=s.u WHERE s.token=?').bind(m[1].toLowerCase()).first();
   if (!row || row.expires < Date.now() || row.status === 'disabled') return null;
-  return { u: row.u, n: row.n, r: row.r, s: row.s, token: row.token };
+  return { u: row.u, n: row.n, r: row.r, s: row.s, token: row.token, email: row.email, phone: row.phone, channel: row.channel };
 }
 
 function cairoDay(ts) {
