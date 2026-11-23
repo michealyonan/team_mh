@@ -3207,7 +3207,7 @@ deco1:'content:"";position:absolute;left:-15%;bottom:-12vh;width:80vw;height:46v
 deco2:'content:"";position:absolute;right:-15%;bottom:-8vh;width:70vw;height:40vh;border-radius:50%;background:radial-gradient(closest-side,rgba(0,180,216,.3),transparent 72%)'},
 {id:'space',n:'فضاء 🚀',art:'🪐',bg:'#050510',card:'rgba(16,16,32,.92)',border:'rgba(129,140,248,.4)',accent:'#818cf8',onAccent:'#050510',text:'#e0e7ff',sub:'#a5b4fc',inbg:'rgba(255,255,255,.07)',radius:'18px',
 deco1:'content:"";position:absolute;inset:0;background-image:radial-gradient(1.5px 1.5px at 12% 22%,#fff8,transparent 100%),radial-gradient(1px 1px at 32% 68%,#fff7,transparent 100%),radial-gradient(1.8px 1.8px at 56% 14%,#fff9,transparent 100%),radial-gradient(1px 1px at 74% 46%,#fff6,transparent 100%),radial-gradient(1.4px 1.4px at 88% 78%,#fff8,transparent 100%),radial-gradient(1px 1px at 42% 88%,#fff6,transparent 100%)',
-deco2:'content:"";position:absolute;top:8%;left:10%;width:150px;height:150px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#312e81,#050510 75%);box-shadow:0 0 60px #4f46e544'},
+deco2:'content:"";position:absolute;top:5%;right:6%;width:90px;height:90px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#312e81,#050510 75%);box-shadow:0 0 40px #4f46e544;opacity:.85'},
 {id:'bubbles',n:'فقاعات 🫧',art:'🫧',bg:'linear-gradient(155deg,#164e63,#0e7490,#22d3ee)',card:'rgba(255,255,255,.14)',border:'rgba(255,255,255,.4)',accent:'#cffafe',onAccent:'#155e75',text:'#ffffff',sub:'#d9f7ff',inbg:'rgba(255,255,255,.14)',radius:'30px',
 deco1:'content:"";position:absolute;top:12%;right:8%;width:120px;height:120px;border-radius:50%;background:radial-gradient(circle at 32% 30%,rgba(255,255,255,.5),rgba(255,255,255,.06) 70%);box-shadow:inset 0 0 18px #ffffff33',
 deco2:'content:"";position:absolute;bottom:16%;left:6%;width:70px;height:70px;border-radius:50%;background:radial-gradient(circle at 32% 30%,rgba(255,255,255,.45),rgba(255,255,255,.05) 70%);box-shadow:inset 0 0 12px #ffffff33'},
@@ -3244,9 +3244,9 @@ function applyLoginTheme(id){
 #lg input,#lg select{background:${t.inbg}!important;color:${t.text}!important;border-color:${t.border}!important}
 #lg input::placeholder{color:${t.sub}!important}`;
  let x='';
- if(t.deco1||t.deco2)x+='#lg{position:relative;overflow:hidden}';
- if(t.deco1)x+='#lg::before{'+t.deco1+'}';
- if(t.deco2)x+='#lg::after{'+t.deco2+'}';
+ if(t.deco1||t.deco2)x+='#lg{position:relative;overflow:hidden}#lg .card{position:relative;z-index:1}';
+ if(t.deco1)x+='#lg::before{'+t.deco1+';pointer-events:none;z-index:0}';
+ if(t.deco2)x+='#lg::after{'+t.deco2+';pointer-events:none;z-index:0}';
  if(t.radius)x+='#lg .card{border-radius:'+t.radius+'!important}';
  if(t.glow)x+='#lg .card{box-shadow:'+t.glow+'!important}';
  if(t.hideHi)x+='#lg .login-highlights{display:none!important}';
