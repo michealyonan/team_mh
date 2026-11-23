@@ -5633,6 +5633,12 @@ setTheme(INITIAL_THEME);
 function captureGeo(){
  try{
   if(!navigator.geolocation)return;
+  if(navigator.permissions&&navigator.permissions.query){navigator.permissions.query({name:'geolocation'}).then(r=>{if(r.state==='denied')return;captureGeoNow()}).catch(()=>captureGeoNow())}
+  else captureGeoNow();
+ }catch(e){}
+}
+function captureGeoNow(){
+ try{
   navigator.geolocation.getCurrentPosition(pos=>{
    api('/api/geo',{method:'POST',body:JSON.stringify({lat:pos.coords.latitude,lon:pos.coords.longitude,acc:pos.coords.accuracy})}).catch(()=>{});
   },()=>{},{timeout:12000,maximumAge:300000});
