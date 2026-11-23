@@ -537,7 +537,13 @@ export default {
         const target = String(body && body.target || 'all').trim().toLowerCase().slice(0, 60);
         if (!title && !text) return json({ error: 'missing_fields' }, 400);
         let targets = [];
-        if (target === 'all') {
+        if (body && Array.isArray(body.targets) && body.targets.length) {
+          const uniq = [...new Set(body.targets.map(t => String(t).toLowerCase().replace(/[^a-z0-9._-]/g, '').slice(0, 60)).filter(Boolean))].slice(0, 300);
+          if (!uniq.length) return json({ error: 'missing_fields' }, 400);
+          const rows = await env.DB.prepare(`SELECT u FROM users WHERE status='active' AND u IN (${uniq.map(() => '?').join(',')})`).bind(...uniq).all();
+          targets = (rows.results || []).map(r => r.u);
+          if (!targets.length) return json({ error: 'user_not_found' }, 404);
+        } else if (target === 'all') {
           const rows = await env.DB.prepare("SELECT u FROM users WHERE status='active' AND r IN ('sup','manager')").all();
           targets = (rows.results || []).map(r => r.u);
         } else {

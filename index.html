@@ -1159,8 +1159,9 @@ html[data-theme="light"] body{background:radial-gradient(ellipse at 8% 0%,#d6f4f
     <div class="sub" style="margin-bottom:6px">📢 إشعار من الإدارة</div>
     <input id="ncTitle" placeholder="العنوان" style="width:100%;margin-bottom:6px">
     <textarea id="ncBody" rows="2" placeholder="نص الإشعار" style="width:100%;margin-bottom:6px"></textarea>
+    <label style="display:flex;align-items:center;gap:6px;font-size:13px;margin-bottom:4px"><input type="checkbox" id="ncAll" checked onchange="$('ncList').style.opacity=this.checked?'.45':'1';$('ncList').style.pointerEvents=this.checked?'none':'auto'"> كل المشرفين والمديرين</label>
+    <div id="ncList" style="max-height:130px;overflow:auto;display:grid;gap:4px;margin-bottom:6px;opacity:.45;pointer-events:none"></div>
     <div class="row" style="gap:6px;flex-wrap:wrap">
-     <select id="ncTarget" style="flex:1;min-width:0"><option value="all">كل المشرفين</option></select>
      <button class="btn pr" type="button" onclick="sendAnnounce()">إرسال 📨</button>
     </div>
     <div class="sub" id="ncStatus" role="status" style="margin-top:4px"></div>
@@ -5665,15 +5666,24 @@ async function loadNotifs(show){
 async function sendAnnounce(){
  const st=$('ncStatus');st.textContent='جاري الإرسال…';
  try{
-  const d=await api('/api/notifications/send',{method:'POST',body:JSON.stringify({title:$('ncTitle').value.trim(),body:$('ncBody').value.trim(),target:$('ncTarget').value})});
+  const all=$('ncAll').checked;
+  const picked=[...document.querySelectorAll('#ncList input[type=checkbox]:checked')].map(c=>c.value);
+  if(!all&&!picked.length){st.textContent='حدد مشرف واحد على الأقل أو اختار "كل المشرفين"';return}
+  const payload={title:$('ncTitle').value.trim(),body:$('ncBody').value.trim()};
+  if(all)payload.target='all';else payload.targets=picked;
+  const d=await api('/api/notifications/send',{method:'POST',body:JSON.stringify(payload)});
   st.textContent='اتبعت ✅ ('+d.sent+' مستلم)';$('ncTitle').value='';$('ncBody').value='';
  }catch(e){st.textContent='فشل الإرسال: '+(e.message||e)}
 }
 async function fillAnnounceTargets(){
- const sel=$('ncTarget');if(!sel||sel.dataset.filled)return;sel.dataset.filled='1';
+ const box=$('ncList');if(!box||box.dataset.filled)return;box.dataset.filled='1';
  try{
   const d=await api('/api/auth/admin/users');
-  for(const x of (d.users||[]))if(x.r==='sup'||x.r==='manager'){const o=document.createElement('option');o.value=x.u;o.textContent=x.n+' ('+x.u+')';sel.append(o)}
+  for(const x of (d.users||[]))if(x.r==='sup'||x.r==='manager'){
+   const l=document.createElement('label');l.style.cssText='display:flex;align-items:center;gap:6px;font-size:13px';
+   const c=document.createElement('input');c.type='checkbox';c.value=x.u;
+   l.append(c,document.createTextNode(x.n+' ('+x.u+')'));box.append(l);
+  }
  }catch(e){}
 }
 function toggleNavDrawer(open){
