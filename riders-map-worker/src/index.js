@@ -788,6 +788,35 @@ export default {
       } catch (e) { return json({ error: 'server_error', detail: String(e && e.message || e) }, 500); }
     }
 
+    if (url.pathname === '/api/assistant' && request.method === 'POST') {
+      try {
+        const user = await getSessionUser(env, request);
+        if (!user) return json({ error: 'unauthorized' }, 401);
+        if (user.r !== 'admin' && user.r !== 'manager') return json({ error: 'forbidden' }, 403);
+        if (!env.AI) return json({ error: 'ai_unavailable' }, 503);
+        const dayKey = cairoDay() + ':' + user.u;
+        const used = (_aiUse.get(dayKey) || 0);
+        if (used >= 60) return json({ error: 'daily_limit' }, 429);
+        _aiUse.set(dayKey, used + 1);
+        if (_aiUse.size > 500) { for (const k of _aiUse.keys()) if (!k.startsWith(cairoDay())) _aiUse.delete(k); }
+        const body = await request.json().catch(() => null);
+        const q = String(body && body.q || '').trim().slice(0, 600);
+        if (!q) return json({ error: 'missing_fields' }, 400);
+        let ctxStr = '{}';
+        try { ctxStr = JSON.stringify((body && body.ctx) || {}).slice(0, 9000); } catch (e) {}
+        const sys = 'إنت "مايكل"، المساعد الذكي بتاع لوحة تحكم Team MH لمتابعة أداء المناديب (الطيارين). بتجاوب دايمًا بالعامية المصرية، باختصار ووضوح، وبتعتمد على البيانات اللي بتتبعتلك في رسالة المستخدم بس. متخترعش أرقام مش موجودة، ولو البيانات مش كفاية قول ده بصراحة. لو السؤال مش له علاقة بشغل اللوحة والمناديب والأرقام، اعتذر بأدب وقول إنك مساعد لوحة التحكم بس. نسّق الإجابة في سطور قصيرة، ولو فيها قائمة خلي كل بند في سطر.';
+        const r = await env.AI.run('@cf/meta/llama-3.3-70b-instruct-fp8-fast', {
+          messages: [
+            { role: 'system', content: sys },
+            { role: 'user', content: 'بيانات اللوحة الحالية (JSON):\n' + ctxStr + '\n\nالسؤال: ' + q },
+          ],
+          max_tokens: 600,
+        });
+        const ans = String((r && r.response) || '').trim();
+        return json({ ok: true, answer: ans || 'معنديش إجابة واضحة من البيانات الحالية.' });
+      } catch (e) { return json({ error: 'server_error', detail: String(e && e.message || e) }, 500); }
+    }
+
     if (url.pathname === '/api/notifications' || url.pathname === '/api/notifications/test') {
       try {
         await ensureSchema(env);

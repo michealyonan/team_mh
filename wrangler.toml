@@ -21,5 +21,8 @@ database_id = "d18873ef-070a-470c-8da8-9a8d447e1143"
 [vars]
 ALLOWED_ORIGIN = "https://michealyonan.github.io,https://team-mh.michealuonanayad.workers.dev"
 
+[ai]
+binding = "AI"
+
 [triggers]
 crons = ["*/2 * * * *"]
