@@ -1162,6 +1162,13 @@ html[data-theme="light"] body{background:radial-gradient(ellipse at 8% 0%,#d6f4f
    <div class="row"><h3 style="margin:0">🎨 تصميم صفحة الدخول</h3><span id="themeSaved" class="sub" style="color:#4ade80"></span><button class="btn" style="margin-inline-start:auto" onclick="$('themeModal').style.display='none'">✕</button></div>
    <div class="sub">اختار التصميم — بيتطبق فورًا على صفحة الدخول لكل المستخدمين.</div>
    <div id="themeGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(115px,1fr));gap:10px;margin-top:10px"></div>
+   <div style="margin-top:14px;border-top:1px solid var(--bd);padding-top:12px">
+    <label for="themeTitleIn">عنوان صفحة الدخول</label>
+    <input id="themeTitleIn" maxlength="60" placeholder="مثال: أهلًا بيك">
+    <label for="themeSubIn" style="margin-top:8px">السطر التعريفي تحت العنوان</label>
+    <input id="themeSubIn" maxlength="120" placeholder="مثال: سجّل دخولك لمتابعة أداء الطيارين">
+    <div class="row" style="margin-top:10px"><button type="button" class="btn pr" onclick="saveLoginTitle()">💾 حفظ العنوان والسطر</button></div>
+   </div>
   </div>
  </div>
  <style>
@@ -3188,23 +3195,45 @@ const REMEMBER_LOGIN_KEY='pd_remember_login',REMEMBER_LOGIN_MS=7*24*60*60*1000;a
 let USERS=USERS_EMBED.concat(MONITOR_USERS_EMBED),DRAFT=null,VAULT=PW_EMBED;
 async function loadUsers(){}
 const LOGIN_THEMES=[
-{id:'night',n:'ليلي زجاجي (الأصلي)'},
+{id:'night',n:'ليلي زجاجي (الأصلي)',art:'🚀'},
 {id:'ocean',n:'محيط',bg:'linear-gradient(160deg,#012a4a,#013a63,#01497c)',card:'rgba(1,42,74,.88)',border:'rgba(97,165,194,.35)',accent:'#48cae4',onAccent:'#012a4a',text:'#eaf6fb',sub:'#a8d3e6',inbg:'rgba(255,255,255,.08)'},
 {id:'sunset',n:'غروب',bg:'linear-gradient(160deg,#2d0a31,#7c2d12,#c2410c)',card:'rgba(45,10,49,.88)',border:'rgba(253,186,116,.35)',accent:'#fb923c',onAccent:'#2d0a31',text:'#fff7ed',sub:'#f5c9a8',inbg:'rgba(255,255,255,.08)'},
 {id:'emerald',n:'زمردي',bg:'linear-gradient(160deg,#022c22,#064e3b,#065f46)',card:'rgba(2,44,34,.9)',border:'rgba(110,231,183,.3)',accent:'#34d399',onAccent:'#022c22',text:'#ecfdf5',sub:'#a7d7c5',inbg:'rgba(255,255,255,.08)'},
 {id:'royal',n:'بنفسجي ملكي',bg:'linear-gradient(160deg,#170b2e,#4c1d95,#7c3aed)',card:'rgba(23,11,46,.9)',border:'rgba(216,180,254,.3)',accent:'#c084fc',onAccent:'#170b2e',text:'#faf5ff',sub:'#d9c8f0',inbg:'rgba(255,255,255,.08)'},
 {id:'gold',n:'فحمي ذهبي',bg:'linear-gradient(160deg,#0a0a0a,#1c1917,#292524)',card:'rgba(12,10,9,.92)',border:'rgba(251,191,36,.35)',accent:'#fbbf24',onAccent:'#1c1917',text:'#fef3c7',sub:'#cbb98a',inbg:'rgba(255,255,255,.06)'},
 {id:'sky',n:'سماوي فاتح',bg:'linear-gradient(160deg,#e0f2fe,#f0f9ff)',card:'#ffffff',border:'#bae6fd',accent:'#0284c7',onAccent:'#ffffff',text:'#0c4a6e',sub:'#3d6f8e',inbg:'#f0f9ff'},
-{id:'white',n:'أبيض نقي',bg:'#f1f5f9',card:'#ffffff',border:'#e2e8f0',accent:'#0f172a',onAccent:'#ffffff',text:'#0f172a',sub:'#475569',inbg:'#ffffff'},
-{id:'coral',n:'مرجاني',bg:'linear-gradient(160deg,#4c0519,#9f1239,#be123c)',card:'rgba(76,5,25,.9)',border:'rgba(253,164,175,.3)',accent:'#fb7185',onAccent:'#4c0519',text:'#fff1f2',sub:'#f0b6c0',inbg:'rgba(255,255,255,.08)'},
-{id:'desert',n:'صحراوي',bg:'linear-gradient(160deg,#451a03,#92400e,#d97706)',card:'rgba(69,26,3,.9)',border:'rgba(252,211,77,.35)',accent:'#fbbf24',onAccent:'#451a03',text:'#fffbeb',sub:'#e8cf9a',inbg:'rgba(255,255,255,.08)'},
-{id:'mint',n:'نعناعي فاتح',bg:'linear-gradient(160deg,#ecfdf5,#d1fae5)',card:'#ffffff',border:'#a7f3d0',accent:'#059669',onAccent:'#ffffff',text:'#064e3b',sub:'#3f7a63',inbg:'#ecfdf5'},
-{id:'navy',n:'كحلي كلاسيك',bg:'#0f172a',card:'#1e293b',border:'#475569',accent:'#60a5fa',onAccent:'#0f172a',text:'#e2e8f0',sub:'#94a3b8',inbg:'#0f172a'}
+{id:'waves',n:'أمواج البحر 🌊',art:'🌊',bg:'linear-gradient(180deg,#03045e,#0077b6)',card:'rgba(255,255,255,.1)',border:'rgba(144,224,239,.4)',accent:'#90e0ef',onAccent:'#03045e',text:'#f0fdff',sub:'#ade8f4',inbg:'rgba(255,255,255,.1)',radius:'26px',
+deco1:'content:"";position:absolute;left:-15%;bottom:-12vh;width:80vw;height:46vh;border-radius:50%;background:radial-gradient(closest-side,rgba(144,224,239,.35),transparent 72%)',
+deco2:'content:"";position:absolute;right:-15%;bottom:-8vh;width:70vw;height:40vh;border-radius:50%;background:radial-gradient(closest-side,rgba(0,180,216,.3),transparent 72%)'},
+{id:'space',n:'فضاء 🚀',art:'🪐',bg:'#050510',card:'rgba(16,16,32,.92)',border:'rgba(129,140,248,.4)',accent:'#818cf8',onAccent:'#050510',text:'#e0e7ff',sub:'#a5b4fc',inbg:'rgba(255,255,255,.07)',radius:'18px',
+deco1:'content:"";position:absolute;inset:0;background-image:radial-gradient(1.5px 1.5px at 12% 22%,#fff8,transparent 100%),radial-gradient(1px 1px at 32% 68%,#fff7,transparent 100%),radial-gradient(1.8px 1.8px at 56% 14%,#fff9,transparent 100%),radial-gradient(1px 1px at 74% 46%,#fff6,transparent 100%),radial-gradient(1.4px 1.4px at 88% 78%,#fff8,transparent 100%),radial-gradient(1px 1px at 42% 88%,#fff6,transparent 100%)',
+deco2:'content:"";position:absolute;top:8%;left:10%;width:150px;height:150px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#312e81,#050510 75%);box-shadow:0 0 60px #4f46e544'},
+{id:'bubbles',n:'فقاعات 🫧',art:'🫧',bg:'linear-gradient(155deg,#164e63,#0e7490,#22d3ee)',card:'rgba(255,255,255,.14)',border:'rgba(255,255,255,.4)',accent:'#cffafe',onAccent:'#155e75',text:'#ffffff',sub:'#d9f7ff',inbg:'rgba(255,255,255,.14)',radius:'30px',
+deco1:'content:"";position:absolute;top:12%;right:8%;width:120px;height:120px;border-radius:50%;background:radial-gradient(circle at 32% 30%,rgba(255,255,255,.5),rgba(255,255,255,.06) 70%);box-shadow:inset 0 0 18px #ffffff33',
+deco2:'content:"";position:absolute;bottom:16%;left:6%;width:70px;height:70px;border-radius:50%;background:radial-gradient(circle at 32% 30%,rgba(255,255,255,.45),rgba(255,255,255,.05) 70%);box-shadow:inset 0 0 12px #ffffff33'},
+{id:'sunrise',n:'شروق 🌅',art:'🌅',bg:'linear-gradient(180deg,#311042 0%,#a4133c 45%,#ff4d6d 75%,#ff8fa3 100%)',card:'rgba(49,16,66,.82)',border:'rgba(255,143,163,.45)',accent:'#ffb3c1',onAccent:'#311042',text:'#fff0f3',sub:'#ffd0da',inbg:'rgba(255,255,255,.1)',radius:'22px',
+deco1:'content:"";position:absolute;bottom:-70px;left:50%;transform:translateX(-50%);width:220px;height:220px;border-radius:50%;background:radial-gradient(circle,#ffd166,#ff8fa3 72%);box-shadow:0 0 90px #ffd16688',
+deco2:''},
+{id:'neon',n:'نيون ⚡',art:'⚡',bg:'#090914',card:'rgba(9,9,20,.94)',border:'rgba(34,211,238,.65)',accent:'#22d3ee',onAccent:'#090914',text:'#ecfeff',sub:'#9adfeb',inbg:'rgba(34,211,238,.08)',radius:'14px',glow:'0 0 26px rgba(34,211,238,.35), inset 0 0 18px rgba(34,211,238,.08)',
+deco1:'content:"";position:absolute;top:0;left:20%;right:20%;height:2px;background:linear-gradient(90deg,transparent,#22d3ee,transparent);box-shadow:0 0 18px #22d3ee',
+deco2:''},
+{id:'grid',n:'هندسي 📐',art:'📐',bg:'#111827',card:'rgba(17,24,39,.94)',border:'rgba(52,211,153,.4)',accent:'#34d399',onAccent:'#111827',text:'#e8fff4',sub:'#9fd8bf',inbg:'rgba(255,255,255,.07)',radius:'8px',
+deco1:'content:"";position:absolute;inset:0;background-image:repeating-linear-gradient(0deg,transparent,transparent 46px,rgba(52,211,153,.14) 47px),repeating-linear-gradient(90deg,transparent,transparent 46px,rgba(52,211,153,.14) 47px)',
+deco2:''},
+{id:'minimal',n:'بسيط أنيق ⚪',art:'✨',bg:'#fafafa',card:'#ffffff',border:'#e5e7eb',accent:'#111827',onAccent:'#ffffff',text:'#111827',sub:'#6b7280',inbg:'#f9fafb',radius:'20px',hideHi:true,
+deco1:'',deco2:''},
+{id:'paper',n:'ورقي 📋',art:'📋',bg:'linear-gradient(160deg,#f5f0e1,#ede4cf)',card:'#fffdf6',border:'#d9cbb2',accent:'#b3541e',onAccent:'#fffdf6',text:'#4a3728',sub:'#8a7360',inbg:'#f8f3e8',radius:'10px',
+deco1:'content:"";position:absolute;top:10%;left:8%;width:90px;height:110px;background:#ffffff88;border:1px solid #d9cbb2;transform:rotate(-8deg);border-radius:6px',
+deco2:''}
 ];
+function applyLoginTitle(t,s){
+ const h=document.querySelector('#lg .login-brand h2');if(h&&t)h.textContent=t;
+ const p=document.querySelector('#lg .login-brand .sub');if(p&&s)p.textContent=s;
+}
 function applyLoginTheme(id){
  let st=document.getElementById('lgThemeStyle');if(!st){st=document.createElement('style');st.id='lgThemeStyle';document.head.appendChild(st)}
  const t=LOGIN_THEMES.find(x=>x.id===id);
- if(!t||!t.bg){st.textContent='';return}
+ if(!t||!t.bg){st.textContent='';const lg0=document.querySelector('#lg .login-logo');if(lg0)lg0.textContent='🚀';return}
  st.textContent=`#lg{background:${t.bg}!important}
 #lg .lb,#lg .card{background:${t.card}!important;border-color:${t.border}!important}
 #lg .btn.pr{background:${t.accent}!important;border-color:${t.accent}!important;color:${t.onAccent}!important}
@@ -3214,17 +3243,35 @@ function applyLoginTheme(id){
 #lg .login-signature-phone{color:${t.accent}!important}
 #lg input,#lg select{background:${t.inbg}!important;color:${t.text}!important;border-color:${t.border}!important}
 #lg input::placeholder{color:${t.sub}!important}`;
+ let x='';
+ if(t.deco1||t.deco2)x+='#lg{position:relative;overflow:hidden}';
+ if(t.deco1)x+='#lg::before{'+t.deco1+'}';
+ if(t.deco2)x+='#lg::after{'+t.deco2+'}';
+ if(t.radius)x+='#lg .card{border-radius:'+t.radius+'!important}';
+ if(t.glow)x+='#lg .card{box-shadow:'+t.glow+'!important}';
+ if(t.hideHi)x+='#lg .login-highlights{display:none!important}';
+ st.textContent+=x;
+ const lg=document.querySelector('#lg .login-logo');if(lg)lg.textContent=t.art||'🚀';
 }
-try{const cached=localStorage.getItem('pd_login_theme');if(cached)applyLoginTheme(cached)}catch(e){}
-async function loadLoginTheme(){try{const r=await fetch('/api/theme');const d=await r.json();if(d&&d.theme){applyLoginTheme(d.theme);try{localStorage.setItem('pd_login_theme',d.theme)}catch(e){}}}catch(e){}}
+try{const cached=localStorage.getItem('pd_login_theme');if(cached)applyLoginTheme(cached);const ct=localStorage.getItem('pd_login_title'),cs=localStorage.getItem('pd_login_sub');if(ct||cs)applyLoginTitle(ct,cs)}catch(e){}
+async function loadLoginTheme(){try{const r=await fetch('/api/theme');const d=await r.json();if(d&&d.theme){applyLoginTheme(d.theme);try{localStorage.setItem('pd_login_theme',d.theme)}catch(e){}}if(d){if(d.title||d.sub)applyLoginTitle(d.title,d.sub);try{if(d.title)localStorage.setItem('pd_login_title',d.title);if(d.sub)localStorage.setItem('pd_login_sub',d.sub)}catch(e){}}}catch(e){}}
 function openThemePicker(){
  const g=$('themeGrid');$('themeSaved').textContent='';
+ const h=document.querySelector('#lg .login-brand h2'),p=document.querySelector('#lg .login-brand .sub');
+ $('themeTitleIn').value=h?h.textContent:'';$('themeSubIn').value=p?p.textContent:'';
  g.innerHTML=LOGIN_THEMES.map(t=>{
   const pv=t.bg?t.bg:'radial-gradient(ellipse at 50% 20%,#1d3c6a,#0b0f19)';
   const ac=t.accent||'#38bdf8';
-  return '<button type="button" class="btn" onclick="pickLoginTheme(\''+t.id+'\')" style="padding:0;overflow:hidden;border:1px solid var(--bd);border-radius:12px"><span style="display:block;height:56px;background:'+pv+'"><span style="display:block;width:55%;height:8px;margin:24px auto 0;border-radius:4px;background:'+ac+'"></span></span><span style="display:block;padding:6px 4px;font-size:12px;font-weight:700">'+esc(t.n)+'</span></button>'
+  return '<button type="button" class="btn" onclick="pickLoginTheme(\''+t.id+'\')" style="padding:0;overflow:hidden;border:1px solid var(--bd);border-radius:12px"><span style="display:block;height:56px;background:'+pv+';text-align:center;font-size:18px;line-height:1;padding-top:10px">'+(t.art||'')+'<span style="display:block;width:55%;height:8px;margin:6px auto 0;border-radius:4px;background:'+ac+'"></span></span><span style="display:block;padding:6px 4px;font-size:12px;font-weight:700">'+esc(t.n)+'</span></button>'
  }).join('');
  $('themeModal').style.display='';
+}
+async function saveLoginTitle(){
+ const title=$('themeTitleIn').value.trim(),sub=$('themeSubIn').value.trim();
+ let theme='night';try{theme=localStorage.getItem('pd_login_theme')||'night'}catch(e){}
+ applyLoginTitle(title,sub);
+ try{localStorage.setItem('pd_login_title',title);localStorage.setItem('pd_login_sub',sub)}catch(e){}
+ try{await api('/api/theme',{method:'POST',body:{theme,title,sub}});$('themeSaved').textContent='اتحفظ ✅';setTimeout(()=>{const e=$('themeSaved');if(e)e.textContent=''},2000)}catch(e){alert('تعذّر الحفظ: '+authErr(e))}
 }
 async function pickLoginTheme(id){
  applyLoginTheme(id);try{localStorage.setItem('pd_login_theme',id)}catch(e){}

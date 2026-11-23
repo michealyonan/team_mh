@@ -761,8 +761,10 @@ export default {
     if (url.pathname === '/api/theme') {
       await ensureSchema(env);
       if (request.method === 'GET') {
-        const row = await env.DB.prepare("SELECT v FROM settings WHERE k='login_theme'").first();
-        return json({ theme: (row && row.v) || 'night' });
+        const rows = await env.DB.prepare("SELECT k,v FROM settings WHERE k IN ('login_theme','login_title','login_sub')").all();
+        const map = {};
+        for (const r of (rows.results || [])) map[r.k] = r.v;
+        return json({ theme: map.login_theme || 'night', title: map.login_title || '', sub: map.login_sub || '' });
       }
       if (request.method === 'POST') {
         const user = await getSessionUser(env, request);
@@ -770,7 +772,10 @@ export default {
         const body = await request.json().catch(() => null);
         const theme = String(body && body.theme || '').toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 24);
         if (!theme) return json({ error: 'missing_fields' }, 400);
-        await env.DB.prepare("INSERT INTO settings(k,v) VALUES('login_theme',?) ON CONFLICT(k) DO UPDATE SET v=excluded.v").bind(theme).run();
+        const stmts = [env.DB.prepare("INSERT INTO settings(k,v) VALUES('login_theme',?) ON CONFLICT(k) DO UPDATE SET v=excluded.v").bind(theme)];
+        if (body && typeof body.title === 'string') stmts.push(env.DB.prepare("INSERT INTO settings(k,v) VALUES('login_title',?) ON CONFLICT(k) DO UPDATE SET v=excluded.v").bind(String(body.title).slice(0, 60)));
+        if (body && typeof body.sub === 'string') stmts.push(env.DB.prepare("INSERT INTO settings(k,v) VALUES('login_sub',?) ON CONFLICT(k) DO UPDATE SET v=excluded.v").bind(String(body.sub).slice(0, 120)));
+        await env.DB.batch(stmts);
         return json({ ok: true, theme });
       }
     }
