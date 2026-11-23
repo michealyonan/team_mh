@@ -1190,14 +1190,6 @@ html[data-theme="light"] body{background:radial-gradient(ellipse at 8% 0%,#d6f4f
    </div>
   </div>
  </div>
- <div id="waModal" style="display:none;position:fixed;inset:0;background:#000c;z-index:75;overflow:auto;padding:12px" onclick="if(event.target===this)this.style.display='none'">
-  <div class="card" style="max-width:560px;margin:auto">
-   <div class="row"><h3 style="margin:0">📨 واتساب غير الحاجزين</h3><span id="waCount" class="sub"></span><button class="btn" style="margin-inline-start:auto" onclick="$('waModal').style.display='none'">✕</button></div>
-   <div class="row" style="gap:6px;flex-wrap:wrap;margin:8px 0"><button class="btn" id="waToday" type="button">📅 النهارده</button><button class="btn" id="waTomorrow" type="button">📅 بكره</button><span class="sub" id="waDateLabel"></span></div>
-   <div class="sub">كل مندوب ليه زراره — دوس 💬 يفتح واتساب بالرسالة جاهزة، وأنت بس تدوس إرسال. مفيش إرسال تلقائي خالص، عشان رقمك ميتعملوش حظر.</div>
-   <div id="waList" style="display:grid;gap:8px;margin-top:10px"></div>
-  </div>
- </div>
  <style>
 #mkFab{position:fixed;bottom:14px;inset-inline-end:14px;z-index:80;border:none;border-radius:999px;padding:11px 18px;font-weight:800;font-size:14px;cursor:pointer;background:linear-gradient(135deg,#6366f1,#2563eb);color:#fff;box-shadow:0 6px 22px #2563eb66}
 .nav-search{margin-bottom:10px}
@@ -1492,7 +1484,7 @@ header{box-shadow:0 8px 24px rgba(2,8,23,.5)}
   </div>
   <div id="asM" style="padding:10px;border-radius:10px;background:#f59e0b22;color:#fbbf24;font-size:13px;display:none"></div>
   <section class="card" id="bookingPanel">
-   <div class="row"><h3 style="margin:0">🗓️ مقارنة قاعدة البيانات بالحجوزات</h3><span class="sub" id="bookingCount" aria-live="polite"></span><span style="margin-inline-start:auto;display:flex;gap:6px;flex-wrap:wrap"><button class="btn" id="bookingDailySummaryToggle" type="button" aria-expanded="false" aria-controls="bookingDailySummary">📅 ملخص كل الأيام</button><button class="btn" id="bookingZoneSummary" type="button" aria-expanded="false" aria-controls="bookingZonePanel">📍 ملخص الزونات</button><button class="btn" id="bookingSupervisorSummary" type="button" aria-expanded="false" aria-controls="bookingSupervisorPanel">👷 ملخص المشرفين</button><button class="btn" id="bookingSummaryScreenshot" type="button">📸 اسكرين ملخص الزونات</button><button class="btn" id="bookingWaB" type="button">📨 واتساب غير الحاجزين</button></span><span class="sub" id="bookingUpdated"></span></div>
+   <div class="row"><h3 style="margin:0">🗓️ مقارنة قاعدة البيانات بالحجوزات</h3><span class="sub" id="bookingCount" aria-live="polite"></span><span style="margin-inline-start:auto;display:flex;gap:6px;flex-wrap:wrap"><button class="btn" id="bookingDailySummaryToggle" type="button" aria-expanded="false" aria-controls="bookingDailySummary">📅 ملخص كل الأيام</button><button class="btn" id="bookingZoneSummary" type="button" aria-expanded="false" aria-controls="bookingZonePanel">📍 ملخص الزونات</button><button class="btn" id="bookingSupervisorSummary" type="button" aria-expanded="false" aria-controls="bookingSupervisorPanel">👷 ملخص المشرفين</button><button class="btn" id="bookingSummaryScreenshot" type="button">📸 اسكرين ملخص الزونات</button></span><span class="sub" id="bookingUpdated"></span></div>
    <div class="booking-summary" aria-live="polite">
     <div class="booking-summary-item"><span>إجمالي المناديب بقاعدة البيانات</span><b id="bookingRosterTotal">—</b></div>
     <div class="booking-summary-item"><span>المناديب الحاجزون</span><b id="bookingRiderTotal">—</b></div>
@@ -4773,26 +4765,6 @@ async function bookingRefresh(){
     if(!hadData)$('bookingRows').innerHTML='<tr><td colspan="10" class="sub">تعذّر تحميل البيانات.</td></tr>';
   }finally{BOOKING_BUSY=false;button.disabled=false;button.textContent='🔄 تحديث البيانات';if($('livePanel').style.display==='flex')renderLive()}
 }
-function asDateKeyPlus(n){const d=new Date();d.setDate(d.getDate()+n);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
-function waPhone(p){let d=String(p||'').replace(/\D/g,'');if(d.indexOf('0020')===0)d=d.slice(2);if(d.charAt(0)==='0'&&d.length===11)d='2'+d;else if(d.length===10)d='20'+d;return /^201[0-9]{9}$/.test(d)?d:''}
-function waMsg(name,dateKey){return 'أهلًا كابتن '+name+' 👋 معاك فريق العمليات. لسه ماحجزتش شيفت يوم '+asDateLabel(dateKey)+'. لو ناوي تشتغل، احجز على طول من تطبيق الحجز قبل ما الشيفتات تقفل 🙏'}
-function openWaModal(dateKey){
- if(!BOOKING_LOADED){alert('اعمل تحديث البيانات الأول 🔄');return}
- if(!dateKey)dateKey=$('bookingDate').value||asTodayKey();
- const sel=$('bookingDate');
- if(![...sel.options].some(o=>o.value===dateKey))sel.appendChild(new Option(asDateLabel(dateKey),dateKey));
- if(sel.value!==dateKey){sel.value=dateKey;BOOKING_PAGE=0;bookingRender()}
- const list=BOOKING_ALL_VISIBLE.filter(r=>!r.isBooked);
- $('waDateLabel').textContent='ليوم '+asDateLabel(dateKey);
- const withPhone=list.filter(r=>waPhone(r.phone));
- $('waCount').textContent=NF(list.length)+' غير حاجز'+(list.length>withPhone.length?' · '+NF(list.length-withPhone.length)+' بدون رقم':'') ;
- $('waList').innerHTML=withPhone.map(r=>{const url='https://wa.me/'+waPhone(r.phone)+'?text='+encodeURIComponent(waMsg(r.name||r.id,dateKey));
-  return '<div class="row" style="justify-content:space-between;gap:8px;border:1px solid var(--bd);border-radius:10px;padding:8px 10px"><span><b>'+esc(r.name||r.id)+'</b> <span class="sub">'+esc(r.id)+(r.sup?' · '+esc(r.sup):'')+'</span><br><span class="sub" dir="ltr">'+esc(r.phone)+'</span></span><a class="btn pr" style="background:#25d366;border-color:#25d366;text-decoration:none;white-space:nowrap" target="_blank" rel="noopener" href="'+url+'">💬 واتساب</a></div>'}).join('')||'<div class="sub">كل المناديب حاجزين 🎉 أو مفيش أرقام تليفونات مسجلة.</div>';
- $('waModal').style.display='';
-}
-$('bookingWaB').onclick=()=>openWaModal();
-$('waToday').onclick=()=>openWaModal(asDateKeyPlus(0));
-$('waTomorrow').onclick=()=>openWaModal(asDateKeyPlus(1));
 $('bookingOnline').onclick=bookingRefresh;
 $('bookingExport').onclick=bookingExportExcel;
 $('bookingSummaryScreenshot').onclick=event=>bookingCaptureSummaryTables(event.currentTarget);
