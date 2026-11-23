@@ -1259,7 +1259,7 @@ html[data-theme="light"] body{background:radial-gradient(ellipse at 8% 0%,#d6f4f
   </div>
  </div>
  <style>
-#mkFab{position:fixed;bottom:78px;inset-inline-end:18px;z-index:80;border:1px solid #818cf8;border-radius:999px;padding:10px 18px;min-height:48px;font-weight:900;font-size:13px;cursor:pointer;background:linear-gradient(135deg,#6366f1,#2563eb);color:#fff;box-shadow:0 8px 24px #0008}
+#mkFab{box-sizing:border-box;width:96px;max-width:96px;white-space:nowrap;font-family:inherit;position:fixed;bottom:78px;inset-inline-end:18px;z-index:80;border:1px solid #818cf8;border-radius:999px;padding:9px 8px;height:46px;min-height:46px;font-weight:900;font-size:11px;cursor:pointer;background:linear-gradient(135deg,#6366f1,#2563eb);color:#fff;box-shadow:0 8px 24px #0008}
 .nav-search{margin-bottom:10px}
 .nav-search input{width:100%;min-height:42px;border-radius:12px;background:rgba(255,255,255,.08);border:1px solid rgba(160,215,255,.3);color:#f0f9ff;padding:8px 12px;font-weight:600}
 .nav-group{margin-bottom:12px}
@@ -1674,9 +1674,10 @@ header{box-shadow:0 8px 24px rgba(2,8,23,.5)}
    </div>
   </div>
  </div>
-<div class="ov section-screen" id="extPanel" style="display:none" role="dialog" aria-modal="true" aria-labelledby="extTitle" aria-hidden="true" onclick="if(event.target===this)closeExtPanel()">
+<div class="ov section-screen" id="extPanel" style="display:none" role="dialog" aria-modal="true" aria-labelledby="extTitle" aria-hidden="true">
  <section class="section-screen-wrap">
   <div class="section-screen-heading"><h2 id="extTitle">⏫ مد الشيفت</h2><button class="btn" type="button" aria-label="إغلاق" onclick="closeExtPanel()">✕ إغلاق</button></div>
+  <div class="card" id="extSupervisorCard" style="display:none"><label for="extSupervisor">👷 المشرف</label><select id="extSupervisor" style="width:100%;min-height:42px"></select></div>
   <div class="card"><label for="extRiderSearch">🔎 المندوب</label><input id="extRiderSearch" type="search" placeholder="ابحث بالاسم أو كود المندوب" style="width:100%;min-height:42px"><div class="row" style="margin:8px 0 0;gap:6px"><button class="chip" id="extSelectAll" type="button">تحديد الكل</button><button class="chip" id="extSelectClear" type="button">مسح التحديد</button><span class="sub" id="extSelCount" style="margin-inline-start:auto"></span></div><div id="extRiderList" style="max-height:200px;overflow:auto;display:grid;gap:6px;margin-top:8px"></div></div>
   <div class="card" id="extDurationCard"><label for="extDuration">⏱ المد لحد الساعة:</label><select id="extDuration" style="width:100%;min-height:42px"></select></div>
   <div class="card" id="extReasonCard" style="display:none"><label for="extReason">📋 سبب فك البريك:</label><select id="extReason" style="width:100%;min-height:42px"><option value="">اختار السبب…</option><option value="TEMP_NOT_WORKING">TEMP_NOT_WORKING</option><option value="BREAK">BREAK</option></select></div>
@@ -5968,36 +5969,22 @@ function mkMsg(t,cls){const d=document.createElement('div');d.className='mkmsg '
 function mkAsk(q){const p=$('mkPanel');if(p&&p.style.display!=='flex')toggleMike();$('mkQ').value=q;sendMike()}
 function mkDayStats(rows){
  if(!rows||!rows.length)return null;
- const top=rows.slice().sort((a,b)=>(b.c||0)-(a.c||0));
- return {riders_total:rows.length,active:rows.filter(x=>(x.a||0)>0).length,
-  avg_completion:Math.round(rows.reduce((s,x)=>s+(x.c||0),0)/rows.length)+'%',
-  top5:top.slice(0,5).map(x=>({name:x.n,completion:Math.round(x.c||0)+'%',actual_orders:x.a||0,zone:x.z})),
-  bottom5:top.slice(-5).reverse().map(x=>({name:x.n,completion:Math.round(x.c||0)+'%',actual_orders:x.a||0,zone:x.z}))};
+ const byId=new Map();rows.forEach(r=>{let x=byId.get(r.id);if(!x){x={id:r.id,name:r.n,zone:r.z,planned_hours:0,worked_hours:0,orders:0};byId.set(r.id,x)}x.planned_hours+=+r.p||0;x.worked_hours+=+r.a||0;x.orders+=+r.o||0});
+ const riders=[...byId.values()].map(r=>({...r,completion:r.planned_hours?Math.round(r.worked_hours/r.planned_hours*100):null}));
+ const byOrders=riders.slice().sort((a,b)=>b.orders-a.orders||b.worked_hours-a.worked_hours),byCommit=riders.filter(r=>r.completion!==null).sort((a,b)=>a.completion-b.completion);
+ const totals=riders.reduce((t,r)=>({planned:t.planned+r.planned_hours,worked:t.worked+r.worked_hours,orders:t.orders+r.orders}),{planned:0,worked:0,orders:0});
+ return {riders_total:riders.length,active:riders.filter(r=>r.worked_hours>0).length,total_orders:totals.orders,planned_hours:+totals.planned.toFixed(1),worked_hours:+totals.worked.toFixed(1),completion:totals.planned?Math.round(totals.worked/totals.planned*100):null,ranking_basis:'أفضل مندوب حسب عدد الطلبات. الالتزام = ساعات العمل الفعلية / الساعات المخططة.',top5:byOrders.slice(0,5),bottom5_by_orders:byOrders.slice(-5).reverse(),bottom5_by_completion:byCommit.slice(0,5)};
 }
 function buildMikeCtx(q){
- const c={date:new Date().toLocaleDateString('ar-EG',{weekday:'long',year:'numeric',month:'long',day:'numeric'})};
- try{
-  if(typeof ROWS!=='undefined'&&ROWS&&ROWS.length){
-   const st=mkDayStats(ROWS);c.current_period=st;
-  }
-  if(q&&typeof ALL!=='undefined'&&ALL&&ALL.length){
-   let target=null;
-   const m=String(q).match(/(\d{1,2})\s*[-\/.]\s*(\d{1,2})/);
-   const todayDs=ds(Date.now());
-   if(/النهارد|اليوم|دلوقتي حالة/.test(q))target=todayDs;
-   else if(/امبارح|إمبارح|أمس|امس/.test(q))target=ds(Date.now()-864e5);
-   else if(m){const dd=+m[1],mm=+m[2];const y=new Date().getFullYear();target=y+'-'+String(mm).padStart(2,'0')+'-'+String(dd).padStart(2,'0')}
-   if(target){const dayRows=ALL.filter(x=>x.t&&ds(x.t)===target);const dst=mkDayStats(dayRows);if(dst)c.asked_date=target;c.asked_date_stats=dst}
-  }
- }catch(e){}
- try{
-  if(typeof LIVE_ROWS!=='undefined'&&LIVE_ROWS&&LIVE_ROWS.length){
-   c.live_riders=LIVE_ROWS.length;
-   const late=LIVE_ROWS.filter(r=>/تأخير|تاخير|متأخر/.test(String(r[14]||'')));
-   c.late_count=late.length;
-   c.late_now=late.slice(0,15).map(r=>({name:String(r[3]||''),state:String(r[14]||'').slice(0,40)}));
-  }
- }catch(e){}
+ const source=scope(ALL||[]),c={today:extCairoDay(),scope:'المشرفون المسموحون للحساب فقط',metric_note:'a ساعات عمل فعلية، p ساعات مخططة، o عدد الطلبات'};
+ const normalized=String(q||'').replace(/[٠-٩]/g,d=>String('٠١٢٣٤٥٦٧٨٩'.indexOf(d))).replace(/[۰-۹]/g,d=>String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)));
+ const m=normalized.match(/(\d{1,2})\s*[-/.]\s*(\d{1,2})(?:\s*[-/.]\s*(\d{4}))?/);let target=null;
+ if(/النهارد|اليوم/.test(normalized))target=c.today;
+ else if(/امبارح|إمبارح|أمس|امس/.test(normalized)){const d=new Date(c.today+'T12:00:00Z');d.setUTCDate(d.getUTCDate()-1);target=d.toISOString().slice(0,10)}
+ else if(m){const yr=m[3]||c.today.slice(0,4);target=yr+'-'+m[2].padStart(2,'0')+'-'+m[1].padStart(2,'0')}
+ if(target){c.asked_date=target;c.asked_date_stats=mkDayStats(source.filter(r=>ds(r.t)===target));c.date_has_data=!!c.asked_date_stats}
+ else{const rows=typeof FR!=='undefined'&&FR.length?FR:source;c.current_period=mkDayStats(rows);const times=rows.map(r=>r.t).filter(Boolean);if(times.length)c.period={from:ds(Math.min(...times)),to:ds(Math.max(...times))}}
+ try{const live=liveEligibleRows();c.live_as_of=LIVE_SHEET_UPDATE_TIME?liveFormatTimestamp(LIVE_SHEET_UPDATE_TIME):null;c.live_riders=live.length;c.late_now=live.filter(r=>String(r.cells[14]).trim()==='LATE').slice(0,15).map(r=>({name:r.cells[3],id:r.cells[2],late_time:r.cells[13]}));c.late_count=live.filter(r=>String(r.cells[14]).trim()==='LATE').length;if(!live.length)c.live_note='لا تتوفر سحبة حديثة خلال عشر دقائق، لا تستنتج أن الجميع أوفلاين أو أن لا أحد متأخر.'}catch(e){}
  return c;
 }
 async function sendMike(){
@@ -6148,14 +6135,14 @@ async function loadSupMapPins(){
   const d=await api('/api/geo');const items=d.items||[];
   for(const m of SUP_MAP_MARKERS)m.remove();SUP_MAP_MARKERS=[];
   if(!items.length){$('supMapStatus').textContent='لسه مفيش مواقع متسجلة — بتتسجل تلقائياً مع كل تسجيل دخول بعد ما المشرف يوافق على إذن الموقع.';return}
-  const pts=[];const seen={};
+  const pts=[];const groups=[];
   for(const g of items){
    const time=new Date(g.ts).toLocaleString('ar-EG',{hour:'2-digit',minute:'2-digit',day:'numeric',month:'short'});
-   const key=(+g.lat).toFixed(4)+','+(+g.lon).toFixed(4);const dup=seen[key]||0;seen[key]=dup+1;
-   let lon=+g.lon,lat=+g.lat;if(dup>0){const ang=dup*2.4;lon+=Math.cos(ang)*0.0012*dup;lat+=Math.sin(ang)*0.0012*dup}
-   const el=document.createElement('div');el.style.cssText='font-size:24px;cursor:pointer';el.textContent='📍';
+   const lon=+g.lon,lat=+g.lat;if(!Number.isFinite(lon)||!Number.isFinite(lat)||Math.abs(lon)>180||Math.abs(lat)>90)continue;
+   let group=groups.find(v=>Math.abs(v.lat-lat)<0.001&&Math.abs(v.lon-lon)<0.001);if(!group){group={lat,lon,count:0};groups.push(group)}const dup=group.count++;const offset=dup?[32*dup,0]:[0,0];
+   const el=document.createElement('div');el.style.cssText='font-size:24px;cursor:pointer';el.textContent='📍';el.title=g.n||g.u;
    const popup=new maplibregl.Popup({offset:20}).setHTML('<div style="direction:rtl"><b>'+esc(g.n||g.u)+'</b><br><span dir="ltr">'+esc(g.u)+'</span><br>آخر تسجيل دخول: '+time+'</div>');
-   SUP_MAP_MARKERS.push(new maplibregl.Marker({element:el}).setLngLat([lon,lat]).setPopup(popup).addTo(SUP_MAP));
+   SUP_MAP_MARKERS.push(new maplibregl.Marker({element:el,offset}).setLngLat([lon,lat]).setPopup(popup).addTo(SUP_MAP));
    pts.push([lon,lat]);
   }
   if(pts.length>1){const b=new maplibregl.LngLatBounds(pts[0],pts[0]);for(const c of pts)b.extend(c);SUP_MAP.fitBounds(b,{padding:70,maxZoom:12})}
@@ -6363,35 +6350,42 @@ function extRenderCities(){let cities=EXT_CITIES;if(CUR&&['sup','manager'].inclu
 function extRenderDurations(){$('extDuration').innerHTML='<option value="">اختار مدة المد…</option>'+EXT_DURATIONS.map(d=>`<option value="${d}">${d}</option>`).join('')}
 function extStateBadge(id){const lv=extLiveMap.get(String(id));if(!lv)return '<span title="مش ظاهر في اللايف">⚫</span>';if(lv.state==='BREAK')return '<span title="على بريك">☕</span>';if(lv.state==='WORKING')return '<span title="شغال">🟢</span>';if(lv.state==='LATE')return '<span title="متأخر">⏰</span>';return '<span title="'+lv.state+'">🟡</span>'}
 function extNormZone(z){const zl=String(z||'').toLowerCase();const zmap={'hurgada':'الغردقة','الغردقه':'الغردقة','suez':'السويس','ismailia':'الإسماعيلية','الاسماعيليه':'الإسماعيلية'};return zmap[zl]||String(z||'')}
-function extRenderRiders(){const q=($('extRiderSearch').value||'').trim().toLowerCase();const city=extNormZone($('extCity').value);const list=extRiders.filter(r=>(!city||extNormZone(r.zone)===city)&&(!q||String(r.name||'').toLowerCase().includes(q)||String(r.rider_id||r.id||'').includes(q))).slice(0,50);$('extRiderList').innerHTML=list.length?list.map(r=>{const id=r.rider_id||r.id||'';const sel=extSelected.has(String(id));return `<button class="btn${sel?' pr':''}" type="button" data-extid="${id}" data-extname="${String(r.name||'').replace(/"/g,'')}" style="text-align:start">${sel?'✅ ':''}${extStateBadge(id)} ${r.name||'مندوب'} · ${id}</button>`}).join(''):'<div class="sub">مفيش مناديب مطابقة</div>';$('extSelCount').textContent=extSelected.size?('متحدد: '+extSelected.size):''}
-function extScopedRows(){if(CUR&&['sup','manager'].includes(CUR.r))return ROWS&&ROWS.length?ROWS:[];return ALL||[]}
+function extRenderRiders(){const list=extVisibleRiders().slice(0,50);$('extRiderList').innerHTML=list.length?list.map(r=>{const id=r.rider_id||r.id||'';const sel=extSelected.has(String(id));return `<button class="btn${sel?' pr':''}" type="button" data-extid="${id}" data-extname="${String(r.name||'').replace(/"/g,'')}" style="text-align:start">${sel?'✅ ':''}${extStateBadge(id)} ${esc(r.name||'مندوب')} · ${esc(id)}</button>`}).join(''):'<div class="sub">مفيش مناديب مطابقة</div>';$('extSelCount').textContent=extSelected.size?('متحدد: '+extSelected.size):''}
+function extScopedRows(){return scope(ALL||[])}
+function extSupervisorMatches(r){const sup=$('extSupervisor').value;return !sup||nameMatchKey(r.sup)===nameMatchKey(sup)}
+function extVisibleRiders(){const q=($('extRiderSearch').value||'').trim().toLowerCase(),city=extNormZone($('extCity').value);return extRiders.filter(r=>extSupervisorMatches(r)&&(!city||extNormZone(r.zone)===city)&&(!q||String(r.name||'').toLowerCase().includes(q)||String(r.rider_id||'').includes(q)))}
+function extRenderSupervisors(){const show=CUR&&['admin','manager'].includes(CUR.r);$('extSupervisorCard').style.display=show?'':'none';const sel=$('extSupervisor');sel.replaceChildren(new Option('كل المشرفين',''));if(show)[...new Set(extRiders.map(r=>r.sup).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ar')).forEach(v=>sel.add(new Option(v,v)))}
+function extFilterChanged(){extSelected.clear();extRider=null;extRenderRiders();if(extAction==='break')extRenderBreakTable();else extDrawShiftTable()}
+$('extSupervisor').addEventListener('change',extFilterChanged);
 function extLoadRiders(){const seen=new Map();extScopedRows().forEach(r=>{const id=String(r.id||'').trim();if(!id)return;seen.set(id,{rider_id:id,name:r.n||'مندوب',zone:r.z||'',sup:r.s||''})});extRiders=[...seen.values()];extRenderRiders()}
 function extSyncReason(){$('extReasonCard').style.display=(extAction==='break'&&$('extCity').value==='الإسكندرية')?'':'none';$('extZoneCard').style.display=(extAction==='extend'&&['الغردقة','السويس','الإسماعيلية'].includes($('extCity').value))?'':'none'}
-function openExtPanel(mode){extAction=mode||'extend';extSelected.clear();extLoadRiders();$('extTitle').textContent=extAction==='extend'?'⏫ مد الشيفت':'☕ فك البريك';$('extDurationCard').style.display=extAction==='extend'?'':'none';toggleNavDrawer(false);extRenderCities();extRenderDurations();extRenderRiders();openSectionScreen('extPanel',extAction==='extend'?'extB':'brkB');extLoadRiders();extSyncReason();extLoadLiveAndTables()}
+function openExtPanel(mode){extAction=mode||'extend';extSelected.clear();extRider=null;extLoadRiders();extRenderSupervisors();$('extTitle').textContent=extAction==='extend'?'⏫ مد الشيفت':'☕ فك البريك';$('extDurationCard').style.display=extAction==='extend'?'':'none';toggleNavDrawer(false);extRenderCities();extRenderDurations();extRenderRiders();openSectionScreen('extPanel',extAction==='extend'?'extB':'brkB');extLoadRiders();extSyncReason();extLoadLiveAndTables()}
 $('extTableRefresh').addEventListener('click',()=>extLoadLiveAndTables(true));
-async function extLoadLiveAndTables(force){const card=$('extTableCard');card.style.display='';$('extTableTitle').textContent='⏳ بيتحمّل اللايف…';try{if(force||!LIVE_ROWS.length||Date.now()-LIVE_LAST_ATTEMPT>=LIVE_REFRESH_MS)await refreshLive();extBuildLiveMap();if(extAction==='break')extRenderBreakTable();else await extRenderShiftTable()}catch(e){$('extTableTitle').textContent='الجدول';$('extTableHead').innerHTML='';$('extTableBody').innerHTML='<tr><td class="sub">تعذّر تحميل بيانات اللايف: '+(e.message||e)+'</td></tr>'}}
+async function extLoadLiveAndTables(force){const card=$('extTableCard');card.style.display='';$('extTableTitle').textContent='⏳ بيتحمّل اللايف…';try{if(force||!LIVE_ROWS.length||Date.now()-LIVE_LAST_ATTEMPT>=LIVE_REFRESH_MS)await refreshLive();extBuildLiveMap();extRenderRiders();if(extAction==='break')extRenderBreakTable();else await extRenderShiftTable()}catch(e){$('extTableTitle').textContent='الجدول';$('extTableHead').innerHTML='';$('extTableBody').innerHTML='<tr><td class="sub">تعذّر تحميل بيانات اللايف: '+(e.message||e)+'</td></tr>'}}
 function extBuildLiveMap(){extLiveMap=new Map();try{liveEligibleRows().forEach(({cells})=>{const id=String(cells[2]||'').trim().replace(/\.0$/,'');if(!id)return;extLiveMap.set(id,{name:String(cells[3]||''),zone:String(cells[1]||''),session:String(cells[5]||''),worked:String(cells[8]||''),breaks:String(cells[11]||'').trim(),breaksTime:String(cells[12]||'').trim(),state:String(cells[14]||'').trim()})})}catch(e){}}
-function extRenderBreakTable(){$('extTableTitle').textContent='☕ المناديب على البريك دلوقتي';const rows=[...extLiveMap.entries()].filter(([id,v])=>v.state==='BREAK');const scoped=rows.filter(([id])=>extRiders.some(r=>String(r.rider_id||r.id)===id));$('extTableHead').innerHTML='<tr><th>المندوب</th><th>الكود</th><th>الزون</th><th>عدد البريكات</th><th>وقت البريك</th></tr>';$('extTableBody').innerHTML=scoped.length?scoped.map(([id,v])=>`<tr><td>${v.name}</td><td>${id}</td><td>${v.zone}</td><td>${v.breaks||'0'}</td><td>${v.breaksTime||'—'}</td></tr>`).join(''):'<tr><td colspan="5" class="sub">مفيش مناديب على البريك دلوقتي (أو اللايف مش محدّث)</td></tr>'}
+function extRenderBreakTable(){$('extTableTitle').textContent='☕ المناديب على البريك دلوقتي';const rows=[...extLiveMap.entries()].filter(([id,v])=>v.state==='BREAK');const allowed=new Set(extVisibleRiders().map(r=>String(r.rider_id)));const scoped=rows.filter(([id])=>allowed.has(id));$('extTableHead').innerHTML='<tr><th>المندوب</th><th>الكود</th><th>الزون</th><th>عدد البريكات</th><th>وقت البريك</th></tr>';$('extTableBody').innerHTML=scoped.length?scoped.map(([id,v])=>`<tr><td>${esc(v.name)}</td><td>${esc(id)}</td><td>${esc(v.zone)}</td><td>${v.breaks||'0'}</td><td>${v.breaksTime||'—'}</td></tr>`).join(''):'<tr><td colspan="5" class="sub">مفيش مناديب على البريك دلوقتي (أو اللايف مش محدّث)</td></tr>'}
 async function extRenderShiftTable(){$('extTableTitle').textContent='🗓 حجوزات النهاردة لكل مندوب';try{const res=await fetch('https://docs.google.com/spreadsheets/d/'+BOOKING_SHEET_ID+'/gviz/tq?tqx=out:csv&gid='+BOOKING_GID+'&_='+Date.now(),{cache:'no-store'});const text=await res.text();if(text.trimStart().startsWith('<'))throw new Error('الشيت غير متاح');const rows=Papa.parse(text,{skipEmptyLines:true}).data;extBookingMap=new Map();const scopedIds=new Set(extRiders.map(r=>String(r.rider_id||r.id)));
- const nowC=new Date(Date.now()+(3*60+new Date().getTimezoneOffset())*60000);const todayKey=nowC.getFullYear()+'-'+String(nowC.getMonth()+1).padStart(2,'0')+'-'+String(nowC.getDate()).padStart(2,'0');
+ const todayKey=extCairoDay();
  const parseD=v=>{const p=String(v||'').trim().split(' ')[0].split('/');if(p.length<3)return'';const y=+p[2],m=+p[0],d=+p[1];if(!y||!m||!d)return'';return y+'-'+String(m).padStart(2,'0')+'-'+String(d).padStart(2,'0')};
  for(let i=1;i<rows.length;i++){const c=rows[i];const id=String(c[1]||'').trim().replace(/\.0$/,'');if(!id||!scopedIds.has(id))continue;
   const sd=parseD(c[7]),ed=parseD(c[8]);if(sd!==todayKey&&ed!==todayKey)continue;
   const cur=extBookingMap.get(id)||{name:String(c[2]||''),count:0,mins:0,lastEnd:'',lastEndKey:''};cur.count++;
   const dur=String(c[11]||'').split(':');if(dur.length>=2)cur.mins+=(+dur[0])*60+(+dur[1]);
-  const endKey=ed+' '+String(c[10]||'');if(endKey.trim()>cur.lastEndKey){cur.lastEndKey=endKey.trim();cur.lastEnd=String(c[10]||'').trim()}
+  const endKey=ed+' '+String(c[10]||'').trim().padStart(5,'0');if(endKey.trim()>cur.lastEndKey){cur.lastEndKey=endKey.trim();cur.lastEnd=String(c[10]||'').trim()}
   extBookingMap.set(id,cur)}}catch(e){extBookingMap=new Map()}
- $('extTableHead').innerHTML='<tr><th>المندوب</th><th>الكود</th><th>عدد الشيفتات</th><th>إجمالي الساعات</th><th>آخر شيفت يخلص</th></tr>';const list=[...extBookingMap.entries()];$('extTableBody').innerHTML=list.length?list.map(([id,v])=>{const h=Math.floor(v.mins/60),m=v.mins%60;return `<tr><td>${v.name}</td><td>${id}</td><td>${v.count}</td><td>${h}:${String(m).padStart(2,'0')}</td><td>${v.lastEnd||'—'}</td></tr>`}).join(''):'<tr><td colspan="5" class="sub">مفيش حجوزات النهاردة</td></tr>'}
+ extDrawShiftTable()}
+function extCairoDay(){const parts=new Intl.DateTimeFormat('en-US',{timeZone:'Africa/Cairo',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());const get=t=>parts.find(p=>p.type===t).value;return get('year')+'-'+get('month')+'-'+get('day')}
+function extDrawShiftTable(){ $('extTableHead').innerHTML='<tr><th>المندوب</th><th>الكود</th><th>عدد الشيفتات</th><th>إجمالي الساعات</th><th>آخر شيفت يخلص</th></tr>';const allowed=new Set(extVisibleRiders().map(r=>String(r.rider_id)));const list=[...extBookingMap.entries()].filter(([id])=>allowed.has(id));$('extTableBody').innerHTML=list.length?list.map(([id,v])=>{const h=Math.floor(v.mins/60),m=v.mins%60;return `<tr><td>${esc(v.name)}</td><td>${esc(id)}</td><td>${v.count}</td><td>${h}:${String(m).padStart(2,'0')}</td><td>${v.lastEnd||'—'}</td></tr>`}).join(''):'<tr><td colspan="5" class="sub">مفيش حجوزات النهاردة</td></tr>'}
 function closeExtPanel(){closeSectionScreen('extPanel','extB')}
 $('extB').addEventListener('click',event=>{event.stopPropagation();openExtPanel('extend')});
 $('brkB').addEventListener('click',event=>{event.stopPropagation();openExtPanel('break')});
 $('extRiderSearch').addEventListener('input',extRenderRiders);
-$('extCity').addEventListener('change',()=>{extSyncReason();extRenderRiders()});
+$('extCity').addEventListener('change',()=>{extSyncReason();extFilterChanged()});
 $('extRiderList').addEventListener('click',event=>{const b=event.target.closest('[data-extid]');if(!b)return;const id=String(b.dataset.extid);if(extSelected.has(id))extSelected.delete(id);else extSelected.add(id);extRider=extRiders.find(r=>String(r.rider_id)===id)||{rider_id:id,name:b.dataset.extname,zone:''};if(extRider.zone){const z=extRider.zone,zl=z.toLowerCase(),zmap={'hurgada':'الغردقة','الغردقه':'الغردقة','suez':'السويس','ismailia':'الإسماعيلية','الاسماعيليه':'الإسماعيلية'};if(EXT_CITIES.includes(z))$('extCity').value=z;else if(zmap[zl]||zmap[z])$('extCity').value=zmap[zl]||zmap[z];$('extZone').value=z}extRenderRiders();extSyncReason()});
-$('extSelectAll').addEventListener('click',()=>{const q=($('extRiderSearch').value||'').trim().toLowerCase();const city=extNormZone($('extCity').value);extRiders.filter(r=>(!city||extNormZone(r.zone)===city)&&(!q||String(r.name||'').toLowerCase().includes(q)||String(r.rider_id||r.id||'').includes(q))).forEach(r=>extSelected.add(String(r.rider_id||r.id)));extRenderRiders()});
-$('extSelectClear').addEventListener('click',()=>{extSelected.clear();extRenderRiders()});
+$('extSelectAll').addEventListener('click',()=>{extVisibleRiders().forEach(r=>extSelected.add(String(r.rider_id)));extRenderRiders()});
+$('extSelectClear').addEventListener('click',()=>{extSelected.clear();extRider=null;extRenderRiders()});
 
-$('extSubmit').addEventListener('click',async()=>{const m=$('extMessage');m.style.color='';const ids=[...extSelected];if(!ids.length&&extRider)ids.push(String(extRider.rider_id||extRider.id));if(!ids.length){m.style.color='#fbbf24';m.textContent='اختار مندوب واحد على الأقل الأول';return}if(!$('extCity').value){m.style.color='#fbbf24';m.textContent='اختار المدينة / الزون';return}if(extAction==='extend'&&!$('extDuration').value){m.style.color='#fbbf24';m.textContent='اختار مدة المد';return}if(extAction==='break'&&$('extCity').value==='الإسكندرية'&&!$('extReason').value){m.style.color='#fbbf24';m.textContent='اختار سبب فك البريك';return}
+$('extSubmit').addEventListener('click',async()=>{const m=$('extMessage');m.style.color='';const ids=[...extSelected];if(!ids.length){m.style.color='#fbbf24';m.textContent='اختار مندوب واحد على الأقل الأول';return}if(!$('extCity').value){m.style.color='#fbbf24';m.textContent='اختار المدينة / الزون';return}if(extAction==='extend'&&!$('extDuration').value){m.style.color='#fbbf24';m.textContent='اختار مدة المد';return}if(extAction==='break'&&$('extCity').value==='الإسكندرية'&&!$('extReason').value){m.style.color='#fbbf24';m.textContent='اختار سبب فك البريك';return}
  try{if(!LIVE_ROWS.length||Date.now()-LIVE_LAST_ATTEMPT>=LIVE_REFRESH_MS)await refreshLive();extBuildLiveMap()}catch(e){}
  const ok=[],blocked=[];for(const id of ids){const lv=extLiveMap.get(String(id));const hasShift=lv&&((lv.session||'').trim()||['WORKING','BREAK','LATE','READY','STARTING','ENDING'].includes(lv.state));
   if(extAction==='break'){if(!lv||!hasShift)blocked.push(id+' (أوف لاين/مش معاه شيفت)');else if(lv.state!=='BREAK')blocked.push(id+' (شغال مش على بريك)');else ok.push(id)}
