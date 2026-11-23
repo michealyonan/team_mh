@@ -3224,14 +3224,14 @@ function sc(){const r=$('nr').value,k=r==='manager'?'m':'s',na=['admin','monitor
 function pwCell(x){const p=getPW()[x.u.toLowerCase()];return p?`<span dir="ltr" style="cursor:pointer" data-p="${esc(p)}" onclick="if(this.dataset.s){this.textContent='••••••';this.dataset.s=''}else{this.textContent=this.dataset.p;this.dataset.s='1'}">••••••</span>`:'<span class="sub" style="margin:0">غير معروفة</span>'}
 function ru(){gstat();const q=($('us').value||'').trim().toLowerCase();
   $('ut').innerHTML=getU().map((x,i)=>({x,i,z:['admin','monitor'].includes(x.r)?[]:zOf(x.r==='manager'?'m':'s',x.s)})).filter(({x,z})=>!q||[x.n,x.u,x.s,ROLE[x.r],x.email,x.phone,...z].join(' ').toLowerCase().includes(q))
-  .map(({x,i,z})=>`<tr><td>${esc(x.n)}${x.status==='suspended'?' <span title="حساب موقوف">🔒</span>':''}</td><td>${esc(x.u)}</td><td>${ROLE[x.r]}</td><td>${esc(x.r==='monitor'?'كل المحافظات ما عدا القاهرة':x.s||'—')}${z.length?`<div class="sub" style="margin:0">📍 ${esc(z.join('، '))}</div>`:''}${x.email?`<div class="sub" style="margin:0" dir="ltr">✉️ ${esc(x.email)}${x.phone?' · 📱 '+esc(x.phone):''}${x.channel?' · '+(x.channel==='whatsapp'?'واتساب':'جيميل'):''}</div>`:''}</td><td>${pwCell(x)}</td><td style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn" onclick="eu(${i})">✏️</button><button class="btn" title="توليد كود تفعيل" onclick="genInvite(${i})">🔑</button><button class="btn" onclick="du(${i})">🗑</button>${x.status==='suspended'?`<button class="btn pr" title="إعادة تفعيل الحساب الموقوف" onclick="reU(${i})">🔓</button>`:''}${x.r==='viewer'?`<button class="btn" title="تحديد المشرفين المسموح مشاهدتهم" onclick="vwA(${i})">👁</button>`:''}${INV_CODES[x.u]?`<button class="btn pr" style="letter-spacing:2px" title="اتولّد واتنسخ — دوس للنسخ" onclick="copyInvite('${x.u}')">${INV_CODES[x.u]}</button>`:''}</td></tr>`).join('')||'<tr><td colspan="6">مفيش نتائج</td></tr>';{const H=['الاسم','المستخدم','الدور','مرتبط بـ','كلمة المرور',''];[...$('ut').rows].forEach(r=>[...r.cells].forEach((c,j)=>c.dataset.l=H[j]))}}
+  .map(({x,i,z})=>`<tr><td>${esc(x.n)}${x.status==='suspended'?' <span title="حساب موقوف">🔒</span>':''}</td><td>${esc(x.u)}</td><td>${ROLE[x.r]}</td><td>${esc(x.r==='monitor'?'كل المحافظات ما عدا القاهرة':x.s||'—')}${x.email?`<div class="sub" style="margin:0" dir="ltr">✉️ ${esc(x.email)}${x.phone?' · 📱 '+esc(x.phone):''}${x.channel?' · '+(x.channel==='whatsapp'?'واتساب':'جيميل'):''}</div>`:''}</td><td>${pwCell(x)}</td><td style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn" onclick="eu(${i})">✏️</button><button class="btn" title="توليد كود تفعيل" onclick="genInvite(${i})">🔑</button><button class="btn" onclick="du(${i})">🗑</button>${x.status==='suspended'?`<button class="btn pr" title="إعادة تفعيل الحساب الموقوف" onclick="reU(${i})">🔓</button>`:''}${x.r==='viewer'?`<button class="btn" title="تحديد المشرفين المسموح مشاهدتهم" onclick="vwA(${i})">👁</button>`:''}${INV_CODES[x.u]?`<button class="btn pr" style="letter-spacing:2px" title="اتولّد واتنسخ — دوس للنسخ" onclick="copyInvite('${x.u}')">${INV_CODES[x.u]}</button>`:''}</td></tr>`).join('')||'<tr><td colspan="6">مفيش نتائج</td></tr>';{const H=['الاسم','المستخدم','الدور','مرتبط بـ','كلمة المرور',''];[...$('ut').rows].forEach(r=>[...r.cells].forEach((c,j)=>c.dataset.l=H[j]))}}
 async function reU(i){if(!CUR||CUR.r!=='admin')return;const a=getU();try{await api('/api/auth/admin/users/reactivate',{method:'POST',body:{u:a[i].u}});await refreshUsers();ru()}catch(e){alert('تعذّرت إعادة التفعيل: '+authErr(e))}}
 async function du(i){if(!CUR||CUR.r!=='admin')return;const a=getU();if(a[i].r==='admin'&&a.filter(x=>x.r==='admin').length<2)return alert('لازم يفضل أدمن واحد على الأقل');if(!confirm('حذف '+a[i].n+'؟'))return;try{await api('/api/auth/admin/users/delete',{method:'POST',body:{u:a[i].u}});setPW(a[i].u,null);if(EDITING_USER===a[i].u.toLowerCase()){EDITING_USER=null;$('na').textContent='➕ إضافة / تحديث'}await refreshUsers();ru()}catch(e){alert('تعذّر الحذف: '+authErr(e))}}
 $('usrB').onclick=async()=>{if(!CUR||CUR.r!=='admin')return;$('um').style.display='block';sc();await refreshUsers();ru();renderRecoveries()};
 $('nr').onchange=()=>{$('nz').value='';sc()};$('nz').onchange=sc;$('us').oninput=ru;
 let EDITING_USER=null;
 $('na').onclick=async()=>{if(!CUR||CUR.r!=='admin')return;const u=$('nu').value.trim().toLowerCase(),p0=$('np').value,r=$('nr').value,s=['admin','monitor'].includes(r)?'':$('ns').value,n=$('nn').value.trim()||u;
-  if(!u||(['sup','manager'].includes(r)&&!s))return alert('كمّل اسم المستخدم والربط');
+  if(!u)return alert('اكتب اسم المستخدم');
   const a=getU(),i=EDITING_USER?a.findIndex(y=>y.u.toLowerCase()===EDITING_USER):a.findIndex(y=>y.u.toLowerCase()===u);
   if(EDITING_USER&&i<0)return alert('الحساب الجاري تعديله لم يعد موجودًا. حدّث القائمة وحاول مرة أخرى.');
   if(a.some((y,j)=>j!==i&&y.u.toLowerCase()===u))return alert('اسم المستخدم مستخدم بالفعل.');
@@ -5715,8 +5715,11 @@ async function submitContactGate(){
 }
 function copyContacts(){
  try{
-  const rows=(USERS||[]).map(x=>[x.n,x.u,x.email||'',x.phone||''].join('\t')).join('\n');
-  const txt='الاسم\tالمستخدم\tالجيميل\tالواتساب\n'+rows;
+  const rows=(USERS||[]).map(x=>{
+   let z=[];try{if(!['admin','monitor'].includes(x.r))z=zOf(x.r==='manager'?'m':'s',x.s)}catch(e){}
+   return [x.n,x.u,x.email||'',x.phone||'',x.s||'',z.join('، ')].join('\t')
+  }).join('\n');
+  const txt='الاسم\tالمستخدم\tالجيميل\tالواتساب\tمرتبط بـ\tالزونات\n'+rows;
   const done=()=>alert('اتنسخت كل بيانات الاتصال ✅ ('+(USERS||[]).length+' مستخدم) - الصقها في أي شيت');
   if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(txt).then(done,()=>prompt('انسخ البيانات:',txt));else prompt('انسخ البيانات:',txt);
  }catch(e){alert('تعذّر النسخ: '+(e.message||e))}
