@@ -900,7 +900,8 @@ export default {
     }
 
     if (url.pathname === '/api/riders' && request.method === 'GET') {
-      if (!env.MAP_VIEW_TOKEN || !safeEqual(request.headers.get('Authorization') || '', `Bearer ${env.MAP_VIEW_TOKEN}`)) return json({ error: 'unauthorized' }, 401);
+      const okMapToken = env.MAP_VIEW_TOKEN && safeEqual(request.headers.get('Authorization') || '', `Bearer ${env.MAP_VIEW_TOKEN}`);
+      if (!okMapToken && !await getSessionUser(env, request)) return json({ error: 'unauthorized' }, 401);
       const response = await hub.fetch('https://rider-map.internal/snapshot');
       return json(await response.json());
     }
@@ -954,7 +955,8 @@ export default {
     }
 
     if (url.pathname === '/api/ws-ticket' && request.method === 'POST') {
-      if (!env.MAP_VIEW_TOKEN || !safeEqual(request.headers.get('Authorization') || '', `Bearer ${env.MAP_VIEW_TOKEN}`)) return json({ error: 'unauthorized' }, 401);
+      const okMapToken = env.MAP_VIEW_TOKEN && safeEqual(request.headers.get('Authorization') || '', `Bearer ${env.MAP_VIEW_TOKEN}`);
+      if (!okMapToken && !await getSessionUser(env, request)) return json({ error: 'unauthorized' }, 401);
       const ticket = `${crypto.randomUUID()}${crypto.randomUUID()}`;
       const response = await hub.fetch('https://rider-map.internal/ticket', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ticket }),

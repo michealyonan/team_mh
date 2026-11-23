@@ -6299,10 +6299,9 @@ async function riderMapRefresh(){
   if(!CUR){riderMapStatus('سجّل الدخول أولًا لعرض خريطة المناديب.',true);return}
   if(RIDER_MAP_BUSY)return;RIDER_MAP_BUSY=true;riderMapStatus('جاري الاتصال بالخريطة وتحميل آخر سحبة…');
   try{
-    let viewKey='';try{viewKey=sessionStorage.getItem(RIDER_MAP_VIEW_SESSION_KEY)||''}catch{}
-    if(!viewKey){viewKey=window.prompt('أدخل مفتاح عرض الخريطة مرة واحدة لهذه الجلسة:')||'';if(!viewKey){riderMapStatus('تم إلغاء الاتصال بالخريطة.');return}try{sessionStorage.setItem(RIDER_MAP_VIEW_SESSION_KEY,viewKey)}catch{}}
+    const viewKey=(CUR&&CUR.token)||'';if(!viewKey){riderMapStatus('سجّل الدخول أولًا لعرض خريطة المناديب.',true);return}
     const headers={Accept:'application/json',Authorization:'Bearer '+viewKey},response=await fetch(RIDER_MAP_API_URL,{headers,cache:'no-store'});
-    if(!response.ok){if(response.status===401){try{sessionStorage.removeItem(RIDER_MAP_VIEW_SESSION_KEY)}catch{};throw new Error('مفتاح العرض غير صحيح. افتح الخريطة مجددًا وأدخل الرمز الصحيح')}throw new Error('HTTP '+response.status)}
+    if(!response.ok)throw new Error('HTTP '+response.status)
     riderMapRender(await response.json());await riderMapConnect(viewKey,headers);
   }catch(error){riderMapStatus('تعذّر تحميل المواقع: '+(error.message||error),true)}
   finally{RIDER_MAP_BUSY=false}
