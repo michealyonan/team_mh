@@ -4527,7 +4527,7 @@ function bookingRosterInRole(row,maps){
     const supervisor=nameMatchKey(CUR.s);
     return Boolean(supervisor&&row.sup&&nameMatchKey(row.sup)===supervisor);
   }
-  if(CUR.r==='manager')return true;
+  if(CUR.r==='manager')return Boolean(CUR.s&&row.manager&&nameMatchKey(row.manager)===nameMatchKey(CUR.s));
   return false;
 }
 function bookingScopedRows(){
