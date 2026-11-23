@@ -391,18 +391,17 @@ html{-webkit-text-size-adjust:100%}body{overflow-x:hidden}
  .rt4 td[colspan]{display:block;text-align:center}
  .rt4 td[colspan]::before{content:none}
  .rt4 tr.idle-rider-clickable:hover td{background:none}
- #bookingTable table{min-width:0;width:100%;display:block;border-spacing:0 8px}
+ #bookingTable table{min-width:0!important;width:100%;display:block;border-spacing:0}
 #bookingTable .booking-starting-point-column{display:none!important}
- #bookingTable{max-height:none;overflow:visible}
+ #bookingTable{max-height:none!important;overflow:visible}
  #bookingTable thead{display:none}
  #bookingTable tbody{display:block}
- #bookingTable tr{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:3px 10px;margin:0 0 8px;padding:10px;border:1px solid var(--bd);border-radius:12px;background:#0f1626}
- #bookingTable td{display:grid;justify-items:center;align-content:center;gap:3px;min-width:0;border:0;padding:6px 3px;white-space:normal;text-align:center;font-size:12px;overflow-wrap:anywhere}
- #bookingTable td::before{content:attr(data-l);color:var(--mut);font-size:11px;font-weight:700;text-align:center}
+ #bookingTable tr{display:grid;grid-template-columns:1fr 1fr;gap:3px 12px;padding:10px;margin:0 0 8px;border:1px solid var(--bd);border-radius:12px;background:#0f1626}
+ #bookingTable td{display:flex;justify-content:space-between;align-items:center;gap:6px;min-width:0;border:0;padding:2px 0;white-space:normal;font-size:12px;overflow-wrap:anywhere;text-align:start}
+ #bookingTable td::before{content:attr(data-l);color:var(--mut);font-size:11px;font-weight:700;margin-inline-end:4px;flex-shrink:0}
  #bookingTable td:nth-child(1){display:none}
- #bookingTable td:nth-child(3){grid-column:1/-1;padding-bottom:9px;border-bottom:1px solid var(--bd);font-size:14px;font-weight:700}
- #bookingTable td:nth-child(8){grid-column:1/-1}
- #bookingTable td:nth-child(9){grid-column:1/-1}
+ #bookingTable td:nth-child(2){grid-column:1/-1;padding-bottom:6px;border-bottom:1px solid var(--bd);margin-bottom:2px;font-size:14px;font-weight:700}
+ #bookingTable td:nth-child(6){grid-column:1/-1}
  #bookingTable td[colspan]{display:block;text-align:center}
  #bookingTable td[colspan]::before{content:none}
 }
