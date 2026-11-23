@@ -1144,6 +1144,7 @@ html[data-theme="light"] body{background:radial-gradient(ellipse at 8% 0%,#d6f4f
  <aside id="navDrawer" class="nav-drawer" role="dialog" aria-modal="true" aria-labelledby="navDrawerTitle" dir="rtl">
   <div class="nav-drawer-heading"><h2 id="navDrawerTitle">☰ أقسام لوحة التحكم</h2><button class="btn" type="button" aria-label="إغلاق القائمة" onclick="toggleNavDrawer(false)">✕</button></div>
   <nav class="nav-drawer-links" aria-label="أقسام لوحة التحكم">
+   <button class="btn" id="notifB" type="button" style="display:none" onclick="toggleNavDrawer(false);$('notifModal').style.display='';loadNotifs(true)">🔔 الإشعارات <span id="notifBadge" style="display:none;background:#ef4444;color:#fff;border-radius:999px;padding:2px 9px;font-size:12px;font-weight:900;margin-inline-start:6px"></span></button>
    <button class="btn" id="riderDetailsB" type="button" aria-expanded="false">📋 تفاصيل الطيارين</button>
    <button class="btn" id="riderMapB" type="button" aria-expanded="false" aria-controls="riderMapPanel" style="display:none">🗺️ خريطة المناديب</button>
    <button class="btn" id="liveB" type="button" style="display:none" aria-controls="livePanel" aria-expanded="false">🔴 Live</button><button class="btn" id="bookingDashboardB" style="display:none">🗓️ ان اصين</button>
@@ -1151,6 +1152,13 @@ html[data-theme="light"] body{background:radial-gradient(ellipse at 8% 0%,#d6f4f
   </nav>
  </aside>
 </div>
+ <div id="notifModal" style="display:none;position:fixed;inset:0;background:#000c;z-index:75;overflow:auto;padding:12px" onclick="if(event.target===this)this.style.display='none'">
+  <div class="card" style="max-width:640px;margin:auto">
+   <div class="row"><h3 style="margin:0">🔔 إشعارات اليوم</h3><button class="btn pr" type="button" onclick="loadNotifs(true)">🔄 تحديث</button><button class="btn" style="margin-inline-start:auto" onclick="$('notifModal').style.display='none'">✕</button></div>
+   <div class="sub" id="notifStatus" role="status" style="margin:8px 0"></div>
+   <div id="notifList" style="display:grid;gap:8px;max-height:65vh;overflow:auto"></div>
+  </div>
+ </div>
  <div id="loginAuditModal" style="display:none;position:fixed;inset:0;background:#000c;z-index:75;overflow:auto;padding:12px" onclick="if(event.target===this)this.style.display='none'">
   <div class="card" style="max-width:900px;margin:auto">
    <div class="row"><h3 style="margin:0">🕵️ مرات دخول المشرفين اليوم</h3><button class="btn" id="loginAuditScreenshot" type="button">📸 اسكرين الجدول</button><button class="btn pr" id="loginAuditRefresh">🔄 تحديث</button><button class="btn" style="margin-inline-start:auto" onclick="$('loginAuditModal').style.display='none'">✕</button></div>
@@ -3085,7 +3093,7 @@ function saveU(a){gstat()}
 function gstat(){const e=$('gst');if(e)e.textContent='✅ كل التعديلات بتتحفظ على السيرفر مباشرة وتتطبق على كل الأجهزة فورًا'}
 function scope(rows){if(!CUR||CUR.r==='admin')return rows;if(CUR.r==='monitor')return[];const k=CUR.r==='manager'?'m':'s',userName=nameMatchKey(CUR.s);return rows.filter(r=>nameMatchKey(r[k])===userName)}
 
-const REMEMBER_LOGIN_KEY='pd_remember_login',REMEMBER_LOGIN_MS=7*24*60*60*1000;function enter(x,remember){CUR=x;updateLiveRoleControls(x);const monitor=x.r==='monitor';document.querySelector('main').style.display=monitor?'none':'';$('navMenuToggle').style.display=monitor?'none':'';document.querySelectorAll('.nav-drawer-links>button').forEach(button=>button.style.display=monitor?'none':'');if(monitor){$('liveB').style.display='';$('liveClose').style.display='none';openLivePanel()}else $('liveClose').style.display='';try{if(remember===true)localStorage.setItem(REMEMBER_LOGIN_KEY,JSON.stringify({t:x.token||'',expires:Date.now()+REMEMBER_LOGIN_MS}));else if(remember===false)localStorage.removeItem(REMEMBER_LOGIN_KEY);sessionStorage.setItem('pd_token',x.token||'')}catch(e){}idleReset();logDashboardOpen(x);
+const REMEMBER_LOGIN_KEY='pd_remember_login',REMEMBER_LOGIN_MS=7*24*60*60*1000;function enter(x,remember){CUR=x;updateLiveRoleControls(x);const monitor=x.r==='monitor';document.querySelector('main').style.display=monitor?'none':'';$('navMenuToggle').style.display=monitor?'none':'';document.querySelectorAll('.nav-drawer-links>button').forEach(button=>button.style.display=monitor?'none':'');if(monitor){$('liveB').style.display='';$('liveClose').style.display='none';openLivePanel()}else $('liveClose').style.display='';try{if(remember===true)localStorage.setItem(REMEMBER_LOGIN_KEY,JSON.stringify({t:x.token||'',expires:Date.now()+REMEMBER_LOGIN_MS}));else if(remember===false)localStorage.removeItem(REMEMBER_LOGIN_KEY);sessionStorage.setItem('pd_token',x.token||'')}catch(e){}idleReset();startNotifLoop(monitor);logDashboardOpen(x);
   const canViewSupervisorCharts=['admin','manager'].includes(x.r);
   $('supervisorPerformanceCard').style.display=canViewSupervisorCharts?'':'none';
   $('supervisorHoursCard').style.display=canViewSupervisorCharts?'':'none';
@@ -5611,6 +5619,22 @@ $('themeLogin').onclick=()=>setTheme(document.documentElement.dataset.theme==='l
 $('themeToggle').onclick=()=>setTheme(document.documentElement.dataset.theme==='light'?'dark':'light');
 setTheme(INITIAL_THEME);
 
+function startNotifLoop(monitor){const b=$('notifB');if(b)b.style.display=monitor?'none':'';clearInterval(window._notifT);loadNotifs(false);if(!monitor)window._notifT=setInterval(()=>loadNotifs(false),60000)}
+async function loadNotifs(show){
+ const badge=$('notifBadge');
+ try{
+  const d=await api('/api/notifications');const items=d.items||[];
+  if(badge){badge.textContent=items.length>99?'99+':String(items.length);badge.style.display=items.length?'':'none'}
+  if(show){
+   const st=$('notifStatus'),list=$('notifList');
+   st.textContent=items.length?('إشعارات اليوم: '+items.length):'مفيش إشعارات النهاردة 🎉';
+   list.innerHTML=items.map(it=>{
+    const t=new Date(it.ts).toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'});
+    return '<div class="card" style="padding:10px 12px"><div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><b>'+esc(it.title)+'</b><span class="sub" style="white-space:nowrap">'+t+'</span></div>'+(it.body?'<div class="sub" style="margin-top:4px">'+esc(it.body)+'</div>':'')+'</div>'
+   }).join('');
+  }
+ }catch(e){if(show)$('notifStatus').textContent='مش قادر أحمل الإشعارات — '+(e.message||e)}
+}
 function toggleNavDrawer(open){
   const backdrop=$('navDrawerBackdrop'),toggle=$('navMenuToggle');
   if(!backdrop||!toggle)return;
