@@ -53,6 +53,9 @@ async function ensureSchema(env) {
       title TEXT NOT NULL DEFAULT '', body TEXT NOT NULL DEFAULT '', rider_id TEXT NOT NULL DEFAULT '',
       ts INTEGER NOT NULL)`),
     env.DB.prepare(`CREATE INDEX IF NOT EXISTS notif_ud ON notifications(u, day, id)`),
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS rider_states(
+      rider_id TEXT PRIMARY KEY, name TEXT NOT NULL DEFAULT '', state TEXT NOT NULL DEFAULT '',
+      sup TEXT NOT NULL DEFAULT '', updated INTEGER NOT NULL)`),
   ]);
   schemaReady = true;
 }
@@ -390,6 +393,72 @@ async function handleAuth(request, env, json, url) {
 
 /* ---------------- main fetch ---------------- */
 
+const LIVE_SHEET_ID = '1OLvK2_Wi7k8jTa9K1FdLkNjQwpMD5ntMsG_pC8woTlk';
+const LIVE_GID = '524668708';
+
+function parseCsv(text) {
+  const rows = [];
+  let row = [], field = '', inQ = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQ) {
+      if (c === '"') { if (text[i + 1] === '"') { field += '"'; i++; } else inQ = false; }
+      else field += c;
+    } else if (c === '"') inQ = true;
+    else if (c === ',') { row.push(field); field = ''; }
+    else if (c === '\n' || c === '\r') {
+      if (c === '\r' && text[i + 1] === '\n') i++;
+      row.push(field); field = '';
+      if (row.some(v => v !== '')) rows.push(row);
+      row = [];
+    } else field += c;
+  }
+  row.push(field);
+  if (row.some(v => v !== '')) rows.push(row);
+  return rows;
+}
+
+async function runStatusCron(env) {
+  await ensureSchema(env);
+  const res = await fetch(`https://docs.google.com/spreadsheets/d/${LIVE_SHEET_ID}/gviz/tq?tqx=out:csv&gid=${LIVE_GID}&headers=1&_=${Date.now()}`);
+  if (!res.ok) return;
+  const rows = parseCsv(await res.text()).slice(1);
+  const current = new Map();
+  for (const r of rows) {
+    const id = String(r[2] || '').trim();
+    if (!id || !/^[0-9A-Za-z-]{3,20}$/.test(id)) continue;
+    current.set(id, {
+      name: String(r[3] || '').trim().slice(0, 80),
+      state: String(r[14] || '').trim().slice(0, 60),
+      sup: String(r[16] || '').trim().slice(0, 80),
+    });
+  }
+  const prevRows = await env.DB.prepare('SELECT rider_id,state FROM rider_states').all();
+  const prev = new Map((prevRows.results || []).map(r => [r.rider_id, r.state]));
+  const seeded = prev.size > 0;
+  const stmts = [];
+  for (const [id, cur] of current) {
+    stmts.push(env.DB.prepare('INSERT INTO rider_states(rider_id,name,state,sup,updated) VALUES(?,?,?,?,?) ON CONFLICT(rider_id) DO UPDATE SET name=excluded.name, state=excluded.state, sup=excluded.sup, updated=excluded.updated')
+      .bind(id, cur.name, cur.state, cur.sup, Date.now()));
+  }
+  if (stmts.length) await env.DB.batch(stmts);
+  if (!seeded) return; // first run seeds state without notifying
+  for (const [id, cur] of current) {
+    const oldState = prev.get(id);
+    if (oldState === undefined || oldState === cur.state || !cur.state) continue;
+    const targets = new Map();
+    if (cur.sup) {
+      const supRows = await env.DB.prepare("SELECT u FROM users WHERE status='active' AND (n=? OR u=?)").bind(cur.sup, cur.sup.toLowerCase()).all();
+      for (const t of (supRows.results || [])) targets.set(t.u, 1);
+    }
+    const admins = await env.DB.prepare("SELECT u FROM users WHERE status='active' AND r='admin'").all();
+    for (const t of (admins.results || [])) targets.set(t.u, 1);
+    for (const u of targets.keys()) {
+      await insertNotification(env, u, 'تغيير حالة مندوب', `${cur.name}: من "${oldState || 'بدون حالة'}" إلى "${cur.state}"`, id);
+    }
+  }
+}
+
 export default {
   async fetch(request, env) {
     const origin = request.headers.get('Origin') || '';
@@ -513,6 +582,10 @@ export default {
 
     // static assets are served automatically by the assets binding before this
     return json({ error: 'not_found' }, 404);
+  },
+
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(runStatusCron(env).catch(() => {}));
   },
 };
 
