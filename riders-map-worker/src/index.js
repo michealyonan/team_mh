@@ -48,6 +48,11 @@ async function ensureSchema(env) {
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS rl(k TEXT PRIMARY KEY, n INTEGER NOT NULL DEFAULT 0, until INTEGER)`),
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS audit(
       id INTEGER PRIMARY KEY AUTOINCREMENT, u TEXT, n TEXT, r TEXT, ip TEXT, ts INTEGER)`),
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS notifications(
+      id INTEGER PRIMARY KEY AUTOINCREMENT, u TEXT NOT NULL, day TEXT NOT NULL,
+      title TEXT NOT NULL DEFAULT '', body TEXT NOT NULL DEFAULT '', rider_id TEXT NOT NULL DEFAULT '',
+      ts INTEGER NOT NULL)`),
+    env.DB.prepare(`CREATE INDEX IF NOT EXISTS notif_ud ON notifications(u, day, id)`),
   ]);
   schemaReady = true;
 }
@@ -77,6 +82,15 @@ async function getSessionUser(env, request) {
   const row = await env.DB.prepare('SELECT s.token, s.expires, u.u, u.n, u.r, u.s, u.status FROM sessions s JOIN users u ON u.u=s.u WHERE s.token=?').bind(m[1].toLowerCase()).first();
   if (!row || row.expires < Date.now() || row.status === 'disabled') return null;
   return { u: row.u, n: row.n, r: row.r, s: row.s, token: row.token };
+}
+
+function cairoDay(ts) {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Cairo', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(ts || Date.now()));
+}
+
+async function insertNotification(env, u, title, body, riderId) {
+  await env.DB.prepare('INSERT INTO notifications(u,day,title,body,rider_id,ts) VALUES(?,?,?,?,?,?)')
+    .bind(u, cairoDay(), String(title || '').slice(0, 120), String(body || '').slice(0, 500), String(riderId || '').slice(0, 40), Date.now()).run();
 }
 
 async function issueSession(env, u, remember) {
@@ -232,6 +246,22 @@ async function handleAuth(request, env, json, url) {
     const user = await getSessionUser(env, request);
     if (!user) return json({ error: 'unauthorized' }, 401);
     return json({ profile: profile(user) });
+  }
+
+  if (p === '/api/notifications' && request.method === 'GET') {
+    const user = await getSessionUser(env, request);
+    if (!user) return json({ error: 'unauthorized' }, 401);
+    const day = cairoDay();
+    const rows = await env.DB.prepare('SELECT id,title,body,rider_id,ts FROM notifications WHERE u=? AND day=? ORDER BY id DESC LIMIT 100').bind(user.u, day).all();
+    return json({ day, count: (rows.results || []).length, items: rows.results || [] });
+  }
+
+  if (p === '/api/notifications/test' && request.method === 'POST') {
+    const user = await getSessionUser(env, request);
+    if (!user) return json({ error: 'unauthorized' }, 401);
+    if (user.r !== 'admin' && user.r !== 'manager') return json({ error: 'forbidden' }, 403);
+    await insertNotification(env, user.u, 'تجربة', 'إشعار تجريبي من لوحة التحكم', '');
+    return json({ ok: true });
   }
 
   if (p === '/api/auth/logout' && request.method === 'POST') {
