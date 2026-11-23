@@ -1172,11 +1172,11 @@ html[data-theme="light"] body{background:radial-gradient(ellipse at 8% 0%,#d6f4f
   </div>
  </div>
 <div id="ccModal" style="display:none;position:fixed;inset:0;background:#000d;z-index:99;overflow:auto;padding:12px">
-  <form class="lb card" style="max-width:420px;margin:8vh auto" onsubmit="return false">
+  <form class="lb card" style="max-width:420px;margin:12px auto" onsubmit="return false">
    <div class="login-brand"><div class="login-logo">📇</div><h2>كمّل بياناتك</h2><div class="sub">الإدارة محتاجة رقم الواتساب والجيميل بتاعك - مرة واحدة بس، وأكواد الدخول هتوصلك عليهم</div></div>
-   <label for="ccE">الجيميل</label><input id="ccE" type="email" dir="ltr" placeholder="name@gmail.com">
-   <label for="ccP">رقم الواتساب</label><input id="ccP" inputmode="tel" dir="ltr" placeholder="01xxxxxxxxx">
-   <label for="ccC">أكواد الدخول توصلني على</label><select id="ccC"><option value="email">الجيميل</option><option value="whatsapp">الواتساب</option></select>
+   <label for="ccE">الجيميل</label><input id="ccE" type="email" inputmode="email" dir="ltr" placeholder="name@gmail.com" style="text-align:left" onfocus="setTimeout(()=>this.scrollIntoView({block:'center',behavior:'smooth'}),300)">
+   <label for="ccP">رقم الواتساب</label><input id="ccP" inputmode="tel" dir="ltr" placeholder="01xxxxxxxxx" style="text-align:left" onfocus="setTimeout(()=>this.scrollIntoView({block:'center',behavior:'smooth'}),300)">
+   <label for="ccC">أكواد الدخول توصلني على</label><select id="ccC" onfocus="setTimeout(()=>this.scrollIntoView({block:'center',behavior:'smooth'}),300)"><option value="email">الجيميل</option><option value="whatsapp">الواتساب</option></select>
    <div id="ccErr" role="alert" style="color:#f87171;font-size:13px"></div>
    <button class="btn pr" id="ccB" style="min-height:46px" onclick="submitContactGate()">حفظ ودخول ←</button>
   </form>
