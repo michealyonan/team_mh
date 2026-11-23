@@ -1147,13 +1147,32 @@ html[data-theme="light"] body{background:radial-gradient(ellipse at 8% 0%,#d6f4f
  <aside id="navDrawer" class="nav-drawer" role="dialog" aria-modal="true" aria-labelledby="navDrawerTitle" dir="rtl">
   <div class="nav-drawer-heading"><h2 id="navDrawerTitle">☰ أقسام لوحة التحكم</h2><button class="btn" type="button" aria-label="إغلاق القائمة" onclick="toggleNavDrawer(false)">✕</button></div>
   <div id="viewerBar" style="display:none;margin-bottom:10px"><div class="sub" style="margin-bottom:4px">👁 بتشوف لوحة المشرف:</div><select id="viewerSwitch" style="width:100%;min-height:42px"></select></div>
+  <div class="nav-search"><input id="navSearch" placeholder="🔎 دوّر على قسم…" oninput="syncNavGroups()"></div>
   <nav class="nav-drawer-links" aria-label="أقسام لوحة التحكم">
-   <button class="btn" id="profileB" style="display:none" onclick="toggleNavDrawer(false);openProfile()">👤 الملف الشخصي</button>
-   <button class="btn" id="notifB" type="button" style="display:none" onclick="toggleNavDrawer(false);$('notifModal').style.display='';loadNotifs(true)">🔔 الإشعارات <span id="notifBadge" style="display:none;background:#ef4444;color:#fff;border-radius:999px;padding:2px 9px;font-size:12px;font-weight:900;margin-inline-start:6px"></span></button>
-   <button class="btn" id="riderDetailsB" type="button" aria-expanded="false">📋 تفاصيل الطيارين</button>
-   <button class="btn" id="riderMapB" type="button" aria-expanded="false" aria-controls="riderMapPanel" style="display:none">🗺️ خريطة المناديب</button>
-   <button class="btn" id="liveB" type="button" style="display:none" aria-controls="livePanel" aria-expanded="false">🔴 Live</button><button class="btn" id="bookingDashboardB" style="display:none">🗓️ ان اصين</button>
-   <button class="btn" id="reportsB" type="button" aria-expanded="false">📊 تقارير أداء</button><button class="btn" id="prB" style="display:none">💰 أسعار الباتشات</button><button class="btn" id="usrB" style="display:none">👥 المستخدمين</button><button class="btn" id="loginAuditB" style="display:none">🕵️ سجل الدخول</button><button class="btn" id="themeB" style="display:none" onclick="toggleNavDrawer(false);openThemePicker()">🎨 تصميم الدخول</button><button class="btn" id="tgB" style="display:none">🎯 التارجت</button><button class="btn" id="hcB" style="display:none">👥 هيد كونت</button><button class="btn" id="dedB" style="display:none">🏢 الشركة</button><button class="btn" id="queriesB" style="display:none">📨 الاستعلامات</button><button class="btn" id="payB" type="button" style="display:none" aria-controls="payPanel" aria-expanded="false">💵 القبض</button>
+   <div class="nav-group"><div class="nav-group-title">👁 المتابعة اليومية</div>
+    <button class="btn" id="riderDetailsB" type="button" aria-expanded="false">📋 تفاصيل الطيارين</button>
+    <button class="btn" id="riderMapB" type="button" aria-expanded="false" aria-controls="riderMapPanel" style="display:none">🗺️ خريطة المناديب</button>
+    <button class="btn" id="liveB" type="button" style="display:none" aria-controls="livePanel" aria-expanded="false">🔴 Live</button>
+    <button class="btn" id="bookingDashboardB" style="display:none">🗓️ ان اصين</button>
+   </div>
+   <div class="nav-group"><div class="nav-group-title">📊 التقارير والأداء</div>
+    <button class="btn" id="reportsB" type="button" aria-expanded="false">📊 تقارير أداء</button>
+    <button class="btn" id="prB" style="display:none">💰 أسعار الباتشات</button>
+   </div>
+   <div class="nav-group"><div class="nav-group-title">⚙️ الإدارة</div>
+    <button class="btn" id="payB" type="button" style="display:none" aria-controls="payPanel" aria-expanded="false">💵 القبض</button>
+    <button class="btn" id="usrB" style="display:none">👥 المستخدمين</button>
+    <button class="btn" id="tgB" style="display:none">🎯 التارجت</button>
+    <button class="btn" id="hcB" style="display:none">👥 هيد كونت</button>
+    <button class="btn" id="dedB" style="display:none">🏢 الشركة</button>
+    <button class="btn" id="queriesB" style="display:none">📨 الاستعلامات</button>
+    <button class="btn" id="loginAuditB" style="display:none">🕵️ سجل الدخول</button>
+    <button class="btn" id="themeB" style="display:none" onclick="toggleNavDrawer(false);openThemePicker()">🎨 تصميم الدخول</button>
+   </div>
+   <div class="nav-group"><div class="nav-group-title">👤 حسابي</div>
+    <button class="btn" id="profileB" style="display:none" onclick="toggleNavDrawer(false);openProfile()">👤 الملف الشخصي</button>
+    <button class="btn" id="notifB" type="button" style="display:none" onclick="toggleNavDrawer(false);$('notifModal').style.display='';loadNotifs(true)">🔔 الإشعارات <span id="notifBadge" style="display:none;background:#ef4444;color:#fff;border-radius:999px;padding:2px 9px;font-size:12px;font-weight:900;margin-inline-start:6px"></span></button>
+   </div>
   </nav>
  </aside>
 </div>
@@ -1173,6 +1192,13 @@ html[data-theme="light"] body{background:radial-gradient(ellipse at 8% 0%,#d6f4f
  </div>
  <style>
 #mkFab{position:fixed;bottom:14px;inset-inline-end:14px;z-index:80;border:none;border-radius:999px;padding:11px 18px;font-weight:800;font-size:14px;cursor:pointer;background:linear-gradient(135deg,#6366f1,#2563eb);color:#fff;box-shadow:0 6px 22px #2563eb66}
+.nav-search{margin-bottom:10px}
+.nav-search input{width:100%;min-height:42px;border-radius:12px;background:rgba(255,255,255,.08);border:1px solid rgba(160,215,255,.3);color:#f0f9ff;padding:8px 12px;font-weight:600}
+.nav-group{margin-bottom:12px}
+.nav-group-title{font-size:12px;font-weight:800;color:#9fc8e8;margin:0 4px 6px;letter-spacing:.2px}
+.nav-drawer-links{gap:6px}
+.nav-drawer-links .btn::after{content:"‹";position:absolute;inset-inline-end:14px;top:50%;transform:translateY(-50%);opacity:.55;font-size:17px;font-weight:900}
+.nav-drawer-links .btn.navHide{display:none!important}
 #mkPanel{position:fixed;bottom:72px;inset-inline-end:14px;width:min(380px,94vw);height:min(540px,72vh);z-index:80;border-radius:16px;display:none;flex-direction:column;overflow:hidden;border:1px solid var(--bd);box-shadow:0 18px 50px #0009}
 #mkPanel .mkmsg{max-width:88%;padding:8px 11px;border-radius:12px;font-size:13.5px;line-height:1.8;white-space:pre-wrap}
 #mkPanel .mkmsg.u{justify-self:end;background:var(--pr,#3b82f6);color:#fff}
@@ -3191,7 +3217,7 @@ const REMEMBER_LOGIN_KEY='pd_remember_login',REMEMBER_LOGIN_MS=7*24*60*60*1000;a
   $('riderRatingsCard').style.display=x.r==='sup'?'none':'';
   $('dailyHistoryCard').style.display=x.r==='sup'?'none':'';
   $('vehicleChartCard').style.display=x.r==='sup'?'none':'';
-  $('lg').style.display='none';$('who').textContent='👤 '+x.n+' · '+ROLE[x.r]+(x.r==='admin'&&!LOGIN_AUDIT_ENDPOINT?' · ⚠️ سجل الدخول المركزي غير مفعّل':'');$('usrB').style.display=x.r==='admin'?'':'none';$('loginAuditB').style.display=x.r==='admin'?'':'none';$('themeB').style.display=x.r==='admin'?'':'none';$('tgB').style.display=x.r==='admin'?'':'none';$('supCaptureAll').style.display=x.r==='admin'?'':'none';$('zoneCaptureAll').style.display=['admin','manager'].includes(x.r)?'':'none';$('zoneCaptureAll').textContent=x.r==='manager'?'🗺️📸 تنزيل صور مناطقي':'🗺️📸 تنزيل صور كل المناطق';$('hcB').style.display=hcCanAccess(x)?'':'none';$('dedB').style.display=['admin','manager','sup'].includes(x.r)?'':'none';$('bookingDashboardB').style.display=bookingCanAccessDashboard(x)?'':'none';bookingApplyRoleAccess(x);$('payB').style.display=['admin','manager','sup'].includes(x.r)?'':'none';$('payB').classList.toggle('pay-access',['admin','manager','sup'].includes(x.r));$('prB').style.display=monitor?'none':'';$('profileB').style.display=monitor?'none':'';$('queriesB').style.display=monitor?'none':'';$('reportsB').style.display=monitor?'none':'';$('riderDetailsB').style.display=monitor?'none':'';$('riderMapB').style.display=['admin','sup'].includes(x.r)?'':'none';if(x.r==='viewer')await initViewer(x);load()}
+  $('lg').style.display='none';$('who').textContent='👤 '+x.n+' · '+ROLE[x.r]+(x.r==='admin'&&!LOGIN_AUDIT_ENDPOINT?' · ⚠️ سجل الدخول المركزي غير مفعّل':'');$('usrB').style.display=x.r==='admin'?'':'none';$('loginAuditB').style.display=x.r==='admin'?'':'none';$('themeB').style.display=x.r==='admin'?'':'none';$('tgB').style.display=x.r==='admin'?'':'none';$('supCaptureAll').style.display=x.r==='admin'?'':'none';$('zoneCaptureAll').style.display=['admin','manager'].includes(x.r)?'':'none';$('zoneCaptureAll').textContent=x.r==='manager'?'🗺️📸 تنزيل صور مناطقي':'🗺️📸 تنزيل صور كل المناطق';$('hcB').style.display=hcCanAccess(x)?'':'none';$('dedB').style.display=['admin','manager','sup'].includes(x.r)?'':'none';$('bookingDashboardB').style.display=bookingCanAccessDashboard(x)?'':'none';bookingApplyRoleAccess(x);$('payB').style.display=['admin','manager','sup'].includes(x.r)?'':'none';$('payB').classList.toggle('pay-access',['admin','manager','sup'].includes(x.r));$('prB').style.display=monitor?'none':'';$('profileB').style.display=monitor?'none':'';$('queriesB').style.display=monitor?'none':'';$('reportsB').style.display=monitor?'none':'';$('riderDetailsB').style.display=monitor?'none':'';$('riderMapB').style.display=['admin','sup'].includes(x.r)?'':'none';if(x.r==='viewer'){syncNavGroups();await initViewer(x)}else syncNavGroups();load()}
 let USERS=USERS_EMBED.concat(MONITOR_USERS_EMBED),DRAFT=null,VAULT=PW_EMBED;
 async function loadUsers(){}
 const LOGIN_THEMES=[
@@ -6030,12 +6056,17 @@ async function loadSupMapPins(){
   $('supMapStatus').textContent='عدد المواقع المسجلة: '+items.length+' — دوس على أي 📍 لعرض التفاصيل.';
  }catch(e){$('supMapStatus').textContent='تعذّر تحميل المواقع: '+(e.message||e)}
 }
+function syncNavGroups(){
+ const q=(($('navSearch')||{}).value||'').trim();
+ document.querySelectorAll('#navDrawer .nav-drawer-links .btn').forEach(b=>{const hit=!q||b.textContent.includes(q);b.classList.toggle('navHide',!hit)});
+ document.querySelectorAll('#navDrawer .nav-group').forEach(g=>{const any=[...g.querySelectorAll('.btn')].some(b=>b.style.display!=='none'&&!b.classList.contains('navHide'));g.style.display=any?'':'none'});
+}
 function toggleNavDrawer(open){
   const backdrop=$('navDrawerBackdrop'),toggle=$('navMenuToggle');
   if(!backdrop||!toggle)return;
   backdrop.hidden=!open;toggle.setAttribute('aria-expanded',String(open));
   document.body.style.overflow=open?'hidden':'';
-  if(open){const first=backdrop.querySelector('.nav-drawer-heading button');if(first)first.focus()}
+  if(open){syncNavGroups();const first=backdrop.querySelector('.nav-drawer-heading button');if(first)first.focus()}
   else toggle.focus();
 }
 $('navDrawer').addEventListener('click',event=>{if(event.target.closest('.nav-drawer-links .btn'))toggleNavDrawer(false)});
