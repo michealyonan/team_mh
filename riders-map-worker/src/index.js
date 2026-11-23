@@ -54,6 +54,8 @@ async function ensureSchema(env) {
       ts INTEGER NOT NULL)`),
     env.DB.prepare(`CREATE INDEX IF NOT EXISTS notif_ud ON notifications(u, day, id)`),
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS notifications_read(u TEXT PRIMARY KEY, ts INTEGER NOT NULL DEFAULT 0)`),
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS settings(k TEXT PRIMARY KEY, v TEXT NOT NULL DEFAULT '')`),
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS push_tokens(u TEXT NOT NULL, token TEXT NOT NULL, ts INTEGER NOT NULL, PRIMARY KEY(u, token))`),
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS viewer_access(
       viewer_u TEXT NOT NULL, sup_name TEXT NOT NULL, PRIMARY KEY(viewer_u, sup_name))`),
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS login_fails(
@@ -102,6 +104,7 @@ function cairoDay(ts) {
 async function insertNotification(env, u, title, body, riderId) {
   await env.DB.prepare('INSERT INTO notifications(u,day,title,body,rider_id,ts) VALUES(?,?,?,?,?,?)')
     .bind(u, cairoDay(), String(title || '').slice(0, 120), String(body || '').slice(0, 500), String(riderId || '').slice(0, 40), Date.now()).run();
+  await sendFcmToUser(env, u, String(title || '').slice(0, 120), String(body || '').slice(0, 500), riderId);
 }
 
 async function enforceDeviceLimit(env, u, maxSessions) {
@@ -116,6 +119,53 @@ async function issueSession(env, u, remember) {
   const ttl = remember ? 7 * 24 * 60 * 60 * 1000 : 12 * 60 * 60 * 1000;
   await env.DB.prepare('INSERT INTO sessions(token,u,expires,created) VALUES(?,?,?,?)').bind(token, u, Date.now() + ttl, Date.now()).run();
   return token;
+}
+
+function pemToDer(pem) {
+  const b = String(pem || '').replace(/-----[^-]+-----/g, '').replace(/\s+/g, '');
+  const bin = atob(b);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return bytes.buffer;
+}
+const b64u = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+let _fcmTok = '', _fcmTokExp = 0;
+async function fcmAccessToken(env) {
+  if (_fcmTok && Date.now() < _fcmTokExp) return _fcmTok;
+  const sa = JSON.parse(env.FCM_SA_JSON);
+  const now = Math.floor(Date.now() / 1000);
+  const enc = (o) => b64u(new TextEncoder().encode(JSON.stringify(o)));
+  const unsigned = enc({ alg: 'RS256', typ: 'JWT' }) + '.' + enc({ iss: sa.client_email, scope: 'https://www.googleapis.com/auth/firebase.messaging', aud: 'https://oauth2.googleapis.com/token', iat: now, exp: now + 3600 });
+  const key = await crypto.subtle.importKey('pkcs8', pemToDer(sa.private_key), { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['sign']);
+  const sig = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', key, new TextEncoder().encode(unsigned));
+  const jwt = unsigned + '.' + b64u(sig);
+  const r = await fetch('https://oauth2.googleapis.com/token', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=' + jwt });
+  const d = await r.json();
+  if (!d.access_token) throw new Error('fcm_auth_failed');
+  _fcmTok = d.access_token; _fcmTokExp = Date.now() + 50 * 60 * 1000;
+  return _fcmTok;
+}
+async function sendFcmToUser(env, u, title, body, riderId) {
+  if (!env.FCM_SA_JSON) return;
+  try {
+    const rows = await env.DB.prepare('SELECT token FROM push_tokens WHERE u=?').bind(u).all();
+    const tokens = (rows.results || []).map(r => r.token);
+    if (!tokens.length) return;
+    const at = await fcmAccessToken(env);
+    const proj = env.FCM_PROJECT_ID || 'pilot-dashboard-d0983';
+    for (const t of tokens.slice(0, 20)) {
+      const r = await fetch(`https://fcm.googleapis.com/v1/projects/${proj}/messages:send`, {
+        method: 'POST', headers: { 'Authorization': 'Bearer ' + at, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: {
+          token: t,
+          notification: { title: String(title || ''), body: String(body || '') },
+          android: { priority: 'HIGH', notification: { sound: 'default', channel_id: 'teammh_alerts' } },
+          data: { rider_id: String(riderId || ''), title: String(title || ''), body: String(body || '') },
+        } }),
+      });
+      if (r.status === 404) await env.DB.prepare('DELETE FROM push_tokens WHERE token=?').bind(t).run();
+    }
+  } catch (e) {}
 }
 
 async function sendMail(env, to, subject, text) {
@@ -698,6 +748,36 @@ export default {
       } catch (e) {
         return json({ error: 'server_error', detail: String(e && e.message || e) }, 500);
       }
+    }
+
+    if (url.pathname === '/api/theme') {
+      await ensureSchema(env);
+      if (request.method === 'GET') {
+        const row = await env.DB.prepare("SELECT v FROM settings WHERE k='login_theme'").first();
+        return json({ theme: (row && row.v) || 'night' });
+      }
+      if (request.method === 'POST') {
+        const user = await getSessionUser(env, request);
+        if (!user || user.r !== 'admin') return json({ error: 'unauthorized' }, 401);
+        const body = await request.json().catch(() => null);
+        const theme = String(body && body.theme || '').toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 24);
+        if (!theme) return json({ error: 'missing_fields' }, 400);
+        await env.DB.prepare("INSERT INTO settings(k,v) VALUES('login_theme',?) ON CONFLICT(k) DO UPDATE SET v=excluded.v").bind(theme).run();
+        return json({ ok: true, theme });
+      }
+    }
+
+    if (url.pathname === '/api/push/register' && request.method === 'POST') {
+      try {
+        await ensureSchema(env);
+        const user = await getSessionUser(env, request);
+        if (!user) return json({ error: 'unauthorized' }, 401);
+        const body = await request.json().catch(() => null);
+        const token = String(body && body.token || '').trim().slice(0, 300);
+        if (!token) return json({ error: 'missing_fields' }, 400);
+        await env.DB.prepare('INSERT INTO push_tokens(u,token,ts) VALUES(?,?,?) ON CONFLICT(u,token) DO UPDATE SET ts=excluded.ts').bind(user.u, token, Date.now()).run();
+        return json({ ok: true });
+      } catch (e) { return json({ error: 'server_error', detail: String(e && e.message || e) }, 500); }
     }
 
     if (url.pathname === '/api/notifications' || url.pathname === '/api/notifications/test') {

@@ -1150,10 +1150,17 @@ html[data-theme="light"] body{background:radial-gradient(ellipse at 8% 0%,#d6f4f
    <button class="btn" id="riderDetailsB" type="button" aria-expanded="false">📋 تفاصيل الطيارين</button>
    <button class="btn" id="riderMapB" type="button" aria-expanded="false" aria-controls="riderMapPanel" style="display:none">🗺️ خريطة المناديب</button>
    <button class="btn" id="liveB" type="button" style="display:none" aria-controls="livePanel" aria-expanded="false">🔴 Live</button><button class="btn" id="bookingDashboardB" style="display:none">🗓️ ان اصين</button>
-   <button class="btn" id="reportsB" type="button" aria-expanded="false">📊 تقارير أداء</button><button class="btn" id="prB" style="display:none">💰 أسعار الباتشات</button><button class="btn" id="usrB" style="display:none">👥 المستخدمين</button><button class="btn" id="loginAuditB" style="display:none">🕵️ سجل الدخول</button><button class="btn" id="tgB" style="display:none">🎯 التارجت</button><button class="btn" id="hcB" style="display:none">👥 هيد كونت</button><button class="btn" id="dedB" style="display:none">🏢 الشركة</button><button class="btn" id="queriesB" style="display:none">📨 الاستعلامات</button><button class="btn" id="payB" type="button" style="display:none" aria-controls="payPanel" aria-expanded="false">💵 القبض</button>
+   <button class="btn" id="reportsB" type="button" aria-expanded="false">📊 تقارير أداء</button><button class="btn" id="prB" style="display:none">💰 أسعار الباتشات</button><button class="btn" id="usrB" style="display:none">👥 المستخدمين</button><button class="btn" id="loginAuditB" style="display:none">🕵️ سجل الدخول</button><button class="btn" id="themeB" style="display:none" onclick="toggleNavDrawer(false);openThemePicker()">🎨 تصميم الدخول</button><button class="btn" id="tgB" style="display:none">🎯 التارجت</button><button class="btn" id="hcB" style="display:none">👥 هيد كونت</button><button class="btn" id="dedB" style="display:none">🏢 الشركة</button><button class="btn" id="queriesB" style="display:none">📨 الاستعلامات</button><button class="btn" id="payB" type="button" style="display:none" aria-controls="payPanel" aria-expanded="false">💵 القبض</button>
   </nav>
  </aside>
 </div>
+ <div id="themeModal" style="display:none;position:fixed;inset:0;background:#000c;z-index:75;overflow:auto;padding:12px" onclick="if(event.target===this)this.style.display='none'">
+  <div class="card" style="max-width:560px;margin:auto">
+   <div class="row"><h3 style="margin:0">🎨 تصميم صفحة الدخول</h3><span id="themeSaved" class="sub" style="color:#4ade80"></span><button class="btn" style="margin-inline-start:auto" onclick="$('themeModal').style.display='none'">✕</button></div>
+   <div class="sub">اختار التصميم — بيتطبق فورًا على صفحة الدخول لكل المستخدمين.</div>
+   <div id="themeGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(115px,1fr));gap:10px;margin-top:10px"></div>
+  </div>
+ </div>
  <div id="notifModal" style="display:none;position:fixed;inset:0;background:#000c;z-index:75;overflow:auto;padding:12px" onclick="if(event.target===this)this.style.display='none'">
   <div class="card" style="max-width:640px;margin:auto">
    <div class="row"><h3 style="margin:0">🔔 إشعارات اليوم</h3><button class="btn pr" type="button" onclick="loadNotifs(true)">🔄 تحديث</button><button class="btn" style="margin-inline-start:auto" onclick="$('notifModal').style.display='none'">✕</button></div>
@@ -3149,9 +3156,53 @@ const REMEMBER_LOGIN_KEY='pd_remember_login',REMEMBER_LOGIN_MS=7*24*60*60*1000;a
   $('riderRatingsCard').style.display=x.r==='sup'?'none':'';
   $('dailyHistoryCard').style.display=x.r==='sup'?'none':'';
   $('vehicleChartCard').style.display=x.r==='sup'?'none':'';
-  $('lg').style.display='none';$('who').textContent='👤 '+x.n+' · '+ROLE[x.r]+(x.r==='admin'&&!LOGIN_AUDIT_ENDPOINT?' · ⚠️ سجل الدخول المركزي غير مفعّل':'');$('usrB').style.display=x.r==='admin'?'':'none';$('loginAuditB').style.display=x.r==='admin'?'':'none';$('tgB').style.display=x.r==='admin'?'':'none';$('supCaptureAll').style.display=x.r==='admin'?'':'none';$('zoneCaptureAll').style.display=['admin','manager'].includes(x.r)?'':'none';$('zoneCaptureAll').textContent=x.r==='manager'?'🗺️📸 تنزيل صور مناطقي':'🗺️📸 تنزيل صور كل المناطق';$('hcB').style.display=hcCanAccess(x)?'':'none';$('dedB').style.display=['admin','manager','sup'].includes(x.r)?'':'none';$('bookingDashboardB').style.display=bookingCanAccessDashboard(x)?'':'none';bookingApplyRoleAccess(x);$('payB').style.display=['admin','manager','sup'].includes(x.r)?'':'none';$('payB').classList.toggle('pay-access',['admin','manager','sup'].includes(x.r));$('prB').style.display=monitor?'none':'';$('profileB').style.display=monitor?'none':'';$('queriesB').style.display=monitor?'none':'';$('reportsB').style.display=monitor?'none':'';$('riderDetailsB').style.display=monitor?'none':'';$('riderMapB').style.display=['admin','sup'].includes(x.r)?'':'none';if(x.r==='viewer')await initViewer(x);load()}
+  $('lg').style.display='none';$('who').textContent='👤 '+x.n+' · '+ROLE[x.r]+(x.r==='admin'&&!LOGIN_AUDIT_ENDPOINT?' · ⚠️ سجل الدخول المركزي غير مفعّل':'');$('usrB').style.display=x.r==='admin'?'':'none';$('loginAuditB').style.display=x.r==='admin'?'':'none';$('themeB').style.display=x.r==='admin'?'':'none';$('tgB').style.display=x.r==='admin'?'':'none';$('supCaptureAll').style.display=x.r==='admin'?'':'none';$('zoneCaptureAll').style.display=['admin','manager'].includes(x.r)?'':'none';$('zoneCaptureAll').textContent=x.r==='manager'?'🗺️📸 تنزيل صور مناطقي':'🗺️📸 تنزيل صور كل المناطق';$('hcB').style.display=hcCanAccess(x)?'':'none';$('dedB').style.display=['admin','manager','sup'].includes(x.r)?'':'none';$('bookingDashboardB').style.display=bookingCanAccessDashboard(x)?'':'none';bookingApplyRoleAccess(x);$('payB').style.display=['admin','manager','sup'].includes(x.r)?'':'none';$('payB').classList.toggle('pay-access',['admin','manager','sup'].includes(x.r));$('prB').style.display=monitor?'none':'';$('profileB').style.display=monitor?'none':'';$('queriesB').style.display=monitor?'none':'';$('reportsB').style.display=monitor?'none':'';$('riderDetailsB').style.display=monitor?'none':'';$('riderMapB').style.display=['admin','sup'].includes(x.r)?'':'none';if(x.r==='viewer')await initViewer(x);load()}
 let USERS=USERS_EMBED.concat(MONITOR_USERS_EMBED),DRAFT=null,VAULT=PW_EMBED;
 async function loadUsers(){}
+const LOGIN_THEMES=[
+{id:'night',n:'ليلي زجاجي (الأصلي)'},
+{id:'ocean',n:'محيط',bg:'linear-gradient(160deg,#012a4a,#013a63,#01497c)',card:'rgba(1,42,74,.88)',border:'rgba(97,165,194,.35)',accent:'#48cae4',onAccent:'#012a4a',text:'#eaf6fb',sub:'#a8d3e6',inbg:'rgba(255,255,255,.08)'},
+{id:'sunset',n:'غروب',bg:'linear-gradient(160deg,#2d0a31,#7c2d12,#c2410c)',card:'rgba(45,10,49,.88)',border:'rgba(253,186,116,.35)',accent:'#fb923c',onAccent:'#2d0a31',text:'#fff7ed',sub:'#f5c9a8',inbg:'rgba(255,255,255,.08)'},
+{id:'emerald',n:'زمردي',bg:'linear-gradient(160deg,#022c22,#064e3b,#065f46)',card:'rgba(2,44,34,.9)',border:'rgba(110,231,183,.3)',accent:'#34d399',onAccent:'#022c22',text:'#ecfdf5',sub:'#a7d7c5',inbg:'rgba(255,255,255,.08)'},
+{id:'royal',n:'بنفسجي ملكي',bg:'linear-gradient(160deg,#170b2e,#4c1d95,#7c3aed)',card:'rgba(23,11,46,.9)',border:'rgba(216,180,254,.3)',accent:'#c084fc',onAccent:'#170b2e',text:'#faf5ff',sub:'#d9c8f0',inbg:'rgba(255,255,255,.08)'},
+{id:'gold',n:'فحمي ذهبي',bg:'linear-gradient(160deg,#0a0a0a,#1c1917,#292524)',card:'rgba(12,10,9,.92)',border:'rgba(251,191,36,.35)',accent:'#fbbf24',onAccent:'#1c1917',text:'#fef3c7',sub:'#cbb98a',inbg:'rgba(255,255,255,.06)'},
+{id:'sky',n:'سماوي فاتح',bg:'linear-gradient(160deg,#e0f2fe,#f0f9ff)',card:'#ffffff',border:'#bae6fd',accent:'#0284c7',onAccent:'#ffffff',text:'#0c4a6e',sub:'#3d6f8e',inbg:'#f0f9ff'},
+{id:'white',n:'أبيض نقي',bg:'#f1f5f9',card:'#ffffff',border:'#e2e8f0',accent:'#0f172a',onAccent:'#ffffff',text:'#0f172a',sub:'#475569',inbg:'#ffffff'},
+{id:'coral',n:'مرجاني',bg:'linear-gradient(160deg,#4c0519,#9f1239,#be123c)',card:'rgba(76,5,25,.9)',border:'rgba(253,164,175,.3)',accent:'#fb7185',onAccent:'#4c0519',text:'#fff1f2',sub:'#f0b6c0',inbg:'rgba(255,255,255,.08)'},
+{id:'desert',n:'صحراوي',bg:'linear-gradient(160deg,#451a03,#92400e,#d97706)',card:'rgba(69,26,3,.9)',border:'rgba(252,211,77,.35)',accent:'#fbbf24',onAccent:'#451a03',text:'#fffbeb',sub:'#e8cf9a',inbg:'rgba(255,255,255,.08)'},
+{id:'mint',n:'نعناعي فاتح',bg:'linear-gradient(160deg,#ecfdf5,#d1fae5)',card:'#ffffff',border:'#a7f3d0',accent:'#059669',onAccent:'#ffffff',text:'#064e3b',sub:'#3f7a63',inbg:'#ecfdf5'},
+{id:'navy',n:'كحلي كلاسيك',bg:'#0f172a',card:'#1e293b',border:'#475569',accent:'#60a5fa',onAccent:'#0f172a',text:'#e2e8f0',sub:'#94a3b8',inbg:'#0f172a'}
+];
+function applyLoginTheme(id){
+ let st=document.getElementById('lgThemeStyle');if(!st){st=document.createElement('style');st.id='lgThemeStyle';document.head.appendChild(st)}
+ const t=LOGIN_THEMES.find(x=>x.id===id);
+ if(!t||!t.bg){st.textContent='';return}
+ st.textContent=`#lg{background:${t.bg}!important}
+#lg .lb,#lg .card{background:${t.card}!important;border-color:${t.border}!important}
+#lg .btn.pr{background:${t.accent}!important;border-color:${t.accent}!important;color:${t.onAccent}!important}
+#lg .btn:not(.pr){border-color:${t.border}!important;color:${t.text}!important;background:${t.inbg}!important}
+#lg h2,#lg label,#lg .login-brand h2{color:${t.text}!important}
+#lg .sub,#lg .login-brand .sub,#lg .login-signature{color:${t.sub}!important}
+#lg .login-signature-phone{color:${t.accent}!important}
+#lg input,#lg select{background:${t.inbg}!important;color:${t.text}!important;border-color:${t.border}!important}
+#lg input::placeholder{color:${t.sub}!important}`;
+}
+try{const cached=localStorage.getItem('pd_login_theme');if(cached)applyLoginTheme(cached)}catch(e){}
+async function loadLoginTheme(){try{const r=await fetch('/api/theme');const d=await r.json();if(d&&d.theme){applyLoginTheme(d.theme);try{localStorage.setItem('pd_login_theme',d.theme)}catch(e){}}}catch(e){}}
+function openThemePicker(){
+ const g=$('themeGrid');$('themeSaved').textContent='';
+ g.innerHTML=LOGIN_THEMES.map(t=>{
+  const pv=t.bg?t.bg:'radial-gradient(ellipse at 50% 20%,#1d3c6a,#0b0f19)';
+  const ac=t.accent||'#38bdf8';
+  return '<button type="button" class="btn" onclick="pickLoginTheme(\''+t.id+'\')" style="padding:0;overflow:hidden;border:1px solid var(--bd);border-radius:12px"><span style="display:block;height:56px;background:'+pv+'"><span style="display:block;width:55%;height:8px;margin:24px auto 0;border-radius:4px;background:'+ac+'"></span></span><span style="display:block;padding:6px 4px;font-size:12px;font-weight:700">'+esc(t.n)+'</span></button>'
+ }).join('');
+ $('themeModal').style.display='';
+}
+async function pickLoginTheme(id){
+ applyLoginTheme(id);try{localStorage.setItem('pd_login_theme',id)}catch(e){}
+ try{await api('/api/theme',{method:'POST',body:{theme:id}});$('themeSaved').textContent='اتحفظ ✅';setTimeout(()=>{const e=$('themeSaved');if(e)e.textContent=''},2000)}catch(e){alert('تعذّر الحفظ: '+authErr(e))}
+}
+loadLoginTheme();
 async function boot(){await loadUsers();boot0();loadSupervisorTargets()}
 async function boot0(){let t='';try{localStorage.removeItem('pd_sess');t=sessionStorage.getItem('pd_token')||'';const saved=JSON.parse(localStorage.getItem(REMEMBER_LOGIN_KEY)||'null');if(saved&&saved.expires>Date.now()&&saved.t)t=saved.t;else if(saved)localStorage.removeItem(REMEMBER_LOGIN_KEY)}catch(e){}if(!t){$('lg').style.display='flex';return}try{const d=await api('/api/auth/me');d.profile.token=t;enter(d.profile)}catch(e){try{sessionStorage.removeItem('pd_token');localStorage.removeItem(REMEMBER_LOGIN_KEY)}catch(_){} $('lg').style.display='flex'}}
 const AR_D=t=>String(t).replace(/[٠-٩]/g,d=>'٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/[۰-۹]/g,d=>'۰۱۲۳۴۵۶۷۸۹'.indexOf(d));
