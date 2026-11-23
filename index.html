@@ -1283,7 +1283,7 @@ header{box-shadow:0 8px 24px rgba(2,8,23,.5)}
 #mkPanel .mkmsg.loading{opacity:.65}
 .mkchip{font-size:12px;border:1px solid var(--bd);border-radius:999px;padding:5px 11px;cursor:pointer;background:transparent;color:inherit;white-space:nowrap}
 </style>
-<button id="mkFab" style="display:none" onclick="toggleMike()">🤖 TEAM MH</button>
+<button id="mkFab" style="display:none" onclick="toggleMike()">TEAM MH</button>
 <div id="mkPanel" class="card">
  <div class="row" style="padding:10px 12px;border-bottom:1px solid var(--bd)"><b>🤖 TEAM MH</b><span class="sub">مساعد لوحة التحكم</span><button class="btn" style="margin-inline-start:auto" onclick="toggleMike()">✕</button></div>
  <div id="mkMsgs" style="flex:1;overflow:auto;padding:10px 12px;display:grid;gap:8px;align-content:start"></div>
@@ -5962,7 +5962,8 @@ function initAndroidBridge(){
  try{const r=window.TeamMH.consumePendingRider&&window.TeamMH.consumePendingRider();if(r)setTimeout(()=>{try{showR(r)}catch(e){}},1500)}catch(e){}
 }
 window.teamMHRider=function(id){try{showR(id)}catch(e){}};
-function mkSetup(x){try{const ok=(x&&['admin','manager'].includes(x.r))?'':'none';const f=$('mkFab');if(f)f.style.display=ok;const nb=$('mikeNavB');if(nb)nb.style.display=ok}catch(e){}}
+function mkSyncFab(){const a=$('mkFab'),b=$('liveB');if(!a||!b)return;const r=b.getBoundingClientRect();if(r.width>0){a.style.width=r.width+'px';a.style.maxWidth=r.width+'px';a.style.height=r.height+'px';a.style.minHeight=r.height+'px';a.style.fontSize='10px';a.style.padding='6px 4px'}}
+function mkSetup(x){try{setTimeout(mkSyncFab,0);if(!window._mkResize&&window.ResizeObserver){window._mkResize=new ResizeObserver(mkSyncFab);window._mkResize.observe($('liveB'))}window.addEventListener('resize',mkSyncFab);const ok=(x&&['admin','manager'].includes(x.r))?'':'none';const f=$('mkFab');if(f)f.style.display=ok;const nb=$('mikeNavB');if(nb)nb.style.display=ok}catch(e){}}
 function mkOpen(){const p=$('mkPanel');if(!p)return;if(p.style.display!=='flex')toggleMike()}
 function toggleMike(){const p=$('mkPanel');if(!p)return;const open=p.style.display!=='flex';p.style.display=open?'flex':'none';if(open&&!$('mkMsgs').children.length)mkMsg('أهلًا! أنا مساعد TEAM MH 🤖 اسألني عن أداء المناديب، المتأخرين، الإحصائيات، أو أي يوم معين (مثال: مين أحسن مندوب يوم ٢٨/١٠)… وأنا أجاوبك من بيانات اللوحة على طول.','m');if(open)setTimeout(()=>{try{$('mkQ').focus()}catch(e){}},80)}
 function mkMsg(t,cls){const d=document.createElement('div');d.className='mkmsg '+(cls||'m');d.textContent=t;$('mkMsgs').append(d);$('mkMsgs').scrollTop=1e9;return d}
@@ -6385,9 +6386,9 @@ $('extRiderList').addEventListener('click',event=>{const b=event.target.closest(
 $('extSelectAll').addEventListener('click',()=>{extVisibleRiders().forEach(r=>extSelected.add(String(r.rider_id)));extRenderRiders()});
 $('extSelectClear').addEventListener('click',()=>{extSelected.clear();extRider=null;extRenderRiders()});
 
-$('extSubmit').addEventListener('click',async()=>{const m=$('extMessage');m.style.color='';const ids=[...extSelected];if(!ids.length){m.style.color='#fbbf24';m.textContent='اختار مندوب واحد على الأقل الأول';return}if(!$('extCity').value){m.style.color='#fbbf24';m.textContent='اختار المدينة / الزون';return}if(extAction==='extend'&&!$('extDuration').value){m.style.color='#fbbf24';m.textContent='اختار مدة المد';return}if(extAction==='break'&&$('extCity').value==='الإسكندرية'&&!$('extReason').value){m.style.color='#fbbf24';m.textContent='اختار سبب فك البريك';return}
+$('extSubmit').addEventListener('click',async()=>{const m=$('extMessage');m.style.color='';const visibleIds=new Set(extVisibleRiders().map(r=>String(r.rider_id)));const ids=[...extSelected].filter(id=>visibleIds.has(id));if(!ids.length){m.style.color='#fbbf24';m.textContent='اختار مندوب واحد على الأقل الأول';return}if(!$('extCity').value){m.style.color='#fbbf24';m.textContent='اختار المدينة / الزون';return}if(extAction==='extend'&&!$('extDuration').value){m.style.color='#fbbf24';m.textContent='اختار مدة المد';return}if(extAction==='break'&&$('extCity').value==='الإسكندرية'&&!$('extReason').value){m.style.color='#fbbf24';m.textContent='اختار سبب فك البريك';return}
  try{if(!LIVE_ROWS.length||Date.now()-LIVE_LAST_ATTEMPT>=LIVE_REFRESH_MS)await refreshLive();extBuildLiveMap()}catch(e){}
- const ok=[],blocked=[];for(const id of ids){const lv=extLiveMap.get(String(id));const hasShift=lv&&((lv.session||'').trim()||['WORKING','BREAK','LATE','READY','STARTING','ENDING'].includes(lv.state));
+ const ok=[],blocked=[];for(const id of ids){const lv=extLiveMap.get(String(id));const hasShift=lv&&/\d{1,2}:\d{2}/.test(lv.session||'')&&['WORKING','BREAK','READY','STARTING','ENDING'].includes(lv.state);
   if(extAction==='break'){if(!lv||!hasShift)blocked.push(id+' (أوف لاين/مش معاه شيفت)');else if(lv.state!=='BREAK')blocked.push(id+' (شغال مش على بريك)');else ok.push(id)}
   else{if(!lv||!hasShift)blocked.push(id+' (أوف لاين/مش معاه شيفت)');else ok.push(id)}}
  if(blocked.length){m.style.color='#fbbf24';m.textContent='⛔ ممنوع حسب المراجعة اللايف: '+blocked.join('، ')+(ok.length?' — هيكمّل للباقي بس':'');
