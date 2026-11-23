@@ -4412,7 +4412,7 @@ function bookingProfileMaps(){
   const byId=new Map,byName=new Map;
   for(const row of ALL){
     if(!row||!row.s&&!row.z&&!row.m)continue;
-    const profile={s:row.s||'',z:row.z||'',m:row.m||'',t:+row.t||0};
+    const profile={n:row.n||'',s:row.s||'',z:row.z||'',m:row.m||'',t:+row.t||0};
     const id=String(row.id||'').trim().replace(/\.0$/,'');
     if(id&&(!byId.has(id)||byId.get(id).t<profile.t))byId.set(id,profile);
     const name=nameMatchKey(row.n);
@@ -4422,7 +4422,11 @@ function bookingProfileMaps(){
   return BOOKING_PROFILE_CACHE;
 }
 function bookingRosterRows(){
-  return BOOKING_DB_ROWS;
+  const riders=new Map(BOOKING_DB_ROWS.map(r=>[bookingNormalizeRiderId(r.id),{...r}]));
+  const profiles=bookingProfileMaps();
+  for(const [id,p] of profiles.byId){const old=riders.get(id)||{};riders.set(id,{...old,id,name:old.name||p.n||id,manager:old.manager||p.m,sup:old.sup||p.s,zone:old.zone||p.z})}
+  for(const r of BOOKING_ROWS){const id=bookingNormalizeRiderId(r.id);if(riders.has(id))continue;const p=profiles.byId.get(id)||profiles.byName.get(nameMatchKey(r.name));if(p)riders.set(id,{id,name:r.name,manager:p.m,sup:p.s,zone:p.z})}
+  return [...riders.values()];
 }
 function bookingCanAccessDashboard(user=CUR){
   return Boolean(user&&['admin','manager','sup'].includes(user.r));
