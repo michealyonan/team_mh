@@ -2559,7 +2559,7 @@ function setPreset(p,silent){
   document.querySelectorAll('.chip').forEach(c=>c.classList.toggle('on',c.dataset.p===p));
   if(!silent||true)apply();
 }
-[['yest','أمس'],['7','آخر 7 أيام'],['30','آخر 30 يوم'],['month','هذا الشهر'],['last','الشهر الماضي'],['all','كل الفترة']].forEach(([p,t])=>{
+[['yest','آخر تحديث'],['7','آخر 7 أيام'],['30','آخر 30 يوم'],['month','هذا الشهر'],['last','الشهر الماضي'],['all','كل الفترة']].forEach(([p,t])=>{
   const b=document.createElement('button');b.className='chip';b.dataset.p=p;b.textContent=t;b.onclick=()=>setPreset(p);$('chips').appendChild(b)});
 ['d1','d2'].forEach(i=>$(i).onchange=()=>{preset='';document.querySelectorAll('.chip').forEach(c=>c.classList.remove('on'));apply()});
 ['fm','fz','fs'].forEach(i=>$(i).onchange=()=>{if(i==='fm')setFilterValues('fz',[]);if(i!=='fs')setFilterValues('fs',[]);fillOpts();apply()});
@@ -2851,7 +2851,7 @@ function tfOk(ignoreRank=false){const g=i=>$(i).value,q=g('tf_q').trim().toLower
     if(w.length&&!w.some(value=>value==='neg'?x.w<0:value==='zero'?x.w===0:x.w>0))return false;
     if(l.length&&!l.some(value=>x.left!==null&&(value==='exp'?x.left<0:value==='ok'?x.left>30:x.left>=0&&x.left<=+value)))return false;
     return true}}
-document.querySelectorAll('#tf select,#tf input').forEach(e=>{const h=()=>{page=0;render()};e.onchange=h;if(e.tagName==='INPUT')e.oninput=h});const tfPeriodButtons=[['yest','أمس'],['7','آخر 7 أيام'],['30','آخر 30 يوم'],['month','هذا الشهر'],['last','الشهر الماضي'],['all','كل الفترة']];
+document.querySelectorAll('#tf select,#tf input').forEach(e=>{const h=()=>{page=0;render()};e.onchange=h;if(e.tagName==='INPUT')e.oninput=h});const tfPeriodButtons=[['yest','آخر تحديث'],['7','آخر 7 أيام'],['30','آخر 30 يوم'],['month','هذا الشهر'],['last','الشهر الماضي'],['all','كل الفترة']];
 function tfSetPreset(p){
   const mx=ROWS.reduce((a,r)=>r.t>a?r.t:a,0),mn=ROWS.reduce((a,r)=>!a||r.t<a?r.t:a,0),M=new Date(mx);let a=mn,b=mx;
   if(p==='yest')a=b;else if(p==='7')a=mx-6*DAY;else if(p==='30')a=mx-29*DAY;
