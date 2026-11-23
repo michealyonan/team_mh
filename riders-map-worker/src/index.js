@@ -579,6 +579,14 @@ export default {
       return json({ error: 'not_found' }, 404);
     }
 
+    if (url.pathname === '/api/notifications/test-seed' && request.method === 'POST') {
+      if (!env.SEED_TOKEN || !safeEqual(request.headers.get('Authorization') || '', 'Bearer ' + env.SEED_TOKEN)) return json({ error: 'unauthorized' }, 401);
+      await ensureSchema(env);
+      const admins = await env.DB.prepare("SELECT u FROM users WHERE status='active' AND r='admin'").all();
+      for (const t of (admins.results || [])) await insertNotification(env, t.u, '⚠️ مندوب سمع تأخير', 'المندوب أحمد سامي (كود 2171071) سجّل تأخير 25 دقيقة عن ميعاد الشيفت', '2171071');
+      return json({ ok: true, sent: (admins.results || []).length });
+    }
+
     if (url.pathname === '/api/notifications/send' && request.method === 'POST') {
       try {
         await ensureSchema(env);
