@@ -1149,7 +1149,7 @@ html[data-theme="light"] body{background:radial-gradient(ellipse at 8% 0%,#d6f4f
    <button class="btn" id="riderDetailsB" type="button" aria-expanded="false">📋 تفاصيل الطيارين</button>
    <button class="btn" id="riderMapB" type="button" aria-expanded="false" aria-controls="riderMapPanel" style="display:none">🗺️ خريطة المناديب</button>
    <button class="btn" id="liveB" type="button" style="display:none" aria-controls="livePanel" aria-expanded="false">🔴 Live</button><button class="btn" id="bookingDashboardB" style="display:none">🗓️ ان اصين</button>
-   <button class="btn" id="reportsB" type="button" aria-expanded="false">📊 تقارير أداء</button><button class="btn" id="prB" style="display:none">💰 أسعار الباتشات</button><button class="btn" id="usrB" style="display:none">👥 المستخدمين</button><button class="btn" id="loginAuditB" style="display:none">🕵️ سجل الدخول</button><button class="btn" id="tgB" style="display:none">🎯 التارجت</button><button class="btn" id="hcB" style="display:none">👥 هيد كونت</button><button class="btn" id="dedB" style="display:none">🏢 الشركة</button><button class="btn" id="queriesB" style="display:none">📨 الاستعلامات</button><button class="btn" id="payB" type="button" style="display:none" aria-controls="payPanel" aria-expanded="false">💵 القبض</button>
+   <button class="btn" id="reportsB" type="button" aria-expanded="false">📊 تقارير أداء</button><button class="btn" id="prB" style="display:none">💰 أسعار الباتشات</button><button class="btn" id="usrB" style="display:none">👥 المستخدمين</button><button class="btn" id="contactsB" style="display:none" onclick="toggleNavDrawer(false);openContacts()">📇 دليل الاتصالات</button><button class="btn" id="loginAuditB" style="display:none">🕵️ سجل الدخول</button><button class="btn" id="tgB" style="display:none">🎯 التارجت</button><button class="btn" id="hcB" style="display:none">👥 هيد كونت</button><button class="btn" id="dedB" style="display:none">🏢 الشركة</button><button class="btn" id="queriesB" style="display:none">📨 الاستعلامات</button><button class="btn" id="payB" type="button" style="display:none" aria-controls="payPanel" aria-expanded="false">💵 القبض</button>
   </nav>
  </aside>
 </div>
@@ -1180,6 +1180,14 @@ html[data-theme="light"] body{background:radial-gradient(ellipse at 8% 0%,#d6f4f
    <div id="ccErr" role="alert" style="color:#f87171;font-size:13px"></div>
    <button class="btn pr" id="ccB" style="min-height:46px" onclick="submitContactGate()">حفظ ودخول ←</button>
   </form>
+ </div>
+<div id="contactsModal" style="display:none;position:fixed;inset:0;background:#000c;z-index:75;overflow:auto;padding:12px" onclick="if(event.target===this)this.style.display='none'">
+  <div class="card" style="max-width:720px;margin:auto">
+   <div class="row"><h3 style="margin:0">📇 دليل اتصالات الفريق</h3><button class="btn" type="button" onclick="copyContacts()">📋 نسخ الكل</button><button class="btn" style="margin-inline-start:auto" onclick="$('contactsModal').style.display='none'">✕</button></div>
+   <input id="cs" type="search" placeholder="🔎 ابحث بالاسم أو المستخدم أو الرقم" oninput="renderContacts()" style="width:100%;margin:10px 0">
+   <div class="sub" id="cstat" style="margin-bottom:6px"></div>
+   <div id="clist" style="display:grid;gap:8px;max-height:65vh;overflow:auto"></div>
+  </div>
  </div>
  <div id="loginAuditModal" style="display:none;position:fixed;inset:0;background:#000c;z-index:75;overflow:auto;padding:12px" onclick="if(event.target===this)this.style.display='none'">
   <div class="card" style="max-width:900px;margin:auto">
@@ -3123,7 +3131,7 @@ const REMEMBER_LOGIN_KEY='pd_remember_login',REMEMBER_LOGIN_MS=7*24*60*60*1000;a
   $('riderRatingsCard').style.display=x.r==='sup'?'none':'';
   $('dailyHistoryCard').style.display=x.r==='sup'?'none':'';
   $('vehicleChartCard').style.display=x.r==='sup'?'none':'';
-  $('lg').style.display='none';$('who').textContent='👤 '+x.n+' · '+ROLE[x.r]+(x.r==='admin'&&!LOGIN_AUDIT_ENDPOINT?' · ⚠️ سجل الدخول المركزي غير مفعّل':'');$('usrB').style.display=x.r==='admin'?'':'none';$('loginAuditB').style.display=x.r==='admin'?'':'none';$('tgB').style.display=x.r==='admin'?'':'none';$('supCaptureAll').style.display=x.r==='admin'?'':'none';$('zoneCaptureAll').style.display=['admin','manager'].includes(x.r)?'':'none';$('zoneCaptureAll').textContent=x.r==='manager'?'🗺️📸 تنزيل صور مناطقي':'🗺️📸 تنزيل صور كل المناطق';$('hcB').style.display=hcCanAccess(x)?'':'none';$('dedB').style.display=['admin','manager','sup'].includes(x.r)?'':'none';$('bookingDashboardB').style.display=bookingCanAccessDashboard(x)?'':'none';bookingApplyRoleAccess(x);$('payB').style.display=['admin','manager','sup'].includes(x.r)?'':'none';$('payB').classList.toggle('pay-access',['admin','manager','sup'].includes(x.r));$('prB').style.display=monitor?'none':'';$('queriesB').style.display=monitor?'none':'';$('reportsB').style.display=monitor?'none':'';$('riderDetailsB').style.display=monitor?'none':'';$('riderMapB').style.display=['admin','sup'].includes(x.r)?'':'none';if(x.r==='viewer')await initViewer(x);load()}
+  $('lg').style.display='none';$('who').textContent='👤 '+x.n+' · '+ROLE[x.r]+(x.r==='admin'&&!LOGIN_AUDIT_ENDPOINT?' · ⚠️ سجل الدخول المركزي غير مفعّل':'');$('usrB').style.display=x.r==='admin'?'':'none';$('contactsB').style.display=x.r==='admin'?'':'none';$('loginAuditB').style.display=x.r==='admin'?'':'none';$('tgB').style.display=x.r==='admin'?'':'none';$('supCaptureAll').style.display=x.r==='admin'?'':'none';$('zoneCaptureAll').style.display=['admin','manager'].includes(x.r)?'':'none';$('zoneCaptureAll').textContent=x.r==='manager'?'🗺️📸 تنزيل صور مناطقي':'🗺️📸 تنزيل صور كل المناطق';$('hcB').style.display=hcCanAccess(x)?'':'none';$('dedB').style.display=['admin','manager','sup'].includes(x.r)?'':'none';$('bookingDashboardB').style.display=bookingCanAccessDashboard(x)?'':'none';bookingApplyRoleAccess(x);$('payB').style.display=['admin','manager','sup'].includes(x.r)?'':'none';$('payB').classList.toggle('pay-access',['admin','manager','sup'].includes(x.r));$('prB').style.display=monitor?'none':'';$('queriesB').style.display=monitor?'none':'';$('reportsB').style.display=monitor?'none':'';$('riderDetailsB').style.display=monitor?'none':'';$('riderMapB').style.display=['admin','sup'].includes(x.r)?'':'none';if(x.r==='viewer')await initViewer(x);load()}
 let USERS=USERS_EMBED.concat(MONITOR_USERS_EMBED),DRAFT=null,VAULT=PW_EMBED;
 async function loadUsers(){}
 async function boot(){await loadUsers();boot0();loadSupervisorTargets()}
@@ -5732,6 +5740,13 @@ async function vwA(i){
  if(v===null)return;
  const sups=v.split(/[،,]/).map(t=>t.trim()).filter(Boolean);
  try{await api('/api/auth/admin/viewer-access',{method:'POST',body:{u:a[i].u,sups}});alert('اتحفظ ✅ ('+sups.length+' مشرف)')}catch(e){alert('تعذّر الحفظ: '+authErr(e))}
+}
+async function openContacts(){$('contactsModal').style.display='';$('cstat').textContent='جاري التحميل…';try{await refreshUsers()}catch(e){}renderContacts()}
+function renderContacts(){
+ const q=($('cs').value||'').trim().toLowerCase();
+ const rows=(USERS||[]).filter(x=>['sup','manager','admin'].includes(x.r)&&(!q||[x.n,x.u,x.email,x.phone].join(' ').toLowerCase().includes(q)));
+ $('cstat').textContent='العدد: '+rows.length;
+ $('clist').innerHTML=rows.map(x=>'<div class="card" style="padding:10px 12px"><div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><b>'+esc(x.n)+'</b><span class="sub">'+esc(ROLE[x.r]||x.r)+'</span></div><div class="sub" dir="ltr" style="text-align:left;margin-top:2px">'+esc(x.u)+'</div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">'+(x.phone?'<a class="btn" href="tel:'+esc(x.phone)+'" style="text-decoration:none;min-height:36px">📱 '+esc(x.phone)+'</a>':'<span class="sub">📱 لسه مش متسجل</span>')+(x.email?'<a class="btn" href="mailto:'+esc(x.email)+'" style="text-decoration:none;min-height:36px" dir="ltr">✉️ '+esc(x.email)+'</a>':'<span class="sub">✉️ لسه مش متسجل</span>')+'</div></div>').join('')||'<div class="sub">مفيش نتائج</div>';
 }
 function toggleNavDrawer(open){
   const backdrop=$('navDrawerBackdrop'),toggle=$('navMenuToggle');
