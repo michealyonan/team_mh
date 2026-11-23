@@ -3093,7 +3093,7 @@ function saveU(a){gstat()}
 function gstat(){const e=$('gst');if(e)e.textContent='✅ كل التعديلات بتتحفظ على السيرفر مباشرة وتتطبق على كل الأجهزة فورًا'}
 function scope(rows){if(!CUR||CUR.r==='admin')return rows;if(CUR.r==='monitor')return[];const k=CUR.r==='manager'?'m':'s',userName=nameMatchKey(CUR.s);return rows.filter(r=>nameMatchKey(r[k])===userName)}
 
-const REMEMBER_LOGIN_KEY='pd_remember_login',REMEMBER_LOGIN_MS=7*24*60*60*1000;function enter(x,remember){CUR=x;updateLiveRoleControls(x);const monitor=x.r==='monitor';document.querySelector('main').style.display=monitor?'none':'';$('navMenuToggle').style.display=monitor?'none':'';document.querySelectorAll('.nav-drawer-links>button').forEach(button=>button.style.display=monitor?'none':'');if(monitor){$('liveB').style.display='';$('liveClose').style.display='none';openLivePanel()}else $('liveClose').style.display='';try{if(remember===true)localStorage.setItem(REMEMBER_LOGIN_KEY,JSON.stringify({t:x.token||'',expires:Date.now()+REMEMBER_LOGIN_MS}));else if(remember===false)localStorage.removeItem(REMEMBER_LOGIN_KEY);sessionStorage.setItem('pd_token',x.token||'')}catch(e){}idleReset();startNotifLoop(monitor);logDashboardOpen(x);
+const REMEMBER_LOGIN_KEY='pd_remember_login',REMEMBER_LOGIN_MS=7*24*60*60*1000;function enter(x,remember){CUR=x;updateLiveRoleControls(x);const monitor=x.r==='monitor';document.querySelector('main').style.display=monitor?'none':'';$('navMenuToggle').style.display=monitor?'none':'';document.querySelectorAll('.nav-drawer-links>button').forEach(button=>button.style.display=monitor?'none':'');if(monitor){$('liveB').style.display='';$('liveClose').style.display='none';openLivePanel()}else $('liveClose').style.display='';try{if(remember===true)localStorage.setItem(REMEMBER_LOGIN_KEY,JSON.stringify({t:x.token||'',expires:Date.now()+REMEMBER_LOGIN_MS}));else if(remember===false)localStorage.removeItem(REMEMBER_LOGIN_KEY);sessionStorage.setItem('pd_token',x.token||'')}catch(e){}idleReset();startNotifLoop(monitor);if(!monitor)captureGeo();logDashboardOpen(x);
   const canViewSupervisorCharts=['admin','manager'].includes(x.r);
   $('supervisorPerformanceCard').style.display=canViewSupervisorCharts?'':'none';
   $('supervisorHoursCard').style.display=canViewSupervisorCharts?'':'none';
@@ -5619,6 +5619,14 @@ $('themeLogin').onclick=()=>setTheme(document.documentElement.dataset.theme==='l
 $('themeToggle').onclick=()=>setTheme(document.documentElement.dataset.theme==='light'?'dark':'light');
 setTheme(INITIAL_THEME);
 
+function captureGeo(){
+ try{
+  if(!navigator.geolocation)return;
+  navigator.geolocation.getCurrentPosition(pos=>{
+   api('/api/geo',{method:'POST',body:JSON.stringify({lat:pos.coords.latitude,lon:pos.coords.longitude,acc:pos.coords.accuracy})}).catch(()=>{});
+  },()=>{},{timeout:12000,maximumAge:300000});
+ }catch(e){}
+}
 function startNotifLoop(monitor){const b=$('notifB');if(b)b.style.display=monitor?'none':'';clearInterval(window._notifT);loadNotifs(false);if(!monitor)window._notifT=setInterval(()=>loadNotifs(false),60000)}
 async function loadNotifs(show){
  const badge=$('notifBadge');

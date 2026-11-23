@@ -53,6 +53,8 @@ async function ensureSchema(env) {
       title TEXT NOT NULL DEFAULT '', body TEXT NOT NULL DEFAULT '', rider_id TEXT NOT NULL DEFAULT '',
       ts INTEGER NOT NULL)`),
     env.DB.prepare(`CREATE INDEX IF NOT EXISTS notif_ud ON notifications(u, day, id)`),
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS geo(
+      u TEXT PRIMARY KEY, lat REAL, lon REAL, acc REAL, ts INTEGER NOT NULL)`),
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS rider_states(
       rider_id TEXT PRIMARY KEY, name TEXT NOT NULL DEFAULT '', state TEXT NOT NULL DEFAULT '',
       sup TEXT NOT NULL DEFAULT '', updated INTEGER NOT NULL)`),
@@ -491,6 +493,30 @@ export default {
         return json({ error: 'server_error', detail: String(e && e.message || e) }, 500);
       }
       return json({ error: 'not_found' }, 404);
+    }
+
+    if (url.pathname === '/api/geo') {
+      try {
+        await ensureSchema(env);
+        const user = await getSessionUser(env, request);
+        if (!user) return json({ error: 'unauthorized' }, 401);
+        if (request.method === 'POST') {
+          const body = await request.json().catch(() => null);
+          const lat = body && Number(body.lat), lon = body && Number(body.lon), acc = body && Number(body.acc);
+          if (!Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) return json({ error: 'invalid_geo' }, 400);
+          await env.DB.prepare('INSERT INTO geo(u,lat,lon,acc,ts) VALUES(?,?,?,?,?) ON CONFLICT(u) DO UPDATE SET lat=excluded.lat, lon=excluded.lon, acc=excluded.acc, ts=excluded.ts')
+            .bind(user.u, lat, lon, Number.isFinite(acc) ? acc : null, Date.now()).run();
+          return json({ ok: true });
+        }
+        if (request.method === 'GET') {
+          if (user.r !== 'admin' && user.r !== 'manager') return json({ error: 'forbidden' }, 403);
+          const rows = await env.DB.prepare('SELECT g.u, u.n, g.lat, g.lon, g.acc, g.ts FROM geo g JOIN users u ON u.u=g.u ORDER BY g.ts DESC').all();
+          return json({ items: rows.results || [] });
+        }
+        return json({ error: 'not_found' }, 404);
+      } catch (e) {
+        return json({ error: 'server_error', detail: String(e && e.message || e) }, 500);
+      }
     }
 
     if (url.pathname === '/api/notifications' || url.pathname === '/api/notifications/test') {
