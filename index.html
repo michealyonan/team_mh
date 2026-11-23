@@ -5652,7 +5652,7 @@ function captureGeo(){
 function captureGeoNow(){
  try{
   navigator.geolocation.getCurrentPosition(pos=>{
-   api('/api/geo',{method:'POST',body:JSON.stringify({lat:pos.coords.latitude,lon:pos.coords.longitude,acc:pos.coords.accuracy})}).catch(()=>{});
+   api('/api/geo',{method:'POST',body:{lat:pos.coords.latitude,lon:pos.coords.longitude,acc:pos.coords.accuracy}}).catch(()=>{});
   },()=>{},{timeout:12000,maximumAge:300000});
  }catch(e){}
 }
@@ -5682,7 +5682,7 @@ async function sendAnnounce(){
   if(!all&&!picked.length){st.textContent='حدد مشرف واحد على الأقل أو اختار "كل المشرفين"';return}
   const payload={title:$('ncTitle').value.trim(),body:$('ncBody').value.trim()};
   if(all)payload.target='all';else payload.targets=picked;
-  const d=await api('/api/notifications/send',{method:'POST',body:JSON.stringify(payload)});
+  const d=await api('/api/notifications/send',{method:'POST',body:payload});
   st.textContent='اتبعت ✅ ('+d.sent+' مستلم)';$('ncTitle').value='';$('ncBody').value='';
  }catch(e){st.textContent='فشل الإرسال: '+(e.message||e)}
 }
@@ -5701,7 +5701,7 @@ function showContactGate(){$('ccModal').style.display=''}
 async function submitContactGate(){
  const err=$('ccErr');err.textContent='';
  try{
-  await api('/api/auth/complete-contact',{method:'POST',body:JSON.stringify({email:$('ccE').value.trim(),phone:$('ccP').value.trim(),channel:$('ccC').value})});
+  await api('/api/auth/complete-contact',{method:'POST',body:{email:$('ccE').value.trim(),phone:$('ccP').value.trim(),channel:$('ccC').value}});
   $('ccModal').style.display='none';loadNotifs(false);
  }catch(e){err.textContent=authErr(e)}
 }

@@ -167,7 +167,8 @@ const cleanContact = {
 
 async function handleAuth(request, env, json, url) {
   const p = url.pathname;
-  const body = request.method === 'POST' ? await request.json().catch(() => null) : null;
+  let body = request.method === 'POST' ? await request.json().catch(() => null) : null;
+  if (typeof body === 'string') { try { body = JSON.parse(body); } catch { body = null; } }
   const profile = (u) => ({ u: u.u, n: u.n, r: u.r, s: u.s, has_email: !!u.email, has_phone: !!u.phone });
 
   // --- public ---
