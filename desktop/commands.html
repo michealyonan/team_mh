@@ -11,11 +11,11 @@
   .acts{display:flex;gap:8px}
   .acts button{flex:1;padding:12px;border:1px solid #334155;border-radius:12px;background:#1e293b;color:#e2e8f0;font:inherit;font-weight:800;cursor:pointer}
   .acts button.on{background:#1d4ed8;border-color:#3b82f6}
-  #msg{margin-top:12px;font-size:13px;min-height:20px}
+  #msg{margin-top:12px;font-size:13px;min-height:20px;line-height:1.6}
   .ok{color:#4ade80}.err{color:#f87171}
   #send{width:100%;margin-top:14px;background:#16a34a;color:#fff;border:0;border-radius:12px;padding:12px;font:inherit;font-weight:900;cursor:pointer}
   #send:disabled{opacity:.5;cursor:default}
-  .sub{font-size:11px;color:#64748b;margin-top:8px}
+  .sub{font-size:11px;color:#64748b;margin-top:8px;line-height:1.6}
 </style>
 </head>
 <body>
@@ -54,9 +54,9 @@
     <option value="BREAK">BREAK</option>
   </select>
 </div>
-<button id="send" type="button">تأكيد وإرسال ✅</button>
+<button id="send" type="button">تأكيد وتنفيذ ✅</button>
 <div id="msg"></div>
-<div class="sub">الطلب بيتنفذ من اللابتوب ده أوتوماتيك بالحساب الصح لكل محافظة، والنتيجة بتظهر إشعار وفي السجل.</div>
+<div class="sub">الطلب بينفذ فورًا من اللابتوب ده في نافذة كروم حقيقية (زي أداة البايثون بالظبط)، والنتيجة بتظهر هنا وكإشعار. لو جوجل طلب تسجيل دخول، سجّل في النافذة اللي هتفتح مرة واحدة بس.</div>
 <script>
 const HOURS=[{h:0,l:'إلي 12:00 بليل'},{h:1,l:'إلي 01:00 الفجر'},{h:2,l:'إلي 02:00 الفجر'},{h:3,l:'إلي 03:00 الفجر'},{h:4,l:'إلي 04:00 الفجر'},{h:5,l:'إلي 05:00 الفجر'},{h:8,l:'إلي 08:00 الصبح'},{h:9,l:'إلي 09:00 الصبح'},{h:10,l:'إلي 10:00 الصبح'},{h:11,l:'إلي 11:00 الصبح'},{h:12,l:'إلي 12:00 الضهر'},{h:13,l:'إلي 01:00 الضهر'},{h:14,l:'إلي 02:00 الضهر'},{h:15,l:'إلي 03:00 الضهر'},{h:16,l:'إلي 04:00 العصر'},{h:17,l:'إلي 05:00 العصر'},{h:18,l:'إلي 06:00 بليل'},{h:19,l:'إلي 07:00 بليل'},{h:20,l:'إلي 08:00 بليل'},{h:21,l:'إلي 09:00 بليل'},{h:22,l:'إلي 10:00 بليل'},{h:23,l:'إلي 11:00 بليل'}];
 const $=id=>document.getElementById(id);
@@ -77,23 +77,48 @@ $('actBrk').onclick=()=>{action='break';sync()};
 $('city').onchange=sync;
 $('durSel').replaceChildren(new Option('اختار وقت نهاية المد…',''));HOURS.forEach(o=>$('durSel').add(new Option(o.l,o.l)));
 sync();
+const m=$('msg');
+function say(cls,txt){m.className=cls;m.textContent=txt}
+window.tmhDesktop.onProgress(info=>{
+  if(!info||!info.stage)return;
+  if(info.stage==='spacing')say('','⏳ ثواني حماية بين الطلبات: استنى '+info.seconds+' ثانية…');
+  else if(info.stage==='launch')say('','🚀 بيفتح كروم…');
+  else if(info.stage==='signin_wait')say('','🔐 سجّل دخول جوجل بالحساب '+info.email+' في نافذة كروم اللي فتحت - التنفيذ هيكمل لوحده');
+  else if(info.stage==='walking')say('','⚡ بيملى الفورم في كروم… متقفلش النافذة');
+});
 $('send').onclick=async()=>{
-  const m=$('msg');m.className='';m.textContent='';
+  say('','');
   const rider=$('rider').value.trim(),city=$('city').value;
-  if(!/^\d{1,15}$/.test(rider)){m.className='err';m.textContent='اكتب كود مندوب صحيح';return}
-  if(!city){m.className='err';m.textContent='اختار المدينة';return}
+  if(!/^\d{1,15}$/.test(rider)){say('err','اكتب كود مندوب صحيح');return}
+  if(!city){say('err','اختار المدينة');return}
   let duration='';
-  if(action==='extend'){duration=isAlex()?$('durTime').value:$('durSel').value;if(!duration){m.className='err';m.textContent='اختار وقت نهاية المد';return}}
+  if(action==='extend'){duration=isAlex()?$('durTime').value:$('durSel').value;if(!duration){say('err','اختار وقت نهاية المد');return}}
   let reason='';
-  if(action==='break'&&isAlex()){reason=$('reason').value;if(!reason){m.className='err';m.textContent='اختار سبب فك البريك';return}}
-  $('send').disabled=true;m.textContent='بيضاف للطابور…';
+  if(action==='break'&&isAlex()){reason=$('reason').value;if(!reason){say('err','اختار سبب فك البريك');return}}
+  $('send').disabled=true;
+  say('','🚀 بيجهز التنفيذ…');
   try{
-    const r=await window.tmhDesktop.enqueue({action,rider_id:rider,city,zone:$('zone').value.trim(),duration,reason,manual:true});
-    m.className='ok';m.textContent='📲 اتضاف للطابور - هيتنفذ أوتوماتيك والنتيجة هتوصلك إشعار';
-    $('rider').value='';
+    const r=await window.tmhDesktop.runLocal({action,rider_id:rider,city,zone:$('zone').value.trim(),duration,reason});
+    if(r&&r.ok){
+      say('ok','✅ تم: '+(action==='break'?'فك بريك':'مد الشيفت')+' - '+rider);
+      $('rider').value='';
+    }else{
+      const em=String((r&&r.error)||'unknown');
+      const emap={
+        busy:'في طلب شغال حاليًا - استنى ما يخلص',
+        chrome_not_found:'مش لاقي جوجل كروم على الجهاز - نزّله الأول',
+        auth_expired:'تسجيل دخول جوجل مخلصش في وقته - جرّب تاني وسجّل دخول أسرع',
+        wrong_account:'الحساب المسجل في كروم مش حساب الفورم المطلوب - سجّل دخول بالحساب الصح من زرار تسجيل الدخول',
+        tab_closed:'نافذة كروم اتقفلت قبل ما التنفيذ يخلص',
+        page_load_failed:'صفحة الفورم معملتش تحميل - شيك النت وجرّب تاني',
+        did_not_advance:'الفورم ماإكدش الإرسال (ممكن حجب مؤقت من جوجل) - جرّب بعد شوية',
+        watchdog_timeout:'التنفيذ خد وقت أطول من اللازم واتوقف',
+        bad_rider:'اكتب كود مندوب صحيح',bad_city:'اختار المدينة',bad_duration:'اختار وقت نهاية المد',bad_reason:'اختار سبب فك البريك',bad_duration_format:'صيغة الوقت مش صح'
+      };
+      say('err',emap[em]||('فشل: '+em+(r&&r.detail?(' - '+String(r.detail).slice(0,120)):'')));
+    }
   }catch(e){
-    const emap={already_queued:'نفس الطلب موجود بالفعل في الطابور',rate_limited:'تباعد حماية: استنى شوية وجرّب تاني',bad_duration_format:'صيغة الوقت مش صح',bad_reason:'اختار سبب فك البريك',bad_duration:'اختار وقت نهاية المد',unauthorized:'سجّل دخولك للموقع الأول في النافذة الرئيسية'};
-    const em=String(e.message||e);m.className='err';m.textContent=emap[em]||('فشل: '+em);
+    say('err','فشل الاتصال بالتطبيق - قفل النافذة وافتحها تاني');
   }finally{$('send').disabled=false}
 };
 </script>

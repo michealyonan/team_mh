@@ -1,13 +1,14 @@
 {
   "name": "team-mh-desktop",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "team_mh desktop app (Windows)",
   "main": "main.js",
   "author": "team_mh",
   "license": "UNLICENSED",
   "private": true,
   "dependencies": {
-    "electron-updater": "^6.3.9"
+    "electron-updater": "^6.3.9",
+    "puppeteer-core": "^23.11.1"
   },
   "devDependencies": {
     "electron": "^33.2.0",
@@ -18,11 +19,13 @@
     "productName": "team_mh",
     "files": [
       "main.js",
-      "walker.js",
+      "chromeproc.js",
+      "chromewalk.js",
       "preload.js",
       "commands.html",
       "icon.png",
-      "package.json"
+      "package.json",
+      "node_modules/**"
     ],
     "win": {
       "target": [

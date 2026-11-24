@@ -1112,6 +1112,29 @@ export default {
       return json({ ok: true, url: buildPrefillUrl(job.formId, job.fields) });
     }
 
+    // team_mh desktop v0.3.0: best-effort log line for runs executed locally on the
+    // laptop (real-Chrome walk). Never blocks the desktop; just records the outcome.
+    if (url.pathname === '/api/forms/log-direct' && request.method === 'POST') {
+      const user = await getSessionUser(env, request);
+      if (!user) return json({ error: 'unauthorized' }, 401);
+      if (!['admin', 'manager', 'sup'].includes(user.r)) return json({ error: 'forbidden' }, 403);
+      const body = await request.json().catch(() => ({}));
+      const action = String(body.action || '');
+      if (!['extend', 'break'].includes(action)) return json({ error: 'bad_action' }, 400);
+      const riderId = String(body.rider_id || '').replace(/[^0-9]/g, '');
+      if (!riderId) return json({ error: 'bad_rider' }, 400);
+      const city = String(body.city || '').trim();
+      await ensureSchema(env);
+      try {
+        await env.DB.prepare('INSERT INTO form_submissions(u,action,rider_id,city,payload,result,ts) VALUES(?,?,?,?,?,?,?)')
+          .bind(user.u, action, riderId, city,
+            JSON.stringify({ duration: String(body.duration || ''), reason: String(body.reason || ''), engine: 'desktop-local' }),
+            JSON.stringify(body.result && typeof body.result === 'object' ? body.result : {}),
+            Date.now()).run();
+      } catch (e) { return json({ ok: false, error: 'log_failed' }, 500); }
+      return json({ ok: true });
+    }
+
     if (url.pathname === '/api/forms/log-manual' && request.method === 'POST') {
       const user = await getSessionUser(env, request);
       if (!user) return json({ error: 'unauthorized' }, 401);

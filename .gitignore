@@ -3,3 +3,4 @@ android/keystore.properties
 android/build/
 android/classes/
 android/gen/
+desktop/node_modules/
