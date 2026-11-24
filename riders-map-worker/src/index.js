@@ -69,6 +69,7 @@ async function ensureSchema(env) {
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS form_submissions(id INTEGER PRIMARY KEY AUTOINCREMENT,u TEXT NOT NULL,action TEXT NOT NULL,rider_id TEXT NOT NULL,city TEXT NOT NULL,payload TEXT NOT NULL,result TEXT NOT NULL,ts INTEGER NOT NULL)`),
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS usage_daily(day TEXT PRIMARY KEY, n INTEGER NOT NULL DEFAULT 0)`),
     env.DB.prepare(`CREATE INDEX IF NOT EXISTS form_submissions_user_ts ON form_submissions(u,ts)`),
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS form_phone_jobs(id INTEGER PRIMARY KEY AUTOINCREMENT,u TEXT NOT NULL,job TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'pending',result TEXT NOT NULL DEFAULT '',ts INTEGER NOT NULL,updated INTEGER NOT NULL)`),
   ]);
   try { await env.DB.prepare("ALTER TABLE users ADD COLUMN photo TEXT NOT NULL DEFAULT ''").run(); } catch {}
   schemaReady = true;
@@ -1193,6 +1194,87 @@ export default {
       const resp = await fetch(relayUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ secret: env.FORM_RELAY_SECRET, action: 'probe', formId, fields }) });
       const result = await resp.json().catch(() => ({ error: 'invalid_relay_response' }));
       return json({ probe: true, form: which, result });
+    }
+
+
+    // Phone-session form queue: the admin's APK polls for jobs and submits them
+    // from the phone's own Google session (docs.google.com cookies in the app WebView).
+    if (url.pathname === '/api/forms/phone-enqueue' && request.method === 'POST') {
+      const user = await getSessionUser(env, request);
+      if (!user) return json({ error: 'unauthorized' }, 401);
+      if (!['admin', 'manager', 'sup'].includes(user.r)) return json({ error: 'forbidden' }, 403);
+      if (FORM_ACTIONS_ADMIN_ONLY && user.r !== 'admin') return json({ error: 'forbidden' }, 403);
+      const body = await request.json().catch(() => ({}));
+      const job = buildFormJob(body);
+      if (job.error) return json({ error: job.error }, 400);
+      await ensureSchema(env);
+      const now = Date.now();
+      const dup = await env.DB.prepare("SELECT id FROM form_phone_jobs WHERE status IN ('pending','claimed') AND json_extract(job,'$.riderId')=? AND json_extract(job,'$.action')=? AND json_extract(job,'$.city')=? LIMIT 1").bind(job.riderId, job.action, job.city).all();
+      if ((dup.results || []).length) return json({ error: 'already_queued', job_id: dup.results[0].id }, 409);
+      const ins = await env.DB.prepare('INSERT INTO form_phone_jobs(u,job,status,ts,updated) VALUES(?,?,?,?,?)').bind(user.u, JSON.stringify(job), 'pending', now, now).run();
+      return json({ ok: true, id: ins.meta.last_row_id });
+    }
+
+    if (url.pathname === '/api/forms/phone-poll' && request.method === 'GET') {
+      const user = await getSessionUser(env, request);
+      if (!user) return json({ error: 'unauthorized' }, 401);
+      if (user.r !== 'admin') return json({ error: 'forbidden' }, 403);
+      await ensureSchema(env);
+      const now = Date.now();
+      try { await env.DB.prepare("INSERT INTO settings(k,v) VALUES('phone_agent_seen',?) ON CONFLICT(k) DO UPDATE SET v=excluded.v").bind(String(now)).run(); } catch {}
+      await env.DB.prepare("UPDATE form_phone_jobs SET status='pending',updated=? WHERE status='claimed' AND updated<?").bind(now, now - 3 * 60 * 1000).run();
+      const row = await env.DB.prepare("SELECT id,job FROM form_phone_jobs WHERE status='pending' ORDER BY id LIMIT 1").first();
+      if (!row) return json({ ok: true, job: null });
+      await env.DB.prepare("UPDATE form_phone_jobs SET status='claimed',updated=? WHERE id=? AND status='pending'").bind(now, row.id).run();
+      let job = {}; try { job = JSON.parse(row.job); } catch {}
+      job.id = row.id;
+      job.url = 'https://docs.google.com/forms/u/0/d/e/' + job.formId + '/viewform';
+      job.email = job.isAlex ? 'alexlogistics.teammh101@gmail.com' : 'deltalogistics.teammh1@gmail.com';
+      return json({ ok: true, job });
+    }
+
+    if (url.pathname === '/api/forms/phone-report' && request.method === 'POST') {
+      const user = await getSessionUser(env, request);
+      if (!user) return json({ error: 'unauthorized' }, 401);
+      if (user.r !== 'admin') return json({ error: 'forbidden' }, 403);
+      const body = await request.json().catch(() => ({}));
+      const id = Number(body.id || 0);
+      if (!id) return json({ error: 'missing_id' }, 400);
+      await ensureSchema(env);
+      const row = await env.DB.prepare('SELECT id,u,job,status FROM form_phone_jobs WHERE id=?').bind(id).first();
+      if (!row) return json({ error: 'unknown_job' }, 404);
+      const now = Date.now();
+      const result = { engine: 'phone', ok: !!body.ok, error: body.error || null, detail: body.detail || null, status: body.status || null, submitted: !!body.submitted };
+      const retry = body.retry === true && body.error === 'auth_expired';
+      await env.DB.prepare('UPDATE form_phone_jobs SET status=?,result=?,updated=? WHERE id=?').bind(retry ? 'pending' : (body.ok ? 'done' : 'error'), JSON.stringify(result), now, id).run();
+      if (!retry) {
+        let job = {}; try { job = JSON.parse(row.job); } catch {}
+        try { await env.DB.prepare('INSERT INTO form_submissions(u,action,rider_id,city,payload,result,ts) VALUES(?,?,?,?,?,?,?)').bind(row.u, job.action || '', job.riderId || '', job.city || '', JSON.stringify({ ...(job.fields || {}), duration: job.duration, reason: job.reason }), JSON.stringify(result), now).run(); } catch {}
+      }
+      return json({ ok: true });
+    }
+
+    if (url.pathname === '/api/forms/phone-agent' && request.method === 'GET') {
+      const user = await getSessionUser(env, request);
+      if (!user) return json({ error: 'unauthorized' }, 401);
+      if (!['admin', 'manager'].includes(user.r)) return json({ error: 'forbidden' }, 403);
+      await ensureSchema(env);
+      const row = await env.DB.prepare("SELECT v FROM settings WHERE k='phone_agent_seen'").first();
+      const seen = row ? Number(row.v) : 0;
+      return json({ ok: true, seen, online: !!seen && (Date.now() - seen) < 60 * 1000 });
+    }
+
+    // APK signing keystore escrow (base64 JKS) - recoverable only by admin session.
+    if (url.pathname === '/api/admin/apk-keystore' && request.method === 'POST') {
+      const user = await getSessionUser(env, request);
+      if (!user) return json({ error: 'unauthorized' }, 401);
+      if (user.r !== 'admin') return json({ error: 'forbidden' }, 403);
+      const body = await request.json().catch(() => ({}));
+      const b64 = String(body.b64 || '');
+      if (b64.length < 1000 || b64.length > 200000 || !/^[A-Za-z0-9+/=]+$/.test(b64)) return json({ error: 'bad_keystore' }, 400);
+      await ensureSchema(env);
+      await env.DB.prepare('INSERT INTO settings(k,v) VALUES(?,?) ON CONFLICT(k) DO UPDATE SET v=excluded.v').bind('apk_keystore_v2', b64).run();
+      return json({ ok: true, bytes: b64.length });
     }
 
     if (url.pathname === '/api/forms/submit' && request.method === 'POST') {
