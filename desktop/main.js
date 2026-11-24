@@ -10,7 +10,7 @@ const { autoUpdater } = require('electron-updater');
 const { getBrowser, firstPage, peekBrowser, launchPlain, launchPlainForSignin, adoptBrowser, dropBrowser } = require('./chromeproc');
 const { runFormWalk, clickX, pageMarker, confirmState } = require('./chromewalk');
 
-const VERSION = '0.3.19';
+const VERSION = '0.3.20';
 // Proof image for فتح شيفت uploads: Micheal's OWN fixed image when present
 // (userData/proof.*, seeded from a bundled proof.* on first run), else the
 // app-generated black PNG fallback (24 Nov).
@@ -470,10 +470,23 @@ function parseDuration(action, isAlex, duration) {
     const d = String(duration);
     isPm = /الظهر|الضهر|العصر|بليل|مساء/.test(d) && !/صباح|الصبح|الفجر/.test(d);
   }
+  return durationParts(hh, mm, isPm, isAlex);
+}
+
+// Per-rider مد time (Micheal 24 Nov): a plain 24h "HH:MM" typed next to the
+// rider's code - no daypart words, so isPm comes straight from the hour.
+function parseDuration24(duration24) {
+  const m = String(duration24 || '').match(/^(\d{1,2}):(\d{2})$/);
+  if (!m) return { error: 'bad_duration_format' };
+  const hh = parseInt(m[1], 10), mm = m[2];
+  if (hh > 23 || +mm > 59) return { error: 'bad_duration_format' };
+  return durationParts(hh, mm, hh >= 12, false);
+}
+
+function durationParts(hh, mm, isPm, isAlex) {
   let hh24 = hh;
   if (isPm && hh < 12) hh24 = hh + 12;
-  if (!isPm && hh === 12 && !isAlex) hh24 = 0; // 12 ص = منتصف الليل (Delta labels)
-  if (!isPm && hh === 12 && isAlex) hh24 = 0;
+  if (!isPm && hh === 12) hh24 = 0; // 12 ص = منتصف الليل
   const hh12v = hh % 12 === 0 ? 12 : hh % 12;
   return { hh12: String(hh12v), mm, isPm, hh24: String(hh24) };
 }
@@ -484,12 +497,13 @@ ipcMain.handle('tmh-run-local', async (_e, payload) => {
   const riderId = String(p.rider_id || '').replace(/[^0-9]/g, '');
   const city = String(p.city || '').trim();
   const duration = String(p.duration || '').trim();
+  const duration24 = String(p.duration24 || '').trim();
   let reason = String(p.reason || '').trim();
   const manualProof = !!p.manualProof;
   if (!['extend', 'break', 'open'].includes(action)) return { ok: false, error: 'bad_action' };
   if (!riderId) return { ok: false, error: 'bad_rider' };
   if (!city) return { ok: false, error: 'bad_city' };
-  if (action === 'extend' && !duration) return { ok: false, error: 'bad_duration' };
+  if (action === 'extend' && !duration && !duration24) return { ok: false, error: 'bad_duration' };
   const isAlex = city === 'الإسكندرية';
   if (action === 'break' && isAlex && !reason) return { ok: false, error: 'bad_reason' };
   // فتح شيفت: Delta form only, needs the vehicle number; reason defaults to موجود في الزون.
@@ -499,7 +513,7 @@ ipcMain.handle('tmh-run-local', async (_e, payload) => {
     if (!vehicle) return { ok: false, error: 'bad_vehicle' };
     if (!reason) reason = 'موجود في الزون';
   }
-  const dur = action === 'open' ? {} : parseDuration(action, isAlex, duration);
+  const dur = action === 'open' ? {} : (duration24 ? parseDuration24(duration24) : parseDuration(action, isAlex, duration));
   if (dur.error) return { ok: false, error: dur.error };
   // Zone = city everywhere (Micheal 24 Nov). المدينة on the Delta form is typed
   // exactly الغردقه (Micheal 24 Nov, screenshot); الغردقة only ever goes to the

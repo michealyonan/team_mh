@@ -34,7 +34,7 @@
   <button id="actOpen" type="button">🔓 فتح شيفت</button>
 </div>
 <label for="rider">كود المندوب</label>
-<textarea id="rider" inputmode="numeric" rows="1" placeholder="اكتب ID المندوب - لو أكتر من واحد، كل كود في سطر"></textarea>
+<textarea id="rider" inputmode="numeric" rows="2" placeholder="اكتب ID المندوب - لو أكتر من واحد، كل كود في سطر. وفي المد تقدر تحط وقت كل مندوب جنب كوده: 12345 02:30"></textarea>
 <label class="chk" id="skipDupWrap"><input type="checkbox" id="skipDup" checked> متمدّش لنفس المندوب لو اتمدّله النهارده</label>
 <label for="city">المدينة</label>
 <select id="city">
@@ -59,7 +59,7 @@
   <label class="chk"><input type="checkbox" id="manualProof"> هرّفع صورة الإثبات وأدوس إرسال بنفسي</label>
 </div>
 <div id="durWrap">
-  <label for="durSel" id="durLabel">وقت نهاية المد</label>
+  <label for="durSel" id="durLabel">وقت نهاية المد الافتراضي</label>
   <select id="durSel"></select>
   <input id="durTime" type="time" style="display:none">
 </div>
@@ -132,29 +132,37 @@ window.tmhDesktop.onProgress(info=>{
 });
 $('send').onclick=async()=>{
   say('','');
-  // Multi-rider (Micheal 24 Nov): one or more codes, one per line. They run
-  // one by one; main.js enforces his spacing delay between them.
-  const riders=[...new Set($('rider').value.split(/[^\d]+/).map(s=>s.trim()).filter(s=>/^\d{1,15}$/.test(s)))];
+  // Multi-rider (Micheal 24 Nov): codes one per line (spaces/commas ok too).
+  // For مد a rider can carry his own end time after his code, 24h: "12345 02:30".
+  // A rider without a time uses the default time picked below.
+  const entries=[];const seen=new Set();
+  for(const tok of $('rider').value.split(/[\s,;،]+/)){
+    if(!tok)continue;
+    const tm=tok.match(/^(\d{1,2}):(\d{2})$/);
+    if(tm){if(entries.length&&!entries[entries.length-1].time)entries[entries.length-1].time=(tm[1].length===1?'0':'')+tm[1]+':'+tm[2];continue}
+    if(/^\d{1,15}$/.test(tok)&&!seen.has(tok)){seen.add(tok);entries.push({code:tok,time:null})}
+  }
   const city=$('city').value;
-  if(!riders.length){say('err','اكتب كود مندوب صحيح - لو أكتر من واحد، كل كود في سطر');return}
+  if(!entries.length){say('err','اكتب كود مندوب صحيح - لو أكتر من واحد، كل كود في سطر');return}
+  if(entries.some(e=>e.time&&(+e.time.split(':')[0]>23||+e.time.split(':')[1]>59))){say('err','في وقت مش مظبوط جنب أحد الأكواد - الصيغة س:د زي 02:30');return}
   if(!city){say('err','اختار المدينة');return}
   // Repeat-مد guard (Micheal 24 Nov): ticked = never extend a rider who already
   // got a successful مد today; unticked = extend normally.
-  let todo=riders;
+  let todo=entries;
   if(action==='extend'&&$('skipDup').checked){
     try{
       const rows=await window.tmhDesktop.history();
       const today=new Date().toLocaleDateString('en-CA',{timeZone:'Africa/Cairo'});
       const skipped=[];
-      todo=riders.filter(rider=>{
-        const hit=(rows||[]).find(r=>r&&String(r.riderId)===rider&&r.action==='extend'&&r.ok&&new Date(Number(r.ts)).toLocaleDateString('en-CA',{timeZone:'Africa/Cairo'})===today);
-        if(hit){skipped.push(rider);return false}return true
+      todo=entries.filter(en=>{
+        const hit=(rows||[]).find(r=>r&&String(r.riderId)===en.code&&r.action==='extend'&&r.ok&&new Date(Number(r.ts)).toLocaleDateString('en-CA',{timeZone:'Africa/Cairo'})===today);
+        if(hit){skipped.push(en.code);return false}return true
       });
       if(skipped.length){say('err','اتخطّى '+skipped.join('، ')+' (اتمدّلهم النهارده) - لو عايز تمدّهم تاني شيل العلامة من المربع');if(!todo.length)return}
     }catch(e){}
   }
   let duration='';
-  if(action==='extend'){duration=isAlex()?$('durTime').value:$('durSel').value;if(!duration){say('err','اختار وقت نهاية المد');return}}
+  if(action==='extend'){duration=isAlex()?$('durTime').value:$('durSel').value;if(!duration&&todo.some(en=>!en.time)){say('err','اختار وقت نهاية المد - أو اكتب وقت كل مندوب جنب كوده');return}}
   let reason='';
   if(action==='break'&&isAlex()){reason=$('reason').value;if(!reason){say('err','اختار سبب فك البريك');return}}
   let vehicle='';
@@ -193,10 +201,14 @@ $('send').onclick=async()=>{
   say('',multi?('🚀 بيجهز التنفيذ لـ '+todo.length+' مناديب…'):'🚀 بيجهز التنفيذ…');
   try{
     for(let i=0;i<todo.length;i++){
-      const rider=todo[i];
-      if(multi)say('','⚡ مندوب '+(i+1)+' من '+todo.length+': '+rider+(lines.length?'\n'+lines.join('\n'):''));
+      const en=todo[i],rider=en.code;
+      if(multi)say('','⚡ مندوب '+(i+1)+' من '+todo.length+': '+rider+(en.time?' (لحد '+en.time+')':'')+(lines.length?'\n'+lines.join('\n'):''));
       let r;
-      try{r=await window.tmhDesktop.runLocal({action,rider_id:rider,city,duration,reason,vehicle,manualProof:action==='open'&&$('manualProof').checked})}
+      try{
+        const pay={action,rider_id:rider,city,reason,vehicle,manualProof:action==='open'&&$('manualProof').checked};
+        if(action==='extend'){if(en.time)pay.duration24=en.time;else pay.duration=duration}
+        r=await window.tmhDesktop.runLocal(pay);
+      }
       catch(e){r={ok:false,error:'ipc'}}
       if(r&&r.ok){okCount++;lines.push('✅ '+rider)}
       else{
@@ -207,7 +219,7 @@ $('send').onclick=async()=>{
       }
     }
     if(!hadErr){
-      say('ok',multi?('✅ تم كلهم ('+okCount+'/'+todo.length+') - '+actLabel+'\n'+lines.join('\n')):('✅ تم: '+actLabel+' - '+todo[0]));
+      say('ok',multi?('✅ تم كلهم ('+okCount+'/'+todo.length+') - '+actLabel+'\n'+lines.join('\n')):('✅ تم: '+actLabel+' - '+todo[0].code));
       $('rider').value='';
     }else{
       say('err',(multi?('النتيجة ('+okCount+' من '+todo.length+' نجح):\n'):'')+lines.join('\n'));
