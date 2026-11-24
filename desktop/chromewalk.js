@@ -446,15 +446,30 @@ async function uploadProof(page, filePath, job) {
     await browserSession.send('Target.setDiscoverTargets', { discover: true }).catch(() => {});
     await attachAll();
 
-    // job.uploadIndex selects WHICH upload question's button to open (the hiring
-    // form has five identical إضافة ملف buttons in page order). Default = first.
+    // Address the upload QUESTION, never the Nth remaining button: a button
+    // turns into a file chip after its upload, so indexing the remaining
+    // buttons shifts whenever an earlier image is absent (25 Nov Micheal: the
+    // license image landed in بطاقة وش and the backs stayed empty). The
+    // container handles were snapshotted before the first upload, so they are
+    // stable for the whole loop.
     const upIdx = (job && job.uploadIndex) || 0;
-    if (upIdx > 0) {
-      await clickXNth(page, "//span[contains(text(), 'إضافة ملف') or contains(text(), 'Add file')]", upIdx, 12000);
-    } else {
-      await clickX(page, "//span[contains(text(), 'إضافة ملف') or contains(text(), 'Add file')]", 12000);
+    let opened = false;
+    if (job && job.uploadContainer) {
+      try {
+        const btn = await job.uploadContainer.$("xpath/.//span[contains(text(), 'إضافة ملف') or contains(text(), 'Add file')]");
+        if (btn) { await clickEl(page, btn); opened = true; diag.layers.push('picker opened via container ' + upIdx); }
+      } catch (e) { diag.layers.push('container click failed idx ' + upIdx + ': ' + String(e).slice(0, 60)); }
     }
-    diag.layers.push('picker opened (index ' + upIdx + ')');
+    if (!opened) {
+      // Fallback (no container snapshot, e.g. old test mocks): remaining-button
+      // indexing - only safe when every earlier image exists.
+      if (upIdx > 0) {
+        await clickXNth(page, "//span[contains(text(), 'إضافة ملف') or contains(text(), 'Add file')]", upIdx, 12000);
+      } else {
+        await clickX(page, "//span[contains(text(), 'إضافة ملف') or contains(text(), 'Add file')]", 12000);
+      }
+      diag.layers.push('picker opened (remaining-index ' + upIdx + ')');
+    }
 
     // Layer 1: set the file on any session that has the input (re-attach while hunting).
     let set = false;
@@ -987,6 +1002,22 @@ async function runHiringWalk(page, job) {
   //   rider_phone,rider_nid,license_no,rider_addr,vehicle}, files:{img_*: path},
   //   isAborted, onSubmitting, uploadImpl (test hook only) }
   const steps = [];
+  // Stray-tab guard (25 Nov): misfired clicks used to open the uploaded images
+  // as extra Chrome tabs. Remember which tabs existed before the walk and close
+  // any NEW tab when the walk ends, success or failure.
+  let tabsBefore = null;
+  try { tabsBefore = new Set(await page.browser().pages()); } catch (e) {}
+  const closeNewTabs = async () => {
+    if (!tabsBefore) return 0;
+    let closed = 0;
+    let pages = [];
+    try { pages = await page.browser().pages(); } catch (e) {}
+    for (const p of pages) {
+      if (p === page || tabsBefore.has(p)) continue;
+      try { await p.close(); closed++; } catch (e) {}
+    }
+    return closed;
+  };
   let lastT = Date.now();
   const mark = (s) => {
     if (job.isAborted && job.isAborted()) { const e = new Error('aborted'); e.aborted = true; throw e; }
@@ -1037,25 +1068,32 @@ async function runHiringWalk(page, job) {
 
     // Upload questions in page order. Files are named <nid>_<n>.jpg so each chip
     // is unique (chip-visible check matches on the file name).
+    // Snapshot the five upload-question containers BEFORE any upload: after an
+    // upload its إضافة ملف button becomes a chip, so any selector that counts
+    // remaining buttons shifts (25 Nov wrong-field bug). The listitem elements
+    // themselves persist, so these handles stay valid for the whole loop.
+    const upContainers = await xpAll(page, "//div[@role='listitem'][.//span[contains(text(), 'إضافة ملف') or contains(text(), 'Add file')]]");
     const order = ['img_license_front', 'img_license_back', 'img_nid_front', 'img_nid_back', 'img_personal'];
     for (let i = 0; i < order.length; i++) {
       const fp = job.files && job.files[order[i]];
       if (!fp) continue;
-      await uploader(page, fp, Object.assign({}, job, { uploadIndex: i }));
+      await uploader(page, fp, Object.assign({}, job, { uploadIndex: i, uploadContainer: upContainers[i] }));
       mark('upload:' + order[i]);
     }
 
     if (job.dry) {
       mark('dry:stop-before-submit');
-      return { ok: true, submitted: false, dry: true, detail: 'dry run - filled, stopped before إرسال | steps: ' + steps.join(' | ') };
+      const closedDry = await closeNewTabs();
+      return { ok: true, submitted: false, dry: true, detail: 'dry run - filled, stopped before إرسال | steps: ' + steps.join(' | ') + (closedDry ? ' | closed ' + closedDry + ' stray tabs' : '') };
     }
     if (job.onSubmitting) job.onSubmitting();
     await clickX(page, SUBMIT_X, 15000);
     mark('submit:clicked');
-  } catch (e) { fail(e); }
+  } catch (e) { try { await closeNewTabs(); } catch (e2) {} fail(e); }
   const res = await waitConfirmation(page, 25000);
   mark('submit:confirmed');
-  res.detail = (res.detail ? res.detail + ' | ' : '') + 'steps: ' + steps.join(' | ');
+  const closedTabs = await closeNewTabs();
+  res.detail = (res.detail ? res.detail + ' | ' : '') + 'steps: ' + steps.join(' | ') + (closedTabs ? ' | closed ' + closedTabs + ' stray tabs' : '');
   return res;
 }
 
