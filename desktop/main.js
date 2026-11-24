@@ -69,8 +69,15 @@ async function waitForFormUrl(win) {
   return null;
 }
 
+function accountFromPage() {
+  return "(function(){var m=document.documentElement.innerHTML.match(/([a-zA-Z0-9._%+-]+@(?!google\\.com)[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,})/);return m?m[1]:''})()";
+}
+
 async function runWalker(job) {
-  const ses = session.fromPartition('persist:walker');
+  // One persistent partition per form account: Alex vs the Delta cities.
+  const partition = job.isAlex ? 'persist:walker-alex' : 'persist:walker-delta';
+  const ses = session.fromPartition(partition);
+  const expected = (job.email || '').toLowerCase();
   const win = new BrowserWindow({
     show: false,
     width: 1100,
@@ -85,28 +92,46 @@ async function runWalker(job) {
   });
   try {
     await win.loadURL(job.url);
-    let url = win.webContents.getURL();
-    if (/accounts\.google\.com/.test(url)) {
-      // One-time Google sign-in inside the app; the partition keeps it afterwards.
-      win.show();
-      win.focus();
-      win.flashFrame(true);
-      notify('team_mh', 'سجّل دخول جوجل مرة واحدة في النافذة اللي ظهرت - والتطبيق هيكمل لوحده');
-      url = await waitForFormUrl(win);
-      win.flashFrame(false);
-      if (!url) return { ok: false, error: 'auth_expired', detail: 'google sign-in not completed in time', submitted: false };
+    for (let signinRound = 0; signinRound < 2; signinRound++) {
+      let url = win.webContents.getURL();
+      if (/accounts\.google\.com/.test(url)) {
+        // One-time Google sign-in inside the app; the partition keeps it afterwards.
+        win.show();
+        win.focus();
+        win.flashFrame(true);
+        notify('team_mh', 'سجّل دخول جوجل بالحساب ' + (job.email || '') + ' مرة واحدة في النافذة اللي ظهرت - والتطبيق هيكمل لوحده');
+        url = await waitForFormUrl(win);
+        win.flashFrame(false);
+        if (!url) { win.hide(); return { ok: false, error: 'auth_expired', detail: 'google sign-in not completed in time', submitted: false }; }
+      }
+      // Verify the signed-in account matches this form's account (Micheal 24 Nov:
+      // alexlogistics for Alexandria, deltalogistics for the other cities).
+      let acct = '';
+      try { acct = String(await win.webContents.executeJavaScript(accountFromPage(), true) || '').toLowerCase(); } catch (e) {}
+      if (!expected || !acct || acct === expected) {
+        // Run the walk.
+        const script = buildWalkerScript(job);
+        const exec = win.webContents.executeJavaScript(script, true);
+        const res = await Promise.race([
+          exec,
+          sleep(WATCHDOG_MS).then(async () => {
+            let diag = '';
+            try { diag = win.webContents.getURL() + ' | t:' + (await win.webContents.executeJavaScript('document.title')); } catch (e) {}
+            return { ok: false, error: 'watchdog_timeout', detail: diag.slice(0, 300), submitted: false };
+          })
+        ]);
+        return res || { ok: false, error: 'no_result', submitted: false };
+      }
+      // Wrong account in this partition: clear it and ask for the right one once.
+      if (signinRound === 0) {
+        try { await ses.clearStorageData(); } catch (e) {}
+        notify('team_mh', 'الحساب المسجل (' + acct + ') مش حساب الفورم. سجّل دخول بالحساب ' + (job.email || ''));
+        await win.loadURL(job.url).catch(() => {});
+        continue;
+      }
+      return { ok: false, error: 'wrong_account', detail: 'signed in as ' + acct + ', expected ' + expected, submitted: false };
     }
-    const script = buildWalkerScript(job);
-    const exec = win.webContents.executeJavaScript(script, true);
-    const res = await Promise.race([
-      exec,
-      sleep(WATCHDOG_MS).then(async () => {
-        let diag = '';
-        try { diag = win.webContents.getURL() + ' | t:' + (await win.webContents.executeJavaScript('document.title')); } catch (e) {}
-        return { ok: false, error: 'watchdog_timeout', detail: diag.slice(0, 300), submitted: false };
-      })
-    ]);
-    return res || { ok: false, error: 'no_result', submitted: false };
+    return { ok: false, error: 'wrong_account', detail: 'sign-in loop', submitted: false };
   } finally {
     try { win.destroy(); } catch (e) {}
   }
