@@ -1066,19 +1066,82 @@ async function runHiringWalk(page, job) {
 
     await pickFromListbox(page, 3, job.payload.vehicle, 15000); mark('dd:vehicle');
 
-    // Upload questions in page order. Files are named <nid>_<n>.jpg so each chip
-    // is unique (chip-visible check matches on the file name).
-    // Snapshot the five upload-question containers BEFORE any upload: after an
-    // upload its إضافة ملف button becomes a chip, so any selector that counts
-    // remaining buttons shifts (25 Nov wrong-field bug). The listitem elements
-    // themselves persist, so these handles stay valid for the whole loop.
-    const upContainers = await xpAll(page, "//div[@role='listitem'][.//span[contains(text(), 'إضافة ملف') or contains(text(), 'Add file')]]");
-    const order = ['img_license_front', 'img_license_back', 'img_nid_front', 'img_nid_back', 'img_personal'];
-    for (let i = 0; i < order.length; i++) {
-      const fp = job.files && job.files[order[i]];
-      if (!fp) continue;
-      await uploader(page, fp, Object.assign({}, job, { uploadIndex: i, uploadContainer: upContainers[i] }));
-      mark('upload:' + order[i]);
+    // Upload questions are addressed by their TITLE WORDS, never by button
+    // index (25 Nov Micheal: an uploaded question's إضافة ملف button becomes a
+    // chip, so counting remaining buttons shifts and images land in the wrong
+    // questions). Titles from the live form + docs/hiring-form-fields.json:
+    //   صوره الرخصه "الوش" / "الضهر" (optional),
+    //   صوره بطاقة الطيار - الوش / الضهر (required), الصوره الشخصيه (required).
+    const UPLOAD_SLOTS = [
+      { key: 'img_license_front', words: ['الرخص', 'الوش'], required: false },
+      { key: 'img_license_back', words: ['الرخص', 'الضهر'], required: false },
+      { key: 'img_nid_front', words: ['بطاق', 'الطيار', 'الوش'], required: true },
+      { key: 'img_nid_back', words: ['بطاق', 'الطيار', 'الضهر'], required: true },
+      { key: 'img_personal', words: ['شخصي'], required: true }
+    ];
+    // Google renders lower questions lazily: walk the page once so all five
+    // upload questions exist in the DOM before locating them.
+    try {
+      await page.evaluate(async () => {
+        const h = (document.scrollingElement || document.body).scrollHeight;
+        for (let y = 0; y <= h; y += 600) { window.scrollTo(0, y); await new Promise((r) => setTimeout(r, 120)); }
+        window.scrollTo(0, 0);
+      });
+    } catch (e) {}
+    const findSlot = async (slot) => {
+      const items = await xpAll(page, "//div[@role='listitem']");
+      for (const it of items) {
+        let t = '';
+        try {
+          t = await it.evaluate((n) => {
+            const h = n.querySelector('[role="heading"]');
+            return (((h && h.textContent) || n.textContent || '')).replace(/\s+/g, '');
+          });
+        } catch (e) { continue; }
+        if (slot.words.every((w) => t.includes(w))) return it;
+      }
+      return null;
+    };
+    const chipState = (li) => li.evaluate((n) => {
+      const btn = n.ownerDocument.evaluate(".//span[contains(text(), 'إضافة ملف') or contains(text(), 'Add file')]", n, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
+      return { hasBtn: !!btn, text: (n.textContent || '').replace(/\s+/g, '') };
+    });
+    for (let i = 0; i < UPLOAD_SLOTS.length; i++) {
+      const slot = UPLOAD_SLOTS[i];
+      const fp = job.files && job.files[slot.key];
+      if (!fp) {
+        // Never submit with a required slot empty: fail loudly instead
+        // (Google would reject the submit anyway, looking like a walker bug).
+        if (slot.required && !job.dry) { const e = new Error('صورة مطلوبة ناقصة من الطلب: ' + slot.key); e.detail = 'missing required image ' + slot.key; throw e; }
+        continue;
+      }
+      const container = await findSlot(slot);
+      if (!container) { const e = new Error('سؤال الرفع غير موجود في الفورم: ' + slot.key); e.detail = 'question not found ' + slot.key; throw e; }
+      try { await container.evaluate((n) => { try { n.scrollIntoView({ block: 'center' }); } catch (e) {} }); } catch (e) {}
+      await uploader(page, fp, Object.assign({}, job, { uploadIndex: i, uploadContainer: container }));
+      // Verify THIS question took the file: its chip carries the file name or
+      // its إضافة ملف button is gone. A page-wide chip proves nothing - the
+      // same file in two questions is exactly the bug being fixed.
+      const fname = path.basename(fp).replace(/\s+/g, '');
+      let vs = { hasBtn: true, text: '' };
+      try { vs = await chipState(container); } catch (e) {}
+      if (vs.hasBtn && !vs.text.includes(fname)) {
+        const e = new Error('الصورة لم تدخل سؤالها الصحيح: ' + slot.key);
+        e.detail = 'verify failed ' + slot.key + ' file ' + fname;
+        throw e;
+      }
+      mark('upload:' + slot.key);
+    }
+    // Pre-submit guard: every REQUIRED upload question must hold a chip.
+    if (!job.dry) {
+      for (const slot of UPLOAD_SLOTS) {
+        if (!slot.required) continue;
+        const c2 = await findSlot(slot);
+        let okc = false;
+        if (c2) { try { const s2 = await chipState(c2); okc = !s2.hasBtn; } catch (e) {} }
+        if (!okc) { const e = new Error('خانة مطلوبة فاضية قبل الإرسال: ' + slot.key); e.detail = 'required slot empty before submit ' + slot.key; throw e; }
+      }
+      mark('verify:required-uploads');
     }
 
     if (job.dry) {

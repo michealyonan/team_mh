@@ -10,7 +10,7 @@ const { autoUpdater } = require('electron-updater');
 const { getBrowser, firstPage, peekBrowser, launchPlain, launchPlainForSignin, adoptBrowser, dropBrowser } = require('./chromeproc');
 const { runFormWalk, runHiringWalk, clickX, pageMarker, confirmState } = require('./chromewalk');
 
-const VERSION = '0.3.23';
+const VERSION = '0.3.24';
 // Proof image for فتح شيفت uploads: Micheal's OWN fixed image when present
 // (userData/proof.*, seeded from a bundled proof.* on first run), else the
 // app-generated black PNG fallback (24 Nov).
@@ -785,9 +785,10 @@ async function hiringTick() {
     // Uncertain / click-already-happened results must NOT auto-retry (duplicate risk).
     const ok = !!(res && res.ok);
     try {
-      await api('/api/hiring/report', { method: 'POST', body: { id: job.id, ok, error: (res && res.error) || '', detail: (res && res.detail) || '' } });
+      const repErr = ((res && res.error) || '') + (ok ? '' : ' (v' + VERSION + ')');
+      await api('/api/hiring/report', { method: 'POST', body: { id: job.id, ok, error: repErr, detail: (((res && res.detail) || '') + ' | app v' + VERSION).slice(0, 900) } });
     } catch (e) {}
-    notify(ok ? 'team_mh ✅' : 'team_mh ❌', (ok ? 'تم رفع الاستعلام: ' : 'فشل رفع الاستعلام: ') + String(job.payload.rider_name || ''));
+    notify(ok ? 'team_mh ✅' : 'team_mh ❌', (ok ? 'تم رفع الاستعلام: ' : 'فشل رفع الاستعلام: ') + String(job.payload.rider_name || '') + ' (v' + VERSION + ')');
   } catch (e) {
     if (jobId) { try { await api('/api/hiring/report', { method: 'POST', body: { id: jobId, ok: false, error: 'poll_exception', detail: String(e && e.message || e).slice(0, 300) } }); } catch (e2) {} }
   } finally { hiringBusy = false; }
