@@ -49,7 +49,7 @@ public class MainActivity extends Activity {
     private volatile boolean jobRunning = false;
     private volatile long authHoldUntil = 0;
     private JSONObject currentJob;
-    private String currentCookie;
+    private String currentToken;
     private boolean injected;
 
     private final Runnable pollRunnable = new Runnable() {
@@ -170,13 +170,30 @@ public class MainActivity extends Activity {
     private void pollOnce() {
         if (jobRunning || agentJs == null) return;
         if (System.currentTimeMillis() < authHoldUntil) return;
-        final String cookie = CookieManager.getInstance().getCookie(HOME_URL);
-        if (cookie == null || cookie.indexOf("session") < 0) return;
+        // The dashboard keeps its session as a Bearer token in web storage, not cookies.
+        webView.evaluateJavascript(
+                "(function(){try{var t=sessionStorage.getItem('pd_token');if(t)return t;"
+                        + "var s=JSON.parse(localStorage.getItem('pd_remember_login')||'null');"
+                        + "if(s&&s.expires>Date.now())return s.t||'';return ''}catch(e){return ''}})()",
+                value -> {
+                    String token = null;
+                    try {
+                        if (value != null && value.length() >= 2) {
+                            token = new org.json.JSONTokener(value).nextValue().toString();
+                        }
+                    } catch (Exception ignored) {
+                    }
+                    if (token == null || token.length() != 64 || "null".equals(token)) return;
+                    pollWithToken(token);
+                });
+    }
+
+    private void pollWithToken(final String token) {
         net.execute(new Runnable() {
             @Override public void run() {
                 try {
                     HttpURLConnection c = (HttpURLConnection) new URL(HOME_URL + "api/forms/phone-poll").openConnection();
-                    c.setRequestProperty("Cookie", cookie);
+                    c.setRequestProperty("Authorization", "Bearer " + token);
                     c.setConnectTimeout(15000);
                     c.setReadTimeout(15000);
                     String body = readStream(c.getInputStream());
@@ -186,7 +203,7 @@ public class MainActivity extends Activity {
                     if (job != null) {
                         jobRunning = true;
                         handler.post(new Runnable() {
-                            @Override public void run() { runJob(job, cookie); }
+                            @Override public void run() { runJob(job, token); }
                         });
                     }
                 } catch (Exception ignored) {
@@ -195,9 +212,9 @@ public class MainActivity extends Activity {
         });
     }
 
-    private void runJob(JSONObject job, String cookie) {
+    private void runJob(JSONObject job, String token) {
         currentJob = job;
-        currentCookie = cookie;
+        currentToken = token;
         injected = false;
         if (agentView == null) {
             agentView = new WebView(this);
@@ -269,13 +286,13 @@ public class MainActivity extends Activity {
             payload = "{\"id\":0,\"ok\":false,\"error\":\"report_parse\"}";
         }
         final String body = payload;
-        final String cookie = currentCookie;
+        final String token = currentToken;
         net.execute(new Runnable() {
             @Override public void run() {
                 try {
                     HttpURLConnection c = (HttpURLConnection) new URL(HOME_URL + "api/forms/phone-report").openConnection();
                     c.setRequestMethod("POST");
-                    c.setRequestProperty("Cookie", cookie);
+                    c.setRequestProperty("Authorization", "Bearer " + token);
                     c.setRequestProperty("Content-Type", "application/json");
                     c.setDoOutput(true);
                     c.setConnectTimeout(15000);
