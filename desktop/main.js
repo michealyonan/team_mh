@@ -133,7 +133,10 @@ app.whenReady().then(() => {
   createWindow();
   setInterval(agentTick, POLL_MS);
   if (app.isPackaged) {
-    try { autoUpdater.checkForUpdatesAndNotify(); } catch (e) {}
+    try {
+      autoUpdater.on('error', () => {}); // no update feed until CI publishing lands
+      autoUpdater.checkForUpdatesAndNotify().catch(() => {});
+    } catch (e) {}
   }
 });
 
