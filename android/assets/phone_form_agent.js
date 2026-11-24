@@ -42,6 +42,12 @@
     if (dead(vf.status, html)) return R({ error: 'auth_expired', status: vf.status });
     var H = hiddens(html);
     if (!H.fbzx) return R({ error: 'fbzx_not_found', status: vf.status });
+    // Use the actually signed-in account for the collected-email field: the form
+    // locks it to the session account, and a mismatched emailAddress gets rejected.
+    var acct = '';
+    var mAcct = html.match(/([a-zA-Z0-9._%+-]+@(?!google\.com)[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/);
+    if (mAcct) acct = mAcct[1];
+    if (acct && acct !== email) email = acct;
     var allKeys = Object.keys(fields);
     var baseOf = function (k) { return k.replace(/_(?:hour|minute)$/, ''); };
     for (var step = 0; step < 12; step++) {
