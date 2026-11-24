@@ -10,7 +10,7 @@ const { autoUpdater } = require('electron-updater');
 const { getBrowser, firstPage } = require('./chromeproc');
 const { runFormWalk } = require('./chromewalk');
 
-const VERSION = '0.3.3';
+const VERSION = '0.3.4';
 const SITE = 'https://team-mh.michealuonanayad.workers.dev';
 const FORMS = {
   alex: { url: 'https://docs.google.com/forms/u/0/d/e/1FAIpQLSffSwyTh0w4AYjTU9AG-kj-0UfJHcSTSYnR1DrWJ_h8iPYm3Q/viewform', email: 'alexlogistics.teammh101@gmail.com' },

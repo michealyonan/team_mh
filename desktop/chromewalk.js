@@ -9,8 +9,8 @@
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-const NEXT_X = "xpath///span[contains(text(), 'التالي') or contains(text(), 'Next')]";
-const SUBMIT_X = "xpath///span[contains(text(), 'إرسال') or contains(text(), 'Submit')]";
+const NEXT_X = "//span[contains(text(), 'التالي') or contains(text(), 'Next')]";
+const SUBMIT_X = "//span[contains(text(), 'إرسال') or contains(text(), 'Submit')]";
 
 async function xpFirst(page, x, timeoutMs) {
   const t0 = Date.now();
