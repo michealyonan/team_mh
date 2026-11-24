@@ -1,6 +1,6 @@
 {
   "name": "team-mh-desktop",
-  "version": "0.3.11",
+  "version": "0.3.12",
   "description": "team_mh desktop app (Windows)",
   "main": "main.js",
   "author": "team_mh",
@@ -24,6 +24,7 @@
       "preload.js",
       "commands.html",
       "icon.png",
+      "proof.png",
       "package.json",
       "node_modules/**"
     ],

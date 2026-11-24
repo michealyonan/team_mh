@@ -8,6 +8,7 @@
 // Step order mirrors process_request / process_request_alex / select_time_option_smart.
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const path = require('path');
 
 const NEXT_X = "//span[contains(text(), 'التالي') or contains(text(), 'Next')]";
 const SUBMIT_X = "//span[contains(text(), 'إرسال') or contains(text(), 'Submit')]";
@@ -152,37 +153,140 @@ async function waitConfirmation(page, timeoutMs) {
   return { ok: false, error: 'unconfirmed', uncertain: true, submitted: false, detail: 'no confirmation within ' + (timeoutMs || 15000) + 'ms' };
 }
 
-// Google Forms file upload: click 'إضافة ملف', find the <input type=file> inside
-// the Docs picker iframe, CDP-upload the file, then wait for the picker to close
-// (chip back on the question). No Drive UI driving needed.
-async function uploadProof(page, filePath) {
-  await clickX(page, "//span[contains(text(), 'إضافة ملف') or contains(text(), 'Add file')]", 12000);
-  const t0 = Date.now();
-  let input = null;
-  while (Date.now() - t0 < 20000 && !input) {
-    for (const f of page.frames()) {
-      try { input = await f.$("input[type='file']"); } catch (e) {}
-      if (input) break;
+// Google Forms file upload (v0.3.12). The Docs picker is a cross-origin OOPIF,
+// so a plain page.frames() scan can miss its <input type=file>. Three layers:
+//  1) puppeteer frame scan (fast path when the OOPIF is exposed);
+//  2) raw-CDP scan of EVERY attached target session: DOM.querySelector the
+//     file input and DOM.setFileInputFiles on that session directly;
+//  3) trusted click on the picker's تصفّح button (viewport coords computed
+//     from the iframe rect + button rect) while every target session intercepts
+//     the file chooser, answering it with the proof PNG.
+// The step passes only when the file's chip (its name) is visible back on the
+// form; otherwise it throws and the walk never reaches إرسال.
+async function uploadProof(page, filePath, job) {
+  const fileName = path.basename(filePath || '') || 'proof.png';
+  const browser = page.browser();
+  const armed = [];
+  let chooserAnswered = false;
+  const armSession = async (s) => {
+    try {
+      await s.send('Page.enable').catch(() => {});
+      await s.send('Page.setInterceptFileChooserDialog', { enabled: true }).catch(() => {});
+      s.on('Page.fileChooserOpened', async (ev) => {
+        try {
+          await s.send('DOM.setFileInputFiles', { files: [filePath], backendNodeId: ev.backendNodeId });
+          chooserAnswered = true;
+        } catch (e) {}
+      });
+      armed.push(s);
+    } catch (e) {}
+  };
+  const armTarget = async (t) => {
+    try {
+      if (!t) return;
+      const ty = t.type();
+      if (ty === 'browser' || ty === 'service_worker' || ty === 'background_page' || ty === 'shared_worker') return;
+      await armSession(await t.createCDPSession());
+    } catch (e) {}
+  };
+  for (const t of browser.targets()) await armTarget(t);
+  const onNewTarget = (t) => { armTarget(t); };
+  browser.on('targetcreated', onNewTarget);
+  const disarm = async () => {
+    try { browser.off('targetcreated', onNewTarget); } catch (e) {}
+    for (const s of armed) { try { await s.send('Page.setInterceptFileChooserDialog', { enabled: false }); } catch (e) {} }
+  };
+  // Set files on the first session (frame) that exposes an <input type=file>.
+  const setViaCdp = async () => {
+    for (const s of armed) {
+      try {
+        await s.send('DOM.enable').catch(() => {});
+        const doc = await s.send('DOM.getDocument', { depth: 1 });
+        const q = await s.send('DOM.querySelector', { nodeId: doc.root.nodeId, selector: "input[type='file']" });
+        if (q && q.nodeId) {
+          await s.send('DOM.setFileInputFiles', { files: [filePath], nodeId: q.nodeId });
+          return true;
+        }
+      } catch (e) {}
     }
-    if (!input) await sleep(500);
-  }
-  if (!input) { const e = new Error('upload_input_not_found'); e.detail = 'file picker never appeared'; throw e; }
-  await input.uploadFile(filePath);
-  // Wait until the picker frame detaches (upload accepted back into the form).
-  const t1 = Date.now();
-  while (Date.now() - t1 < 45000) {
-    let pickerOpen = false;
-    for (const f of page.frames()) {
-      try { if (/picker|docs\.google/.test(f.url()) && await f.$("input[type='file']")) pickerOpen = true; } catch (e) {}
-    }
-    if (!pickerOpen) return;
-    await sleep(800);
-  }
-  // Picker still open: try its confirm button once, then give up as uncertain.
+    return false;
+  };
   try {
-    await clickX(page, "//span[contains(text(), 'تحميل') or contains(text(), 'Upload') or contains(text(), 'إدخال') or contains(text(), 'Select')]", 4000);
-  } catch (e) {}
-  await sleep(3000);
+    await clickX(page, "//span[contains(text(), 'إضافة ملف') or contains(text(), 'Add file')]", 12000);
+    let set = false;
+    const t0 = Date.now();
+    while (Date.now() - t0 < 10000 && !set) {
+      // Layer 1: puppeteer frames.
+      for (const f of page.frames()) {
+        let input = null;
+        try { input = await f.$("input[type='file']"); } catch (e) {}
+        if (input) { try { await input.uploadFile(filePath); set = true; } catch (e) {} }
+        if (set) break;
+      }
+      // Layer 2: raw-CDP per-session scan (catches OOPIFs puppeteer misses).
+      if (!set) { try { set = await setViaCdp(); } catch (e) {} }
+      if (!set) await sleep(500);
+    }
+    if (!set && !chooserAnswered) {
+      // Layer 3: trusted-click تصفّح; the intercepted chooser receives the file.
+      let pt = null;
+      for (const s of armed) {
+        try {
+          const r = await s.send('Runtime.evaluate', {
+            expression: "(function(){var bs=document.querySelectorAll('button,[role=button]');for(var i=0;i<bs.length;i++){var t=(bs[i].textContent||'').trim();if(t==='تصفّح'||t==='تصفح'||t==='Browse'){var r=bs[i].getBoundingClientRect();if(r.width>2)return JSON.stringify({x:r.x+r.width/2,y:r.y+r.height/2});}}return ''})()",
+            returnByValue: true
+          });
+          const v = r && r.result && r.result.value;
+          if (v) {
+            const inner = JSON.parse(v);
+            // Translate frame-local coords to viewport coords via the picker iframe rect.
+            const fr = await s.send('Runtime.evaluate', { expression: 'location.href', returnByValue: true }).catch(() => null);
+            const frameUrl = fr && fr.result && fr.result.value ? String(fr.result.value) : '';
+            const off = await page.evaluate((fu) => {
+              const ifs = Array.from(document.querySelectorAll('iframe'));
+              for (const f of ifs) {
+                if (fu && f.src && fu.indexOf(f.src.slice(0, 60)) === 0) {
+                  const r = f.getBoundingClientRect();
+                  return { x: r.x, y: r.y };
+                }
+              }
+              const big = ifs.map((f) => f.getBoundingClientRect()).filter((r) => r.width > 200 && r.height > 200);
+              return big.length ? { x: big[0].x, y: big[0].y } : { x: 0, y: 0 };
+            }, frameUrl).catch(() => ({ x: 0, y: 0 }));
+            pt = { x: off.x + inner.x, y: off.y + inner.y };
+            break;
+          }
+        } catch (e) {}
+      }
+      if (pt) {
+        await page.mouse.click(pt.x, pt.y);
+        const t1 = Date.now();
+        while (Date.now() - t1 < 12000 && !chooserAnswered) await sleep(300);
+      }
+      if (!chooserAnswered) {
+        const e = new Error('upload_input_not_found');
+        e.detail = pt ? 'chooser not intercepted after تصفّح click' : 'no file input in any frame/session and no تصفّح button';
+        throw e;
+      }
+    }
+    // Verify: the file chip (its name) must appear back on the form page.
+    const t2 = Date.now();
+    let chip = false;
+    while (Date.now() - t2 < 60000 && !chip) {
+      if (job && job.isAborted && job.isAborted()) { const ab = new Error('aborted'); ab.aborted = true; throw ab; }
+      try {
+        chip = await page.evaluate((fn) => ((document.body && document.body.innerText) || '').indexOf(fn) >= 0, fileName);
+      } catch (e) {}
+      if (!chip) await sleep(800);
+    }
+    if (!chip) {
+      const e = new Error('upload_not_confirmed');
+      e.detail = 'file chip "' + fileName + '" not visible on the form after 60s';
+      throw e;
+    }
+  } finally {
+    await disarm();
+  }
 }
 
 async function runFormWalk(page, job) {
@@ -204,6 +308,7 @@ async function runFormWalkInner(page, job) {
   const steps = [];
   let lastT = Date.now();
   const mark = (s) => {
+    if (job.isAborted && job.isAborted()) { const e = new Error('aborted'); e.aborted = true; throw e; }
     const now = Date.now();
     steps.push(s + ' +' + (now - lastT) + 'ms');
     lastT = now;
@@ -384,7 +489,7 @@ async function runFormWalkInner(page, job) {
         if (vals[i]) await typeIn(page, tins[i], vals[i]);
       }
       mark('page2:fields');
-      await uploadProof(page, job.proofPath);
+      await uploadProof(page, job.proofPath, job);
       mark('page2:upload');
     } catch (e) { fail(e); }
   }
@@ -392,6 +497,9 @@ async function runFormWalkInner(page, job) {
   // Submit (never in test/dry mode - real submissions only on Micheal's explicit taps).
   if (job.dryRun) return { ok: true, dryRun: true, submitted: false, detail: 'steps: ' + steps.join(' | ') };
   try {
+    // Never submit after an abort - the Stop button must be final (24 Nov).
+    if (job.isAborted && job.isAborted()) { const ab = new Error('aborted'); ab.aborted = true; throw ab; }
+    if (job.onSubmitting) job.onSubmitting();
     await clickX(page, SUBMIT_X, 15000);
     mark('submit:clicked');
   } catch (e) { fail(e); }

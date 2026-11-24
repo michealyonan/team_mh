@@ -36,7 +36,11 @@ function browserAlive(b) {
 async function firstPage(browser) {
   try {
     const pages = await browser.pages();
-    if (pages && pages.length) return pages[0];
+    if (pages && pages.length) {
+      // Prefer an already-loaded tab over a leftover about:blank (24 Nov).
+      for (const p of pages) { try { const u = p.url(); if (u && u !== 'about:blank') return p; } catch (e) {} }
+      return pages[0];
+    }
   } catch (e) {}
   return browser.newPage();
 }

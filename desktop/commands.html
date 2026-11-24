@@ -65,6 +65,7 @@
   </select>
 </div>
 <button id="send" type="button">تأكيد وتنفيذ ✅</button>
+<button id="stop" type="button" style="display:none;background:#7f1d1d;color:#fff">⛔ إيقاف</button>
 <label for="spacing" style="margin-top:12px">⏱️ الفاصل بين الطلبات (ثواني، أقل حاجة 10)</label>
 <input id="spacing" type="number" min="10" step="1" value="10" inputmode="numeric">
 <button id="histBtn" type="button">📋 حالة الطلبات</button>
@@ -133,6 +134,7 @@ $('send').onclick=async()=>{
     reason=$('openReason').value.trim()||'موجود في الزون';
   }
   $('send').disabled=true;
+  $('stop').style.display='';
   say('','🚀 بيجهز التنفيذ…');
   try{
     const r=await window.tmhDesktop.runLocal({action,rider_id:rider,city,duration,reason,vehicle});
@@ -157,13 +159,25 @@ $('send').onclick=async()=>{
         unconfirmed:'⚠️ غير مؤكد: ممكن الطلب يكون اتبعت - اتأكد من الشيت أو الجدول قبل ما تعيد',
         bad_rider:'اكتب كود مندوب صحيح',bad_city:'اختار المدينة',bad_duration:'اختار وقت نهاية المد',bad_reason:'اختار سبب فك البريك',bad_duration_format:'صيغة الوقت مش صح',
         bad_vehicle:'اكتب رقم المركبة',open_not_alex:'فتح الشيفت متاح لمدن الدلتا بس (مش الإسكندرية)',
+        aborted:'⛔ اتوقف - الطلب اتلغى قبل الإرسال',
+        upload_not_confirmed:'الإثبات مااترفعش - الصورة مش ظاهرة في الفورم، مافيش حاجة اتبعتت. جرّب تاني',
         upload_input_not_found:'نافذة رفع الإثبات مافتحتش - جرّب تاني'
       };
       say('err',(emap[em]||('فشل: '+em))+(r&&r.detail?(' — '+String(r.detail).slice(0,180)):''));
     }
   }catch(e){
     say('err','فشل الاتصال بالتطبيق - قفل النافذة وافتحها تاني');
-  }finally{$('send').disabled=false}
+  }finally{$('send').disabled=false;$('stop').style.display='none'}
+};
+$('stop').onclick=async()=>{
+  $('stop').disabled=true;
+  try{
+    const r=await window.tmhDesktop.stopRun();
+    if(r&&r.state==='submitted_uncertain')say('err','⚠️ الإرسال اتضغط بالفعل - الطلب اتبعت/غير مؤكد، اتأكد من الشيت قبل ما تعيد');
+    else if(r&&r.state==='aborting')say('','⏳ بيتم الإيقاف…');
+    else say('','مفيش طلب شغال دلوقتي');
+  }catch(e){say('err','مش قادر أوصل لزرار الإيقاف - قفل النافذة وافتحها تاني')}
+  finally{$('stop').disabled=false}
 };
 // ---- حالة الطلبات: local run history + live approval status from the response sheets.
 let histOpen=false, histTimer=null;
@@ -194,7 +208,7 @@ async function renderHistory(){
   if(sheetCache.alex==='NO_ACCESS'||sheetCache.delta==='NO_ACCESS')note='⚠️ شيت الردود لسه مش متشارك مع حساب الفورم - حالة القبول هتظهر لما يتشارك (قراءة بس).';
   $('histNote').textContent=note;
   $('histBody').innerHTML=rows.map(r=>{
-    const local=r.ok?'<span class="st-ok">✅ تم</span>':(r.uncertain?'<span class="st-wait">⚠️ غير مؤكد</span>':'<span class="st-bad">❌ '+esc(r.error||'فشل')+'</span>');
+    const local=r.ok?'<span class="st-ok">✅ تم</span>':(r.error==='aborted'?'<span class="st-bad">⛔ اتوقف</span>':(r.uncertain?'<span class="st-wait">⚠️ غير مؤكد</span>':'<span class="st-bad">❌ '+esc(r.error||'فشل')+'</span>'));
     const sh=sheetStatusFor(r);
     let appr='<span class="st-wait">—</span>';
     if(sh&&sh.status){

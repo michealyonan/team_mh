@@ -10,11 +10,31 @@ const { autoUpdater } = require('electron-updater');
 const { getBrowser, firstPage, peekBrowser, launchPlain, launchPlainForSignin, adoptBrowser } = require('./chromeproc');
 const { runFormWalk, clickX, pageMarker, confirmState } = require('./chromewalk');
 
-const VERSION = '0.3.11';
-// App-generated black proof image for فتح شيفت uploads (64x64 PNG, written on demand).
+const VERSION = '0.3.12';
+// Proof image for فتح شيفت uploads: Micheal's OWN fixed image when present
+// (userData/proof.*, seeded from a bundled proof.* on first run), else the
+// app-generated black PNG fallback (24 Nov).
 const BLACK_PNG_B64 = 'iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAAIklEQVR4nO3BAQ0AAADCoPdPbQ8HFAAAAAAAAAAAAAAA8G4wQAABiwCo9wAAAABJRU5ErkJggg==';
+const PROOF_NAMES = ['proof.png', 'proof.jpg', 'proof.jpeg', 'proof.webp'];
+function seedBundledProof() {
+  try {
+    const ud = app.getPath('userData');
+    if (PROOF_NAMES.some((n) => fs.existsSync(path.join(ud, n)))) return;
+    const res = process.resourcesPath ? path.join(process.resourcesPath) : null;
+    const candidates = [];
+    if (res) { candidates.push(path.join(res, 'proof.png'), path.join(res, 'proof.jpg'), path.join(res, 'proof.jpeg'), path.join(res, 'proof.webp')); }
+    candidates.push(path.join(__dirname, 'proof.png'), path.join(__dirname, 'proof.jpg'));
+    for (const c of candidates) {
+      if (fs.existsSync(c)) { fs.copyFileSync(c, path.join(ud, 'proof' + path.extname(c).toLowerCase())); return; }
+    }
+  } catch (e) {}
+}
 function proofPngPath() {
-  const p = path.join(app.getPath('userData'), 'tmh-proof-black.png');
+  const ud = app.getPath('userData');
+  for (const n of PROOF_NAMES) {
+    try { const p = path.join(ud, n); if (fs.existsSync(p) && fs.statSync(p).size > 100) return p; } catch (e) {}
+  }
+  const p = path.join(ud, 'tmh-proof-black.png');
   try { if (!fs.existsSync(p)) fs.writeFileSync(p, Buffer.from(BLACK_PNG_B64, 'base64')); } catch (e) {}
   return p;
 }
@@ -36,6 +56,17 @@ const SHEETS = {
 let mainWin = null;
 let cmdWin = null;
 let busy = false;
+// The run currently in progress, for the ⛔ إيقاف button (24 Nov): abort()
+// resolves the walk race immediately; the walk itself throws at its next
+// checkpoint and can never reach إرسال after an abort.
+let currentRun = null;
+ipcMain.handle('tmh-stop-run', async () => {
+  if (!currentRun) return { ok: false, state: 'idle' };
+  if (currentRun.submitClicked) return { ok: false, state: 'submitted_uncertain' };
+  currentRun.aborted = true;
+  if (currentRun.abort) currentRun.abort();
+  return { ok: true, state: 'aborting' };
+});
 let lastRunAt = 0;
 const warmPages = {}; // per-group warm form tab: stays open between runs (Micheal 24 Nov: speed, like the pyw)
 
@@ -280,17 +311,26 @@ async function fetchSheetRows(group) {
   if (!sheetId) return { ok: false, error: 'no_sheet' };
   // Polls reuse the ALREADY-OPEN group Chrome only; they must never launch a
   // window by themselves (that was the stray about:blank window every ~45s).
+  // And never open/steal a tab while a walk is running (24 Nov: a poll tab
+  // popped about:blank over the فتح شيفت picker).
+  if (busy) return { ok: false, error: 'busy' };
   const browser = peekBrowser(group);
   if (!browser) return { ok: false, error: 'browser_off' };
   let page = sheetTabs[group] || null;
   if (page) { try { await page.url(); } catch (e) { page = null; } }
+  let fresh = false;
   if (!page) {
-    try { page = await browser.newPage(); } catch (e) { return { ok: false, error: 'tab_failed' }; }
+    try { page = await browser.newPage(); fresh = true; } catch (e) { return { ok: false, error: 'tab_failed' } };
     sheetTabs[group] = page;
   }
   try {
     const url = 'https://docs.google.com/spreadsheets/d/' + sheetId + '/gviz/tq?tqx=out:json&headers=1';
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    if (fresh) {
+      // Don't leave the poll tab in front of the form tab Micheal is watching.
+      const warm = warmPages[group];
+      if (warm) { try { await warm.bringToFront(); } catch (e) {} }
+    }
     const out = await page.evaluate(() => {
       const t = (document.body && document.body.innerText) || '';
       let data = null;
@@ -435,12 +475,16 @@ ipcMain.handle('tmh-run-local', async (_e, payload) => {
   }
   const dur = action === 'open' ? {} : parseDuration(action, isAlex, duration);
   if (dur.error) return { ok: false, error: dur.error };
-  // Zone = city everywhere (Micheal 24 Nov); keep the form's expected spelling for الغردقة.
-  const cityVal = city === 'الغردقة' ? 'الغرادقه' : city;
+  // Zone = city everywhere (Micheal 24 Nov). المدينة on the Delta form is typed
+  // exactly الغردقه (Micheal 24 Nov, screenshot); الغردقة only ever goes to the
+  // Delta form, so no per-form branch is needed.
+  const cityVal = city === 'الغردقة' ? 'الغردقه' : city;
   const label = (action === 'break' ? 'فك بريك' : action === 'open' ? 'فتح شيفت' : 'مد الشيفت') + ' - ' + riderId;
 
   if (busy) return { ok: false, error: 'busy' };
   busy = true;
+  currentRun = { aborted: false, submitClicked: false, abort: null };
+  const abortPromise = new Promise((res) => { currentRun.abort = () => res({ ok: false, error: 'aborted', submitted: false }); });
   let page = null;
   let keepTab = false;
   try {
@@ -467,6 +511,14 @@ ipcMain.handle('tmh-run-local', async (_e, payload) => {
     try { prep = await preparePage(browser, group, cfg.url); }
     catch (e) { return { ok: false, error: 'tab_failed', detail: String(e).slice(0, 200), submitted: false }; }
     page = prep.page;
+    // Close any stray about:blank tabs in this window (leftovers from sign-in or
+    // a poll tab) so Micheal only ever sees the form tab (24 Nov).
+    try {
+      for (const p2 of await browser.pages()) {
+        if (p2 === page) continue;
+        try { const u2 = p2.url(); if (!u2 || u2 === 'about:blank') await p2.close(); } catch (e) {}
+      }
+    } catch (e) {}
     try {
       let url = await settleUrl(page, prep.cold ? 15000 : 3000);
 
@@ -514,15 +566,18 @@ ipcMain.handle('tmh-run-local', async (_e, payload) => {
       }
 
       progress('walking', {});
-      const job = Object.assign({ isAlex: isAlex && action !== 'open', isOpen: action === 'open', action, riderId, city, cityVal, reason, duration, vehicle, proofPath: action === 'open' ? proofPngPath() : '' }, dur);
+      const job = Object.assign({ isAlex: isAlex && action !== 'open', isOpen: action === 'open', action, riderId, city, cityVal, reason, duration, vehicle, proofPath: action === 'open' ? proofPngPath() : '', isAborted: () => !!(currentRun && currentRun.aborted), onSubmitting: () => { if (currentRun) currentRun.submitClicked = true; } }, dur);
       let res;
       try {
         res = await Promise.race([
           runFormWalk(page, job),
+          abortPromise,
           sleep(WALK_WATCHDOG_MS).then(() => ({ ok: false, error: 'watchdog_timeout', submitted: false }))
         ]);
       } catch (e) {
-        res = { ok: false, error: 'walk_exception', detail: String(e).slice(0, 250), submitted: false };
+        res = currentRun && currentRun.aborted
+          ? { ok: false, error: 'aborted', submitted: false }
+          : { ok: false, error: 'walk_exception', detail: String(e).slice(0, 250), submitted: false };
       }
       const prepMs = Date.now() - prepT0;
       // Last-line false-negative guard (also covers the watchdog race): if the
@@ -536,6 +591,7 @@ ipcMain.handle('tmh-run-local', async (_e, payload) => {
       if (res) res.detail = 'prep ' + prepMs + 'ms' + (prep.cold ? ' (cold load)' : ' (warm tab)') + (res.detail ? ' | ' + res.detail : '');
       lastRunAt = Date.now();
       if (res && res.ok) notify('team_mh ✅', 'تم: ' + label);
+      else if (res && res.error === 'aborted') notify('team_mh ⛔', 'اتوقف: ' + label);
       else if (res && res.uncertain) notify('team_mh ⚠️', 'مش متأكد: ' + label + ' - اتأكد من الشيت قبل ما تعيد الطلب');
       else notify('team_mh ❌', 'فشل: ' + label + ' (' + ((res && res.error) || 'unknown') + ')');
       appendHistory({
@@ -551,11 +607,13 @@ ipcMain.handle('tmh-run-local', async (_e, payload) => {
     }
   } finally {
     busy = false;
+    currentRun = null;
   }
 });
 
 app.whenReady().then(() => {
   createWindow();
+  seedBundledProof();
   if (app.isPackaged) {
     try {
       autoUpdater.on('error', () => {}); // no update feed until CI publishing lands
