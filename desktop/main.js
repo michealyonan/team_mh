@@ -10,7 +10,7 @@ const { autoUpdater } = require('electron-updater');
 const { getBrowser, firstPage, peekBrowser, launchPlain, launchPlainForSignin, adoptBrowser } = require('./chromeproc');
 const { runFormWalk, clickX, pageMarker, confirmState } = require('./chromewalk');
 
-const VERSION = '0.3.12';
+const VERSION = '0.3.13';
 // Proof image for فتح شيفت uploads: Micheal's OWN fixed image when present
 // (userData/proof.*, seeded from a bundled proof.* on first run), else the
 // app-generated black PNG fallback (24 Nov).
@@ -271,7 +271,14 @@ async function preparePage(browser, group, formUrl) {
   }
   if (!page) {
     page = await firstPage(browser);
-    await page.goto(formUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
+    try {
+      await page.goto(formUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
+    } catch (e) {
+      // Dead/stuck tab: drop it and retry once on a brand-new tab (24 Nov).
+      try { await page.close(); } catch (e2) {}
+      page = await browser.newPage();
+      await page.goto(formUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
+    }
     return { page, cold: true };
   }
   const url = page.url();
@@ -566,7 +573,8 @@ ipcMain.handle('tmh-run-local', async (_e, payload) => {
       }
 
       progress('walking', {});
-      const job = Object.assign({ isAlex: isAlex && action !== 'open', isOpen: action === 'open', action, riderId, city, cityVal, reason, duration, vehicle, proofPath: action === 'open' ? proofPngPath() : '', isAborted: () => !!(currentRun && currentRun.aborted), onSubmitting: () => { if (currentRun) currentRun.submitClicked = true; } }, dur);
+      const thisRun = currentRun;
+      const job = Object.assign({ isAlex: isAlex && action !== 'open', isOpen: action === 'open', action, riderId, city, cityVal, reason, duration, vehicle, proofPath: action === 'open' ? proofPngPath() : '', isAborted: () => !!thisRun.aborted, onSubmitting: () => { thisRun.submitClicked = true; } }, dur);
       let res;
       try {
         res = await Promise.race([
@@ -606,8 +614,17 @@ ipcMain.handle('tmh-run-local', async (_e, payload) => {
       if (page) warmPages[group] = page;
     }
   } finally {
+    const wasAborted = !!(currentRun && currentRun.aborted);
     busy = false;
     currentRun = null;
+    // After a Stop, fully reset this group's Chrome so the next run launches
+    // clean (no locked profile, no stuck picker tab, no stale connection).
+    if (wasAborted) {
+      try { delete warmPages[group]; } catch (e) {}
+      try { delete sheetTabs[group]; } catch (e) {}
+      const b = peekBrowser(group);
+      if (b) { b.close().catch(() => {}); }
+    }
   }
 });
 

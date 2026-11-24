@@ -9,6 +9,7 @@
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const path = require('path');
+const fs = require('fs');
 
 const NEXT_X = "//span[contains(text(), 'التالي') or contains(text(), 'Next')]";
 const SUBMIT_X = "//span[contains(text(), 'إرسال') or contains(text(), 'Submit')]";
@@ -153,139 +154,275 @@ async function waitConfirmation(page, timeoutMs) {
   return { ok: false, error: 'unconfirmed', uncertain: true, submitted: false, detail: 'no confirmation within ' + (timeoutMs || 15000) + 'ms' };
 }
 
-// Google Forms file upload (v0.3.12). The Docs picker is a cross-origin OOPIF,
-// so a plain page.frames() scan can miss its <input type=file>. Three layers:
-//  1) puppeteer frame scan (fast path when the OOPIF is exposed);
-//  2) raw-CDP scan of EVERY attached target session: DOM.querySelector the
-//     file input and DOM.setFileInputFiles on that session directly;
-//  3) trusted click on the picker's تصفّح button (viewport coords computed
-//     from the iframe rect + button rect) while every target session intercepts
-//     the file chooser, answering it with the proof PNG.
-// The step passes only when the file's chip (its name) is visible back on the
-// form; otherwise it throws and the walk never reaches إرسال.
+// Google Forms file upload (v0.3.13). The Docs picker is a cross-origin OOPIF
+// that plain page.frames() AND per-target CDP both missed on the real Delta form
+// (24 Nov). Now: browser-level FLAT attach (Target.attachToTarget flatten:true)
+// exposes every frame target including the picker OOPIF; each session gets
+// Page.setInterceptFileChooserDialog. Layers:
+//  1) DOM.setFileInputFiles on any session whose document has input[type=file];
+//  2) Input.dispatchDragEvent (dragEnter/over/drop with files) onto the picker
+//     modal's drop zone, coords from the iframe element's viewport rect;
+//  3) trusted click on تصفّح (exact coords from the picker session when found,
+//     else proportional inside the iframe rect) with chooser interception;
+//  4) Windows: same click WITHOUT interception, then PowerShell types the path
+//     into the native Open dialog (clipboard paste + Enter).
+// Passes only when the file chip (its name) is visible back on the form;
+// otherwise throws with a full diagnostic trace, and the walk never submits.
+const { execFile } = require('child_process');
+
 async function uploadProof(page, filePath, job) {
   const fileName = path.basename(filePath || '') || 'proof.png';
   const browser = page.browser();
-  const armed = [];
+  const diag = { targets: [], layers: [] };
+  const aborted = () => { if (job && job.isAborted && job.isAborted()) { const ab = new Error('aborted'); ab.aborted = true; throw ab; } };
+
   let chooserAnswered = false;
-  const armSession = async (s) => {
+  let browserSession = null;
+  const childSessions = new Set();
+
+  async function armSession(cs, label) {
     try {
-      await s.send('Page.enable').catch(() => {});
-      await s.send('Page.setInterceptFileChooserDialog', { enabled: true }).catch(() => {});
-      s.on('Page.fileChooserOpened', async (ev) => {
+      await cs.send('Page.enable').catch(() => {});
+      await cs.send('Page.setInterceptFileChooserDialog', { enabled: true }).catch(() => {});
+      cs.on('Page.fileChooserOpened', async (ev) => {
         try {
-          await s.send('DOM.setFileInputFiles', { files: [filePath], backendNodeId: ev.backendNodeId });
+          await cs.send('DOM.setFileInputFiles', { files: [filePath], backendNodeId: ev.backendNodeId });
           chooserAnswered = true;
-        } catch (e) {}
+          diag.layers.push('chooser answered via ' + label);
+        } catch (e) { diag.layers.push('chooser answer failed: ' + String(e).slice(0, 80)); }
       });
-      armed.push(s);
     } catch (e) {}
-  };
-  const armTarget = async (t) => {
+  }
+
+  async function attachAll() {
     try {
-      if (!t) return;
-      const ty = t.type();
-      if (ty === 'browser' || ty === 'service_worker' || ty === 'background_page' || ty === 'shared_worker') return;
-      await armSession(await t.createCDPSession());
-    } catch (e) {}
-  };
-  for (const t of browser.targets()) await armTarget(t);
-  const onNewTarget = (t) => { armTarget(t); };
-  browser.on('targetcreated', onNewTarget);
-  const disarm = async () => {
-    try { browser.off('targetcreated', onNewTarget); } catch (e) {}
-    for (const s of armed) { try { await s.send('Page.setInterceptFileChooserDialog', { enabled: false }); } catch (e) {} }
-  };
-  // Set files on the first session (frame) that exposes an <input type=file>.
-  const setViaCdp = async () => {
-    for (const s of armed) {
+      const { targetInfos } = await browserSession.send('Target.getTargets');
+      for (const ti of targetInfos) {
+        if (ti.type === 'browser') continue;
+        const key = ti.targetId;
+        if (diag.targets.indexOf(ti.type + ':' + (ti.url || '').slice(0, 60)) < 0) {
+          diag.targets.push(ti.type + ':' + (ti.url || '').slice(0, 60));
+        }
+        if (childSessions[key]) continue;
+        try {
+          const r = await browserSession.send('Target.attachToTarget', { targetId: ti.targetId, flatten: true });
+          const cs = browserSession.connection().session(r.sessionId);
+          if (cs) { childSessions[key] = cs; childSessions.add(cs); await armSession(cs, ti.type); }
+        } catch (e) {}
+      }
+    } catch (e) { diag.layers.push('attachAll: ' + String(e).slice(0, 80)); }
+  }
+
+  async function setViaSessions() {
+    for (const cs of childSessions) {
+      if (typeof cs.send !== 'function') continue;
       try {
-        await s.send('DOM.enable').catch(() => {});
-        const doc = await s.send('DOM.getDocument', { depth: 1 });
-        const q = await s.send('DOM.querySelector', { nodeId: doc.root.nodeId, selector: "input[type='file']" });
+        await cs.send('DOM.enable').catch(() => {});
+        const doc = await cs.send('DOM.getDocument', { depth: -1, pierce: true });
+        const q = await cs.send('DOM.querySelector', { nodeId: doc.root.nodeId, selector: "input[type='file']" });
         if (q && q.nodeId) {
-          await s.send('DOM.setFileInputFiles', { files: [filePath], nodeId: q.nodeId });
+          await cs.send('DOM.setFileInputFiles', { files: [filePath], nodeId: q.nodeId });
+          diag.layers.push('file set via session input');
           return true;
         }
       } catch (e) {}
     }
     return false;
-  };
+  }
+
+  // Viewport rect of the big picker iframe, read from the main page's DOM
+  // (the iframe ELEMENT is visible even when its content is cross-origin).
+  async function pickerRect() {
+    try {
+      return await page.evaluate(() => {
+        let best = null;
+        for (const f of Array.from(document.querySelectorAll('iframe'))) {
+          const r = f.getBoundingClientRect();
+          if (r.width > 250 && r.height > 250 && (!best || r.width * r.height > best.w * best.h)) {
+            best = { x: r.x, y: r.y, w: r.width, h: r.height };
+          }
+        }
+        return best;
+      });
+    } catch (e) { return null; }
+  }
+
+  async function pickerButtonPoint() {
+    // Exact coords from a session whose document has the تصفّح button.
+    for (const cs of childSessions) {
+      if (typeof cs.send !== 'function') continue;
+      try {
+        const r = await cs.send('Runtime.evaluate', {
+          expression: "(function(){var bs=document.querySelectorAll('button,[role=button],div');for(var i=0;i<bs.length;i++){var t=(bs[i].textContent||'').trim();if(t.indexOf('تصف')>=0||/browse/i.test(t)){var r=bs[i].getBoundingClientRect();if(r.width>10&&r.width<300&&r.height>10&&r.height<100)return JSON.stringify({x:r.x+r.width/2,y:r.y+r.height/2});}}return ''})()",
+          returnByValue: true
+        });
+        const v = r && r.result && r.result.value;
+        if (v) {
+          const inner = JSON.parse(v);
+          const href = await cs.send('Runtime.evaluate', { expression: 'location.href', returnByValue: true }).catch(() => null);
+          const frameUrl = href && href.result && href.result.value ? String(href.result.value) : '';
+          const off = await page.evaluate((fu) => {
+            const ifs = Array.from(document.querySelectorAll('iframe'));
+            for (const f of ifs) { if (fu && f.src && fu.indexOf(f.src.slice(0, 60)) === 0) { const r = f.getBoundingClientRect(); return { x: r.x, y: r.y }; } }
+            const big = ifs.map((f) => f.getBoundingClientRect()).filter((r2) => r2.width > 250 && r2.height > 250);
+            return big.length ? { x: big[0].x, y: big[0].y } : { x: 0, y: 0 };
+          }, frameUrl).catch(() => ({ x: 0, y: 0 }));
+          diag.layers.push('button coords via session');
+          return { x: off.x + inner.x, y: off.y + inner.y };
+        }
+      } catch (e) {}
+    }
+    // Proportional estimate inside the modal (button sits ~78% down, centered).
+    const rect = await pickerRect();
+    if (rect) { diag.layers.push('button coords estimated'); return { x: rect.x + rect.w * 0.44, y: rect.y + rect.h * 0.79 }; }
+    return null;
+  }
+
+  async function chipVisible() {
+    try { return await page.evaluate((fn) => ((document.body && document.body.innerText) || '').indexOf(fn) >= 0, fileName); } catch (e) { return false; }
+  }
+
+  async function waitChip(ms) {
+    const t0 = Date.now();
+    while (Date.now() - t0 < ms) {
+      aborted();
+      if (await chipVisible()) return true;
+      await sleep(700);
+    }
+    return false;
+  }
+
+  async function fillNativeDialog() {
+    // Windows only: the native Open dialog gets the path via clipboard paste.
+    if (process.platform !== 'win32') return false;
+    const ps1 = path.join(require('os').tmpdir(), 'tmh-filedlg.ps1');
+    const script = [
+      'param([string]$FilePath)',
+      'Add-Type -AssemblyName System.Windows.Forms',
+      'Add-Type @"',
+      'using System;using System.Runtime.InteropServices;using System.Text;',
+      'public class Win32Dlg {',
+      ' [DllImport("user32.dll")] public static extern bool EnumWindows(EnumProc cb, IntPtr l);',
+      ' public delegate bool EnumProc(IntPtr h, IntPtr l);',
+      ' [DllImport("user32.dll")] public static extern int GetClassName(IntPtr h, StringBuilder s, int n);',
+      ' [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr h);',
+      ' [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h);',
+      ' [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid);',
+      '}',
+      '"@',
+      '$pids = @(Get-Process chrome -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Id)',
+      '$dlg = [IntPtr]::Zero',
+      '$deadline = (Get-Date).AddSeconds(20)',
+      'while ((Get-Date) -lt $deadline -and $dlg -eq [IntPtr]::Zero) {',
+      '  $found = [IntPtr]::Zero',
+      '  $cb = [Win32Dlg+EnumProc]{ param($h,$l)',
+      '    $sb = New-Object System.Text.StringBuilder 256',
+      '    [void][Win32Dlg]::GetClassName($h,$sb,256)',
+      '    if ($sb.ToString() -eq "#32770" -and [Win32Dlg]::IsWindowVisible($h)) {',
+      '      $procId = 0',
+      '      [void][Win32Dlg]::GetWindowThreadProcessId($h,[ref]$procId)',
+      '      if ($pids -contains $procId) { $script:found = $h; return $false }',
+      '    }',
+      '    return $true',
+      '  }',
+      '  [void][Win32Dlg]::EnumWindows($cb,[IntPtr]::Zero)',
+      '  $dlg = $found',
+      '  if ($dlg -eq [IntPtr]::Zero) { Start-Sleep -Milliseconds 400 }',
+      '}',
+      'if ($dlg -eq [IntPtr]::Zero) { Write-Output "NO_DIALOG"; exit 1 }',
+      '[void][Win32Dlg]::SetForegroundWindow($dlg)',
+      'Start-Sleep -Milliseconds 500',
+      'Set-Clipboard -Value $FilePath',
+      '[System.Windows.Forms.SendKeys]::SendWait("^v")',
+      'Start-Sleep -Milliseconds 400',
+      '[System.Windows.Forms.SendKeys]::SendWait("{ENTER}")',
+      'Write-Output "OK"'
+    ].join('\r\n');
+    try { fs.writeFileSync(ps1, '\ufeff' + script); } catch (e) { return false; }
+    return await new Promise((resolve) => {
+      execFile('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', ps1, '-FilePath', filePath], { timeout: 40000 }, (err, stdout) => {
+        diag.layers.push('native dialog: ' + (err ? String(err).slice(0, 60) : String(stdout || '').trim()));
+        resolve(!err && /OK/.test(String(stdout || '')));
+      });
+    });
+  }
+
   try {
+    browserSession = await browser.target().createCDPSession();
+    await browserSession.send('Target.setDiscoverTargets', { discover: true }).catch(() => {});
+    await attachAll();
+
     await clickX(page, "//span[contains(text(), 'إضافة ملف') or contains(text(), 'Add file')]", 12000);
+    diag.layers.push('picker opened');
+
+    // Layer 1: set the file on any session that has the input (re-attach while hunting).
     let set = false;
     const t0 = Date.now();
-    while (Date.now() - t0 < 10000 && !set) {
-      // Layer 1: puppeteer frames.
+    while (Date.now() - t0 < 12000 && !set) {
+      aborted();
+      await attachAll();
+      // Fast path: puppeteer frames too (same-process iframes need no attach).
       for (const f of page.frames()) {
         let input = null;
         try { input = await f.$("input[type='file']"); } catch (e) {}
-        if (input) { try { await input.uploadFile(filePath); set = true; } catch (e) {} }
+        if (input) { try { await input.uploadFile(filePath); set = true; diag.layers.push('file set via frame'); } catch (e) {} }
         if (set) break;
       }
-      // Layer 2: raw-CDP per-session scan (catches OOPIFs puppeteer misses).
-      if (!set) { try { set = await setViaCdp(); } catch (e) {} }
-      if (!set) await sleep(500);
+      if (!set) set = await setViaSessions();
+      if (!set) await sleep(600);
     }
+
+    // Layer 2: CDP drag-drop of the file onto the modal's drop zone.
     if (!set && !chooserAnswered) {
-      // Layer 3: trusted-click تصفّح; the intercepted chooser receives the file.
-      let pt = null;
-      for (const s of armed) {
+      const rect = await pickerRect();
+      if (rect) {
         try {
-          const r = await s.send('Runtime.evaluate', {
-            expression: "(function(){var bs=document.querySelectorAll('button,[role=button]');for(var i=0;i<bs.length;i++){var t=(bs[i].textContent||'').trim();if(t==='تصفّح'||t==='تصفح'||t==='Browse'){var r=bs[i].getBoundingClientRect();if(r.width>2)return JSON.stringify({x:r.x+r.width/2,y:r.y+r.height/2});}}return ''})()",
-            returnByValue: true
-          });
-          const v = r && r.result && r.result.value;
-          if (v) {
-            const inner = JSON.parse(v);
-            // Translate frame-local coords to viewport coords via the picker iframe rect.
-            const fr = await s.send('Runtime.evaluate', { expression: 'location.href', returnByValue: true }).catch(() => null);
-            const frameUrl = fr && fr.result && fr.result.value ? String(fr.result.value) : '';
-            const off = await page.evaluate((fu) => {
-              const ifs = Array.from(document.querySelectorAll('iframe'));
-              for (const f of ifs) {
-                if (fu && f.src && fu.indexOf(f.src.slice(0, 60)) === 0) {
-                  const r = f.getBoundingClientRect();
-                  return { x: r.x, y: r.y };
-                }
-              }
-              const big = ifs.map((f) => f.getBoundingClientRect()).filter((r) => r.width > 200 && r.height > 200);
-              return big.length ? { x: big[0].x, y: big[0].y } : { x: 0, y: 0 };
-            }, frameUrl).catch(() => ({ x: 0, y: 0 }));
-            pt = { x: off.x + inner.x, y: off.y + inner.y };
-            break;
-          }
-        } catch (e) {}
+          const client = await page.createCDPSession();
+          const cx = rect.x + rect.w * 0.5, cy = rect.y + rect.h * 0.55;
+          const data = { items: [], files: [filePath], dragOperationsMask: 1 };
+          await client.send('Input.dispatchDragEvent', { type: 'dragEnter', x: cx, y: cy, data });
+          await client.send('Input.dispatchDragEvent', { type: 'dragOver', x: cx, y: cy, data });
+          await client.send('Input.dispatchDragEvent', { type: 'drop', x: cx, y: cy, data });
+          diag.layers.push('drag-drop dispatched');
+          if (await waitChip(8000)) { diag.layers.push('chip after drag-drop'); return; }
+        } catch (e) { diag.layers.push('drag-drop failed: ' + String(e).slice(0, 80)); }
       }
+    }
+
+    // Layer 3: trusted click on تصفّح with chooser interception armed everywhere.
+    if (!chooserAnswered && !(await chipVisible())) {
+      const pt = await pickerButtonPoint();
       if (pt) {
         await page.mouse.click(pt.x, pt.y);
+        diag.layers.push('تصفّح clicked');
         const t1 = Date.now();
-        while (Date.now() - t1 < 12000 && !chooserAnswered) await sleep(300);
-      }
-      if (!chooserAnswered) {
-        const e = new Error('upload_input_not_found');
-        e.detail = pt ? 'chooser not intercepted after تصفّح click' : 'no file input in any frame/session and no تصفّح button';
-        throw e;
+        while (Date.now() - t1 < 10000 && !chooserAnswered) { aborted(); await sleep(300); }
+      } else {
+        diag.layers.push('no picker rect/button for click');
       }
     }
-    // Verify: the file chip (its name) must appear back on the form page.
-    const t2 = Date.now();
-    let chip = false;
-    while (Date.now() - t2 < 60000 && !chip) {
-      if (job && job.isAborted && job.isAborted()) { const ab = new Error('aborted'); ab.aborted = true; throw ab; }
-      try {
-        chip = await page.evaluate((fn) => ((document.body && document.body.innerText) || '').indexOf(fn) >= 0, fileName);
-      } catch (e) {}
-      if (!chip) await sleep(800);
+
+    // Layer 4 (Windows): real native dialog, path typed by PowerShell.
+    if (!chooserAnswered && !(await chipVisible()) && process.platform === 'win32') {
+      // Disarm interception so the NATIVE dialog actually opens this time.
+      for (const cs of childSessions) { if (typeof cs.send === 'function') { try { await cs.send('Page.setInterceptFileChooserDialog', { enabled: false }); } catch (e) {} } }
+      try { await page.createCDPSession().then((c) => c.send('Page.setInterceptFileChooserDialog', { enabled: false })); } catch (e) {}
+      const pt = await pickerButtonPoint();
+      if (pt) {
+        await page.mouse.click(pt.x, pt.y);
+        diag.layers.push('تصفّح clicked for native dialog');
+        await fillNativeDialog();
+      }
     }
-    if (!chip) {
-      const e = new Error('upload_not_confirmed');
-      e.detail = 'file chip "' + fileName + '" not visible on the form after 60s';
-      throw e;
-    }
+
+    // Final verification: the chip (file name) must be back on the form.
+    if (await waitChip(chooserAnswered ? 60000 : 20000)) return;
+    const e = new Error('upload_not_confirmed');
+    e.detail = 'chip "' + fileName + '" never appeared | layers: ' + diag.layers.join(' > ').slice(0, 200) + ' | targets: ' + diag.targets.slice(0, 8).join(' ; ').slice(0, 220);
+    throw e;
   } finally {
-    await disarm();
+    for (const cs of childSessions) { if (typeof cs.send === 'function') { try { await cs.send('Page.setInterceptFileChooserDialog', { enabled: false }); } catch (e) {} try { await cs.detach(); } catch (e) {} } }
+    try { if (browserSession) await browserSession.detach(); } catch (e) {}
   }
 }
 
