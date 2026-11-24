@@ -1256,17 +1256,19 @@ html[data-theme="light"] .kpi .l,html[data-theme="light"] .kpi .s{color:#526a82!
    </div>
    <div class="nav-group"><div class="nav-group-title">⚙️ الإدارة</div>
     <button class="btn" id="payB" type="button" style="display:none" aria-controls="payPanel" aria-expanded="false">💵 القبض</button>
-    <button class="btn" id="usrB" style="display:none">👥 المستخدمين</button>
     <button class="btn" id="tgB" style="display:none">🎯 التارجت</button>
     <button class="btn" id="hcB" style="display:none">👥 هيد كونت</button>
     <button class="btn" id="dedB" style="display:none">🏢 الشركة</button>
     <button class="btn" id="queriesB" style="display:none">📨 الاستعلامات</button>
+   </div>
+   <div class="nav-group"><div class="nav-group-title">🛠️ اعدادات الويب سايت</div>
+    <button class="btn" id="waB" style="display:none" onclick="openWA()">📱 واتساب حسابي</button>
+    <button class="btn" id="usrB" style="display:none">👥 المستخدمين</button>
     <button class="btn" id="loginAuditB" style="display:none">🕵️ سجل الدخول</button>
     <button class="btn" id="quotaB" style="display:none" onclick="toggleNavDrawer(false);openQuota()">☁️ استهلاك كلاودفلير</button>
     <button class="btn" id="themeB" style="display:none" onclick="toggleNavDrawer(false);openThemePicker()">🎨 تصميم الدخول</button>
    </div>
    <div class="nav-group"><div class="nav-group-title">👤 حسابي</div>
-    <button class="btn" id="waB" style="display:none" onclick="openWA()">📱 واتساب حسابي</button>
     <button class="btn" id="profileB" style="display:none" onclick="toggleNavDrawer(false);openProfile()">👤 الملف الشخصي</button>
     <button class="btn" id="notifB" type="button" style="display:none" onclick="toggleNavDrawer(false);$('notifModal').style.display='';loadNotifs(true)">🔔 الإشعارات <span id="notifBadge" style="display:none;background:#ef4444;color:#fff;border-radius:999px;padding:2px 9px;font-size:12px;font-weight:900;margin-inline-start:6px"></span></button>
    </div>
