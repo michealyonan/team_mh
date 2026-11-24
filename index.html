@@ -1309,6 +1309,7 @@ html[data-theme="light"] .kpi .l,html[data-theme="light"] .kpi .s{color:#526a82!
    <div class="row"><h3 style="margin:0" id="chatTitle">💬 شات</h3><button class="btn" id="chatBack" type="button" style="display:none" onclick="chatList()">→ رجوع</button><button class="btn" style="margin-inline-start:auto" onclick="closeChat()">✕</button></div>
    <div id="chatListWrap" style="margin-top:10px">
     <input id="chatSearch" placeholder="🔎 ابحث بالاسم…" style="width:100%;margin-bottom:8px" oninput="renderChatList()">
+    <select id="chatZoneFilter" style="width:100%;margin-bottom:8px" onchange="renderChatList()"><option value="">🗺️ كل المناطق</option></select>
     <button class="btn" id="chatMonitorB" type="button" style="display:none;width:100%;margin-bottom:8px" onclick="chatMonitorOpen()">👁 مراقبة محادثة (للأدمن)</button>
     <div id="chatListRows"></div>
    </div>
@@ -6865,9 +6866,21 @@ async function chatList(){
 function renderChatList(){
   const w=$('chatListRows');if(!w)return;
   const q=($('chatSearch').value||'').trim();
+  // Zone filter (Micheal 25 Nov): narrow the contact list to the zone's
+  // supervisors and its managers. Options rebuild only when the zone set changes.
+  const zf=$('chatZoneFilter');let zv='';
+  if(zf){
+    const zones=uniq('z',ALL);
+    if(zf.dataset.n!==String(zones.length)){
+      const prevZ=zf.value;zf.dataset.n=String(zones.length);
+      zf.innerHTML='<option value="">🗺️ كل المناطق</option>'+zones.map(x=>`<option${x===prevZ?' selected':''}>${esc(x)}</option>`).join('');
+    }
+    zv=zf.value||'';
+  }
   const now=Date.now();
   const byU=new Map(CHAT_CONVS.map(c=>[c.u,c]));
   let rows=CHAT_CONTACTS.map(c=>({...c,conv:byU.get(c.u)}));
+  if(zv)rows=rows.filter(c=>(c.r==='sup'||c.r==='manager')&&zOf(c.r==='manager'?'m':'s',c.s||'').includes(zv));
   rows.sort((a,b)=>(((b.conv&&b.conv.unread)||0)-((a.conv&&a.conv.unread)||0))||((((b.conv&&b.conv.last)||{}).ts||0)-(((a.conv&&a.conv.last)||{}).ts||0))||String(a.n||a.u).localeCompare(String(b.n||b.u),'ar'));
   if(q)rows=rows.filter(c=>String(c.n||'').includes(q)||String(c.u||'').toLowerCase().includes(q.toLowerCase()));
   w.innerHTML=rows.map(c=>{
