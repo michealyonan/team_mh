@@ -7003,7 +7003,7 @@ function hfFill(id,list,ph,def){const el=$(id);el.innerHTML=(ph?`<option value="
 function openHiring(){
  $('hiringModal').style.display='';
  HF_IMGS={};$('hErr').textContent='';
- hfFill('hf_office',HIRING_CFG.offices,'','Team mh for Delivery');
+ hfFill('hf_office',['Team mh for Delivery'],'','Team mh for Delivery');$('hf_office').disabled=true;$('hf_office').style.opacity='1';
  hfFill('hf_hire_type',HIRING_CFG.hireTypes,'اختر نوع التعيين');
  hfFill('hf_lecture_office',HIRING_CFG.lectureOffices,'اختر مكتب المحاضرة');
  hfFill('hf_vehicle',HIRING_CFG.vehicles,'اختر نوع المركبة');
