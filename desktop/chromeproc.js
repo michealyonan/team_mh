@@ -68,4 +68,11 @@ async function getBrowser(group, userDataRoot) {
   return browser;
 }
 
-module.exports = { getBrowser, findChrome, firstPage };
+// Non-launching peek: returns the cached browser ONLY if already connected.
+// Pollers (sheet status) must never relaunch Chrome by themselves - a poll that
+// relaunches is what popped stray about:blank windows every ~45s (24 Nov).
+function peekBrowser(group) {
+  return browserAlive(browsers[group]) ? browsers[group] : null;
+}
+
+module.exports = { getBrowser, findChrome, firstPage, peekBrowser };

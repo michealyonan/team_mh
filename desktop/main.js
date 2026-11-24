@@ -7,10 +7,10 @@ const { app, BrowserWindow, shell, Notification, ipcMain } = require('electron')
 const fs = require('fs');
 const path = require('path');
 const { autoUpdater } = require('electron-updater');
-const { getBrowser, firstPage } = require('./chromeproc');
-const { runFormWalk, clickX, pageMarker } = require('./chromewalk');
+const { getBrowser, firstPage, peekBrowser } = require('./chromeproc');
+const { runFormWalk, clickX, pageMarker, confirmState } = require('./chromewalk');
 
-const VERSION = '0.3.5';
+const VERSION = '0.3.6';
 const SITE = 'https://team-mh.michealuonanayad.workers.dev';
 const FORMS = {
   alex: { url: 'https://docs.google.com/forms/u/0/d/e/1FAIpQLSffSwyTh0w4AYjTU9AG-kj-0UfJHcSTSYnR1DrWJ_h8iPYm3Q/viewform', email: 'alexlogistics.teammh101@gmail.com' },
@@ -242,8 +242,10 @@ const sheetTabs = {};
 async function fetchSheetRows(group) {
   const sheetId = SHEETS[group];
   if (!sheetId) return { ok: false, error: 'no_sheet' };
-  let browser;
-  try { browser = await getBrowser(group, app.getPath('userData')); } catch (e) { return { ok: false, error: 'chrome_not_found' }; }
+  // Polls reuse the ALREADY-OPEN group Chrome only; they must never launch a
+  // window by themselves (that was the stray about:blank window every ~45s).
+  const browser = peekBrowser(group);
+  if (!browser) return { ok: false, error: 'browser_off' };
   let page = sheetTabs[group] || null;
   if (page) { try { await page.url(); } catch (e) { page = null; } }
   if (!page) {
@@ -380,7 +382,6 @@ ipcMain.handle('tmh-run-local', async (_e, payload) => {
   const action = String(p.action || '');
   const riderId = String(p.rider_id || '').replace(/[^0-9]/g, '');
   const city = String(p.city || '').trim();
-  const zone = String(p.zone || '').trim();
   const duration = String(p.duration || '').trim();
   const reason = String(p.reason || '').trim();
   if (!['extend', 'break'].includes(action)) return { ok: false, error: 'bad_action' };
@@ -391,7 +392,8 @@ ipcMain.handle('tmh-run-local', async (_e, payload) => {
   if (action === 'break' && isAlex && !reason) return { ok: false, error: 'bad_reason' };
   const dur = parseDuration(action, isAlex, duration);
   if (dur.error) return { ok: false, error: dur.error };
-  const cityVal = zone || (city === 'الغردقة' ? 'الغرادقه' : city);
+  // Zone = city everywhere (Micheal 24 Nov); keep the form's expected spelling for الغردقة.
+  const cityVal = city === 'الغردقة' ? 'الغرادقه' : city;
   const label = (action === 'break' ? 'فك بريك' : 'مد الشيفت') + ' - ' + riderId;
 
   if (busy) return { ok: false, error: 'busy' };
@@ -458,7 +460,7 @@ ipcMain.handle('tmh-run-local', async (_e, payload) => {
       }
 
       progress('walking', {});
-      const job = Object.assign({ isAlex, action, riderId, city, zone, cityVal, reason, duration }, dur);
+      const job = Object.assign({ isAlex, action, riderId, city, cityVal, reason, duration }, dur);
       let res;
       try {
         res = await Promise.race([
@@ -469,13 +471,22 @@ ipcMain.handle('tmh-run-local', async (_e, payload) => {
         res = { ok: false, error: 'walk_exception', detail: String(e).slice(0, 250), submitted: false };
       }
       const prepMs = Date.now() - prepT0;
+      // Last-line false-negative guard (also covers the watchdog race): if the
+      // tab is on Google's confirmation screen, the response WAS recorded.
+      if ((!res || !res.ok) && page) {
+        try {
+          const fin = await confirmState(page);
+          if (fin.done) res = { ok: true, submitted: true, detail: 'confirmed-at-final-check (was: ' + ((res && res.error) || 'no_result') + ')' };
+        } catch (e) {}
+      }
       if (res) res.detail = 'prep ' + prepMs + 'ms' + (prep.cold ? ' (cold load)' : ' (warm tab)') + (res.detail ? ' | ' + res.detail : '');
       lastRunAt = Date.now();
       if (res && res.ok) notify('team_mh ✅', 'تم: ' + label);
+      else if (res && res.uncertain) notify('team_mh ⚠️', 'مش متأكد: ' + label + ' - اتأكد من الشيت قبل ما تعيد الطلب');
       else notify('team_mh ❌', 'فشل: ' + label + ' (' + ((res && res.error) || 'unknown') + ')');
       appendHistory({
         ts: Date.now(), action, riderId, city, duration, reason,
-        ok: !!(res && res.ok), error: (res && res.error) || '',
+        ok: !!(res && res.ok), error: (res && res.error) || '', uncertain: !!(res && res.uncertain),
         submitted: !!(res && res.submitted), detail: (res && res.detail || '').slice(0, 400)
       });
       logDirect({ action, rider_id: riderId, city, duration, reason, result: res });

@@ -42,10 +42,6 @@
   <option>المنيا</option>
   <option>الزقازيق</option>
 </select>
-<div id="zoneWrap" style="display:none">
-  <label for="zone">الزون</label>
-  <input id="zone" placeholder="اسم الزون">
-</div>
 <div id="durWrap">
   <label for="durSel" id="durLabel">وقت نهاية المد</label>
   <select id="durSel"></select>
@@ -85,7 +81,6 @@ function sync(){
   $('actBrk').classList.toggle('on',action==='break');
   $('durWrap').style.display=action==='extend'?'':'none';
   $('reasonWrap').style.display=(action==='break'&&isAlex())?'':'none';
-  $('zoneWrap').style.display=['الغردقة','السويس','الإسماعيلية'].includes($('city').value)?'':'none';
   const alexTime=action==='extend'&&isAlex();
   $('durSel').style.display=alexTime?'none':'';
   $('durTime').style.display=alexTime?'':'none';
@@ -119,7 +114,7 @@ $('send').onclick=async()=>{
   $('send').disabled=true;
   say('','🚀 بيجهز التنفيذ…');
   try{
-    const r=await window.tmhDesktop.runLocal({action,rider_id:rider,city,zone:$('zone').value.trim(),duration,reason});
+    const r=await window.tmhDesktop.runLocal({action,rider_id:rider,city,duration,reason});
     if(r&&r.ok){
       say('ok','✅ تم: '+(action==='break'?'فك بريك':'مد الشيفت')+' - '+rider);
       $('rider').value='';
@@ -137,7 +132,8 @@ $('send').onclick=async()=>{
         validation_blocked:'الفورم رفض يكمل: في خانة مطلوبة مش متملية',
         page_load_failed:'صفحة الفورم معملتش تحميل - شيك النت وجرّب تاني',
         did_not_advance:'الفورم ماإكدش الإرسال (ممكن حجب مؤقت من جوجل) - جرّب بعد شوية',
-        watchdog_timeout:'التنفيذ خد وقت أطول من اللازم واتوقف',
+        watchdog_timeout:'مش متأكد لو الطلب اتبعت (التنفيذ خد وقت طويل) - اتأكد من الشيت قبل ما تعيد',
+        unconfirmed:'⚠️ غير مؤكد: ممكن الطلب يكون اتبعت - اتأكد من الشيت أو الجدول قبل ما تعيد',
         bad_rider:'اكتب كود مندوب صحيح',bad_city:'اختار المدينة',bad_duration:'اختار وقت نهاية المد',bad_reason:'اختار سبب فك البريك',bad_duration_format:'صيغة الوقت مش صح'
       };
       say('err',(emap[em]||('فشل: '+em))+(r&&r.detail?(' — '+String(r.detail).slice(0,180)):''));
@@ -163,6 +159,7 @@ async function refreshSheets(){
       const r=await window.tmhDesktop.sheetStatus(g);
       if(r&&r.ok)sheetCache[g]=r.rows||[];
       else if(r&&r.error==='no_access')sheetCache[g]='NO_ACCESS';
+      // browser_off: Chrome for this group is closed - keep last data, stay quiet.
     }catch(e){}
   }
 }
@@ -174,7 +171,7 @@ async function renderHistory(){
   if(sheetCache.alex==='NO_ACCESS'||sheetCache.delta==='NO_ACCESS')note='⚠️ شيت الردود لسه مش متشارك مع حساب الفورم - حالة القبول هتظهر لما يتشارك (قراءة بس).';
   $('histNote').textContent=note;
   $('histBody').innerHTML=rows.map(r=>{
-    const local=r.ok?'<span class="st-ok">✅ تم</span>':'<span class="st-bad">❌ '+esc(r.error||'فشل')+'</span>';
+    const local=r.ok?'<span class="st-ok">✅ تم</span>':(r.uncertain?'<span class="st-wait">⚠️ غير مؤكد</span>':'<span class="st-bad">❌ '+esc(r.error||'فشل')+'</span>');
     const sh=sheetStatusFor(r);
     let appr='<span class="st-wait">—</span>';
     if(sh&&sh.status){

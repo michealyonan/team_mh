@@ -101,30 +101,59 @@ async function clickNext(page, timeoutMs) {
   throw e;
 }
 
-// Wait for the confirmation text after إرسال (event-based).
+// Is the page on the post-submit confirmation? URL-first: Google navigates to
+// /formResponse and shows "recorded" / "Submit another". Checked alone this is
+// decisive even if an old validation message is still painted during "Saving...".
+async function confirmState(page) {
+  try {
+    const state = await page.evaluate(() => {
+      const t = (document.body && document.body.innerText) || '';
+      return {
+        recorded: /تم تسجيل ردك|response has been recorded|إرسال رد آخر|Submit another/i.test(t),
+        required: /مطلوب|required question/i.test(t),
+        text: t.slice(0, 400)
+      };
+    });
+    // NOTE: the URL is /formResponse during normal filling on this form (draft
+    // autosave, "Saving..."), so only the recorded/another-response TEXT is proof.
+    if (state.recorded) return { done: true };
+    return { done: false, required: state.required, text: state.text };
+  } catch (e) { return { done: false }; }
+}
+
+// After إرسال: wait for the FINAL confirmation (recorded text or the /formResponse
+// URL) for the full window before judging - Google keeps the old page (including
+// any validation message) painted while it shows "Saving...", which v0.3.5 misread
+// as a rejection on a submit that actually went through (Micheal 24 Nov).
 async function waitConfirmation(page, timeoutMs) {
   const t0 = Date.now();
-  while (Date.now() - t0 < (timeoutMs || 10000)) {
-    try {
-      const state = await page.evaluate(() => {
-        const t = (document.body && document.body.innerText) || '';
-        return {
-          text: t.slice(0, 400),
-          done: /تم تسجيل ردك|response has been recorded|إرسال رد آخر|Submit another|تم حفظ/i.test(t),
-          required: /مطلوب|required question/i.test(t)
-        };
-      });
-      if (state.done) return { ok: true, submitted: true };
-      if (state.required) {
-        return { ok: false, error: 'validation_blocked', submitted: false, detail: state.text.slice(0, 300) };
-      }
-    } catch (e) {}
-    await sleep(250);
+  let sawRequired = '';
+  while (Date.now() - t0 < (timeoutMs || 15000)) {
+    const s = await confirmState(page);
+    if (s.done) return { ok: true, submitted: true };
+    if (s.required && !sawRequired) sawRequired = s.text || '';
+    await sleep(400);
   }
-  return { ok: false, error: 'did_not_advance', submitted: false, detail: 'no confirmation within timeout' };
+  // Never cried success; how sure are we it failed?
+  if (sawRequired) return { ok: false, error: 'validation_blocked', submitted: false, detail: sawRequired.slice(0, 300) };
+  return { ok: false, error: 'unconfirmed', uncertain: true, submitted: false, detail: 'no confirmation within ' + (timeoutMs || 15000) + 'ms' };
 }
 
 async function runFormWalk(page, job) {
+  try {
+    return await runFormWalkInner(page, job);
+  } catch (e) {
+    // False-negative guard: if the page is already on the confirmation screen,
+    // the response WAS recorded no matter which step threw (24 Nov 4778672).
+    const fin = await confirmState(page);
+    if (fin.done) {
+      return { ok: true, submitted: true, detail: 'confirmed-after-error (' + String(e && (e.detail || e.message) || '').slice(0, 150) + ')' };
+    }
+    throw e;
+  }
+}
+
+async function runFormWalkInner(page, job) {
   const isBreak = job.action === 'break';
   const steps = [];
   let lastT = Date.now();
@@ -268,4 +297,4 @@ async function runFormWalk(page, job) {
   return res;
 }
 
-module.exports = { runFormWalk, clickX, pageMarker, ANOTHER_X };
+module.exports = { runFormWalk, clickX, pageMarker, confirmState, ANOTHER_X };
