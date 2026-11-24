@@ -3628,7 +3628,7 @@ addEventListener('keydown',e=>{if(e.key==='Escape'&&$('loginAuditGate').style.di
 $('loginAuditRefresh').onclick=loadTodayLoginAudit;
 $('loginAuditScreenshot').onclick=event=>captureLoginAuditTable(event.currentTarget);
 $('loginAuditSearch').addEventListener('input',renderLoginAuditRows);
-$('out').onclick=()=>{try{api('/api/auth/logout',{method:'POST'}).catch(()=>{})}catch(e){}try{sessionStorage.removeItem('pd_token');sessionStorage.removeItem('pd_sess');localStorage.removeItem('pd_sess');localStorage.removeItem(REMEMBER_LOGIN_KEY)}catch(e){}setTimeout(()=>location.reload(),200)};
+$('out').onclick=()=>{try{api('/api/chat/offline',{method:'POST'}).catch(()=>{})}catch(e){}try{api('/api/auth/logout',{method:'POST'}).catch(()=>{})}catch(e){}try{sessionStorage.removeItem('pd_token');sessionStorage.removeItem('pd_sess');localStorage.removeItem('pd_sess');localStorage.removeItem(REMEMBER_LOGIN_KEY)}catch(e){}setTimeout(()=>location.reload(),200)};
 $('liveMonitorLogout').onclick=()=>$('out').click();
 /* ---------- خزنة الباسوردات (مشفرة AES-GCM بكلمة سر الأدمن) ---------- */
 const b64=u=>btoa(String.fromCharCode(...u)),ub64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
@@ -6844,6 +6844,7 @@ async function waSend(){if(waBusy)return;const to=$('waTo').value.replace(/\D/g,
 // name-only rows, unread-first, admin monitor mode, image messages, presence.
 let CHAT_PEER=null,CHAT_LAST_ID=0,CHAT_TIMER=null,CHAT_BADGE_TIMER=null;
 let CHAT_CONTACTS=[],CHAT_CONVS=[];
+addEventListener('pagehide',()=>{try{if(CUR&&['admin','manager','sup'].includes(CUR.r))navigator.sendBeacon('/api/chat/offline')}catch(e){}});
 async function refreshChatBadge(){
   if(!CUR||!['admin','manager','sup'].includes(CUR.r))return;
   try{api('/api/chat/ping',{method:'POST'}).catch(()=>{})}catch(e){}
@@ -6885,7 +6886,7 @@ function renderChatList(){
   if(q)rows=rows.filter(c=>String(c.n||'').includes(q)||String(c.u||'').toLowerCase().includes(q.toLowerCase()));
   w.innerHTML=rows.map(c=>{
     const conv=c.conv,unread=conv&&conv.unread||0;
-    const online=c.seen&&(now-c.seen)<120000;
+    const online=c.seen&&(now-c.seen)<75000; // 25 Nov: was 120s - logout/close must drop the dot fast
     const last=conv&&conv.last?conv.last.body:'';
     const badge=unread?`<span style="background:#ef4444;color:#fff;border-radius:999px;padding:2px 9px;font-size:12px;font-weight:900">${NF(unread)}</span>`:'';
     const dot=online?'<span style="color:#22c55e;font-size:11px" title="متصل الآن">● متصل</span>':'';

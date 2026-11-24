@@ -323,6 +323,12 @@ async function handleChat(request, env, json, url) {
     return json({ contacts: (rows.results || []).map(x => ({ u: x.u, n: x.n, r: x.r, s: x.s, seen: seen.get(x.u) || 0 })) });
   }
 
+  if (p === '/api/chat/offline' && request.method === 'POST') {
+    // Micheal 25 Nov: explicit "I'm gone" on logout/window close (sendBeacon).
+    await env.DB.prepare('DELETE FROM chat_presence WHERE u=?').bind(user.u).run();
+    return json({ ok: true });
+  }
+
   if (p === '/api/chat/ping' && request.method === 'POST') {
     await env.DB.prepare('INSERT INTO chat_presence(u,ts) VALUES(?,?) ON CONFLICT(u) DO UPDATE SET ts=excluded.ts').bind(user.u, Date.now()).run();
     return json({ ok: true });
@@ -749,7 +755,11 @@ async function handleAuth(request, env, json, url) {
 
   if (p === '/api/auth/logout' && request.method === 'POST') {
     const user = await getSessionUser(env, request);
-    if (user) await env.DB.prepare('DELETE FROM sessions WHERE token=?').bind(user.token).run();
+    if (user) {
+      await env.DB.prepare('DELETE FROM sessions WHERE token=?').bind(user.token).run();
+      // Micheal 25 Nov: logging out must drop chat presence immediately.
+      await env.DB.prepare('DELETE FROM chat_presence WHERE u=?').bind(user.u).run();
+    }
     return json({ ok: true });
   }
 
