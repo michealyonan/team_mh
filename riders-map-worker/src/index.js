@@ -1139,6 +1139,22 @@ export default {
       return json({ ok: true, set: 'form_cookie_' + which });
     }
 
+    if (url.pathname === '/api/forms/relay-cookie' && request.method === 'POST') {
+      const user = await getSessionUser(env, request);
+      if (!user) return json({ error: 'unauthorized' }, 401);
+      if (user.r !== 'admin') return json({ error: 'forbidden' }, 403);
+      const body = await request.json().catch(() => ({}));
+      const which = String(body.which || '');
+      if (which !== 'alex' && which !== 'general') return json({ error: 'bad_form' }, 400);
+      const cookie = String(body.cookie || '');
+      if (cookie.length < 100 || cookie.length > 8000 || /[\r\n]/.test(cookie)) return json({ error: 'bad_cookie' }, 400);
+      const relayUrl = which === 'alex' ? env.FORM_RELAY_ALEX : env.FORM_RELAY_GENERAL;
+      if (!relayUrl || !env.FORM_RELAY_SECRET) return json({ error: 'relay_not_configured' }, 503);
+      const resp = await fetch(relayUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ secret: env.FORM_RELAY_SECRET, action: 'set_cookie', which, cookie }) });
+      const result = await resp.json().catch(() => ({ error: 'invalid_relay_response' }));
+      return json({ relay: true, result });
+    }
+
     if (url.pathname === '/api/forms/probe-direct' && request.method === 'POST') {
       const user = await getSessionUser(env, request);
       if (!user) return json({ error: 'unauthorized' }, 401);
