@@ -1029,6 +1029,22 @@ export default {
         fields = { 'entry.302135773': 'شيفتات الطيارين', 'entry.1941659317': 'فك بريك', 'entry.264752225': riderId, 'entry.1551386634': cityVal };
         pageHistory = '0,1,6';
       }
+      // Queue/spacing + uncertainty retry-guard (Google Forms cooldown protection)
+      const nowTs = Date.now();
+      try {
+        await ensureSchema(env);
+        const lastRow = await env.DB.prepare("SELECT MAX(ts) AS last FROM form_submissions WHERE (CASE WHEN city='الإسكندرية' THEN 1 ELSE 0 END)=?").bind(isAlex ? 1 : 0).first();
+        const lastTs = lastRow && lastRow.last ? Number(lastRow.last) : 0;
+        const MIN_GAP = 90 * 1000;
+        if (lastTs && nowTs - lastTs < MIN_GAP) return json({ error: 'rate_limited', wait: Math.ceil((MIN_GAP - (nowTs - lastTs)) / 1000) }, 429);
+        const dup = await env.DB.prepare('SELECT id,result FROM form_submissions WHERE action=? AND rider_id=? AND city=? AND ts>=? ORDER BY ts DESC LIMIT 1').bind(action, riderId, city, nowTs - 30 * 60 * 1000).all();
+        const prev = (dup.results || [])[0];
+        if (prev) {
+          let v = {}; try { v = JSON.parse(prev.result) } catch {}
+          if (v.ok === true) return json({ error: 'already_submitted', submission_id: prev.id }, 409);
+          return json({ error: 'uncertain_check_sheet', submission_id: prev.id }, 409);
+        }
+      } catch (e) { /* logging/guard failure must not block a submission */ }
       const resp = await fetch(relayUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ secret: env.FORM_RELAY_SECRET, formId: isAlex ? '1FAIpQLSffSwyTh0w4AYjTU9AG-kj-0UfJHcSTSYnR1DrWJ_h8iPYm3Q' : '1FAIpQLSekxaUQPgiWq-Y_IPfsTx7wTANA324a2JklFJZ_Gxg9CGPaKA', fields, pageHistory }) });
       const result = await resp.json().catch(() => ({error:'invalid_relay_response'}));
       let logSaved=true;
