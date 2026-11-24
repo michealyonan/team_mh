@@ -505,6 +505,9 @@ html[data-theme="light"] .header-supervisor-rank{background:#fef3c7;border-color
 #hiringModal{padding:6px}
 #hiringModal .card{padding:12px}
 }
+/* Modals must not tilt on hover (25 Nov, Micheal 13772361): the global 3D card
+   tilt made the whole chat panel jump as the mouse moved over it. */
+#chatModal .card:hover,#hiringModal .card:hover,#themeModal .card:hover,#notifModal .card:hover{transform:none !important}
 /* Floating buttons (TEAM MH / Live) sit ABOVE the modals (z 80/85 vs 72/75) and cover
    their content on phones - drop them below every overlay (25 Nov, Micheal 13700908). */
 #mkFab{z-index:60 !important}
@@ -2675,7 +2678,12 @@ function setSel(id,list,all){
 }
 function fillOpts(){
   const managers=filterValues('fm'),zones=filterValues('fz'),groups=filterValues('mainZoneGroup');
-  setSel('fm',uniqName('m',ROWS),'كل المديرين');
+  // 25 Nov (Micheal 13774071): picking a zone narrows the manager list to that
+  // zone's managers (supervisors already narrowed). Picked managers stay visible.
+  const rz=ROWS.filter(r=>(!groups.length||groups.some(group=>tgGroupHasZone(group,r.z)))&&(!zones.length||zones.includes(r.z)));
+  const mopts=uniqName('m',rz);
+  for(const m of managers)if(!mopts.some(x=>nameMatchKey(x)===nameMatchKey(m)))mopts.push(m);
+  setSel('fm',mopts,'كل المديرين');
   const r1=ROWS.filter(r=>(!managers.length||managers.some(m=>nameMatchKey(r.m)===nameMatchKey(m)))&&(!groups.length||groups.some(group=>tgGroupHasZone(group,r.z))));
   setSel('fz',uniq('z',r1),'كل المناطق');
   const r2=r1.filter(row=>!zones.length||zones.includes(row.z));setSel('fs',uniqName('s',r2),'كل المشرفين');
