@@ -6251,14 +6251,15 @@ async function loadSupMapPins(){
   if(!items.length){$('supMapStatus').textContent='لسه مفيش مواقع متسجلة — بتتسجل تلقائياً مع كل تسجيل دخول بعد ما المشرف يوافق على إذن الموقع.';return}
   const pts=[];const groups=[];
   for(const g of items){
-   const time=new Date(g.ts).toLocaleString('ar-EG',{hour:'2-digit',minute:'2-digit',day:'numeric',month:'short'});
    const lon=+g.lon,lat=+g.lat;if(!Number.isFinite(lon)||!Number.isFinite(lat)||Math.abs(lon)>180||Math.abs(lat)>90)continue;
    let group=groups.find(v=>Math.abs(v.lat-lat)<0.001&&Math.abs(v.lon-lon)<0.001);if(!group){group={lat,lon,count:0};groups.push(group)}const dup=group.count++;const offset=dup?[32*dup,0]:[0,0];
    const el=document.createElement('div');el.style.cssText='font-size:24px;cursor:pointer';el.textContent='📍';el.title=g.n||g.u;
-   const mine=items.filter(x=>(x.u||'')===(g.u||''));
-   const lastTs=mine.reduce((m,x)=>Math.max(m,+new Date(x.ts)||0),0)||g.ts;
-   const lastTime=new Date(lastTs).toLocaleString('ar-EG',{hour:'2-digit',minute:'2-digit',day:'numeric',month:'short'});
-   const popup=new maplibregl.Popup({offset:20}).setHTML('<div style="min-width:170px;max-width:230px"><div class="mp-t">'+esc(g.n||g.u)+'</div><div class="mp-s" dir="ltr" style="text-align:right">'+esc(g.u)+'</div><div class="mp-r">مرات الدخول: '+mine.length+'</div><div class="mp-r">آخر تسجيل دخول: '+lastTime+'</div><div class="mp-s" dir="ltr" style="text-align:right">'+lat.toFixed(5)+', '+lon.toFixed(5)+'</div></div>');
+   const audits=(window.LOGIN_AUDIT_ROWS||[]).filter(r=>String(r.username||'').trim().toLowerCase()===String(g.u||'').trim().toLowerCase());
+   const lastTime=new Date(g.ts).toLocaleString('ar-EG',{hour:'2-digit',minute:'2-digit',day:'numeric',month:'short'});
+   let photo='';
+   try{const ph=await api('/api/auth/profile/photo?u='+encodeURIComponent(g.u));photo=ph&&ph.photo||''}catch(e){}
+   const imgHtml=photo?'<img src="'+photo+'" alt="" style="width:52px;height:52px;border-radius:50%;object-fit:cover;border:2px solid #e2e8f0;display:block;margin:0 auto 6px">':'';
+   const popup=new maplibregl.Popup({offset:20}).setHTML('<div style="min-width:170px;max-width:230px">'+imgHtml+'<div class="mp-t">'+esc(g.n||g.u)+'</div><div class="mp-s" dir="ltr" style="text-align:right">'+esc(g.u)+'</div><div class="mp-r">مرات الدخول: '+(audits.length||'—')+'</div><div class="mp-r">آخر تسجيل دخول: '+lastTime+'</div><div class="mp-s" dir="ltr" style="text-align:right">'+lat.toFixed(5)+', '+lon.toFixed(5)+'</div></div>');
    SUP_MAP_MARKERS.push(new maplibregl.Marker({element:el,offset}).setLngLat([lon,lat]).setPopup(popup).addTo(SUP_MAP));
    pts.push([lon,lat]);
   }
