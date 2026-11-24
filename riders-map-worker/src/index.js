@@ -359,6 +359,18 @@ async function handleChat(request, env, json, url) {
     return json({ messages: (rows.results || []).map(m => ({ id: m.id, mine: m.from_u === a, body: m.body, kind: m.kind || 'text', ts: m.ts, read: !!m.read_at })) });
   }
 
+  if (p === '/api/chat/delete' && request.method === 'POST') {
+    // Admin deletes a whole conversation between two users (Micheal 25 Nov 13683334).
+    if (user.r !== 'admin') return json({ error: 'forbidden' }, 403);
+    let body = null;
+    try { body = await request.json(); } catch (e) {}
+    const a = String((body && body.a) || '').toLowerCase().slice(0, 60);
+    const b = String((body && body.b) || '').toLowerCase().slice(0, 60);
+    if (!a || !b || a === b) return json({ error: 'bad_peer' }, 400);
+    const r = await env.DB.prepare('DELETE FROM chat_messages WHERE (from_u=? AND to_u=?) OR (from_u=? AND to_u=?)').bind(a, b, b, a).run();
+    return json({ ok: true, deleted: (r.meta && r.meta.changes) || 0 });
+  }
+
   if (p === '/api/chat/thread' && request.method === 'GET') {
     const peer = String(url.searchParams.get('with') || '').toLowerCase().slice(0, 60);
     if (!peer || peer === user.u) return json({ error: 'bad_peer' }, 400);

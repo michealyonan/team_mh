@@ -1300,7 +1300,7 @@ html[data-theme="light"] .kpi .l,html[data-theme="light"] .kpi .s{color:#526a82!
     <div id="chatListRows"></div>
    </div>
    <div id="chatMonitorWrap" style="display:none;flex:1;flex-direction:column;margin-top:10px">
-    <div style="display:flex;gap:6px;margin-bottom:8px"><select id="chatMonA" style="flex:1"></select><select id="chatMonB" style="flex:1"></select><button class="btn pr" type="button" onclick="chatMonitorShow()">عرض</button></div>
+    <div style="display:flex;gap:6px;margin-bottom:8px"><select id="chatMonA" style="flex:1"></select><select id="chatMonB" style="flex:1"></select><button class="btn pr" type="button" onclick="chatMonitorShow()">عرض</button><button class="btn" type="button" style="background:#7f1d1d" onclick="chatMonitorDelete()">🗑 مسح الشات</button></div>
     <div id="chatMonMsgs" style="flex:1;min-height:300px;max-height:55vh;overflow:auto;display:flex;flex-direction:column;gap:6px;padding:8px;background:rgba(255,255,255,.04);border-radius:10px"></div>
    </div>
    <div id="chatThreadWrap" style="display:none;flex:1;flex-direction:column;margin-top:10px">
@@ -6935,6 +6935,16 @@ async function chatMonitorShow(){
     if(!(d.messages||[]).length)box.innerHTML='<div class="sub" style="text-align:center;margin-top:20px">مفيش رسايل بينهم</div>';
     box.scrollTop=box.scrollHeight;
   }catch(e){box.innerHTML='<div class="sub">فشل التحميل</div>'}
+}
+// Admin deletes the monitored conversation (Micheal 25 Nov).
+async function chatMonitorDelete(){
+  const a=$('chatMonA').value,b=$('chatMonB').value;
+  if(!a||!b||a===b)return;
+  if(!confirm('متأكد إنك عايز تمسح كل الرسايل بين الشخصين دول؟ مفيش رجوع.'))return;
+  try{
+    const d=await api('/api/chat/delete',{method:'POST',body:{a,b}});
+    $('chatMonMsgs').innerHTML='<div class="sub" style="text-align:center;margin-top:20px">اتمسح الشات ✅ ('+NF(d.deleted||0)+' رسالة)</div>';
+  }catch(e){$('chatMonMsgs').innerHTML='<div class="sub">فشل المسح</div>'}
 }
 $('chatSendBtn').onclick=sendChat;
 $('chatIn').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();sendChat()}});
