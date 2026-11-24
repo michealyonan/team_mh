@@ -18,7 +18,7 @@ FORM: RTL operations console, preserving the existing dashboard content, control
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="preconnect" href="https://docs.google.com"><link href="https://fonts.googleapis.com/css2?family=Aref+Ruqaa:wght@400;700&family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 :root{color-scheme:dark;--bg:#0b0f19;--card:#121a2b;--bd:#232e45;--tx:#f3f5f9;--mut:#8b97b0;--pr:#3b82f6;--ok:#10b981;--wa:#f59e0b;--bad:#ef4444;--pu:#8b5cf6;--cy:#06b6d4}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -1101,7 +1101,7 @@ html[data-theme="light"] body{background:radial-gradient(ellipse at 8% 0%,#d6f4f
 @media(min-width:1650px){#kpis.kpis{grid-template-columns:repeat(11,minmax(0,1fr));gap:8px}#kpis .kpi{min-width:0;min-height:96px;padding:9px 8px}#kpis .kpi .l{font-size:11px;line-height:1.35}#kpis .kpi .v{font-size:21px;line-height:1.2}#kpis .kpi .s{font-size:10px;line-height:1.35}}
 </style>
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.6.1/dist/maplibre-gl.css">
-<script src="https://unpkg.com/maplibre-gl@5.6.1/dist/maplibre-gl.js"></script>
+<script defer src="https://unpkg.com/maplibre-gl@5.6.1/dist/maplibre-gl.js"></script>
 <style>
 #riderMapCanvas{width:100%;height:min(72vh,760px);min-height:420px;border:1px solid var(--bd);border-radius:12px;background:#dbeafe;z-index:1}
 #riderMapStatus{min-height:24px}
@@ -1176,6 +1176,27 @@ html[data-theme="light"] body{background:radial-gradient(ellipse at 8% 0%,#d6f4f
  #payTable tbody td[colspan]:before{content:none}
 }
 @media(max-width:699px){#payB.pay-access{display:flex!important}}
+</style>
+
+<style id="responsive-control-polish">
+button,.btn,.chip,[role="button"]{-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.btn,.chip{transition:background-color .12s ease,border-color .12s ease,box-shadow .12s ease;position:relative}
+.btn:active:not(:disabled),.chip:active:not(:disabled),.tap-feedback:not(:disabled){background-color:#254967!important;border-color:#67c9f1!important;box-shadow:inset 0 0 0 1px #67c9f155}
+.btn:disabled,.chip:disabled{cursor:not-allowed}
+textarea{font-family:inherit;color:var(--tx);background:var(--surface-raised,#17263b);border:1px solid var(--bd);border-radius:9px;padding:9px;line-height:1.6}
+textarea:focus-visible,button:focus-visible,[role="button"]:focus-visible{outline:3px solid #38bdf866;outline-offset:2px}
+.section-screen .card,.section-screen select,.section-screen input,.section-screen textarea{border-color:var(--bd)}
+html:not([data-theme="light"]) select{color-scheme:dark}
+html[data-theme="light"] .tap-feedback:not(:disabled),html[data-theme="light"] .btn:active:not(:disabled),html[data-theme="light"] .chip:active:not(:disabled){background-color:#d8edf9!important;color:#15334e!important}
+@media(max-width:699px){.nav-drawer-links .btn{backdrop-filter:none;-webkit-backdrop-filter:none}.btn,.chip{min-height:42px}.multi-filter-toggle{min-height:44px}}
+.nav-drawer{background:var(--card)!important;border-color:var(--bd)!important;box-shadow:0 16px 48px #0006}
+.nav-drawer-heading{border-color:var(--bd)}
+.nav-drawer-links .btn{background:var(--surface-raised,#17263b);color:var(--tx);border-color:var(--bd);border-radius:12px;box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none}
+.nav-drawer-links .btn:hover{background:#203c58;border-color:#5680ae;transform:none}
+.nav-drawer-links .btn[aria-expanded="true"]{background:#123b57;border-color:#2879a8;box-shadow:none}
+html[data-theme="light"] .nav-drawer-links .btn:hover{background:#e5f2fa}
+html[data-theme="light"] .nav-drawer-links .btn[aria-expanded="true"]{background:#d8edf9}
+@media(prefers-reduced-motion:reduce){.btn,.chip{transition:none}}
 </style>
 </head>
 <body>
@@ -1777,6 +1798,11 @@ header{box-shadow:0 8px 24px rgba(2,8,23,.5)}
  </div>
 </div>
 <script>
+
+// Feedback is visual only: never dispatch or replay an action.
+let tapFeedbackTimer,tapFeedbackButton;
+document.addEventListener('pointerdown',event=>{const button=event.target.closest('button,.btn,.chip,[role="button"]');if(!button||button.disabled)return;if(tapFeedbackButton)tapFeedbackButton.classList.remove('tap-feedback');clearTimeout(tapFeedbackTimer);tapFeedbackButton=button;button.classList.add('tap-feedback');tapFeedbackTimer=setTimeout(()=>{button.classList.remove('tap-feedback');tapFeedbackButton=null},220)},{passive:true});
+
 const PRICES_EMBED={};
 const USERS_EMBED=[];
 const PW_EMBED=null;
@@ -1831,6 +1857,8 @@ function multiFilterRefresh(id){
   const single=selected.length===1?[...select.options].find(option=>option.value===selected[0]):null;
   button.querySelector('span').textContent=selected.length===0?label:selected.length===1?(single?single.textContent:selected[0]):selected.length+' اختيارات محددة';
   button.setAttribute('aria-label',`${select.getAttribute('aria-label')||select.parentElement.querySelector('label')?.textContent.trim()||label}: ${button.querySelector('span').textContent}`);
+  // Closed menus need only their label. Build checkbox rows when the user opens one.
+  if(!widget.classList.contains('is-open'))return;
   const options=widget.querySelector('.multi-filter-options'),search=widget.querySelector('.multi-filter-search'),currentDraft=draft||new Set(selected);
   const all=document.createElement('label');all.className='multi-filter-option';
   const allCheck=document.createElement('input');allCheck.type='checkbox';allCheck.checked=currentDraft.size===0;allCheck.dataset.all='true';
@@ -1916,7 +1944,8 @@ document.addEventListener('keydown',event=>{
   if(event.key==='Escape')for(const[id,widget]of MULTI_FILTER_WIDGETS)if(!widget.querySelector('.multi-filter-menu').hidden)multiFilterClose(id);
 });
 let ROWS=[],AGG=[],sortK='o',sortD=-1,page=0,PS=25,charts={},timer,range=[0,0],preset='month';
-const DAY=864e5, NF=n=>Math.round(n).toLocaleString('en'), F1=n=>(+n).toFixed(1), FH=n=>{const value=Number(n)||0;return Number.isInteger(value)?NF(value):value.toLocaleString('en',{maximumFractionDigits:1})};
+const NUMBER_FORMAT=new Intl.NumberFormat('en'),HOURS_FORMAT=new Intl.NumberFormat('en',{maximumFractionDigits:1});
+const DAY=864e5, NF=n=>NUMBER_FORMAT.format(Math.round(n)), F1=n=>(+n).toFixed(1), FH=n=>{const value=Number(n)||0;return Number.isInteger(value)?NF(value):HOURS_FORMAT.format(value)};
 function calendarDaysInclusive(start,end){
   if(!Number.isFinite(start)||!Number.isFinite(end)||end<start)return 1;
   const first=new Date(start),last=new Date(end),firstUtc=Date.UTC(first.getFullYear(),first.getMonth(),first.getDate()),lastUtc=Date.UTC(last.getFullYear(),last.getMonth(),last.getDate());
@@ -2330,8 +2359,10 @@ function pd(s){
   const date=new Date(y,m-1,d);
   return date.getFullYear()===y&&date.getMonth()===m-1&&date.getDate()===d?date.getTime():0;
 }
-const ds=t=>{const x=new Date(t);return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0')};
-const fd=t=>t?new Date(t).toLocaleDateString('en-GB'):'—';
+const DATE_KEY_CACHE=new Map();
+const ds=t=>{if(DATE_KEY_CACHE.has(t))return DATE_KEY_CACHE.get(t);const x=new Date(t),key=x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0');if(DATE_KEY_CACHE.size>=2000)DATE_KEY_CACHE.clear();DATE_KEY_CACHE.set(t,key);return key};
+const DATE_FORMAT=new Intl.DateTimeFormat('en-GB'),SHORT_DATE_FORMAT=new Intl.DateTimeFormat('en-GB',{day:'2-digit',month:'2-digit'});
+const fd=t=>t?DATE_FORMAT.format(new Date(t)):'—';
 const fdt=t=>t?new Date(+t).toLocaleString('ar-EG',{dateStyle:'short',timeStyle:'short'}):'غير متوفر';
 const SYNC_KEY='pd_last_data_sync';let LAST_SYNC=0;
 function lastSync(){try{return localStorage.getItem(SYNC_KEY)||LAST_SYNC||null}catch(e){return LAST_SYNC||null}}
@@ -2367,7 +2398,9 @@ function jsonp(){return new Promise((ok,no)=>{
       if(typeof v==='string'){const m=v.match(/^Date\((\d+),(\d+),(\d+)/);if(m)v=m[3]+'-'+(+m[2]+1)+'-'+m[1]}a.push(v)}rows.push(a)}ok(rows)};
   sc.onerror=()=>{clearTimeout(tm);no('فشل تحميل السكربت من جوجل (إنترنت/الشيت غير عام)')};
   sc.src=`https://docs.google.com/spreadsheets/d/${SID}/gviz/tq?gid=0&headers=1&tqx=out:json;responseHandler:__gv`;document.head.appendChild(sc)})}
-async function load(){
+let DASHBOARD_LOAD_PROMISE=null;
+function load(){if(DASHBOARD_LOAD_PROMISE)return DASHBOARD_LOAD_PROMISE;DASHBOARD_LOAD_PROMISE=loadDashboardData().finally(()=>{DASHBOARD_LOAD_PROMISE=null});return DASHBOARD_LOAD_PROMISE}
+async function loadDashboardData(){
   startLivePolling();
   $('msg').style.display='none';let cached=false;if(!ROWS.length){const c=await idb('get');if(c&&c.length){ALL=normalizeVehicleRows(c);ROWS=scope(ALL);cached=true;done(false);setSyncStatus('refreshing','نعرض نسخة محفوظة مؤقتًا')}}
   const hadData=ROWS.length>0;
@@ -2396,11 +2429,12 @@ function done(fresh){
   $('load').style.display='none';if(!ROWS.length){const m=$('msg');m.style.display='block';m.textContent='لا توجد بيانات مرتبطة بحسابك.'}fillOpts();setPreset(preset,true);
 }
 /* ---------- filters ---------- */
-const nameMatchKey=value=>String(value||'').normalize('NFKC')
+const NAME_KEY_CACHE=new Map();
+const nameMatchKey=value=>{const raw=String(value||'');if(NAME_KEY_CACHE.has(raw))return NAME_KEY_CACHE.get(raw);const key=raw.normalize('NFKC')
   .replace(/[\u064B-\u065F\u0670\u0640]/g,'')
   .replace(/[أإآٱ]/g,'ا').replace(/ى/g,'ي')
   .replace(/[\u200e\u200f\u202a-\u202e]/g,'')
-  .replace(/\s+/g,' ').trim().toLocaleLowerCase('ar');
+  .replace(/\s+/g,' ').trim().toLocaleLowerCase('ar');if(NAME_KEY_CACHE.size>=20000)NAME_KEY_CACHE.clear();NAME_KEY_CACHE.set(raw,key);return key};
 const SUP_TARGET_GID='1584356034',SUP_TARGET_CACHE_KEY='supervisorDailyTargets_v1';
 let SUP_TARGETS=new Map(),SUP_TARGET_STATUS='loading',SUP_TARGET_PROMISE=null;
 function ingestSupervisorTargets(rows){
@@ -2549,7 +2583,8 @@ function uniqName(k,rows){
   return [...names.values()].sort((a,b)=>a.localeCompare(b,'ar'));
 }
 function setSel(id,list,all){
-  const s=$(id),current=s.value,selected=MULTI_FILTER_VALUES.has(id)?filterValues(id):[];
+  const s=$(id),signature=JSON.stringify([all,list]);if(s.dataset.optionSignature===signature)return;s.dataset.optionSignature=signature;
+  const current=s.value,selected=MULTI_FILTER_VALUES.has(id)?filterValues(id):[];
   s.innerHTML=`<option value="">${all}</option>`+list.map(x=>`<option>${x}</option>`).join('');
   if(MULTI_FILTER_VALUES.has(id))setFilterValues(id,selected);
   else if(list.includes(current))s.value=current;
@@ -2573,15 +2608,15 @@ function setPreset(p,silent){
   else if(p==='last'){a=new Date(M.getFullYear(),M.getMonth()-1,1).getTime();b=new Date(M.getFullYear(),M.getMonth(),0).getTime()}
   $('d1').value=ds(Math.max(a,mn));$('d2').value=ds(b);
   document.querySelectorAll('.chip').forEach(c=>c.classList.toggle('on',c.dataset.p===p));
-  if(!silent||true)apply();
+  if(silent)apply();else requestDashboardApply();
 }
 [['yest','آخر تحديث'],['7','آخر 7 أيام'],['30','آخر 30 يوم'],['month','هذا الشهر'],['last','الشهر الماضي'],['all','كل الفترة']].forEach(([p,t])=>{
   const b=document.createElement('button');b.className='chip';b.dataset.p=p;b.textContent=t;b.onclick=()=>setPreset(p);$('chips').appendChild(b)});
-['d1','d2'].forEach(i=>$(i).onchange=()=>{preset='';document.querySelectorAll('.chip').forEach(c=>c.classList.remove('on'));apply()});
-['fm','fz','fs'].forEach(i=>$(i).onchange=()=>{if(i==='fm')setFilterValues('fz',[]);if(i!=='fs')setFilterValues('fs',[]);fillOpts();apply()});
- $('mainZoneGroup').onchange=()=>{setFilterValues('fz',[]);setFilterValues('fs',[]);fillOpts();apply()};
-['fv','fb','fc','fw'].forEach(i=>$(i).onchange=apply);
-let qt;$('q').oninput=()=>{clearTimeout(qt);qt=setTimeout(apply,250)};
+['d1','d2'].forEach(i=>$(i).onchange=()=>{preset='';document.querySelectorAll('.chip').forEach(c=>c.classList.remove('on'));requestDashboardApply()});
+['fm','fz','fs'].forEach(i=>$(i).onchange=()=>{if(i==='fm')setFilterValues('fz',[]);if(i!=='fs')setFilterValues('fs',[]);fillOpts();requestDashboardApply()});
+ $('mainZoneGroup').onchange=()=>{setFilterValues('fz',[]);setFilterValues('fs',[]);fillOpts();requestDashboardApply()};
+['fv','fb','fc','fw'].forEach(i=>$(i).onchange=requestDashboardApply);
+let qt;$('q').oninput=()=>{clearTimeout(qt);qt=setTimeout(requestDashboardApply,180)};
 function updateFilterControls(){
   const active=['mainZoneGroup','fm','fz','fs','fv','fb','fc','fw'].filter(id=>filterValues(id).length).length+($('q').value.trim()?1:0);
   $('filterCount').textContent=active?'· '+active+' نشط':'· بدون فلاتر';
@@ -2589,10 +2624,16 @@ function updateFilterControls(){
   $('filterToggle').setAttribute('aria-expanded',String(!$('filterPanel').classList.contains('collapsed')));
 }
 $('filterToggle').onclick=()=>{$('filterPanel').classList.toggle('collapsed');updateFilterControls()};
-$('filterClear').onclick=()=>{['mainZoneGroup','fm','fz','fs','fv','fb','fc','fw'].forEach(id=>setFilterValues(id,[]));$('q').value='';fillOpts();apply()};
+$('filterClear').onclick=()=>{['mainZoneGroup','fm','fz','fs','fv','fb','fc','fw'].forEach(id=>setFilterValues(id,[]));$('q').value='';fillOpts();requestDashboardApply()};
 if(matchMedia('(max-width: 699px)').matches)$('filterPanel').classList.add('collapsed');
 updateFilterControls();
 
+let DASHBOARD_APPLY_QUEUED=false;
+function requestDashboardApply(){
+  if(DASHBOARD_APPLY_QUEUED)return;DASHBOARD_APPLY_QUEUED=true;
+  $('cnt').textContent='جارٍ تحديث النتائج…';$('kpis').setAttribute('aria-busy','true');
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{DASHBOARD_APPLY_QUEUED=false;try{apply()}finally{$('kpis').removeAttribute('aria-busy')}}));
+}
 function apply(){
   const a=new Date($('d1').value).setHours(0,0,0,0),b=new Date($('d2').value).setHours(0,0,0,0);
   const selectedPeriodDays=calendarDaysInclusive(a,b);
@@ -2669,10 +2710,19 @@ function apply(){
   D5=Object.entries(byDate).sort(([a],[b])=>a.localeCompare(b)).map(([date,values])=>({date,o:values.o,a:values.a,riders:values.riders.size}));drawCh5();
   extras();extras2(T,commit,oph,list,selectedPeriodDays);idleRiders();render();
 }
-function draw(id,cfg){
+const DEFERRED_CHARTS=new Map(),DASHBOARD_CHART_IDS=new Set(['ch1','ch2','ch3','ch5','ch7','ch8','ch10','ch11']);
+const chartVisibilityObserver='IntersectionObserver' in window?new IntersectionObserver(entries=>{for(const entry of entries){if(!entry.isIntersecting)continue;const id=entry.target.id,cfg=DEFERRED_CHARTS.get(id);if(cfg){DEFERRED_CHARTS.delete(id);draw(id,cfg,true)}}},{rootMargin:'180px'}):null;
+function flushDashboardCharts(){for(const[id,cfg]of [...DEFERRED_CHARTS]){DEFERRED_CHARTS.delete(id);draw(id,cfg,true)}}
+function draw(id,cfg,force=false){
+  const canvas=$(id);if(!canvas)return;
+  if(!force&&chartVisibilityObserver&&DASHBOARD_CHART_IDS.has(id)){
+    const box=canvas.getBoundingClientRect();
+    if(!canvas.getClientRects().length||box.top>innerHeight+180||box.bottom< -180){DEFERRED_CHARTS.set(id,cfg);chartVisibilityObserver.observe(canvas);return}
+  }
+  DEFERRED_CHARTS.delete(id);
   const themeStyles=getComputedStyle(document.documentElement);
   Chart.defaults.font.family='Cairo';Chart.defaults.font.size=innerWidth<700?10:12;Chart.defaults.color=themeStyles.getPropertyValue('--mut').trim();Chart.defaults.borderColor=themeStyles.getPropertyValue('--bd').trim();
-  cfg.options=Object.assign({responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{boxWidth:10}}}},cfg.options);
+  cfg.options=Object.assign({responsive:true,maintainAspectRatio:false,animation:false,plugins:{legend:{labels:{boxWidth:10}}}},cfg.options);
   if(cfg.options.scales&&cfg.options.scales.y)for(const k in cfg.options.scales)cfg.options.scales[k].grid=cfg.options.scales[k].grid||{color:themeStyles.getPropertyValue('--bd').trim()};
   if(charts[id]){const chart=charts[id];chart.config.type=cfg.type;chart.config.data=cfg.data;chart.config.options=cfg.options;if(cfg.plugins)chart.config.plugins=cfg.plugins;chart.update('none')}
   else charts[id]=new Chart($(id),cfg);
@@ -2844,7 +2894,7 @@ function showR(id){
   $('mt').textContent=`${x.n} · ${x.id} · ${x.z} · ${x.s}`;
   $('ms').innerHTML=[['طلبات',NF(x.o)],['ساعات فعلية',F1(x.a)],['الالتزام',F1(x.c)+'%'],['طلب/س',F1(x.oph)],['أيام عمل',x.days],['المحفظة',NF(x.w)+' ج'],['المركبة',x.v||'—'],['العقد',x.e?fd(x.e):'—']].map(k=>`<div class="kpi" style="--c:var(--pr)"><div class="l">${k[0]}</div><div class="v" style="font-size:16px">${k[1]}</div></div>`).join('');
   $('md').style.display='block';
-  draw('ch6',{type:'bar',data:{labels:rs.map(r=>new Date(r.t).toLocaleDateString('en-GB',{day:'2-digit',month:'2-digit'})),datasets:[{label:'طلبات',data:rs.map(r=>r.o),backgroundColor:'#3b82f6aa',yAxisID:'y'},{label:'ساعات فعلية',type:'line',data:rs.map(r=>r.a),borderColor:'#10b981',yAxisID:'y1'},{label:'ساعات مخططة',type:'line',data:rs.map(r=>r.p),borderColor:'#f59e0b',borderDash:[4,4],yAxisID:'y1'}]},options:{scales:{y:{position:'left'},y1:{position:'right',grid:{display:false}}}}});
+  draw('ch6',{type:'bar',data:{labels:rs.map(r=>SHORT_DATE_FORMAT.format(r.t)),datasets:[{label:'طلبات',data:rs.map(r=>r.o),backgroundColor:'#3b82f6aa',yAxisID:'y'},{label:'ساعات فعلية',type:'line',data:rs.map(r=>r.a),borderColor:'#10b981',yAxisID:'y1'},{label:'ساعات مخططة',type:'line',data:rs.map(r=>r.p),borderColor:'#f59e0b',borderDash:[4,4],yAxisID:'y1'}]},options:{scales:{y:{position:'left'},y1:{position:'right',grid:{display:false}}}}});
 }
 /* ---------- table ---------- */
 let VW=[],tfSrc=null;
@@ -2856,18 +2906,18 @@ function tfDateRows(){
   const grouped=new Map;for(const r of rows){const x=grouped.get(r.id)||{id:r.id,n:r.n,z:r.z,s:r.s,m:r.m,v:r.v,bt:r.bt,o:0,a:0,p:0,b:0,days:0,wd:0,workDays:new Set,pay:0,lt:0,w:0,e:0};x.o+=r.o;x.a+=r.a;x.p+=r.p;x.b+=r.b;x.days++;if(r.a>0||r.o>0){x.workDays.add(ds(r.t));x.wd=x.workDays.size}x.pay+=r.o*pr(r.s,r.bt,r.v);if(r.t>=x.lt){x.lt=r.t;x.w=r.w;x.e=r.e;x.n=r.n||x.n}grouped.set(r.id,x)}
   const now=Date.now(),contractFilters=filterValues('fc'),walletFilters=filterValues('fw');return[...grouped.values()].map(x=>({...x,c:x.p?x.a/x.p*100:0,oph:x.a?x.o/x.a:0,avg:x.wd?x.a/x.wd:0,left:x.e?Math.ceil((x.e-now)/DAY):null})).filter(x=>(!contractFilters.length||contractFilters.some(value=>x.left!==null&&(value==='exp'?x.left<0:x.left>=0&&x.left<=+value)))&&(!walletFilters.length||walletFilters.some(value=>value==='neg'?x.w<0:value==='zero'?x.w===0:x.w>0)));
 }
-function tfFill(rows=AGG){if(tfSrc===rows)return;tfSrc=rows;for(const k in TF){const u=[...new Set(rows.map(x=>x[k]).filter(Boolean))].sort((a,b)=>String(a).localeCompare(String(b),'ar',{numeric:true}));setSel(TF[k],u,TFL[k])}}
+function tfFill(rows=AGG){const source=$('tf_date_from').value||$('tf_date_to').value?rows:AGG;if(tfSrc===source)return;tfSrc=source;for(const k in TF){const u=[...new Set(rows.map(x=>x[k]).filter(Boolean))].sort((a,b)=>String(a).localeCompare(String(b),'ar',{numeric:true}));setSel(TF[k],u,TFL[k])}}
 function tfOk(ignoreRank=false){const g=i=>$(i).value,q=g('tf_q').trim().toLowerCase(),f={};for(const k in TF)f[k]=filterValues(TF[k]);
-  const c=filterValues('tf_c'),r=filterValues('tf_r'),w=filterValues('tf_w'),l=filterValues('tf_l');
+  const c=filterValues('tf_c'),r=filterValues('tf_r'),w=filterValues('tf_w'),l=filterValues('tf_l'),rankValue=g('tf_rank');
   return x=>{for(const k in TF)if(f[k].length&&!f[k].includes(String(x[k])))return false;
     if(q&&!(String(x.n).toLowerCase().includes(q)||String(x.id).toLowerCase().includes(q)))return false;
-    if(!ignoreRank&&g('tf_rank')&&x.rank!==+g('tf_rank'))return false;
+    if(!ignoreRank&&rankValue&&x.rank!==+rankValue)return false;
     if(c.length&&!c.some(value=>value==='90'?x.c>=90:value==='60'?x.c>=60&&x.c<90:x.c<60))return false;
     if(r.length&&!r.includes(rate(x)[0]))return false;
     if(w.length&&!w.some(value=>value==='neg'?x.w<0:value==='zero'?x.w===0:x.w>0))return false;
     if(l.length&&!l.some(value=>x.left!==null&&(value==='exp'?x.left<0:value==='ok'?x.left>30:x.left>=0&&x.left<=+value)))return false;
     return true}}
-document.querySelectorAll('#tf select,#tf input').forEach(e=>{const h=()=>{page=0;render()};e.onchange=h;if(e.tagName==='INPUT')e.oninput=h});const tfPeriodButtons=[['yest','آخر تحديث'],['7','آخر 7 أيام'],['30','آخر 30 يوم'],['month','هذا الشهر'],['last','الشهر الماضي'],['all','كل الفترة']];
+let tableFilterTimer;document.querySelectorAll('#tf select,#tf input').forEach(e=>{const h=()=>{clearTimeout(tableFilterTimer);page=0;render()};e.onchange=h;if(e.tagName==='INPUT')e.oninput=()=>{clearTimeout(tableFilterTimer);tableFilterTimer=setTimeout(h,120)}});const tfPeriodButtons=[['yest','آخر تحديث'],['7','آخر 7 أيام'],['30','آخر 30 يوم'],['month','هذا الشهر'],['last','الشهر الماضي'],['all','كل الفترة']];
 function tfSetPreset(p){
   const mx=ROWS.reduce((a,r)=>r.t>a?r.t:a,0),mn=ROWS.reduce((a,r)=>!a||r.t<a?r.t:a,0),M=new Date(mx);let a=mn,b=mx;
   if(p==='yest')a=b;else if(p==='7')a=mx-6*DAY;else if(p==='30')a=mx-29*DAY;
@@ -3145,7 +3195,7 @@ function setM1(metric){M1=metric;drawCh1()}
 function drawCh1(){
   if(!D1)return;const {days,day}=D1,orders=M1==='o',riders=M1==='r',metric=orders?'طلبات':riders?'عدد المناديب':'ساعات فعلية',color=orders?'#3b82f6':riders?'#8b5cf6':'#10b981',type=orders||riders?'bar':'line';
   $('m1o').classList.toggle('on',orders);$('m1a').classList.toggle('on',!orders&&!riders);$('m1r').classList.toggle('on',riders);
-  draw('ch1',{type,plugins:[dashboardValueLabels],data:{labels:days.map(d=>new Date(d).toLocaleDateString('en-GB',{day:'2-digit',month:'2-digit'})),
+  draw('ch1',{type,plugins:[dashboardValueLabels],data:{labels:days.map(d=>SHORT_DATE_FORMAT.format(d)),
     datasets:[{label:metric,data:days.map(d=>orders?day[d].o:riders?(day[d].activeRiders?day[d].activeRiders.size:0):+day[d].a.toFixed(1)),
       backgroundColor:type==='line'?color+'33':color+'aa',borderColor:color,fill:type==='line',tension:.3,pointRadius:type==='line'&&days.length>31?0:3}]},options:{}});
 }
@@ -3825,6 +3875,7 @@ function tgMonthDraw(){
 }
 let TG_SCREENSHOT_LIB_PROMISE=null,TG_SCREENSHOT_ZIP_PROMISE=null,TG_SCREENSHOT_BUSY=false;
 function tgLoadScreenshotLibrary(){
+  flushDashboardCharts();
   if(typeof window.html2canvas==='function')return Promise.resolve(window.html2canvas);
   if(TG_SCREENSHOT_LIB_PROMISE)return TG_SCREENSHOT_LIB_PROMISE;
   TG_SCREENSHOT_LIB_PROMISE=new Promise((resolve,reject)=>{
