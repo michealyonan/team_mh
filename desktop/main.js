@@ -7,10 +7,10 @@ const { app, BrowserWindow, shell, Notification, ipcMain } = require('electron')
 const fs = require('fs');
 const path = require('path');
 const { autoUpdater } = require('electron-updater');
-const { getBrowser, firstPage, peekBrowser } = require('./chromeproc');
+const { getBrowser, firstPage, peekBrowser, launchPlain } = require('./chromeproc');
 const { runFormWalk, clickX, pageMarker, confirmState } = require('./chromewalk');
 
-const VERSION = '0.3.7';
+const VERSION = '0.3.8';
 // App-generated black proof image for فتح شيفت uploads (64x64 PNG, written on demand).
 const BLACK_PNG_B64 = 'iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAAIklEQVR4nO3BAQ0AAADCoPdPbQ8HFAAAAAAAAAAAAAAA8G4wQAABiwCo9wAAAABJRU5ErkJggg==';
 function proofPngPath() {
@@ -136,33 +136,28 @@ function injectPanel() {
 async function openGoogleSignin(which) {
   const cfg = FORMS[which];
   if (!cfg) return;
-  notify('team_mh', 'كروم هيفتح - سجّل دخول جوجل بالحساب ' + cfg.email + ' مرة واحدة والتطبيق هيكمل لوحده');
-  let browser;
-  try { browser = await getBrowser(which, app.getPath('userData')); }
-  catch (e) { notify('team_mh ❌', 'مش قادر أفتح كروم على الجهاز ده'); return; }
-  let page;
-  try { page = await firstPage(browser); }
-  catch (e) { notify('team_mh ❌', 'مش قادر أفتح تاب في كروم'); return; }
-  try { await page.goto(cfg.url, { waitUntil: 'domcontentloaded', timeout: 60000 }); } catch (e) {}
-  await settleUrl(page, 15000);
-  const deadline = Date.now() + SIGNIN_WAIT_MS;
-  while (Date.now() < deadline) {
-    let url = '';
-    try { url = page.url(); } catch (e) { return; } // tab closed by Micheal
+  try { const b = peekBrowser(which); if (b) await b.close(); } catch (e) {}
+  delete warmPages[which];
+  try { await manualSignin(which, cfg); } catch (e) { notify('team_mh ❌', 'مش قادر أفتح كروم على الجهاز ده'); return; }
+  // Verify the session by attaching normally now.
+  try {
+    const browser = await getBrowser(which, app.getPath('userData'));
+    const page = await firstPage(browser);
+    await page.goto(cfg.url, { waitUntil: 'domcontentloaded', timeout: 60000 });
+    const url = await settleUrl(page, 15000);
     if (/docs\.google\.com\/forms/.test(url)) {
       let acct = '';
       try { acct = String(await page.evaluate(accountFromPageFn) || '').toLowerCase(); } catch (e) {}
-      if (acct) {
-        const st = readState();
-        st[which] = { account: acct, at: Date.now() };
-        writeState(st);
-        pushState();
-        notify('team_mh ✅', 'تم تسجيل الدخول: ' + acct);
-        return;
-      }
+      const st = readState();
+      st[which] = { account: acct || cfg.email, at: Date.now() };
+      writeState(st);
+      pushState();
+      notify('team_mh ✅', 'تم تسجيل الدخول: ' + (acct || cfg.email));
+      warmPages[which] = page;
+      return;
     }
-    await sleep(2000);
-  }
+  } catch (e) {}
+  notify('team_mh ❌', 'تسجيل الدخول مكملش - جرّب تاني');
 }
 
 // Wait for the page URL to settle: Google Forms bounces through a client-side
@@ -180,6 +175,20 @@ async function settleUrl(page, ms) {
     await sleep(500);
   }
   return last;
+}
+
+// First-time Google sign-in must happen in PLAIN Chrome (no automation flags):
+// Google rejects sign-in inside the puppeteer-driven window ("This browser or
+// app may not be secure"). We close the driven window, open normal Chrome on the
+// form URL, and wait for Micheal to sign in and close the window himself.
+async function manualSignin(group, cfg) {
+  notify('team_mh 🔐', 'سجّل دخول جوجل بالحساب ' + cfg.email + ' في نافذة كروم اللي هتفتح، ولما صفحة الفورم تظهر اقفل النافذة - التطبيق هيكمل لوحده');
+  const child = launchPlain(group, app.getPath('userData'), cfg.url);
+  await new Promise((res) => {
+    const to = setTimeout(res, SIGNIN_WAIT_MS);
+    child.on('exit', () => { clearTimeout(to); res(); });
+    child.on('error', () => { clearTimeout(to); res(); });
+  });
 }
 
 // Wait until the form page actually rendered its controls (post sign-in redirect).
@@ -441,17 +450,22 @@ ipcMain.handle('tmh-run-local', async (_e, payload) => {
     try {
       let url = await settleUrl(page, prep.cold ? 15000 : 3000);
 
-      // If Google asks for sign-in, leave the window open and wait for Micheal.
+      // Google asks for sign-in: the automated window gets rejected, so switch to
+      // plain Chrome for a one-time manual login, then re-attach and continue.
       if (/accounts\.google\.com/.test(url)) {
         progress('signin_wait', { email: cfg.email });
-        notify('team_mh', 'سجّل دخول جوجل بالحساب ' + cfg.email + ' في نافذة كروم - والتنفيذ هيكمل لوحده');
-        const deadline = Date.now() + SIGNIN_WAIT_MS;
-        while (Date.now() < deadline && /accounts\.google\.com/.test(url)) {
-          await sleep(2000);
-          try { url = page.url(); } catch (e) { return { ok: false, error: 'tab_closed', submitted: false }; }
-        }
-        if (/accounts\.google\.com/.test(url)) { keepTab = true; return { ok: false, error: 'auth_expired', detail: 'google sign-in not completed in time', submitted: false }; }
-        url = await settleUrl(page, 10000);
+        try { await browser.close(); } catch (e) {}
+        delete warmPages[group];
+        try { delete sheetTabs[group]; } catch (e) {}
+        try { await manualSignin(group, cfg); }
+        catch (e) { return { ok: false, error: 'chrome_not_found', submitted: false }; }
+        try { browser = await getBrowser(group, app.getPath('userData')); }
+        catch (e) { return { ok: false, error: 'chrome_not_found', submitted: false }; }
+        try { page = await firstPage(browser); }
+        catch (e) { return { ok: false, error: 'tab_failed', detail: String(e).slice(0, 200), submitted: false }; }
+        try { await page.goto(cfg.url, { waitUntil: 'domcontentloaded', timeout: 60000 }); } catch (e) {}
+        url = await settleUrl(page, 15000);
+        if (/accounts\.google\.com/.test(url)) { return { ok: false, error: 'auth_expired', detail: 'google sign-in not completed', submitted: false }; }
       }
 
       // Wait for the form to render before judging anything about it.

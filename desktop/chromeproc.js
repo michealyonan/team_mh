@@ -6,6 +6,7 @@
 const fs = require('fs');
 const path = require('path');
 const puppeteer = require('puppeteer-core');
+const { spawn } = require('child_process');
 
 function chromeCandidates() {
   const list = [];
@@ -68,6 +69,27 @@ async function getBrowser(group, userDataRoot) {
   return browser;
 }
 
+// PLAIN Chrome launch for first-time Google sign-in: no puppeteer attach, no
+// remote debugging, no automation fingerprint - Google's sign-in page rejects
+// automated browsers ("This browser or app may not be secure", 24 Nov delta).
+// He signs in manually in a completely normal Chrome; cookies persist in the
+// group profile dir; the next run attaches and works.
+function launchPlain(group, userDataRoot, url) {
+  const exe = findChrome();
+  if (!exe) { const e = new Error('chrome_not_found'); e.code = 'chrome_not_found'; throw e; }
+  const userDataDir = path.join(userDataRoot, 'chrome-profiles', group);
+  try { fs.mkdirSync(userDataDir, { recursive: true }); } catch (e) {}
+  return spawn(exe, [
+    '--user-data-dir=' + userDataDir,
+    '--no-first-run',
+    '--no-default-browser-check',
+    '--disable-session-crashed-bubble',
+    '--hide-crash-restore-bubble',
+    '--start-maximized',
+    url
+  ], { stdio: 'ignore' });
+}
+
 // Non-launching peek: returns the cached browser ONLY if already connected.
 // Pollers (sheet status) must never relaunch Chrome by themselves - a poll that
 // relaunches is what popped stray about:blank windows every ~45s (24 Nov).
@@ -75,4 +97,4 @@ function peekBrowser(group) {
   return browserAlive(browsers[group]) ? browsers[group] : null;
 }
 
-module.exports = { getBrowser, findChrome, firstPage, peekBrowser };
+module.exports = { getBrowser, findChrome, firstPage, peekBrowser, launchPlain };
