@@ -1,4 +1,8 @@
-// team_mh Google Forms relay v4 - cookie-authenticated, full multi-page flow replay.
+// team_mh Google Forms relay v5 - cookie-authenticated, verbatim hidden-input replay.
+// The gate crack: Google only advances the multi-page flow on the session-scoped
+// /forms/u/0/d/e/.../formResponse endpoint when every hidden input from each page's
+// HTML (fbzx, fvv, pageHistory, partialResponse, submissionTimestamp, tag, token) is
+// replayed verbatim, with continue=1 + emailAddress + radio sentinels on nav posts.
 // Deploy as Web App (execute as: Me, access: Anyone) under the deltalogistics work account.
 // Script Properties (never in source):
 //   FORM_RELAY_SECRET - shared gate secret with the Cloudflare Worker
@@ -22,6 +26,11 @@ const FORMS = {
     radios: ['entry.1976663790']
   }
 };
+function hiddens_(html) {
+  const o = {}; const re = /<input type="hidden" name="([^"]+)" value="([^"]*)"/g; let m;
+  while ((m = re.exec(html))) o[m[1]] = m[2].replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&#39;/g, "'");
+  return o;
+}
 function doPost(e) {
   const out = (o) => ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);
   try {
@@ -39,59 +48,57 @@ function doPost(e) {
     if (!body.fields || typeof body.fields !== 'object' || Object.keys(body.fields).some(k => !/^entry\.\d+(?:_hour|_minute)?$/.test(k))) return out({ error: 'invalid_fields' });
     const cookie = props.getProperty(cfg.prop);
     if (!cookie) return out({ error: 'auth_expired', detail: 'no_cookie' });
-    const headers = { Cookie: cookie };
-    const base = 'https://docs.google.com/forms/d/e/' + body.formId + '/';
-    const grab = (html, name) => { const m = html.match(new RegExp('name="' + name + '" value="([^"]*)"')); return m ? m[1] : ''; };
+    const headers = { Cookie: cookie, 'Accept-Language': 'ar' };
+    const base = 'https://docs.google.com/forms/u/0/d/e/' + body.formId + '/';
     const dead = (status, html) => status === 401 || status === 403 || /accounts\.google\.com\/(v3\/signin|ServiceLogin)/.test(html || '');
-
-    const vf = UrlFetchApp.fetch(base + 'viewform', { headers: headers, muteHttpExceptions: true });
-    const vfStatus = vf.getResponseCode();
-    const html = vf.getContentText();
-    if (dead(vfStatus, html)) return out({ error: 'auth_expired', status: vfStatus });
-    let fbzx = grab(html, 'fbzx'), token = grab(html, 'token'), tag = grab(html, 'tag');
-    const fvv = grab(html, 'fvv') || '1';
-    if (!fbzx) return out({ error: 'fbzx_not_found', status: vfStatus });
-
-    // split worker fields into page0 / page1 / final entries
+    const post = (payload) => {
+      const resp = UrlFetchApp.fetch(base + 'formResponse', { method: 'post', payload: payload, headers: headers, followRedirects: false, muteHttpExceptions: true });
+      return { status: resp.getResponseCode(), html: resp.getContentText() };
+    };
     const fields = body.fields;
     const pick = (keys) => { const o = {}; keys.forEach(k => { if (fields[k] !== undefined) o[k] = fields[k]; }); return o; };
     const branchKeys = cfg.page0.concat(cfg.page1);
     const p0 = pick(cfg.page0), p1 = pick(cfg.page1);
     const fin = {};
     Object.keys(fields).forEach(k => { if (branchKeys.indexOf(k) < 0) fin[k] = fields[k]; });
-    const histParts = (body.pageHistory || '0').split(',');
-    const dlut = String(Date.now());
+    const isProbe = body.action === 'probe';
 
-    const post = (entries, pageHistory, partial, submissionTimestamp, isNav, extra) => {
-      const payload = Object.assign({}, entries, extra || {});
-      cfg.radios.forEach(r => { if (entries[r] !== undefined) payload[r + '_sentinel'] = ''; });
-      payload.fbzx = fbzx; payload.fvv = fvv; payload.token = token; payload.tag = tag;
-      payload.pageHistory = pageHistory; payload.dlut = dlut;
-      payload.submissionTimestamp = submissionTimestamp;
-      if (partial !== null) payload.partialResponse = JSON.stringify(partial);
-      if (isNav) payload['continue'] = '1';
-      const resp = UrlFetchApp.fetch(base + 'formResponse', { method: 'post', payload: payload, headers: headers, followRedirects: false, muteHttpExceptions: true });
-      return { status: resp.getResponseCode(), html: resp.getContentText() };
-    };
+    // viewform -> hidden inputs verbatim
+    const vf = UrlFetchApp.fetch(base + 'viewform', { headers: headers, muteHttpExceptions: true });
+    const vfStatus = vf.getResponseCode();
+    const html0 = vf.getContentText();
+    if (dead(vfStatus, html0)) return out({ error: 'auth_expired', status: vfStatus });
+    const H0 = hiddens_(html0);
+    if (!H0.fbzx) return out({ error: 'fbzx_not_found', status: vfStatus });
 
-    // step 0 (page 0)
-    let r = post(p0, histParts[0] || '0', [null, null, fbzx], '-1', true, { emailAddress: cfg.email });
+    // page 0 nav
+    const d0 = Object.assign({}, H0, p0, { emailAddress: cfg.email, continue: '1', dlut: String(Date.now()) });
+    cfg.radios.forEach(r => { if (p0[r] !== undefined) d0[r + '_sentinel'] = ''; });
+    let r = post(d0);
     if (dead(r.status, r.html)) return out({ error: 'auth_expired', status: r.status, step: 0 });
     if (r.status !== 200) return out({ error: 'nav_failed', step: 0, status: r.status });
-    token = grab(r.html, 'token') || token; tag = grab(r.html, 'tag') || tag; fbzx = grab(r.html, 'fbzx') || fbzx;
+    const H1 = hiddens_(r.html);
+    if (!H1.pageHistory || H1.pageHistory === H0.pageHistory) return out({ error: 'nav_failed', step: 0, status: r.status, detail: 'did_not_advance', pageHistory: H1.pageHistory || '' });
 
-    // step 1 (page 1)
-    const ans0 = cfg.page0.map(k => [null, parseInt(k.split('.')[1], 10), [fields[k]], 0]);
-    r = post(p1, histParts.slice(0, 2).join(','), [ans0, null, fbzx, null, null, null, cfg.email, 0], '-1', true);
+    // page 1 nav
+    const d1 = Object.assign({}, H1, p1, { continue: '1', dlut: String(Date.now()) });
+    r = post(d1);
     if (dead(r.status, r.html)) return out({ error: 'auth_expired', status: r.status, step: 1 });
     if (r.status !== 200) return out({ error: 'nav_failed', step: 1, status: r.status });
-    token = grab(r.html, 'token') || token; tag = grab(r.html, 'tag') || tag; fbzx = grab(r.html, 'fbzx') || fbzx;
+    const H2 = hiddens_(r.html);
+    if (!H2.pageHistory || H2.pageHistory === H1.pageHistory) return out({ error: 'nav_failed', step: 1, status: r.status, detail: 'did_not_advance', pageHistory: H2.pageHistory || '' });
 
-    // final step
-    const ans1 = ans0.concat(cfg.page1.map(k => [null, parseInt(k.split('.')[1], 10), [fields[k]], 0]));
-    r = post(fin, body.pageHistory || '0', [ans1, null, fbzx, null, null, null, cfg.email, 0], String(Date.now()), false);
-    if (dead(r.status, r.html)) return out({ error: 'auth_expired', status: r.status, step: 2 });
-    const confirmed = r.status === 200 && /Your response has been recorded|تم تسجيل ردك|تم تسجيل إجابتك/i.test(r.html) && r.html.length < 60000;
-    return out(confirmed ? { ok: true, status: r.status } : { error: 'submission_unconfirmed', status: r.status, step: 2, len: r.html.length });
+    if (isProbe) return out({ ok: true, probe: true, reached: H2.pageHistory, formId: body.formId });
+
+    // final submit: no continue, real submissionTimestamp; Google answers with a
+    // redirect to the confirmation page, so follow redirects here (v5 bug: the
+    // submission recorded but the 302 stub failed the text check -> false relay_failed)
+    const d2 = Object.assign({}, H2, fin, { dlut: String(Date.now()), submissionTimestamp: String(Date.now()) });
+    delete d2['continue'];
+    const fr = UrlFetchApp.fetch(base + 'formResponse', { method: 'post', payload: d2, headers: headers, followRedirects: true, muteHttpExceptions: true });
+    const fStatus = fr.getResponseCode(); const fHtml = fr.getContentText();
+    if (dead(fStatus, fHtml)) return out({ error: 'auth_expired', status: fStatus, step: 2 });
+    const confirmed = fStatus === 200 && /response has been recorded|تم تسجيل|تم حفظ|إرسال رد آخر|submit another response/i.test(fHtml);
+    return out(confirmed ? { ok: true, status: fStatus } : { error: 'submission_unconfirmed', status: fStatus, step: 2, len: fHtml.length });
   } catch (err) { return out({ error: String(err) }); }
 }

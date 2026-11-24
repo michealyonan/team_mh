@@ -1627,6 +1627,7 @@ header{box-shadow:0 8px 24px rgba(2,8,23,.5)}
 </div>
 <section id="bookingWaModal" hidden><div class="card"><div class="row"><h3>📱 مراسلة غير الحاجزين</h3><button class="btn" id="bookingWaClose" type="button">إغلاق</button></div>
 <label for="bookingWaCap">حد الإرسال اليومي لحسابك على المتصفح ده، الافتراضي 50 محاولة. ده احتياط من التطبيق مش حد رسمي من واتساب ومش ضمان ضد الحظر.</label><input id="bookingWaCap" type="number" min="1" max="1000" value="50"><p id="bookingWaBudget" role="status"></p><label for="bookingWaDelay">الفاصل بين الرسائل بالثواني، أقل حاجة 45 ثانية لحماية الرقم في النسخة المجانية؛ تقدر تزودها</label><input id="bookingWaDelay" type="number" min="45" max="3600" value="45"><p id="bookingWaScope" class="sub"></p><p id="bookingWaSender"></p><p class="sub">تنبيه: الرسائل الجماعية ممكن تعرّض رقمك للتقييد. الإرسال متتابع بفاصل 45 ثانية على الأقل. خليك في رسائل الشغل المتوقعة فقط. لازم تسيب الشاشة مفتوحة؛ لو قفلتها راجع النتيجة قبل إعادة الإرسال.</p>
+<div id="bookingWaSupWrap" style="display:none"><label for="bookingWaSup">👷 تحديد مناديب مشرف معين</label><select id="bookingWaSup"><option value="">كل المشرفين</option></select></div>
 <button class="btn" id="bookingWaAll" type="button">تحديد الكل / مسح التحديد</button><div id="bookingWaRecipients"></div><div class="row"><button class="btn" id="bookingWaPrev" type="button">السابق</button><span id="bookingWaPage"></span><button class="btn" id="bookingWaNext" type="button">التالي</button></div>
 <label for="bookingWaText">نص الرسالة، اكتبه وراجعه قبل الإرسال</label><textarea id="bookingWaText" maxlength="1000" placeholder="اكتب الرسالة هنا…"></textarea>
 <button class="btn" id="bookingWaReview" type="button">مراجعة الرسالة والمستلمين</button><div id="bookingWaPreview" hidden><p id="bookingWaCount"></p><pre id="bookingWaPreviewText" style="white-space:pre-wrap;overflow-wrap:break-word"></pre><button class="btn pr" id="bookingWaConfirm" type="button">تأكيد وإرسال</button></div>
@@ -6587,7 +6588,7 @@ boot();
 </style><div id="waModal" style="display:none;position:fixed;inset:0;background:#000c;z-index:85;overflow:auto;padding:12px"><div class="card" style="max-width:540px;margin:20px auto"><div class="row"><h3>واتساب حسابي</h3><button class="btn" style="margin-inline-start:auto" onclick="$('waModal').style.display='none'">✕</button></div><p>اربط رقمك أنت فقط. رمز الربط والجلسة خاصين بحساب دخولك، ولا يظهران لمشرف آخر.</p><p class="sub">نسخة تجريبية مجانية: جلستان نشطتان كحد أقصى، وفصل بعد 10 دقائق بدون استخدام. قد تتوقف الخدمة عند نفاد الرصيد. اتصال غير رسمي وقد يعرّض رقمك للتقييد. لا ترسل رسائل غير مرغوبة.</p><div class="row"><button class="btn pr" onclick="waConnect()">ربط / تشغيل جلستي</button><button class="btn" onclick="waRefresh()">تحديث الرمز والحالة</button></div><p id="waState" role="status">اضغط ربط لبدء جلستك.</p><img id="waQR" hidden alt="رمز ربط واتساب الخاص بحسابك" style="width:330px;max-width:100%;margin:12px auto;border:8px solid white;border-radius:8px"><p>واتساب ← الإعدادات ← الأجهزة المرتبطة ← ربط جهاز. اعرض الرمز على شاشة ثانية، ثم امسحه فورًا. لا تشاركه مع أي شخص.</p><div class="row"><button class="btn" onclick="waDisconnect(false)">إيقاف الاتصال</button><button class="btn" onclick="waDisconnect(true)">إلغاء ربط رقمي</button></div><hr><h4>إرسال رسالة من رقمي</h4><label for="waTo">رقم المستلم بكود الدولة</label><input id="waTo" inputmode="tel" placeholder="201xxxxxxxxx" dir="ltr"><label for="waText">نص الرسالة</label><textarea id="waText" maxlength="1000" rows="4" style="width:100%;box-sizing:border-box"></textarea><button id="waReview" class="btn pr" onclick="waSend()">مراجعة وتأكيد الإرسال</button><p id="waReceipt" role="status"></p></div></div>
 <script>
 
-let bookingWaCandidates=[],bookingWaSelected=new Set(),bookingWaDraft=null,bookingWaRunning=false,bookingWaStopRequested=false,bookingWaPaused=false,bookingWaCurrentDraft=null;
+let bookingWaCandidates=[],bookingWaSelected=new Set(),bookingWaSup='',bookingWaDraft=null,bookingWaRunning=false,bookingWaStopRequested=false,bookingWaPaused=false,bookingWaCurrentDraft=null;
 let bookingWaLedger=new Map();try{bookingWaLedger=new Map(JSON.parse(localStorage.getItem('bookingWaLedger')||'[]'))}catch{}
 let bookingWaProgressRows=[],bookingWaRecipientPage=0,bookingWaProgressPage=0;
 function bookingWaSave(){try{localStorage.setItem('bookingWaLedger',JSON.stringify([...bookingWaLedger].slice(-5000)));localStorage.setItem('bookingWaProgress:'+CUR.u,JSON.stringify(bookingWaProgressRows))}catch{}}
@@ -6600,6 +6601,17 @@ function bookingWaDrawBudget(){if(!CUR)return;const b=bookingWaBudget();$('booki
 function bookingWaUseBudget(){const b=bookingWaBudget();if(!b.remaining)throw Error('وصلت لحد الإرسال اليومي اللي حددته.');b.used++;localStorage.setItem('bookingWaBudget:'+CUR.u,JSON.stringify({day:b.day,used:b.used}));bookingWaDrawBudget()}
 $('bookingWaCap').oninput=()=>{if(bookingWaRunning){$('bookingWaCap').value=bookingWaBudget().cap;return}try{localStorage.setItem('bookingWaCap:'+CUR.u,String(Math.max(1,Math.min(1000,Number($('bookingWaCap').value)||50))))}catch{}bookingWaDrawBudget();bookingWaInvalidate()};
 function bookingWaEligible(){return BOOKING_VISIBLE.filter(r=>!r.isBooked)}
+function bookingWaFiltered(){const rows=bookingWaEligible();return bookingWaSup?rows.filter(r=>nameMatchKey(r.sup||'')===bookingWaSup):rows}
+function bookingWaSupList(){const m=new Map();for(const r of bookingWaEligible()){const n=String(r.sup||'').trim();if(n&&!m.has(nameMatchKey(n)))m.set(nameMatchKey(n),n)}return [...m.entries()].sort((a,b)=>a[1].localeCompare(b[1],'ar'))}
+function bookingWaBuildCandidates(day){
+ const seen=new Set();let missing=0,duplicates=0,previous=0;
+ bookingWaCandidates=[];bookingWaSelected.clear();bookingWaInvalidate();
+ const filtered=bookingWaFiltered();
+ for(const row of filtered){const phone=bookingWaPhone(row.phone);if(!phone){missing++;continue}if(seen.has(phone)){duplicates++;continue}seen.add(phone);if(bookingWaLedger.has(bookingWaKey(row,day))){previous++;continue}bookingWaCandidates.push({...row,phone,day});bookingWaSelected.add(row.id)}
+ $('bookingWaScope').textContent='تاريخ الحجز: '+day+' | غير حاجزين في النتائج الحالية: '+bookingWaEligible().length+(bookingWaSup?' | منهم للمشرف المحدد: '+filtered.length:'')+' | أرقام ناقصة/غير صالحة: '+missing+' | أرقام مكررة مستبعدة: '+duplicates+' | سبق إرساله أو نتيجته غير مؤكدة في هذه الجلسة: '+previous;
+ $('bookingWaRecipients').replaceChildren();
+ bookingWaRecipientPage=0;bookingWaDrawRecipients();
+}
 async function bookingWaOpen(){
  if(bookingWaRunning)return;
  try{bookingWaProgressRows=JSON.parse(localStorage.getItem('bookingWaProgress:'+CUR.u)||'[]');for(const r of bookingWaProgressRows)if(r.state==='sending')r.state='uncertain'}catch{bookingWaProgressRows=[]}bookingWaDrawProgress();
@@ -6607,11 +6619,11 @@ async function bookingWaOpen(){
  const days=filterValues('bookingDate');
  if(days.length!==1){alert('اختار تاريخ حجز واحد علشان نحدد غير الحاجزين بدقة.');return}if(!BOOKING_DB_LOADED||!BOOKING_ROWS.some(r=>r.date===days[0])){alert('مفيش حجوزات بالتاريخ ده في المصدر المحمل. حدّث البيانات أو اختار يوم موجود قبل المراسلة.');return}
  bookingRender();bookingWaCandidates=[];bookingWaSelected.clear();bookingWaInvalidate();$('bookingWaText').value='';$('bookingWaProgress').textContent='';$('bookingWaReview').disabled=true;$('bookingWaSender').textContent='جاري التحقق من واتساب حسابك…';$('bookingWaReview').disabled=true;
- const seen=new Set();let missing=0,duplicates=0,previous=0;
- for(const row of bookingWaEligible()){const phone=bookingWaPhone(row.phone);if(!phone){missing++;continue}if(seen.has(phone)){duplicates++;continue}seen.add(phone);if(bookingWaLedger.has(bookingWaKey(row,days[0]))){previous++;continue}bookingWaCandidates.push({...row,phone,day:days[0]});bookingWaSelected.add(row.id)}
- $('bookingWaScope').textContent='تاريخ الحجز: '+days[0]+' | غير حاجزين في النتائج الحالية: '+bookingWaEligible().length+' | أرقام ناقصة/غير صالحة: '+missing+' | أرقام مكررة مستبعدة: '+duplicates+' | سبق إرساله أو نتيجته غير مؤكدة في هذه الجلسة: '+previous;
- $('bookingWaRecipients').replaceChildren();
- bookingWaRecipientPage=0;bookingWaDrawRecipients();
+ const supSel=$('bookingWaSup'),canPickSup=CUR&&['admin','manager'].includes(CUR.r);
+ $('bookingWaSupWrap').style.display=canPickSup?'':'none';
+ if(canPickSup){const keep=bookingWaSup;supSel.replaceChildren(new Option('كل المشرفين',''));for(const [k,n] of bookingWaSupList())supSel.appendChild(new Option(n,k));supSel.value=[...supSel.options].some(o=>o.value===keep)?keep:'';bookingWaSup=supSel.value}else{bookingWaSup=''}
+ supSel.disabled=false;
+ bookingWaBuildCandidates(days[0]);
  $('bookingWaModal').hidden=false;
  try{const d=await waApi('status');if(d.state!=='connected')throw Error('اربط واتساب حسابك من قسم واتساب حسابي أولًا.');$('bookingWaSender').textContent='الإرسال من واتساب حسابك: +'+d.phone;$('bookingWaReview').disabled=false}catch(e){$('bookingWaSender').textContent=e.message}
 }
@@ -6620,7 +6632,7 @@ $('bookingWaPrev').onclick=()=>{if(bookingWaRecipientPage>0){bookingWaRecipientP
 $('bookingWaNext').onclick=()=>{if((bookingWaRecipientPage+1)*50<bookingWaCandidates.length){bookingWaRecipientPage++;bookingWaDrawRecipients()}};
 function bookingWaReview(){bookingWaInvalidate();const rows=bookingWaCandidates.filter(r=>bookingWaSelected.has(r.id)),text=$('bookingWaText').value.trim();if(rows.length>bookingWaBudget().remaining){$('bookingWaProgress').textContent='المحدد '+rows.length+' أكبر من المتبقي اليوم '+bookingWaBudget().remaining+'. قلل المستلمين أو راجع حدك قبل التأكيد.';return}if(!rows.length||!text){$('bookingWaProgress').textContent='حدد المستلمين واكتب الرسالة أولًا.';return}bookingWaDraft={rows:rows.map(r=>({...r})),text,day:rows[0].day,user:CUR.u,delay:Math.max(45,Math.min(3600,Number($('bookingWaDelay').value)||45)),sender:$('bookingWaSender').textContent};$('bookingWaCount').textContent='تأكيد إرسال '+rows.length+' رسالة إلى غير الحاجزين بتاريخ '+rows[0].day+'، مدة تقريبية '+Math.ceil(Math.max(0,rows.length-1)*bookingWaDraft.delay/60)+' دقيقة أو أكثر. راجع الأسماء والأرقام المحددة فوق.';$('bookingWaPreviewText').textContent=text;$('bookingWaPreview').hidden=false}
 async function bookingWaConfirm(){
- if(bookingWaRunning||!bookingWaDraft)return;const draft=bookingWaDraft;bookingWaRunning=true;bookingWaStopRequested=false;$('bookingWaStop').hidden=false;$('bookingWaCap').disabled=true;$('bookingWaConfirm').disabled=true;$('bookingWaReview').disabled=true;$('bookingWaText').disabled=false;$('bookingWaPause').hidden=false;$('bookingWaResume').hidden=true;bookingWaPaused=false;bookingWaCurrentDraft=draft;$('bookingWaAll').disabled=true;document.querySelectorAll('#bookingWaRecipients input').forEach(e=>e.disabled=true);let sent=0;bookingWaProgressRows=draft.rows.map(r=>({id:r.id,name:r.name,phone:r.phone,state:'pending'}));bookingWaDrawProgress();$('bookingWaProgressList').scrollIntoView({block:'center'});
+ if(bookingWaRunning||!bookingWaDraft)return;const draft=bookingWaDraft;bookingWaRunning=true;bookingWaStopRequested=false;$('bookingWaStop').hidden=false;$('bookingWaCap').disabled=true;$('bookingWaConfirm').disabled=true;$('bookingWaReview').disabled=true;$('bookingWaText').disabled=false;$('bookingWaPause').hidden=false;$('bookingWaResume').hidden=true;bookingWaPaused=false;bookingWaCurrentDraft=draft;$('bookingWaAll').disabled=true;$('bookingWaSup').disabled=true;document.querySelectorAll('#bookingWaRecipients input').forEach(e=>e.disabled=true);let sent=0;bookingWaProgressRows=draft.rows.map(r=>({id:r.id,name:r.name,phone:r.phone,state:'pending'}));bookingWaDrawProgress();$('bookingWaProgressList').scrollIntoView({block:'center'});
  try{
   $('bookingWaProgress').textContent='مراجعة الحجوزات والاتصال قبل الإرسال…';if(!await bookingRefresh())throw Error('تعذّر تحديث الحجوزات أو قاعدة البيانات. لم يبدأ الإرسال.');
   if(!BOOKING_ROWS.some(r=>r.date===draft.day))throw Error('اليوم المختار مش موجود في مصدر الحجوزات المحدث. لم يبدأ الإرسال.');
@@ -6642,7 +6654,7 @@ async function bookingWaConfirm(){
   }
   $('bookingWaProgress').textContent=(bookingWaStopRequested?'تم الإيقاف. ':'انتهى الإرسال. ')+'اتأكد إرسال '+sent+' من '+draft.rows.length;
  }catch(e){$('bookingWaProgress').textContent='اتأكد إرسال '+sent+' من '+draft.rows.length+'. '+e.message}
- finally{for(const r of bookingWaProgressRows){if(r.state==='pending')r.state='stopped';if(r.state==='sending')r.state='uncertain'}bookingWaDrawProgress();bookingWaRunning=false;bookingWaCurrentDraft=null;$('bookingWaCap').disabled=false;bookingWaDrawBudget();$('bookingWaPause').hidden=true;$('bookingWaResume').hidden=true;bookingWaInvalidate();$('bookingWaStop').hidden=true;$('bookingWaConfirm').disabled=false;$('bookingWaText').disabled=false;$('bookingWaAll').disabled=false;document.querySelectorAll('#bookingWaRecipients input').forEach(e=>e.disabled=false)}
+ finally{for(const r of bookingWaProgressRows){if(r.state==='pending')r.state='stopped';if(r.state==='sending')r.state='uncertain'}bookingWaDrawProgress();bookingWaRunning=false;bookingWaCurrentDraft=null;$('bookingWaCap').disabled=false;bookingWaDrawBudget();$('bookingWaPause').hidden=true;$('bookingWaResume').hidden=true;bookingWaInvalidate();$('bookingWaStop').hidden=true;$('bookingWaConfirm').disabled=false;$('bookingWaText').disabled=false;$('bookingWaAll').disabled=false;$('bookingWaSup').disabled=false;document.querySelectorAll('#bookingWaRecipients input').forEach(e=>e.disabled=false)}
 }
 $('bookingWaProgressPrev').onclick=()=>{bookingWaProgressPage=Math.max(0,bookingWaProgressPage-1);bookingWaDrawProgress()};$('bookingWaProgressNext').onclick=()=>{bookingWaProgressPage++;bookingWaDrawProgress()};
 $('bookingWaOpen').onclick=bookingWaOpen;$('bookingWaReview').onclick=bookingWaReview;$('bookingWaConfirm').onclick=bookingWaConfirm;
@@ -6651,6 +6663,7 @@ $('bookingWaPause').onclick=bookingWaPause;
 $('bookingWaResume').onclick=()=>{if(!bookingWaRunning||!bookingWaPaused)return;const text=$('bookingWaText').value.trim(),pending=bookingWaProgressRows.filter(r=>r.state==='pending').length;if(!text){$('bookingWaProgress').textContent='اكتب نص الرسالة قبل الاستكمال.';return}if(!confirm('استكمال الإرسال إلى '+pending+' مستلم متبقي بالنص التالي؟\n\n'+text+'\n\nالفاصل '+Math.max(45,Number($('bookingWaDelay').value)||45)+' ثانية.\nالرسائل اللي بدأت أو اتبعتت مش هتتغير.'))return;bookingWaCurrentDraft.text=text;$('bookingWaPreviewText').textContent=text;bookingWaPaused=false;$('bookingWaResume').hidden=true;$('bookingWaPause').hidden=false;$('bookingWaProgress').textContent='تم تأكيد النص. جاري الاستكمال بعد الفاصل المحدد.'};
 $('bookingWaText').oninput=()=>{if(bookingWaRunning)bookingWaPause();else bookingWaInvalidate()};
 $('bookingWaDelay').oninput=()=>{if(bookingWaRunning)bookingWaPause()};
+$('bookingWaSup').onchange=function(){bookingWaSup=this.value;const days=filterValues('bookingDate');if(days.length===1&&!bookingWaRunning)bookingWaBuildCandidates(days[0])};
 $('bookingWaAll').onclick=()=>{const all=bookingWaSelected.size===bookingWaCandidates.length;bookingWaSelected=new Set(all?[]:bookingWaCandidates.map(r=>r.id));bookingWaDrawRecipients();bookingWaInvalidate()};
 $('bookingWaStop').onclick=()=>{bookingWaStopRequested=true;$('bookingWaProgress').textContent='طلب الإيقاف وصل. الرسالة اللي بدأت بالفعل ممكن توصل، مش هنبدأ رسالة جديدة.'};
 $('bookingWaClose').onclick=()=>{if(bookingWaRunning){bookingWaStopRequested=true;return}$('bookingWaModal').hidden=true;bookingWaInvalidate()};
