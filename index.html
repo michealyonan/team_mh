@@ -6536,7 +6536,7 @@ async function bookingWaOpen(){
  try{bookingWaProgressRows=JSON.parse(localStorage.getItem('bookingWaProgress:'+CUR.u)||'[]');for(const r of bookingWaProgressRows)if(r.state==='sending')r.state='uncertain'}catch{bookingWaProgressRows=[]}bookingWaDrawProgress();
  try{$('bookingWaCap').value=localStorage.getItem('bookingWaCap:'+CUR.u)||'50'}catch{}bookingWaDrawBudget();
  const days=filterValues('bookingDate');
- if(days.length!==1){alert('اختار تاريخ حجز واحد علشان نحدد غير الحاجزين بدقة.');return}
+ if(days.length!==1){alert('اختار تاريخ حجز واحد علشان نحدد غير الحاجزين بدقة.');return}if(!BOOKING_DB_LOADED||!BOOKING_ROWS.some(r=>r.date===days[0])){alert('مفيش حجوزات بالتاريخ ده في المصدر المحمل. حدّث البيانات أو اختار يوم موجود قبل المراسلة.');return}
  bookingRender();bookingWaCandidates=[];bookingWaSelected.clear();bookingWaInvalidate();$('bookingWaText').value='';$('bookingWaProgress').textContent='';$('bookingWaReview').disabled=true;$('bookingWaSender').textContent='جاري التحقق من واتساب حسابك…';$('bookingWaReview').disabled=true;
  const seen=new Set();let missing=0,duplicates=0,previous=0;
  for(const row of bookingWaEligible()){const phone=bookingWaPhone(row.phone);if(!phone){missing++;continue}if(seen.has(phone)){duplicates++;continue}seen.add(phone);if(bookingWaLedger.has(bookingWaKey(row,days[0]))){previous++;continue}bookingWaCandidates.push({...row,phone,day:days[0]});bookingWaSelected.add(row.id)}
@@ -6554,6 +6554,7 @@ async function bookingWaConfirm(){
  if(bookingWaRunning||!bookingWaDraft)return;const draft=bookingWaDraft;bookingWaRunning=true;bookingWaStopRequested=false;$('bookingWaStop').hidden=false;$('bookingWaCap').disabled=true;$('bookingWaConfirm').disabled=true;$('bookingWaReview').disabled=true;$('bookingWaText').disabled=false;$('bookingWaPause').hidden=false;$('bookingWaResume').hidden=true;bookingWaPaused=false;bookingWaCurrentDraft=draft;$('bookingWaAll').disabled=true;document.querySelectorAll('#bookingWaRecipients input').forEach(e=>e.disabled=true);let sent=0;bookingWaProgressRows=draft.rows.map(r=>({id:r.id,name:r.name,phone:r.phone,state:'pending'}));bookingWaDrawProgress();$('bookingWaProgressList').scrollIntoView({block:'center'});
  try{
   $('bookingWaProgress').textContent='مراجعة الحجوزات والاتصال قبل الإرسال…';if(!await bookingRefresh())throw Error('تعذّر تحديث الحجوزات أو قاعدة البيانات. لم يبدأ الإرسال.');
+  if(!BOOKING_ROWS.some(r=>r.date===draft.day))throw Error('اليوم المختار مش موجود في مصدر الحجوزات المحدث. لم يبدأ الإرسال.');
   if(!CUR||CUR.u!==draft.user||filterValues('bookingDate').join()!==draft.day)throw Error('الحساب أو التاريخ اتغير، افتح المراجعة من جديد.');
   const latest=new Map(bookingWaEligible().map(r=>[r.id,r]));
   if(draft.rows.some(r=>!latest.has(r.id)||bookingWaPhone(latest.get(r.id).phone)!==r.phone||bookingWaLedger.has(bookingWaKey(r,draft.day))))throw Error('الحجز أو الرقم أو النتائج اتغيرت، افتح المراجعة من جديد.');
