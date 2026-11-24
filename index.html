@@ -3156,7 +3156,7 @@ function extras2(T,commit,oph,list,selectedPeriodDays){
   TXD.lo3=wk.map(x=>({...x,wd:(wd[x.id]||[]).size||0})).sort((x,y)=>x.wd-y.wd||x.o-y.o);rl('lo3');
 }
 /* ---------- طيارين بدون شغل X يوم ---------- */
-let IDLE=[];
+let IDLE=[],IDLE_PAGE=0;const IDLE_PAGE_SIZE=25;
 function idleRiders(){
   if(!ROWS.length)return;
   const managers=filterValues('fm'),zones=filterValues('fz'),supervisors=filterValues('fs'),vehicles=filterValues('fv'),batches=filterValues('fb'),groups=filterValues('mainZoneGroup'),q=$('q').value.trim().toLowerCase(),
@@ -3169,8 +3169,13 @@ function idleRiders(){
   }
   const inA=new Set(AGG.map(x=>x.id));
   const L=Object.values(g).map(x=>({...x,idle:Math.floor((mx-(x.work||x.first))/DAY)+(x.work?0:1)})).filter(x=>x.idle>=th).sort((a,b)=>b.idle-a.idle);
-  IDLE=L;$('idN').textContent=L.length;$('idN').className='b '+(L.length?'r':'g');
-  $('idL').innerHTML=`<table class="idle-riders-table"><thead><tr><th>#</th><th>الطيار</th><th>المنطقة</th><th>المشرف</th><th>أيام بدون شغل</th><th>آخر يوم شغل</th></tr></thead><tbody>${L.map((x,i)=>`<tr class="${inA.has(x.id)?'idle-rider-clickable':''}"${inA.has(x.id)?' data-rider-id="'+esc(x.id)+'" tabindex="0" role="button" aria-label="عرض تفاصيل '+esc(x.n||x.id)+'"':''}><td>${i+1}</td><td data-l="الطيار">${esc(x.n||x.id)}</td><td data-l="المنطقة">${esc(x.z||'—')}</td><td data-l="المشرف">${esc(x.s||'—')}</td><td data-l="أيام بدون شغل"><b style="color:#f87171">${NF(x.idle)} يوم</b></td><td data-l="آخر يوم شغل">${x.work?fd(x.work):'مشتغلش خالص'}</td></tr>`).join('')||'<tr><td colspan="6" class="sub">كله شغال ✅</td></tr>'}</tbody></table>`;
+  IDLE=L;IDLE_PAGE=0;renderIdleRiders();
+}
+function renderIdleRiders(){
+  const L=IDLE,inA=new Set(AGG.map(x=>x.id)),start=IDLE_PAGE*IDLE_PAGE_SIZE,pages=Math.max(1,Math.ceil(L.length/IDLE_PAGE_SIZE));
+  $('idN').textContent=L.length;$('idN').className='b '+(L.length?'r':'g');
+  $('idL').innerHTML=`<table class="idle-riders-table"><thead><tr><th>#</th><th>الطيار</th><th>المنطقة</th><th>المشرف</th><th>أيام بدون شغل</th><th>آخر يوم شغل</th></tr></thead><tbody>${L.slice(start,start+IDLE_PAGE_SIZE).map((x,i)=>`<tr class="${inA.has(x.id)?'idle-rider-clickable':''}"${inA.has(x.id)?' data-rider-id="'+esc(x.id)+'" tabindex="0" role="button" aria-label="عرض تفاصيل '+esc(x.n||x.id)+'"':''}><td>${start+i+1}</td><td data-l="الطيار">${esc(x.n||x.id)}</td><td data-l="المنطقة">${esc(x.z||'—')}</td><td data-l="المشرف">${esc(x.s||'—')}</td><td data-l="أيام بدون شغل"><b style="color:#f87171">${NF(x.idle)} يوم</b></td><td data-l="آخر يوم شغل">${x.work?fd(x.work):'مشتغلش خالص'}</td></tr>`).join('')||'<tr><td colspan="6" class="sub">كله شغال ✅</td></tr>'}</tbody></table>`+(L.length>IDLE_PAGE_SIZE?`<div class="row" style="justify-content:space-between;margin-top:10px"><button class="btn" id="idlePrev" ${IDLE_PAGE===0?'disabled':''}>السابق</button><span class="sub">${start+1}–${Math.min(start+IDLE_PAGE_SIZE,L.length)} من ${NF(L.length)} · صفحة ${IDLE_PAGE+1} / ${pages}</span><button class="btn" id="idleNext" ${IDLE_PAGE>=pages-1?'disabled':''}>التالي</button></div>`:'');
+  if($('idlePrev'))$('idlePrev').onclick=()=>{IDLE_PAGE--;renderIdleRiders()};if($('idleNext'))$('idleNext').onclick=()=>{IDLE_PAGE++;renderIdleRiders()};
   $('idL').onclick=e=>{const row=e.target.closest('tr[data-rider-id]');if(row)showR(row.dataset.riderId)};
   $('idL').onkeydown=e=>{if(e.key!=='Enter'&&e.key!==' ')return;const row=e.target.closest('tr[data-rider-id]');if(row){e.preventDefault();showR(row.dataset.riderId)}};
 }
