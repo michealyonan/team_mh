@@ -986,6 +986,25 @@ export default {
       return json({day:today,scope:user.r==='admin'?'all':'own',rows:(data.results||[]).filter(r=>cairoDay(r.ts)===today).map(r=>{let p={},v={};try{p=JSON.parse(r.payload)}catch{}try{v=JSON.parse(r.result)}catch{}return {id:r.id,u:r.u,rider_id:r.rider_id,city:r.city,ts:r.ts,duration:p.duration||p['entry.1552166535']||((p['entry.536642639_hour']||'')+':'+(p['entry.536642639_minute']||'')),reason:p.reason||p['entry.1831411232']||'',confirmed:v.ok===true,status:v.status||null}})});
     }
 
+    if (url.pathname === '/api/forms/probe' && request.method === 'POST') {
+      const user = await getSessionUser(env, request);
+      if (!user) return json({ error: 'unauthorized' }, 401);
+      if (FORM_ACTIONS_ADMIN_ONLY ? user.r !== 'admin' : !['admin', 'manager', 'sup'].includes(user.r)) return json({ error: 'forbidden' }, 403);
+      const body = await request.json().catch(() => ({}));
+      const which = String(body.form || '');
+      const isAlex = which === 'alex';
+      if (!isAlex && which !== 'general') return json({ error: 'bad_form' }, 400);
+      const relayUrl = isAlex ? env.FORM_RELAY_ALEX : env.FORM_RELAY_GENERAL;
+      if (!relayUrl || !env.FORM_RELAY_SECRET) return json({ error: 'relay_not_configured' }, 503);
+      const fields = isAlex
+        ? { 'entry.1976663790': 'شيفتات الطيارين', 'entry.186608000': '1234567', 'entry.2117629487': 'البريكات', 'entry.1290442973': 'فك بريك', 'entry.1831411232': 'BREAK' }
+        : { 'entry.302135773': 'شيفتات الطيارين', 'entry.1941659317': 'فك بريك', 'entry.264752225': '1234567', 'entry.1551386634': 'الغرادقه' };
+      const formId = isAlex ? '1FAIpQLSffSwyTh0w4AYjTU9AG-kj-0UfJHcSTSYnR1DrWJ_h8iPYm3Q' : '1FAIpQLSekxaUQPgiWq-Y_IPfsTx7wTANA324a2JklFJZ_Gxg9CGPaKA';
+      const resp = await fetch(relayUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ secret: env.FORM_RELAY_SECRET, action: 'probe', formId, fields }) });
+      const result = await resp.json().catch(() => ({ error: 'invalid_relay_response' }));
+      return json({ probe: true, form: which, result });
+    }
+
     if (url.pathname === '/api/forms/submit' && request.method === 'POST') {
       const user = await getSessionUser(env, request);
       if (!user) return json({ error: 'unauthorized' }, 401);
