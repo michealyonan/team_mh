@@ -702,6 +702,121 @@ async function runStatusCron(env) {
 // team_mh flag: form actions (مد/فك البريك/إجراء يدوي) restricted to admin until Micheal asks to expose them (flip with index.html const)
 const FORM_ACTIONS_ADMIN_ONLY = true;
 
+const GOOGLE_FORM_IDS = {
+  alex: '1FAIpQLSffSwyTh0w4AYjTU9AG-kj-0UfJHcSTSYnR1DrWJ_h8iPYm3Q',
+  general: '1FAIpQLSekxaUQPgiWq-Y_IPfsTx7wTANA324a2JklFJZ_Gxg9CGPaKA'
+};
+function buildFormJob(body) {
+  const action = String(body.action || '');
+  const riderId = String(body.rider_id || '').replace(/[^0-9]/g, '');
+  const city = String(body.city || '').trim();
+  const duration = String(body.duration || '').trim();
+  const reason = String(body.reason || '').trim();
+  const zone = String(body.zone || '').trim();
+  if (!['extend', 'break'].includes(action)) return { error: 'bad_action' };
+  if (!riderId) return { error: 'bad_rider' };
+  if (!city) return { error: 'bad_city' };
+  if (action === 'extend' && !duration) return { error: 'bad_duration' };
+  const isAlex = city === '\u0627\u0644\u0625\u0633\u0643\u0646\u062f\u0631\u064a\u0629';
+  if (action === 'break' && isAlex && !reason) return { error: 'bad_reason' };
+  const FORM_ZONE_VALUES = { '\u0627\u0644\u063a\u0631\u062f\u0642\u0629': '\u0627\u0644\u063a\u0631\u0627\u062f\u0642\u0647' };
+  const cityVal = FORM_ZONE_VALUES[zone] || FORM_ZONE_VALUES[city] || zone || city;
+  let fields, pageHistory;
+  if (isAlex) {
+    const m = action === 'break' ? ['','0','00',''] : duration.match(/^(\d{1,2}):(\d{2})$/) || duration.match(/(\d{1,2}):(\d{2})\s*(\u0627\u0644\u0641\u062c\u0631|\u0627\u0644\u0635\u0628\u062d|\u0627\u0644\u0636\u0647\u0631|\u0627\u0644\u0639\u0635\u0631|\u0628\u0644\u064a\u0644)/);
+    if (!m) return { error: 'bad_duration_format' };
+    let hh = parseInt(m[1], 10); if (hh > 23 || +m[2] > 59) return { error: 'bad_duration_format' };
+    if (m[3] === '\u0627\u0644\u0636\u0647\u0631' || m[3] === '\u0627\u0644\u0639\u0635\u0631') { if (hh !== 12) hh += 12; }
+    if (m[3] === '\u0628\u0644\u064a\u0644') { hh = hh === 12 ? 0 : hh + 12; }
+    if (action === 'extend') {
+      fields = { 'entry.1976663790': '\u0634\u064a\u0641\u062a\u0627\u062a \u0627\u0644\u0637\u064a\u0627\u0631\u064a\u0646', 'entry.186608000': riderId, 'entry.2117629487': '\u062a\u0632\u0648\u064a\u062f\u0627\u062a \u0634\u064a\u0641\u062a\u0627\u062a \u0627\u0644\u0637\u064a\u0627\u0631\u064a\u0646', 'entry.536642639_hour': String(hh), 'entry.536642639_minute': m[2] };
+      pageHistory = '0,1,2';
+    } else {
+      fields = { 'entry.1976663790': '\u0634\u064a\u0641\u062a\u0627\u062a \u0627\u0644\u0637\u064a\u0627\u0631\u064a\u0646', 'entry.186608000': riderId, 'entry.2117629487': '\u0627\u0644\u0628\u0631\u064a\u0643\u0627\u062a', 'entry.1290442973': '\u0641\u0643 \u0628\u0631\u064a\u0643', 'entry.1831411232': reason };
+      pageHistory = '0,1,15';
+    }
+  } else if (action === 'extend') {
+    fields = { 'entry.302135773': '\u0634\u064a\u0641\u062a\u0627\u062a \u0627\u0644\u0637\u064a\u0627\u0631\u064a\u0646', 'entry.1941659317': '\u062a\u0632\u0648\u064a\u062f\u0627\u062a \u0634\u064a\u0641\u062a\u0627\u062a \u0627\u0644\u0637\u064a\u0627\u0631\u064a\u0646', 'entry.1552166535': duration, 'entry.1026285494': riderId, 'entry.1529435164': cityVal };
+    pageHistory = '0,1,2';
+  } else {
+    fields = { 'entry.302135773': '\u0634\u064a\u0641\u062a\u0627\u062a \u0627\u0644\u0637\u064a\u0627\u0631\u064a\u0646', 'entry.1941659317': '\u0641\u0643 \u0628\u0631\u064a\u0643', 'entry.264752225': riderId, 'entry.1551386634': cityVal };
+    pageHistory = '0,1,6';
+  }
+  return { action, riderId, city, duration, reason, isAlex, fields, pageHistory, formId: isAlex ? GOOGLE_FORM_IDS.alex : GOOGLE_FORM_IDS.general };
+}
+function buildPrefillUrl(formId, fields) {
+  const qs = Object.keys(fields).map(k => encodeURIComponent(k) + '=' + encodeURIComponent(fields[k])).join('&');
+  return 'https://docs.google.com/forms/u/0/d/e/' + formId + '/viewform?usp=pp_url&' + qs;
+}
+
+// Worker-direct form walk (fallback egress when the Apps Script relay is held).
+// Port of relay v8: dynamic multi-page walk, phone-like headers, human pacing.
+const WALK_UA = 'Mozilla/5.0 (Linux; Android 13; 2109119DG) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.6099.230 Mobile Safari/537.36';
+function walkHiddens(html) {
+  const o = {}; const re = /<input type="hidden" name="([^"]+)" value="([^"]*)"/g; let m;
+  while ((m = re.exec(html))) o[m[1]] = m[2].replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&#39;/g, "'");
+  return o;
+}
+function walkVisible(html, base) {
+  return html.indexOf('name="entry.' + base + '"') >= 0
+    || html.indexOf('entry.' + base + '_sentinel') >= 0
+    || html.indexOf('entry.' + base + '_hour') >= 0
+    || html.indexOf('entry.' + base + '_minute') >= 0;
+}
+const walkSleep = () => new Promise(r => setTimeout(r, 900 + Math.floor(Math.random() * 800)));
+async function walkFormDirect({ formId, cookie, email, fields, probe }) {
+  const base = 'https://docs.google.com/forms/u/0/d/e/' + formId + '/';
+  const headers = {
+    'Cookie': cookie,
+    'User-Agent': WALK_UA,
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+    'Accept-Language': 'ar-EG,ar;q=0.9,en;q=0.7',
+    'Origin': 'https://docs.google.com',
+    'Referer': base + 'viewform',
+    'X-Requested-With': 'mark.via.gp'
+  };
+  const dead = (status, html) => status === 401 || status === 403 || /accounts\.google\.com\/(v3\/signin|ServiceLogin)/.test(html || '');
+  const post = (data) => fetch(base + 'formResponse', { method: 'POST', headers: Object.assign({}, headers, { 'Content-Type': 'application/x-www-form-urlencoded' }), body: new URLSearchParams(data).toString(), redirect: 'manual' });
+  const vf = await fetch(base + 'viewform', { headers });
+  let html = await vf.text();
+  if (dead(vf.status, html)) return { error: 'auth_expired', status: vf.status };
+  let H = walkHiddens(html);
+  if (!H.fbzx) return { error: 'fbzx_not_found', status: vf.status };
+  const allKeys = Object.keys(fields);
+  const baseOf = (k) => k.replace(/_(?:hour|minute)$/, '');
+  const trail = [];
+  for (let step = 0; step < 12; step++) {
+    const here = {};
+    allKeys.forEach(k => { if (walkVisible(html, baseOf(k))) here[k] = fields[k]; });
+    const remaining = allKeys.filter(k => here[k] === undefined);
+    const last = remaining.length === 0;
+    const d = Object.assign({}, H, here, { dlut: String(Date.now()) });
+    if (step === 0) d.emailAddress = email;
+    if (last) {
+      if (probe) return { ok: true, probe: true, reached: H.pageHistory || '', trail, engine: 'direct' };
+      d.submissionTimestamp = String(Date.now());
+      delete d['continue'];
+      await walkSleep();
+      const fr = await fetch(base + 'formResponse', { method: 'POST', headers: Object.assign({}, headers, { 'Content-Type': 'application/x-www-form-urlencoded' }), body: new URLSearchParams(d).toString(), redirect: 'follow' });
+      const fHtml = await fr.text();
+      if (dead(fr.status, fHtml)) return { error: 'auth_expired', status: fr.status, step, engine: 'direct' };
+      const confirmed = fr.status === 200 && /response has been recorded|\u062a\u0645 \u062a\u0633\u062c\u064a\u0644|\u062a\u0645 \u062d\u0641\u0638|\u0625\u0631\u0633\u0627\u0644 \u0631\u062f \u0622\u062e\u0631|submit another response/i.test(fHtml);
+      return confirmed ? { ok: true, status: fr.status, trail, engine: 'direct' } : { error: 'submission_unconfirmed', status: fr.status, step, len: fHtml.length, trail, engine: 'direct' };
+    }
+    d.continue = '1';
+    await walkSleep();
+    const resp = await post(d);
+    const status = resp.status; html = await resp.text();
+    if (dead(status, html)) return { error: 'auth_expired', status, step, engine: 'direct' };
+    if (status !== 200) return { error: 'nav_failed', step, status, trail, engine: 'direct' };
+    const Hn = walkHiddens(html);
+    if (!Hn.pageHistory || Hn.pageHistory === H.pageHistory) return { error: 'nav_failed', step, status, detail: 'did_not_advance', pageHistory: Hn.pageHistory || '', trail, engine: 'direct' };
+    trail.push(Hn.pageHistory);
+    H = Hn;
+  }
+  return { error: 'too_many_pages', trail, engine: 'direct' };
+}
+
 export default {
   async fetch(request, env, ctx) {
     bumpUsage(env, ctx);
@@ -983,7 +1098,66 @@ export default {
         :env.DB.prepare('SELECT id,u,action,rider_id,city,payload,result,ts FROM form_submissions WHERE action=? AND ts>=? AND u=? ORDER BY ts DESC LIMIT 1000').bind(action,since,user.u);
       const data=await query.all();
       const today=cairoDay();
-      return json({day:today,scope:user.r==='admin'?'all':'own',rows:(data.results||[]).filter(r=>cairoDay(r.ts)===today).map(r=>{let p={},v={};try{p=JSON.parse(r.payload)}catch{}try{v=JSON.parse(r.result)}catch{}const outcome=v.ok===true?'confirmed':(String(v.error||'')==='submission_unconfirmed'?'unconfirmed':(String(v.error||'')==='nav_failed'&&v.detail==='did_not_advance')?'held':(String(v.error||'')==='auth_expired'?'auth':'failed');return {id:r.id,u:r.u,rider_id:r.rider_id,city:r.city,ts:r.ts,duration:p.duration||p['entry.1552166535']||((p['entry.536642639_hour']||'')+':'+(p['entry.536642639_minute']||'')),reason:p.reason||p['entry.1831411232']||'',confirmed:v.ok===true,outcome,status:v.status||null}})});
+      return json({day:today,scope:user.r==='admin'?'all':'own',rows:(data.results||[]).filter(r=>cairoDay(r.ts)===today).map(r=>{let p={},v={};try{p=JSON.parse(r.payload)}catch{}try{v=JSON.parse(r.result)}catch{}const outcome=v.manual===true?'manual':v.ok===true?'confirmed':(String(v.error||'')==='submission_unconfirmed'?'unconfirmed':(String(v.error||'')==='nav_failed'&&v.detail==='did_not_advance')?'held':(String(v.error||'')==='auth_expired'?'auth':'failed');return {id:r.id,u:r.u,rider_id:r.rider_id,city:r.city,ts:r.ts,duration:p.duration||p['entry.1552166535']||((p['entry.536642639_hour']||'')+':'+(p['entry.536642639_minute']||'')),reason:p.reason||p['entry.1831411232']||'',confirmed:v.ok===true,outcome,status:v.status||null}})});
+    }
+
+    if (url.pathname === '/api/forms/prefill' && request.method === 'POST') {
+      const user = await getSessionUser(env, request);
+      if (!user) return json({ error: 'unauthorized' }, 401);
+      if (FORM_ACTIONS_ADMIN_ONLY ? user.r !== 'admin' : !['admin', 'manager', 'sup'].includes(user.r)) return json({ error: 'forbidden' }, 403);
+      const body = await request.json().catch(() => ({}));
+      const job = buildFormJob(body);
+      if (job.error) return json({ error: job.error }, 400);
+      return json({ ok: true, url: buildPrefillUrl(job.formId, job.fields) });
+    }
+
+    if (url.pathname === '/api/forms/log-manual' && request.method === 'POST') {
+      const user = await getSessionUser(env, request);
+      if (!user) return json({ error: 'unauthorized' }, 401);
+      if (FORM_ACTIONS_ADMIN_ONLY ? user.r !== 'admin' : !['admin', 'manager', 'sup'].includes(user.r)) return json({ error: 'forbidden' }, 403);
+      const body = await request.json().catch(() => ({}));
+      const job = buildFormJob(body);
+      if (job.error) return json({ error: job.error }, 400);
+      try {
+        await ensureSchema(env);
+        await env.DB.prepare('INSERT INTO form_submissions(u,action,rider_id,city,payload,result,ts) VALUES(?,?,?,?,?,?,?)').bind(user.u, job.action, job.riderId, job.city, JSON.stringify({ ...job.fields, duration: job.duration, reason: job.reason }), JSON.stringify({ manual: true }), Date.now()).run();
+      } catch (e) { return json({ error: 'log_failed' }, 500); }
+      return json({ ok: true });
+    }
+
+    if (url.pathname === '/api/forms/cookie' && request.method === 'POST') {
+      const user = await getSessionUser(env, request);
+      if (!user) return json({ error: 'unauthorized' }, 401);
+      if (user.r !== 'admin') return json({ error: 'forbidden' }, 403);
+      const body = await request.json().catch(() => ({}));
+      const which = String(body.which || '');
+      if (which !== 'alex' && which !== 'general') return json({ error: 'bad_form' }, 400);
+      const cookie = String(body.cookie || '');
+      if (cookie.length < 100 || cookie.length > 8000 || /[\r\n]/.test(cookie)) return json({ error: 'bad_cookie' }, 400);
+      await ensureSchema(env);
+      await env.DB.prepare('INSERT INTO settings(k,v) VALUES(?,?) ON CONFLICT(k) DO UPDATE SET v=excluded.v').bind('form_cookie_' + which, cookie).run();
+      return json({ ok: true, set: 'form_cookie_' + which });
+    }
+
+    if (url.pathname === '/api/forms/probe-direct' && request.method === 'POST') {
+      const user = await getSessionUser(env, request);
+      if (!user) return json({ error: 'unauthorized' }, 401);
+      if (user.r !== 'admin') return json({ error: 'forbidden' }, 403);
+      const body = await request.json().catch(() => ({}));
+      const which = String(body.form || '');
+      const isAlex = which === 'alex';
+      if (!isAlex && which !== 'general') return json({ error: 'bad_form' }, 400);
+      await ensureSchema(env);
+      const row = await env.DB.prepare('SELECT v FROM settings WHERE k=?').bind('form_cookie_' + which).first();
+      if (!row || !row.v) return json({ error: 'no_cookie' }, 503);
+      const fields = isAlex
+        ? { 'entry.1976663790': '\u0634\u064a\u0641\u062a\u0627\u062a \u0627\u0644\u0637\u064a\u0627\u0631\u064a\u0646', 'entry.186608000': '1234567', 'entry.2117629487': '\u0627\u0644\u0628\u0631\u064a\u0643\u0627\u062a', 'entry.1290442973': '\u0641\u0643 \u0628\u0631\u064a\u0643', 'entry.1831411232': 'BREAK' }
+        : { 'entry.302135773': '\u0634\u064a\u0641\u062a\u0627\u062a \u0627\u0644\u0637\u064a\u0627\u0631\u064a\u0646', 'entry.1941659317': '\u0641\u0643 \u0628\u0631\u064a\u0643', 'entry.264752225': '1234567', 'entry.1551386634': '\u0627\u0644\u063a\u0631\u0627\u062f\u0642\u0647' };
+      const email = isAlex ? 'alexlogistics.teammh101@gmail.com' : 'deltalogistics.teammh1@gmail.com';
+      try {
+        const result = await walkFormDirect({ formId: GOOGLE_FORM_IDS[which], cookie: row.v, email, fields, probe: true });
+        return json({ probe: true, direct: true, form: which, result });
+      } catch (e) { return json({ probe: true, direct: true, form: which, result: { error: String(e && e.message || e).slice(0, 200), engine: 'direct' } }); }
     }
 
     if (url.pathname === '/api/forms/probe' && request.method === 'POST') {
@@ -1011,43 +1185,11 @@ export default {
       if (!['admin', 'manager', 'sup'].includes(user.r)) return json({ error: 'forbidden' }, 403);
       if (FORM_ACTIONS_ADMIN_ONLY && user.r !== 'admin') return json({ error: 'forbidden' }, 403);
       const body = await request.json().catch(() => ({}));
-      const action = String(body.action || '');
-      const riderId = String(body.rider_id || '').replace(/[^0-9]/g, '');
-      const city = String(body.city || '').trim();
-      const duration = String(body.duration || '').trim();
-      const reason = String(body.reason || '').trim();
-      const zone = String(body.zone || '').trim();
-      if (!['extend', 'break'].includes(action)) return json({ error: 'bad_action' }, 400);
-      if (!riderId) return json({ error: 'bad_rider' }, 400);
-      if (!city) return json({ error: 'bad_city' }, 400);
-      if (action === 'extend' && !duration) return json({ error: 'bad_duration' }, 400);
-      const isAlex = city === 'الإسكندرية';
-      if (action === 'break' && isAlex && !reason) return json({ error: 'bad_reason' }, 400);
+      const job = buildFormJob(body);
+      if (job.error) return json({ error: job.error }, 400);
+      const { action, riderId, city, duration, reason, isAlex, fields, pageHistory, formId } = job;
       const relayUrl = isAlex ? env.FORM_RELAY_ALEX : env.FORM_RELAY_GENERAL;
       if (!relayUrl || !env.FORM_RELAY_SECRET) return json({ error: 'relay_not_configured' }, 503);
-      const FORM_ZONE_VALUES = { 'الغردقة': 'الغرادقه' };
-      const cityVal = FORM_ZONE_VALUES[zone] || FORM_ZONE_VALUES[city] || zone || city;
-      let fields, pageHistory;
-      if (isAlex) {
-        const m = action === 'break' ? ['','0','00',''] : duration.match(/^(\d{1,2}):(\d{2})$/) || duration.match(/(\d{1,2}):(\d{2})\s*(الفجر|الصبح|الضهر|العصر|بليل)/);
-        if (!m) return json({ error: 'bad_duration_format' }, 400);
-        let hh = parseInt(m[1], 10);if(hh>23||+m[2]>59)return json({error:'bad_duration_format'},400);
-        if (m[3] === 'الضهر' || m[3] === 'العصر') { if (hh !== 12) hh += 12; }
-        if (m[3] === 'بليل') { hh = hh === 12 ? 0 : hh + 12; }
-        if (action === 'extend') {
-          fields = { 'entry.1976663790': 'شيفتات الطيارين', 'entry.186608000': riderId, 'entry.2117629487': 'تزويدات شيفتات الطيارين', 'entry.536642639_hour': String(hh), 'entry.536642639_minute': m[2] };
-          pageHistory = '0,1,2';
-        } else {
-          fields = { 'entry.1976663790': 'شيفتات الطيارين', 'entry.186608000': riderId, 'entry.2117629487': 'البريكات', 'entry.1290442973': 'فك بريك', 'entry.1831411232': reason };
-          pageHistory = '0,1,15';
-        }
-      } else if (action === 'extend') {
-        fields = { 'entry.302135773': 'شيفتات الطيارين', 'entry.1941659317': 'تزويدات شيفتات الطيارين', 'entry.1552166535': duration, 'entry.1026285494': riderId, 'entry.1529435164': cityVal };
-        pageHistory = '0,1,2';
-      } else {
-        fields = { 'entry.302135773': 'شيفتات الطيارين', 'entry.1941659317': 'فك بريك', 'entry.264752225': riderId, 'entry.1551386634': cityVal };
-        pageHistory = '0,1,6';
-      }
       // Queue/spacing + uncertainty retry-guard (Google Forms cooldown protection)
       const nowTs = Date.now();
       try {
@@ -1064,7 +1206,7 @@ export default {
           return json({ error: 'uncertain_check_sheet', submission_id: prev.id }, 409);
         }
       } catch (e) { /* logging/guard failure must not block a submission */ }
-      const resp = await fetch(relayUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ secret: env.FORM_RELAY_SECRET, formId: isAlex ? '1FAIpQLSffSwyTh0w4AYjTU9AG-kj-0UfJHcSTSYnR1DrWJ_h8iPYm3Q' : '1FAIpQLSekxaUQPgiWq-Y_IPfsTx7wTANA324a2JklFJZ_Gxg9CGPaKA', fields, pageHistory }) });
+      const resp = await fetch(relayUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ secret: env.FORM_RELAY_SECRET, formId, fields, pageHistory }) });
       const result = await resp.json().catch(() => ({error:'invalid_relay_response'}));
       let logSaved=true;
       try { await ensureSchema(env);await env.DB.prepare('INSERT INTO form_submissions(u,action,rider_id,city,payload,result,ts) VALUES(?,?,?,?,?,?,?)').bind(user.u, action, riderId, city, JSON.stringify({...fields,duration,reason}), JSON.stringify(result), Date.now()).run(); } catch (e) {logSaved=false;}
