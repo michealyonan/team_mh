@@ -7,6 +7,7 @@ const fs = require('fs');
 const path = require('path');
 const puppeteer = require('puppeteer-core');
 const { spawn } = require('child_process');
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 function chromeCandidates() {
   const list = [];
@@ -79,8 +80,12 @@ function launchPlain(group, userDataRoot, url) {
   if (!exe) { const e = new Error('chrome_not_found'); e.code = 'chrome_not_found'; throw e; }
   const userDataDir = path.join(userDataRoot, 'chrome-profiles', group);
   try { fs.mkdirSync(userDataDir, { recursive: true }); } catch (e) {}
-  return spawn(exe, [
+  // --remote-debugging-port=0: normal Chrome (no --enable-automation, webdriver
+  // stays false) that we can still attach to via the DevToolsActivePort file -
+  // so the app sees sign-in complete WITHOUT Micheal having to close the window.
+  const child = spawn(exe, [
     '--user-data-dir=' + userDataDir,
+    '--remote-debugging-port=0',
     '--no-first-run',
     '--no-default-browser-check',
     '--disable-session-crashed-bubble',
@@ -88,7 +93,42 @@ function launchPlain(group, userDataRoot, url) {
     '--start-maximized',
     url
   ], { stdio: 'ignore' });
+  return { child, userDataDir };
 }
+
+// Watch a plain-Chrome sign-in: attach via DevToolsActivePort and wait until a
+// tab reaches the form (signed in). Resolves {browser, page} to CONTINUE on the
+// same window, or null on close/timeout (caller re-attaches fresh).
+async function launchPlainForSignin(group, userDataRoot, url, timeoutMs) {
+  const { child, userDataDir } = launchPlain(group, userDataRoot, url);
+  const portFile = path.join(userDataDir, 'DevToolsActivePort');
+  const t0 = Date.now();
+  let browser = null;
+  while (Date.now() - t0 < (timeoutMs || 360000)) {
+    if (!browser) {
+      try {
+        const first = fs.readFileSync(portFile, 'utf8').split(/\r?\n/)[0].trim();
+        if (first) browser = await puppeteer.connect({ browserURL: 'http://127.0.0.1:' + first });
+      } catch (e) {}
+    } else {
+      try {
+        const pages = await browser.pages();
+        for (const p of pages) {
+          const u = p.url();
+          if (/docs\.google\.com\/forms/.test(u) && !/accounts\.google\.com/.test(u)) {
+            return { browser, page: p };
+          }
+        }
+      } catch (e) { browser = null; }
+    }
+    if (child.exitCode !== null) break; // window closed
+    await sleep(2000);
+  }
+  if (browser) { try { browser.disconnect(); } catch (e) {} }
+  return null;
+}
+
+function adoptBrowser(group, browser) { browsers[group] = browser; }
 
 // Non-launching peek: returns the cached browser ONLY if already connected.
 // Pollers (sheet status) must never relaunch Chrome by themselves - a poll that
@@ -97,4 +137,4 @@ function peekBrowser(group) {
   return browserAlive(browsers[group]) ? browsers[group] : null;
 }
 
-module.exports = { getBrowser, findChrome, firstPage, peekBrowser, launchPlain };
+module.exports = { getBrowser, findChrome, firstPage, peekBrowser, launchPlain, launchPlainForSignin, adoptBrowser };

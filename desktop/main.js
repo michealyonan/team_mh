@@ -7,10 +7,10 @@ const { app, BrowserWindow, shell, Notification, ipcMain } = require('electron')
 const fs = require('fs');
 const path = require('path');
 const { autoUpdater } = require('electron-updater');
-const { getBrowser, firstPage, peekBrowser, launchPlain } = require('./chromeproc');
+const { getBrowser, firstPage, peekBrowser, launchPlain, launchPlainForSignin, adoptBrowser } = require('./chromeproc');
 const { runFormWalk, clickX, pageMarker, confirmState } = require('./chromewalk');
 
-const VERSION = '0.3.8';
+const VERSION = '0.3.9';
 // App-generated black proof image for فتح شيفت uploads (64x64 PNG, written on demand).
 const BLACK_PNG_B64 = 'iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAAIklEQVR4nO3BAQ0AAADCoPdPbQ8HFAAAAAAAAAAAAAAA8G4wQAABiwCo9wAAAABJRU5ErkJggg==';
 function proofPngPath() {
@@ -138,12 +138,13 @@ async function openGoogleSignin(which) {
   if (!cfg) return;
   try { const b = peekBrowser(which); if (b) await b.close(); } catch (e) {}
   delete warmPages[which];
-  try { await manualSignin(which, cfg); } catch (e) { notify('team_mh ❌', 'مش قادر أفتح كروم على الجهاز ده'); return; }
-  // Verify the session by attaching normally now.
+  let signed = null;
+  try { signed = await manualSignin(which, cfg); } catch (e) { notify('team_mh ❌', 'مش قادر أفتح كروم على الجهاز ده'); return; }
+  // Verify the session by attaching normally now (or reuse the signed page).
   try {
-    const browser = await getBrowser(which, app.getPath('userData'));
-    const page = await firstPage(browser);
-    await page.goto(cfg.url, { waitUntil: 'domcontentloaded', timeout: 60000 });
+    const browser = signed && signed.browser ? signed.browser : await getBrowser(which, app.getPath('userData'));
+    const page = signed && signed.page ? signed.page : await firstPage(browser);
+    if (!signed) await page.goto(cfg.url, { waitUntil: 'domcontentloaded', timeout: 60000 });
     const url = await settleUrl(page, 15000);
     if (/docs\.google\.com\/forms/.test(url)) {
       let acct = '';
@@ -182,13 +183,10 @@ async function settleUrl(page, ms) {
 // app may not be secure"). We close the driven window, open normal Chrome on the
 // form URL, and wait for Micheal to sign in and close the window himself.
 async function manualSignin(group, cfg) {
-  notify('team_mh 🔐', 'سجّل دخول جوجل بالحساب ' + cfg.email + ' في نافذة كروم اللي هتفتح، ولما صفحة الفورم تظهر اقفل النافذة - التطبيق هيكمل لوحده');
-  const child = launchPlain(group, app.getPath('userData'), cfg.url);
-  await new Promise((res) => {
-    const to = setTimeout(res, SIGNIN_WAIT_MS);
-    child.on('exit', () => { clearTimeout(to); res(); });
-    child.on('error', () => { clearTimeout(to); res(); });
-  });
+  notify('team_mh 🔐', 'سجّل دخول جوجل بالحساب ' + cfg.email + ' في نافذة كروم اللي فتحت - أول ما صفحة الفورم تظهر التطبيق هيكمل لوحده');
+  const signed = await launchPlainForSignin(group, app.getPath('userData'), cfg.url, SIGNIN_WAIT_MS);
+  if (signed && signed.page) { adoptBrowser(group, signed.browser); return signed; }
+  return null;
 }
 
 // Wait until the form page actually rendered its controls (post sign-in redirect).
@@ -457,13 +455,19 @@ ipcMain.handle('tmh-run-local', async (_e, payload) => {
         try { await browser.close(); } catch (e) {}
         delete warmPages[group];
         try { delete sheetTabs[group]; } catch (e) {}
-        try { await manualSignin(group, cfg); }
+        let signed = null;
+        try { signed = await manualSignin(group, cfg); }
         catch (e) { return { ok: false, error: 'chrome_not_found', submitted: false }; }
-        try { browser = await getBrowser(group, app.getPath('userData')); }
-        catch (e) { return { ok: false, error: 'chrome_not_found', submitted: false }; }
-        try { page = await firstPage(browser); }
-        catch (e) { return { ok: false, error: 'tab_failed', detail: String(e).slice(0, 200), submitted: false }; }
-        try { await page.goto(cfg.url, { waitUntil: 'domcontentloaded', timeout: 60000 }); } catch (e) {}
+        if (signed && signed.page) {
+          browser = signed.browser;
+          page = signed.page;
+        } else {
+          try { browser = await getBrowser(group, app.getPath('userData')); }
+          catch (e) { return { ok: false, error: 'chrome_not_found', submitted: false }; }
+          try { page = await firstPage(browser); }
+          catch (e) { return { ok: false, error: 'tab_failed', detail: String(e).slice(0, 200), submitted: false }; }
+          try { await page.goto(cfg.url, { waitUntil: 'domcontentloaded', timeout: 60000 }); } catch (e) {}
+        }
         url = await settleUrl(page, 15000);
         if (/accounts\.google\.com/.test(url)) { return { ok: false, error: 'auth_expired', detail: 'google sign-in not completed', submitted: false }; }
       }

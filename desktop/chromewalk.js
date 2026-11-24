@@ -68,7 +68,13 @@ async function pickOption(page, text, timeoutMs) {
     await clickX(page, scoped, Math.min(timeoutMs || 12000, 9000));
     return;
   } catch (e) {}
-  await clickX(page, "//span[contains(text(), '" + text + "')]", 8000);
+  // Delta DOM variant: the radio itself carries the label in aria-label.
+  try {
+    await clickX(page, "//div[@role='radio'][contains(@aria-label, '" + text + "')] | //div[@role='option'][contains(@aria-label, '" + text + "')]", 5000);
+    return;
+  } catch (e) {}
+  // Last resort: the visible label element itself (Google rows select on label click).
+  await clickX(page, "//*[self::span or self::div][normalize-space(text())='" + text + "' and not(div)]", 8000);
 }
 
 // Marker for the currently rendered page: the hidden pageHistory input value.
@@ -200,6 +206,20 @@ async function runFormWalkInner(page, job) {
     err.detail = (err.detail ? err.detail + ' | ' : '') + 'steps: ' + trace();
     throw err;
   };
+
+  // Wait for page 0 to actually render its controls before touching anything
+  // (post-sign-in resume can land on a half-rendered page).
+  {
+    const t0 = Date.now();
+    let ready = false;
+    while (Date.now() - t0 < 15000 && !ready) {
+      try {
+        ready = await page.evaluate(() => !!document.querySelector("div[role='radiogroup'], div[role='checkbox'], div[role='listbox'], input[type='text']"));
+      } catch (e) {}
+      if (!ready) await sleep(300);
+    }
+    mark('page0:ready');
+  }
 
   // Step 0: tick the Record-email consent checkbox if present and unchecked (pyw parity).
   try {
