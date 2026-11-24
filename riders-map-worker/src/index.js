@@ -699,6 +699,9 @@ async function runStatusCron(env) {
   }
 }
 
+// team_mh flag: form actions (مد/فك البريك/إجراء يدوي) restricted to admin until Micheal asks to expose them (flip with index.html const)
+const FORM_ACTIONS_ADMIN_ONLY = true;
+
 export default {
   async fetch(request, env, ctx) {
     bumpUsage(env, ctx);
@@ -987,6 +990,7 @@ export default {
       const user = await getSessionUser(env, request);
       if (!user) return json({ error: 'unauthorized' }, 401);
       if (!['admin', 'manager', 'sup'].includes(user.r)) return json({ error: 'forbidden' }, 403);
+      if (FORM_ACTIONS_ADMIN_ONLY && user.r !== 'admin') return json({ error: 'forbidden' }, 403);
       const body = await request.json().catch(() => ({}));
       const action = String(body.action || '');
       const riderId = String(body.rider_id || '').replace(/[^0-9]/g, '');
