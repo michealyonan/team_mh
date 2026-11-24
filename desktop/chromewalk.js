@@ -839,9 +839,26 @@ async function runFormWalkInner(page, job) {
         if (vals[i]) await typeIn(page, tins[i], vals[i]);
       }
       mark('page2:fields');
-      await uploadProof(page, job.proofPath, job);
-      mark('page2:upload');
+      if (job.manualProof) { mark('page2:upload-manual'); } else { await uploadProof(page, job.proofPath, job); mark('page2:upload'); }
     } catch (e) { fail(e); }
+  }
+
+  // Manual proof mode (Micheal 24 Nov): the app filled everything; HE attaches
+  // the image and presses إرسال himself. The app only watches for the
+  // confirmation and records the result.
+  if (job.manualProof) {
+    mark('manual-proof-wait');
+    if (job.onManualWait) { try { job.onManualWait(); } catch (e) {} }
+    const tM = Date.now();
+    while (Date.now() - tM < 360000) {
+      if (job.isAborted && job.isAborted()) { const ab = new Error('aborted'); ab.aborted = true; throw ab; }
+      try {
+        const fin = await confirmState(page);
+        if (fin.done) { mark('manual:confirmed'); return { ok: true, submitted: true, detail: 'steps: ' + steps.join(' | ') }; }
+      } catch (e) {}
+      await sleep(2000);
+    }
+    return { ok: false, error: 'manual_timeout', uncertain: true, submitted: false, detail: 'steps: ' + steps.join(' | ') };
   }
 
   // Submit (never in test/dry mode - real submissions only on Micheal's explicit taps).

@@ -10,7 +10,7 @@ const { autoUpdater } = require('electron-updater');
 const { getBrowser, firstPage, peekBrowser, launchPlain, launchPlainForSignin, adoptBrowser, dropBrowser } = require('./chromeproc');
 const { runFormWalk, clickX, pageMarker, confirmState } = require('./chromewalk');
 
-const VERSION = '0.3.17';
+const VERSION = '0.3.18';
 // Proof image for فتح شيفت uploads: Micheal's OWN fixed image when present
 // (userData/proof.*, seeded from a bundled proof.* on first run), else the
 // app-generated black PNG fallback (24 Nov).
@@ -485,6 +485,7 @@ ipcMain.handle('tmh-run-local', async (_e, payload) => {
   const city = String(p.city || '').trim();
   const duration = String(p.duration || '').trim();
   let reason = String(p.reason || '').trim();
+  const manualProof = !!p.manualProof;
   if (!['extend', 'break', 'open'].includes(action)) return { ok: false, error: 'bad_action' };
   if (!riderId) return { ok: false, error: 'bad_rider' };
   if (!city) return { ok: false, error: 'bad_city' };
@@ -607,13 +608,14 @@ ipcMain.handle('tmh-run-local', async (_e, payload) => {
 
       progress('walking', {});
       const thisRun = currentRun;
-      const job = Object.assign({ isAlex: isAlex && action !== 'open', isOpen: action === 'open', action, riderId, city, cityVal, reason, duration, vehicle, proofPath: action === 'open' ? proofPngPath() : '', isAborted: () => !!thisRun.aborted, onSubmitting: () => { thisRun.submitClicked = true; } }, dur);
+      const job = Object.assign({ isAlex: isAlex && action !== 'open', isOpen: action === 'open', action, riderId, city, cityVal, reason, duration, vehicle, proofPath: action === 'open' ? proofPngPath() : '', manualProof: action === 'open' && manualProof, onManualWait: () => { try { progress('manual_proof', {}); } catch (e) {} }, isAborted: () => !!thisRun.aborted, onSubmitting: () => { thisRun.submitClicked = true; } }, dur);
       let res;
       try {
         res = await Promise.race([
           runFormWalk(page, job),
           abortPromise,
-          sleep(WALK_WATCHDOG_MS).then(() => ({ ok: false, error: 'watchdog_timeout', submitted: false }))
+          // Manual proof mode needs minutes, not the 150s walk watchdog (24 Nov).
+          sleep(job.manualProof ? 380000 : WALK_WATCHDOG_MS).then(() => ({ ok: false, error: 'watchdog_timeout', submitted: false }))
         ]);
       } catch (e) {
         res = currentRun && currentRun.aborted

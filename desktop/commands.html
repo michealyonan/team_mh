@@ -54,6 +54,9 @@
   <label for="openReason">السبب</label>
   <input id="openReason" value="موجود في الزون">
 </div>
+<div id="manualProofWrap" style="display:none">
+  <label class="chk"><input type="checkbox" id="manualProof"> هرّفع صورة الإثبات وأدوس إرسال بنفسي</label>
+</div>
 <div id="durWrap">
   <label for="durSel" id="durLabel">وقت نهاية المد</label>
   <select id="durSel"></select>
@@ -90,6 +93,8 @@ const $=id=>document.getElementById(id);
 let action='extend';
 try{$('skipDup').checked=localStorage.getItem('skipDup')!=='0';}catch(e){}
 $('skipDup').onchange=()=>{try{localStorage.setItem('skipDup',$('skipDup').checked?'1':'0');}catch(e){}};
+try{$('manualProof').checked=localStorage.getItem('manualProof')==='1';}catch(e){}
+$('manualProof').onchange=()=>{try{localStorage.setItem('manualProof',$('manualProof').checked?'1':'0');}catch(e){}};
 function isAlex(){return $('city').value==='الإسكندرية'}
 function sync(){
   $('actExt').classList.toggle('on',action==='extend');
@@ -100,6 +105,7 @@ function sync(){
   $('reasonWrap').style.display=(action==='break'&&isAlex())?'':'none';
   $('vehWrap').style.display=open?'':'none';
   $('openReasonWrap').style.display=open?'':'none';
+  $('manualProofWrap').style.display=open?'':'none';
   const alexTime=action==='extend'&&isAlex();
   $('durSel').style.display=alexTime?'none':'';
   $('durTime').style.display=alexTime?'':'none';
@@ -121,6 +127,7 @@ window.tmhDesktop.onProgress(info=>{
   else if(info.stage==='launch')say('','🚀 بيفتح كروم…');
   else if(info.stage==='signin_wait')say('','🔐 سجّل دخول جوجل بالحساب '+info.email+' في نافذة كروم اللي فتحت - التنفيذ هيكمل لوحده');
   else if(info.stage==='walking')say('','⚡ بيملى الفورم في كروم… متقفلش النافذة');
+  else if(info.stage==='manual_proof')say('','✋ الفورم اتملى - كمّل بنفسك: ارفع صورة الإثبات واضغط إرسال في نافذة كروم، والتطبيق هيسجل النتيجة لوحده');
 });
 $('send').onclick=async()=>{
   say('','');
@@ -153,7 +160,7 @@ $('send').onclick=async()=>{
   $('logBtns').style.display='none';
   say('','🚀 بيجهز التنفيذ…');
   try{
-    const r=await window.tmhDesktop.runLocal({action,rider_id:rider,city,duration,reason,vehicle});
+    const r=await window.tmhDesktop.runLocal({action,rider_id:rider,city,duration,reason,vehicle,manualProof:action==='open'&&$('manualProof').checked});
     if(r&&r.ok){
       say('ok','✅ تم: '+(action==='break'?'فك بريك':action==='open'?'فتح شيفت':'مد الشيفت')+' - '+rider);
       $('rider').value='';
@@ -175,6 +182,7 @@ $('send').onclick=async()=>{
         unconfirmed:'⚠️ غير مؤكد: ممكن الطلب يكون اتبعت - اتأكد من الشيت أو الجدول قبل ما تعيد',
         bad_rider:'اكتب كود مندوب صحيح',bad_city:'اختار المدينة',bad_duration:'اختار وقت نهاية المد',bad_reason:'اختار سبب فك البريك',bad_duration_format:'صيغة الوقت مش صح',
         bad_vehicle:'اكتب رقم المركبة',open_not_alex:'فتح الشيفت متاح لمدن الدلتا بس (مش الإسكندرية)',
+        manual_timeout:'فاتت ٦ دقايق من غير ما يتسجل إرسال - لو لسه بتكمل بنفسك اتأكد من الشيت',
         aborted:'⛔ اتوقف - الطلب اتلغى قبل الإرسال',
         upload_not_confirmed:'الإثبات مااترفعش - الصورة مش ظاهرة في الفورم، مافيش حاجة اتبعتت. جرّب تاني',
         upload_input_not_found:'نافذة رفع الإثبات مافتحتش - جرّب تاني'
