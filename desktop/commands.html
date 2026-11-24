@@ -7,11 +7,12 @@
   body{margin:0;background:#0f172a;color:#e2e8f0;font-family:Cairo,system-ui,sans-serif;padding:16px}
   h2{margin:0 0 12px;font-size:18px}
   label{display:block;font-size:12px;color:#94a3b8;margin:10px 0 4px}
-  input,select{width:100%;box-sizing:border-box;background:#1e293b;color:#e2e8f0;border:1px solid #334155;border-radius:10px;padding:9px 10px;font:inherit;min-height:40px}
+  input,select,textarea{width:100%;box-sizing:border-box;background:#1e293b;color:#e2e8f0;border:1px solid #334155;border-radius:10px;padding:9px 10px;font:inherit;min-height:40px}
+  textarea{resize:vertical;min-height:44px;line-height:1.5}
   .acts{display:flex;gap:8px}
   .acts button{flex:1;padding:12px;border:1px solid #334155;border-radius:12px;background:#1e293b;color:#e2e8f0;font:inherit;font-weight:800;cursor:pointer}
   .acts button.on{background:#1d4ed8;border-color:#3b82f6}
-  #msg{margin-top:12px;font-size:13px;min-height:20px;line-height:1.6}
+  #msg{margin-top:12px;font-size:13px;min-height:20px;line-height:1.6;white-space:pre-line}
   .ok{color:#4ade80}.err{color:#f87171}
   #send{width:100%;margin-top:14px;background:#16a34a;color:#fff;border:0;border-radius:12px;padding:12px;font:inherit;font-weight:900;cursor:pointer}
   #send:disabled{opacity:.5;cursor:default}
@@ -33,7 +34,7 @@
   <button id="actOpen" type="button">🔓 فتح شيفت</button>
 </div>
 <label for="rider">كود المندوب</label>
-<input id="rider" inputmode="numeric" placeholder="اكتب ID المندوب">
+<textarea id="rider" inputmode="numeric" rows="1" placeholder="اكتب ID المندوب - لو أكتر من واحد، كل كود في سطر"></textarea>
 <label class="chk" id="skipDupWrap"><input type="checkbox" id="skipDup" checked> متمدّش لنفس المندوب لو اتمدّله النهارده</label>
 <label for="city">المدينة</label>
 <select id="city">
@@ -131,17 +132,25 @@ window.tmhDesktop.onProgress(info=>{
 });
 $('send').onclick=async()=>{
   say('','');
-  const rider=$('rider').value.trim(),city=$('city').value;
-  if(!/^\d{1,15}$/.test(rider)){say('err','اكتب كود مندوب صحيح');return}
+  // Multi-rider (Micheal 24 Nov): one or more codes, one per line. They run
+  // one by one; main.js enforces his spacing delay between them.
+  const riders=[...new Set($('rider').value.split(/[^\d]+/).map(s=>s.trim()).filter(s=>/^\d{1,15}$/.test(s)))];
+  const city=$('city').value;
+  if(!riders.length){say('err','اكتب كود مندوب صحيح - لو أكتر من واحد، كل كود في سطر');return}
   if(!city){say('err','اختار المدينة');return}
   // Repeat-مد guard (Micheal 24 Nov): ticked = never extend a rider who already
   // got a successful مد today; unticked = extend normally.
+  let todo=riders;
   if(action==='extend'&&$('skipDup').checked){
     try{
       const rows=await window.tmhDesktop.history();
       const today=new Date().toLocaleDateString('en-CA',{timeZone:'Africa/Cairo'});
-      const hit=(rows||[]).find(r=>r&&String(r.riderId)===rider&&r.action==='extend'&&r.ok&&new Date(Number(r.ts)).toLocaleDateString('en-CA',{timeZone:'Africa/Cairo'})===today);
-      if(hit){const t=new Date(Number(hit.ts)).toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit',timeZone:'Africa/Cairo'});say('err','المندوب '+rider+' اتمدّله النهارده الساعة '+t+' - لو عايز تمدّله تاني شيل العلامة من المربع');return}
+      const skipped=[];
+      todo=riders.filter(rider=>{
+        const hit=(rows||[]).find(r=>r&&String(r.riderId)===rider&&r.action==='extend'&&r.ok&&new Date(Number(r.ts)).toLocaleDateString('en-CA',{timeZone:'Africa/Cairo'})===today);
+        if(hit){skipped.push(rider);return false}return true
+      });
+      if(skipped.length){say('err','اتخطّى '+skipped.join('، ')+' (اتمدّلهم النهارده) - لو عايز تمدّهم تاني شيل العلامة من المربع');if(!todo.length)return}
     }catch(e){}
   }
   let duration='';
@@ -155,39 +164,53 @@ $('send').onclick=async()=>{
     if(!vehicle){say('err','اكتب رقم المركبة');return}
     reason=$('openReason').value.trim()||'موجود في الزون';
   }
+  const emap={
+    busy:'في طلب شغال حاليًا - استنى ما يخلص',
+    chrome_not_found:'مش لاقي جوجل كروم على الجهاز - نزّله الأول',
+    auth_expired:'تسجيل دخول جوجل مخلصش في وقته - جرّب تاني وسجّل دخول أسرع',
+    wrong_account:'الحساب المسجل في كروم مش حساب الفورم المطلوب - سجّل دخول بالحساب الصح من زرار تسجيل الدخول',
+    tab_closed:'نافذة كروم اتقفلت قبل ما التنفيذ يخلص',
+    tab_failed:'مش قادر أفتح تاب في كروم - قفل كروم وجرّب تاني',
+    form_not_ready:'صفحة الفورم ماجهزتش - شيك النت وجرّب تاني',
+    walk_exception:'حصل خطأ أثناء ملء الفورم - جرّب تاني، ولو تكرر ابعتلي سكرينشوت',
+    validation_blocked:'الفورم رفض يكمل: في خانة مطلوبة مش متملية',
+    page_load_failed:'صفحة الفورم معملتش تحميل - شيك النت وجرّب تاني',
+    did_not_advance:'الفورم ماإكدش الإرسال (ممكن حجب مؤقت من جوجل) - جرّب بعد شوية',
+    watchdog_timeout:'مش متأكد لو الطلب اتبعت (التنفيذ خد وقت طويل) - اتأكد من الشيت قبل ما تعيد',
+    unconfirmed:'⚠️ غير مؤكد: ممكن الطلب يكون اتبعت - اتأكد من الشيت أو الجدول قبل ما تعيد',
+    bad_rider:'اكتب كود مندوب صحيح',bad_city:'اختار المدينة',bad_duration:'اختار وقت نهاية المد',bad_reason:'اختار سبب فك البريك',bad_duration_format:'صيغة الوقت مش صح',
+    bad_vehicle:'اكتب رقم المركبة',open_not_alex:'فتح الشيفت متاح لمدن الدلتا بس (مش الإسكندرية)',
+    manual_timeout:'فاتت ٦ دقايق من غير ما يتسجل إرسال - لو لسه بتكمل بنفسك اتأكد من الشيت',
+    aborted:'⛔ اتوقف - الطلب اتلغى قبل الإرسال',
+    upload_not_confirmed:'الإثبات مااترفعش - الصورة مش ظاهرة في الفورم، مافيش حاجة اتبعتت. جرّب تاني',
+    upload_input_not_found:'نافذة رفع الإثبات مافتحتش - جرّب تاني'
+  };
+  const actLabel=action==='break'?'فك بريك':action==='open'?'فتح شيفت':'مد الشيفت';
   $('send').disabled=true;
   $('stop').style.display='';
   $('logBtns').style.display='none';
-  say('','🚀 بيجهز التنفيذ…');
+  const multi=todo.length>1,lines=[];let okCount=0,hadErr=false;
+  say('',multi?('🚀 بيجهز التنفيذ لـ '+todo.length+' مناديب…'):'🚀 بيجهز التنفيذ…');
   try{
-    const r=await window.tmhDesktop.runLocal({action,rider_id:rider,city,duration,reason,vehicle,manualProof:action==='open'&&$('manualProof').checked});
-    if(r&&r.ok){
-      say('ok','✅ تم: '+(action==='break'?'فك بريك':action==='open'?'فتح شيفت':'مد الشيفت')+' - '+rider);
+    for(let i=0;i<todo.length;i++){
+      const rider=todo[i];
+      if(multi)say('','⚡ مندوب '+(i+1)+' من '+todo.length+': '+rider+(lines.length?'\n'+lines.join('\n'):''));
+      let r;
+      try{r=await window.tmhDesktop.runLocal({action,rider_id:rider,city,duration,reason,vehicle,manualProof:action==='open'&&$('manualProof').checked})}
+      catch(e){r={ok:false,error:'ipc'}}
+      if(r&&r.ok){okCount++;lines.push('✅ '+rider)}
+      else{
+        hadErr=true;
+        const em=String((r&&r.error)||'unknown');
+        lines.push('❌ '+rider+': '+(emap[em]||('فشل: '+em))+(!multi&&r&&r.detail?(' — '+String(r.detail).slice(0,180)):''));
+        if(em==='aborted'){lines.push('⛔ الباقي اتلغى');break}
+      }
+    }
+    if(!hadErr){
+      say('ok',multi?('✅ تم كلهم ('+okCount+'/'+todo.length+') - '+actLabel+'\n'+lines.join('\n')):('✅ تم: '+actLabel+' - '+todo[0]));
       $('rider').value='';
     }else{
-      const em=String((r&&r.error)||'unknown');
-      const emap={
-        busy:'في طلب شغال حاليًا - استنى ما يخلص',
-        chrome_not_found:'مش لاقي جوجل كروم على الجهاز - نزّله الأول',
-        auth_expired:'تسجيل دخول جوجل مخلصش في وقته - جرّب تاني وسجّل دخول أسرع',
-        wrong_account:'الحساب المسجل في كروم مش حساب الفورم المطلوب - سجّل دخول بالحساب الصح من زرار تسجيل الدخول',
-        tab_closed:'نافذة كروم اتقفلت قبل ما التنفيذ يخلص',
-        tab_failed:'مش قادر أفتح تاب في كروم - قفل كروم وجرّب تاني',
-        form_not_ready:'صفحة الفورم ماجهزتش - شيك النت وجرّب تاني',
-        walk_exception:'حصل خطأ أثناء ملء الفورم - جرّب تاني، ولو تكرر ابعتلي سكرينشوت',
-        validation_blocked:'الفورم رفض يكمل: في خانة مطلوبة مش متملية',
-        page_load_failed:'صفحة الفورم معملتش تحميل - شيك النت وجرّب تاني',
-        did_not_advance:'الفورم ماإكدش الإرسال (ممكن حجب مؤقت من جوجل) - جرّب بعد شوية',
-        watchdog_timeout:'مش متأكد لو الطلب اتبعت (التنفيذ خد وقت طويل) - اتأكد من الشيت قبل ما تعيد',
-        unconfirmed:'⚠️ غير مؤكد: ممكن الطلب يكون اتبعت - اتأكد من الشيت أو الجدول قبل ما تعيد',
-        bad_rider:'اكتب كود مندوب صحيح',bad_city:'اختار المدينة',bad_duration:'اختار وقت نهاية المد',bad_reason:'اختار سبب فك البريك',bad_duration_format:'صيغة الوقت مش صح',
-        bad_vehicle:'اكتب رقم المركبة',open_not_alex:'فتح الشيفت متاح لمدن الدلتا بس (مش الإسكندرية)',
-        manual_timeout:'فاتت ٦ دقايق من غير ما يتسجل إرسال - لو لسه بتكمل بنفسك اتأكد من الشيت',
-        aborted:'⛔ اتوقف - الطلب اتلغى قبل الإرسال',
-        upload_not_confirmed:'الإثبات مااترفعش - الصورة مش ظاهرة في الفورم، مافيش حاجة اتبعتت. جرّب تاني',
-        upload_input_not_found:'نافذة رفع الإثبات مافتحتش - جرّب تاني'
-      };
-      say('err',(emap[em]||('فشل: '+em))+(r&&r.detail?(' — '+String(r.detail).slice(0,180)):''));
+      say('err',(multi?('النتيجة ('+okCount+' من '+todo.length+' نجح):\n'):'')+lines.join('\n'));
       $('logBtns').style.display='flex';
     }
   }catch(e){
