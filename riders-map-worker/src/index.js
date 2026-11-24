@@ -407,6 +407,7 @@ async function handleAuth(request, env, json, url) {
     if (wait) return json({ error: 'locked', wait }, 429);
     const user = await env.DB.prepare('SELECT * FROM users WHERE u=?').bind(u).first();
     if (!user || user.status === 'disabled') return json({ error: 'invalid_credentials' }, 401);
+    if (user.status === 'pending') return json({ error: 'pending_approval' }, 403);
     if (user.status === 'suspended') return json({ error: 'suspended' }, 403);
     if (!safeEqual(user.h, await hp(u, String(body.p)))) {
       await env.DB.prepare('INSERT INTO login_fails(u,n) VALUES(?,1) ON CONFLICT(u) DO UPDATE SET n=n+1').bind(u).run();
@@ -423,6 +424,30 @@ async function handleAuth(request, env, json, url) {
     const token = await issueSession(env, u, !!body.remember);
     await env.DB.prepare('DELETE FROM rl WHERE k=?').bind('login:' + u).run();
     return json({ token, profile: profile(user) });
+  }
+
+  if (p === '/api/auth/register' && request.method === 'POST') {
+    if (!body || !body.u || !body.p) return json({ error: 'missing_fields' }, 400);
+    const u = String(body.u).toLowerCase().replace(/[^a-z0-9._-]/g, '').slice(0, 60);
+    if (!u) return json({ error: 'invalid_username' }, 400);
+    const waitR = await rateLimit(env, 'reg:' + u, 5, 10 * 60 * 1000, 60 * 1000);
+    if (waitR) return json({ error: 'locked', wait: waitR }, 429);
+    const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+    const waitIp = await rateLimit(env, 'regip:' + ip, 12, 60 * 60 * 1000, 60 * 1000);
+    if (waitIp) return json({ error: 'locked', wait: waitIp }, 429);
+    const pw = String(body.p);
+    if (pw.length < 4) return json({ error: 'weak_password' }, 400);
+    const email = cleanContact.email(String(body.email || '').trim());
+    const phone = cleanContact.phone(body.phone || '');
+    const channel = body.channel === 'whatsapp' ? 'whatsapp' : 'email';
+    if (!email) return json({ error: 'invalid_email' }, 400);
+    if (!phone) return json({ error: 'invalid_phone' }, 400);
+    const n = (String(body.n || '').trim() || u).slice(0, 120);
+    const existing = await env.DB.prepare('SELECT u, status FROM users WHERE u=?').bind(u).first();
+    if (existing) return json({ error: existing.status === 'pending' ? 'already_pending' : 'username_taken' }, 409);
+    await env.DB.prepare("INSERT INTO users(u,n,r,s,h,email,phone,channel,status,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,'pending',?,?)")
+      .bind(u, n, 'sup', '', await hp(u, pw), email, phone, channel, Date.now(), Date.now()).run();
+    return json({ ok: true });
   }
 
   if (p === '/api/auth/activate' && request.method === 'POST') {
@@ -456,6 +481,7 @@ async function handleAuth(request, env, json, url) {
     if (wait) return json({ error: 'locked', wait }, 429);
     const user = await env.DB.prepare('SELECT * FROM users WHERE u=?').bind(u).first();
     if (!user || user.status === 'disabled') return json({ error: 'invalid_credentials' }, 401);
+    if (user.status === 'pending') return json({ error: 'pending_approval' }, 403);
     if (!user.email) return json({ error: 'no_email' }, 400);
     const code = await makeCode(env, u, 'login', 6, 10 * 60 * 1000);
     const mail = await sendMail(env, user.email, 'كود الدخول: ' + code,
@@ -469,6 +495,7 @@ async function handleAuth(request, env, json, url) {
     const u = String(body.u).toLowerCase().slice(0, 60);
     const user = await env.DB.prepare('SELECT * FROM users WHERE u=?').bind(u).first();
     if (!user || user.status === 'disabled') return json({ error: 'invalid_credentials' }, 401);
+    if (user.status === 'pending') return json({ error: 'pending_approval' }, 403);
     const chk = await verifyCode(env, u, 'login', body.code);
     if (chk !== 'ok') return json({ error: chk === 'expired' ? 'code_expired' : 'invalid_code' }, 401);
     const token = await issueSession(env, u, !!body.remember);
@@ -686,6 +713,34 @@ async function handleAuth(request, env, json, url) {
       if (!user) return json({ error: 'not_found' }, 404);
       const code = await makeCode(env, u, 'activate', 8, 7 * 24 * 60 * 60 * 1000);
       return json({ ok: true, code });
+    }
+
+    if (p === '/api/auth/admin/registrations' && request.method === 'GET') {
+      const rows = await env.DB.prepare("SELECT u,n,email,phone,channel,created_at FROM users WHERE status='pending' ORDER BY created_at DESC LIMIT 50").all();
+      return json({ items: rows.results || [] });
+    }
+
+    if (p === '/api/auth/admin/registrations/approve' && request.method === 'POST') {
+      if (!body || !body.u) return json({ error: 'missing_fields' }, 400);
+      const u = String(body.u).toLowerCase().slice(0, 60);
+      const user = await env.DB.prepare("SELECT * FROM users WHERE u=? AND status='pending'").bind(u).first();
+      if (!user) return json({ error: 'not_found' }, 404);
+      const r = ['admin', 'manager', 'sup', 'monitor', 'viewer'].includes(body.r) ? body.r : 'sup';
+      const s = ['admin', 'monitor', 'viewer'].includes(r) ? '' : String(body.s || '').slice(0, 120);
+      if (!['admin', 'monitor', 'viewer'].includes(r) && !s) return json({ error: 'missing_fields' }, 400);
+      await env.DB.prepare("UPDATE users SET r=?, s=?, status='active', updated_at=? WHERE u=?").bind(r, s, Date.now(), u).run();
+      if (user.email) {
+        await sendMail(env, user.email, 'تمت الموافقة على حسابك ✅',
+          'أهلًا ' + user.n + ',\n\nالأدمن وافق على حسابك في لوحة أداء الطيارين.\nاسم المستخدم: ' + u + '\nسجّل دخولك دلوقتي بكلمة المرور اللي سجّلت بيها.\n\nلو مش انت اللي سجّلت، كلم الأدمن فورًا.');
+      }
+      return json({ ok: true });
+    }
+
+    if (p === '/api/auth/admin/registrations/reject' && request.method === 'POST') {
+      if (!body || !body.u) return json({ error: 'missing_fields' }, 400);
+      const u = String(body.u).toLowerCase().slice(0, 60);
+      await env.DB.prepare("DELETE FROM users WHERE u=? AND status='pending'").bind(u).run();
+      return json({ ok: true });
     }
 
     if (p === '/api/auth/admin/recoveries' && request.method === 'GET') {
