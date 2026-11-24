@@ -67,10 +67,71 @@ async function ensureSchema(env) {
       rider_id TEXT PRIMARY KEY, name TEXT NOT NULL DEFAULT '', state TEXT NOT NULL DEFAULT '',
       sup TEXT NOT NULL DEFAULT '', updated INTEGER NOT NULL)`),
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS form_submissions(id INTEGER PRIMARY KEY AUTOINCREMENT,u TEXT NOT NULL,action TEXT NOT NULL,rider_id TEXT NOT NULL,city TEXT NOT NULL,payload TEXT NOT NULL,result TEXT NOT NULL,ts INTEGER NOT NULL)`),
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS usage_daily(day TEXT PRIMARY KEY, n INTEGER NOT NULL DEFAULT 0)`),
     env.DB.prepare(`CREATE INDEX IF NOT EXISTS form_submissions_user_ts ON form_submissions(u,ts)`),
   ]);
   try { await env.DB.prepare("ALTER TABLE users ADD COLUMN photo TEXT NOT NULL DEFAULT ''").run(); } catch {}
   schemaReady = true;
+}
+
+/* ---------------- Cloudflare free-quota usage meter (estimate) ----------------
+   Counts every request that reaches this worker, batched into one D1 write
+   per isolate per minute so the free D1 write quota is never at risk.
+   The number is an estimate for THIS worker only; when CF_API_TOKEN and
+   CF_ACCOUNT_ID secrets exist, /api/admin/usage answers with the real
+   account-wide figure from the Cloudflare GraphQL analytics API instead. */
+const QUOTA_DAILY_LIMIT = 100000; // Cloudflare Workers free plan: 100,000 requests/day
+const usageMem = { day: null, n: 0, lastFlush: 0 };
+const utcDay = (ts) => new Date(ts || Date.now()).toISOString().slice(0, 10);
+const nextUtcMidnight = (ts) => { const d = new Date(ts || Date.now()); return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()) + 86400000); };
+
+function bumpUsage(env, ctx) {
+  const day = utcDay();
+  if (usageMem.day !== day) { usageMem.day = day; usageMem.n = 0; usageMem.lastFlush = 0; }
+  usageMem.n++;
+  const now = Date.now();
+  if (now - usageMem.lastFlush >= 60000) {
+    usageMem.lastFlush = now;
+    const add = usageMem.n;
+    usageMem.n = 0;
+    const run = () => env.DB.prepare('INSERT INTO usage_daily(day,n) VALUES(?,?) ON CONFLICT(day) DO UPDATE SET n=n+excluded.n').bind(day, add).run().catch(() => {});
+    if (ctx && ctx.waitUntil) ctx.waitUntil(run()); else run();
+  }
+}
+
+async function usageEstimate(env) {
+  const day = utcDay();
+  let used = 0;
+  try {
+    const row = await env.DB.prepare('SELECT n FROM usage_daily WHERE day=?').bind(day).first();
+    used = (row && row.n) || 0;
+  } catch {}
+  if (usageMem.day === day) used += usageMem.n;
+  return used;
+}
+
+let gqlUsageCache = { day: null, ts: 0, used: null };
+async function usageFromCloudflare(env) {
+  const day = utcDay();
+  if (gqlUsageCache.day === day && gqlUsageCache.used !== null && Date.now() - gqlUsageCache.ts < 120000) return gqlUsageCache.used;
+  const start = new Date(nextUtcMidnight().getTime() - 86400000).toISOString();
+  const end = new Date().toISOString();
+  const query = 'query($acc:String!,$s:DateTime!,$e:DateTime!){viewer{accounts(filter:{accountTag:$acc}){invocationsSeriesAdaptiveGroups(limit:10000,filter:{datetime_geq:$s,datetime_leq:$e}){sum{requests}}}}}';
+  const resp = await fetch('https://api.cloudflare.com/client/v4/graphql', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + env.CF_API_TOKEN },
+    body: JSON.stringify({ query, variables: { acc: env.CF_ACCOUNT_ID, s: start, e: end } }),
+  });
+  const data = await resp.json().catch(() => null);
+  if (!resp.ok || !data || !data.data || !data.data.viewer) {
+    const msg = data && data.errors && data.errors[0] && data.errors[0].message ? data.errors[0].message : ('HTTP ' + resp.status);
+    throw new Error(msg);
+  }
+  const accounts = data.data.viewer.accounts || [];
+  let used = 0;
+  for (const acc of accounts) for (const g of (acc.invocationsSeriesAdaptiveGroups || [])) used += (g.sum && g.sum.requests) || 0;
+  gqlUsageCache = { day, ts: Date.now(), used };
+  return used;
 }
 
 async function rateLimit(env, key, max, windowMs, lockMs) {
@@ -639,7 +700,8 @@ async function runStatusCron(env) {
 }
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
+    bumpUsage(env, ctx);
     const origin = request.headers.get('Origin') || '';
     const allowedList = String(env.ALLOWED_ORIGIN || '*').split(',').map((x) => x.trim()).filter(Boolean);
     const allowAll = allowedList.includes('*');
@@ -987,11 +1049,36 @@ export default {
       return hub.fetch(doRequest);
     }
 
+    if (url.pathname === '/api/admin/usage' && request.method === 'GET') {
+      try {
+        await ensureSchema(env);
+        const user = await getSessionUser(env, request);
+        if (!user) return json({ error: 'unauthorized' }, 401);
+        if (user.r !== 'admin') return json({ error: 'forbidden' }, 403);
+        const reset = nextUtcMidnight();
+        const day = utcDay();
+        if (env.CF_API_TOKEN && env.CF_ACCOUNT_ID) {
+          try {
+            const used = await usageFromCloudflare(env);
+            return json({ ok: true, source: 'cloudflare', scope: 'account', limit: QUOTA_DAILY_LIMIT, used, remaining: Math.max(0, QUOTA_DAILY_LIMIT - used), day, reset_at: reset.toISOString() });
+          } catch (e) {
+            const used = await usageEstimate(env);
+            return json({ ok: true, source: 'estimate', scope: 'worker', cloudflare_error: String(e && e.message || e).slice(0, 200), limit: QUOTA_DAILY_LIMIT, used, remaining: Math.max(0, QUOTA_DAILY_LIMIT - used), day, reset_at: reset.toISOString() });
+          }
+        }
+        const used = await usageEstimate(env);
+        return json({ ok: true, source: 'estimate', scope: 'worker', limit: QUOTA_DAILY_LIMIT, used, remaining: Math.max(0, QUOTA_DAILY_LIMIT - used), day, reset_at: reset.toISOString() });
+      } catch (e) {
+        return serverErr(e);
+      }
+    }
+
     // static assets are served automatically by the assets binding before this
     return json({ error: 'not_found' }, 404);
   },
 
   async scheduled(event, env, ctx) {
+    bumpUsage(env, ctx);
     ctx.waitUntil(runStatusCron(env).catch(() => {}));
   },
 };

@@ -1235,6 +1235,7 @@ html[data-theme="light"] body{background:radial-gradient(ellipse at 8% 0%,#d6f4f
     <button class="btn" id="dedB" style="display:none">🏢 الشركة</button>
     <button class="btn" id="queriesB" style="display:none">📨 الاستعلامات</button>
     <button class="btn" id="loginAuditB" style="display:none">🕵️ سجل الدخول</button>
+    <button class="btn" id="quotaB" style="display:none" onclick="toggleNavDrawer(false);openQuota()">☁️ استهلاك كلاودفلير</button>
     <button class="btn" id="themeB" style="display:none" onclick="toggleNavDrawer(false);openThemePicker()">🎨 تصميم الدخول</button>
    </div>
    <div class="nav-group"><div class="nav-group-title">👤 حسابي</div>
@@ -3321,7 +3322,7 @@ const REMEMBER_LOGIN_KEY='pd_remember_login',REMEMBER_LOGIN_MS=7*24*60*60*1000;a
   $('riderRatingsCard').style.display=x.r==='sup'?'none':'';
   $('dailyHistoryCard').style.display=x.r==='sup'?'none':'';
   $('vehicleChartCard').style.display=x.r==='sup'?'none':'';
-  $('lg').style.display='none';$('who').textContent='👤 '+x.n+' · '+ROLE[x.r]+(x.r==='admin'&&!LOGIN_AUDIT_ENDPOINT?' · ⚠️ سجل الدخول المركزي غير مفعّل':'');$('usrB').style.display=x.r==='admin'?'':'none';$('loginAuditB').style.display=x.r==='admin'?'':'none';$('themeB').style.display=x.r==='admin'?'':'none';$('tgB').style.display=x.r==='admin'?'':'none';$('supCaptureAll').style.display=x.r==='admin'?'':'none';$('zoneCaptureAll').style.display=['admin','manager'].includes(x.r)?'':'none';$('zoneCaptureAll').textContent=x.r==='manager'?'🗺️📸 تنزيل صور مناطقي':'🗺️📸 تنزيل صور كل المناطق';$('hcB').style.display=hcCanAccess(x)?'':'none';$('dedB').style.display=['admin','manager','sup'].includes(x.r)?'':'none';$('bookingDashboardB').style.display=bookingCanAccessDashboard(x)?'':'none';$('extB').style.display=['admin','manager','sup'].includes(x.r)?'':'none';$('brkB').style.display=$('extB').style.display;bookingApplyRoleAccess(x);$('payB').style.display=['admin','manager','sup'].includes(x.r)?'':'none';$('payB').classList.toggle('pay-access',['admin','manager','sup'].includes(x.r));$('prB').style.display=monitor?'none':'';$('profileB').style.display=monitor?'none':'';$('waB').style.display=['admin','manager','sup'].includes(x.r)?'':'none';$('queriesB').style.display=monitor?'none':'';$('reportsB').style.display=monitor?'none':'';$('riderDetailsB').style.display=monitor?'none':'';$('riderMapB').style.display=['admin','sup'].includes(x.r)?'':'none';if(x.r==='viewer'){syncNavGroups();await initViewer(x)}else syncNavGroups();load()}
+  $('lg').style.display='none';$('who').textContent='👤 '+x.n+' · '+ROLE[x.r]+(x.r==='admin'&&!LOGIN_AUDIT_ENDPOINT?' · ⚠️ سجل الدخول المركزي غير مفعّل':'');$('usrB').style.display=x.r==='admin'?'':'none';$('loginAuditB').style.display=x.r==='admin'?'':'none';$('quotaB').style.display=x.r==='admin'?'':'none';$('themeB').style.display=x.r==='admin'?'':'none';$('tgB').style.display=x.r==='admin'?'':'none';$('supCaptureAll').style.display=x.r==='admin'?'':'none';$('zoneCaptureAll').style.display=['admin','manager'].includes(x.r)?'':'none';$('zoneCaptureAll').textContent=x.r==='manager'?'🗺️📸 تنزيل صور مناطقي':'🗺️📸 تنزيل صور كل المناطق';$('hcB').style.display=hcCanAccess(x)?'':'none';$('dedB').style.display=['admin','manager','sup'].includes(x.r)?'':'none';$('bookingDashboardB').style.display=bookingCanAccessDashboard(x)?'':'none';$('extB').style.display=['admin','manager','sup'].includes(x.r)?'':'none';$('brkB').style.display=$('extB').style.display;bookingApplyRoleAccess(x);$('payB').style.display=['admin','manager','sup'].includes(x.r)?'':'none';$('payB').classList.toggle('pay-access',['admin','manager','sup'].includes(x.r));$('prB').style.display=monitor?'none':'';$('profileB').style.display=monitor?'none':'';$('waB').style.display=['admin','manager','sup'].includes(x.r)?'':'none';$('queriesB').style.display=monitor?'none':'';$('reportsB').style.display=monitor?'none':'';$('riderDetailsB').style.display=monitor?'none':'';$('riderMapB').style.display=['admin','sup'].includes(x.r)?'':'none';if(x.r==='viewer'){syncNavGroups();await initViewer(x)}else syncNavGroups();load()}
 let USERS=USERS_EMBED.concat(MONITOR_USERS_EMBED),DRAFT=null,VAULT=PW_EMBED;
 async function loadUsers(){}
 const LOGIN_THEMES=[
@@ -6618,5 +6619,6 @@ async function waSend(){if(waBusy)return;const to=$('waTo').value.replace(/\D/g,
 #bookingWaRecipients input{width:20px;height:20px;flex-shrink:0}
 #bookingWaText{width:100%;min-height:110px;padding:10px;background:var(--bg);color:var(--tx);border:1px solid var(--bd);border-radius:10px}
 </style>
+<script src="./admin-usage.js?v=1"></script>
 </body>
 </html>
