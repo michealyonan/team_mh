@@ -55,6 +55,8 @@
   </select>
 </div>
 <button id="send" type="button">تأكيد وتنفيذ ✅</button>
+<label for="spacing" style="margin-top:12px">⏱️ الفاصل بين الطلبات (ثواني، أقل حاجة 10)</label>
+<input id="spacing" type="number" min="10" step="1" value="10" inputmode="numeric">
 <div id="msg"></div>
 <div class="sub">الطلب بينفذ فورًا من اللابتوب ده في نافذة كروم حقيقية (زي أداة البايثون بالظبط)، والنتيجة بتظهر هنا وكإشعار. لو جوجل طلب تسجيل دخول، سجّل في النافذة اللي هتفتح مرة واحدة بس.</div>
 <script>
@@ -79,6 +81,9 @@ $('durSel').replaceChildren(new Option('اختار وقت نهاية المد…
 sync();
 const m=$('msg');
 function say(cls,txt){m.className=cls;m.textContent=txt}
+// Delay setting: load saved value, save on change (floor 10s, kept on disk).
+window.tmhDesktop.getSettings().then(s=>{if(s&&s.spacingSec)$('spacing').value=s.spacingSec}).catch(()=>{});
+$('spacing').onchange=()=>{window.tmhDesktop.setSpacing($('spacing').value).then(s=>{if(s&&s.spacingSec)$('spacing').value=s.spacingSec}).catch(()=>{})};
 window.tmhDesktop.onProgress(info=>{
   if(!info||!info.stage)return;
   if(info.stage==='spacing')say('','⏳ ثواني حماية بين الطلبات: استنى '+info.seconds+' ثانية…');
@@ -110,6 +115,9 @@ $('send').onclick=async()=>{
         auth_expired:'تسجيل دخول جوجل مخلصش في وقته - جرّب تاني وسجّل دخول أسرع',
         wrong_account:'الحساب المسجل في كروم مش حساب الفورم المطلوب - سجّل دخول بالحساب الصح من زرار تسجيل الدخول',
         tab_closed:'نافذة كروم اتقفلت قبل ما التنفيذ يخلص',
+        tab_failed:'مش قادر أفتح تاب في كروم - قفل كروم وجرّب تاني',
+        form_not_ready:'صفحة الفورم ماجهزتش - شيك النت وجرّب تاني',
+        walk_exception:'حصل خطأ أثناء ملء الفورم - جرّب تاني، ولو تكرر ابعتلي سكرينشوت',
         page_load_failed:'صفحة الفورم معملتش تحميل - شيك النت وجرّب تاني',
         did_not_advance:'الفورم ماإكدش الإرسال (ممكن حجب مؤقت من جوجل) - جرّب بعد شوية',
         watchdog_timeout:'التنفيذ خد وقت أطول من اللازم واتوقف',

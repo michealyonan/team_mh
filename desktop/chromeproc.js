@@ -29,6 +29,16 @@ function browserAlive(b) {
   try { return !!(b && (typeof b.connected === 'boolean' ? b.connected : b.isConnected())); } catch (e) { return false; }
 }
 
+// Reuse Chrome's initial tab instead of opening a second one: what Micheal sees
+// navigate is the tab Chrome opened with, never a leftover about:blank.
+async function firstPage(browser) {
+  try {
+    const pages = await browser.pages();
+    if (pages && pages.length) return pages[0];
+  } catch (e) {}
+  return browser.newPage();
+}
+
 async function getBrowser(group, userDataRoot) {
   if (browserAlive(browsers[group])) return browsers[group];
   delete browsers[group];
@@ -41,6 +51,9 @@ async function getBrowser(group, userDataRoot) {
     userDataDir,
     headless: false,
     defaultViewport: null,
+    // Match the Selenium tool: no --enable-automation (removes the automation
+    // infobar AND navigator.webdriver=true, which Google fingerprints).
+    ignoreDefaultArgs: ['--enable-automation'],
     args: [
       '--start-maximized',
       '--no-first-run',
@@ -56,4 +69,4 @@ async function getBrowser(group, userDataRoot) {
   return browser;
 }
 
-module.exports = { getBrowser, findChrome };
+module.exports = { getBrowser, findChrome, firstPage };

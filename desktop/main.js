@@ -7,10 +7,10 @@ const { app, BrowserWindow, shell, Notification, ipcMain } = require('electron')
 const fs = require('fs');
 const path = require('path');
 const { autoUpdater } = require('electron-updater');
-const { getBrowser } = require('./chromeproc');
+const { getBrowser, firstPage } = require('./chromeproc');
 const { runFormWalk } = require('./chromewalk');
 
-const VERSION = '0.3.0';
+const VERSION = '0.3.1';
 const SITE = 'https://team-mh.michealuonanayad.workers.dev';
 const FORMS = {
   alex: { url: 'https://docs.google.com/forms/u/0/d/e/1FAIpQLSffSwyTh0w4AYjTU9AG-kj-0UfJHcSTSYnR1DrWJ_h8iPYm3Q/viewform', email: 'alexlogistics.teammh101@gmail.com' },
@@ -18,7 +18,8 @@ const FORMS = {
 };
 const SIGNIN_WAIT_MS = 6 * 60 * 1000;
 const WALK_WATCHDOG_MS = 150000;
-const SPACING_MS = 60000; // small local anti-burst spacing between submissions
+const DEFAULT_SPACING_SEC = 10;
+const MIN_SPACING_SEC = 10; // Micheal 24 Nov: HE controls the delay, floor 10s
 
 let mainWin = null;
 let cmdWin = null;
@@ -31,6 +32,18 @@ function readState() {
 }
 function writeState(s) {
   try { fs.writeFileSync(statePath(), JSON.stringify(s)); } catch (e) {}
+}
+// User settings (delay between requests), saved on disk.
+function settingsPath() { return path.join(app.getPath('userData'), 'tmh-settings.json'); }
+function readSettings() {
+  let s = {};
+  try { s = JSON.parse(fs.readFileSync(settingsPath(), 'utf8')); } catch (e) {}
+  let sec = parseInt(s.spacingSec, 10);
+  if (!isFinite(sec) || sec < MIN_SPACING_SEC) sec = DEFAULT_SPACING_SEC;
+  return { spacingSec: sec };
+}
+function writeSettings(s) {
+  try { fs.writeFileSync(settingsPath(), JSON.stringify(s)); } catch (e) {}
 }
 function pushState() {
   for (const w of [mainWin, cmdWin]) {
@@ -122,8 +135,11 @@ async function openGoogleSignin(which) {
   let browser;
   try { browser = await getBrowser(which, app.getPath('userData')); }
   catch (e) { notify('team_mh ❌', 'مش قادر أفتح كروم على الجهاز ده'); return; }
-  const page = await browser.newPage();
+  let page;
+  try { page = await firstPage(browser); }
+  catch (e) { notify('team_mh ❌', 'مش قادر أفتح تاب في كروم'); return; }
   try { await page.goto(cfg.url, { waitUntil: 'domcontentloaded', timeout: 60000 }); } catch (e) {}
+  await settleUrl(page, 15000);
   const deadline = Date.now() + SIGNIN_WAIT_MS;
   while (Date.now() < deadline) {
     let url = '';
@@ -137,12 +153,41 @@ async function openGoogleSignin(which) {
         writeState(st);
         pushState();
         notify('team_mh ✅', 'تم تسجيل الدخول: ' + acct);
-        try { await page.close(); } catch (e) {}
         return;
       }
     }
     await sleep(2000);
   }
+}
+
+// Wait for the page URL to settle: Google Forms bounces through a client-side
+// redirect to accounts.google.com when the profile is signed out, and judging the
+// page on the first URL raced that redirect (the v0.3.0 about:blank bug).
+async function settleUrl(page, ms) {
+  const deadline = Date.now() + ms;
+  let last = '';
+  let stable = 0;
+  while (Date.now() < deadline) {
+    let url = '';
+    try { url = page.url(); } catch (e) { return ''; }
+    if (url === last) stable++; else { stable = 0; last = url; }
+    if (stable >= 3 && url && url !== 'about:blank') return url;
+    await sleep(500);
+  }
+  return last;
+}
+
+// Wait until the form page actually rendered its controls (post sign-in redirect).
+async function waitFormReady(page, ms) {
+  const deadline = Date.now() + ms;
+  while (Date.now() < deadline) {
+    try {
+      const ready = await page.evaluate(() => !!document.querySelector("div[role='checkbox'], input[type='text'], div[role='listbox']"));
+      if (ready) return true;
+    } catch (e) {}
+    await sleep(700);
+  }
+  return false;
 }
 
 function accountFromPageFn() {
@@ -152,6 +197,14 @@ function accountFromPageFn() {
 
 ipcMain.on('tmh-google-signin', (_e, which) => { openGoogleSignin(String(which)); });
 ipcMain.handle('tmh-google-state', () => readState());
+ipcMain.handle('tmh-get-settings', () => readSettings());
+ipcMain.handle('tmh-set-spacing', (_e, sec) => {
+  let n = parseInt(sec, 10);
+  if (!isFinite(n) || n < MIN_SPACING_SEC) n = MIN_SPACING_SEC;
+  if (n > 3600) n = 3600;
+  writeSettings({ spacingSec: n });
+  return { ok: true, spacingSec: n };
+});
 
 function openCommands() {
   if (cmdWin && !cmdWin.isDestroyed()) { cmdWin.show(); cmdWin.focus(); return; }
@@ -245,9 +298,12 @@ ipcMain.handle('tmh-run-local', async (_e, payload) => {
 
   if (busy) return { ok: false, error: 'busy' };
   busy = true;
+  let page = null;
+  let keepTab = false;
   try {
-    // Small local anti-burst spacing between submissions (protects the form accounts).
-    const waitMs = SPACING_MS - (Date.now() - lastRunAt);
+    // Anti-burst spacing between runs - Micheal's setting, floor 10s.
+    const spacingMs = readSettings().spacingSec * 1000;
+    const waitMs = spacingMs - (Date.now() - lastRunAt);
     if (waitMs > 0) {
       progress('spacing', { seconds: Math.ceil(waitMs / 1000) });
       await sleep(waitMs);
@@ -263,13 +319,14 @@ ipcMain.handle('tmh-run-local', async (_e, payload) => {
       notify('team_mh ❌', 'مش لاقي جوجل كروم على الجهاز - نزّله الأول');
       return { ok: false, error: 'chrome_not_found' };
     }
-    const page = await browser.newPage();
+    try { page = await firstPage(browser); }
+    catch (e) { return { ok: false, error: 'tab_failed', detail: String(e).slice(0, 200), submitted: false }; }
     try {
       try { await page.goto(cfg.url, { waitUntil: 'domcontentloaded', timeout: 60000 }); }
-      catch (e) { return { ok: false, error: 'page_load_failed', detail: String(e).slice(0, 200), submitted: false }; }
+      catch (e) { keepTab = true; return { ok: false, error: 'page_load_failed', detail: String(e).slice(0, 200), submitted: false }; }
+      let url = await settleUrl(page, 20000);
 
       // If Google asks for sign-in, leave the window open and wait for Micheal.
-      let url = page.url();
       if (/accounts\.google\.com/.test(url)) {
         progress('signin_wait', { email: cfg.email });
         notify('team_mh', 'سجّل دخول جوجل بالحساب ' + cfg.email + ' في نافذة كروم - والتنفيذ هيكمل لوحده');
@@ -278,8 +335,13 @@ ipcMain.handle('tmh-run-local', async (_e, payload) => {
           await sleep(2000);
           try { url = page.url(); } catch (e) { return { ok: false, error: 'tab_closed', submitted: false }; }
         }
-        if (/accounts\.google\.com/.test(url)) return { ok: false, error: 'auth_expired', detail: 'google sign-in not completed in time', submitted: false };
+        if (/accounts\.google\.com/.test(url)) { keepTab = true; return { ok: false, error: 'auth_expired', detail: 'google sign-in not completed in time', submitted: false }; }
+        url = await settleUrl(page, 10000);
       }
+
+      // Wait for the form to render before judging anything about it.
+      const ready = await waitFormReady(page, 30000);
+      if (!ready) { keepTab = true; return { ok: false, error: 'form_not_ready', detail: String(url).slice(0, 200), submitted: false }; }
 
       // Wrong-account guard (Micheal 24 Nov: alexlogistics = Alex, deltalogistics = 6 cities).
       let acct = '';
@@ -291,23 +353,30 @@ ipcMain.handle('tmh-run-local', async (_e, payload) => {
         pushState();
         if (acct !== cfg.email) {
           notify('team_mh ❌', 'الحساب المسجل (' + acct + ') مش حساب الفورم. سجّل دخول بالحساب ' + cfg.email);
+          keepTab = true;
           return { ok: false, error: 'wrong_account', detail: 'signed in as ' + acct + ', expected ' + cfg.email, submitted: false };
         }
       }
 
       progress('walking', {});
       const job = Object.assign({ isAlex, action, riderId, city, zone, cityVal, reason, duration }, dur);
-      const res = await Promise.race([
-        runFormWalk(page, job),
-        sleep(WALK_WATCHDOG_MS).then(() => ({ ok: false, error: 'watchdog_timeout', submitted: false }))
-      ]);
+      let res;
+      try {
+        res = await Promise.race([
+          runFormWalk(page, job),
+          sleep(WALK_WATCHDOG_MS).then(() => ({ ok: false, error: 'watchdog_timeout', submitted: false }))
+        ]);
+      } catch (e) {
+        res = { ok: false, error: 'walk_exception', detail: String(e).slice(0, 250), submitted: false };
+      }
       lastRunAt = Date.now();
       if (res && res.ok) notify('team_mh ✅', 'تم: ' + label);
-      else notify('team_mh ❌', 'فشل: ' + label + ' (' + ((res && res.error) || 'unknown') + ')');
+      else { notify('team_mh ❌', 'فشل: ' + label + ' (' + ((res && res.error) || 'unknown') + ')'); keepTab = true; }
       logDirect({ action, rider_id: riderId, city, duration, reason, result: res });
       return res || { ok: false, error: 'no_result', submitted: false };
     } finally {
-      try { await page.close(); } catch (e) {}
+      // Keep the tab open on failure so Micheal sees what Google showed; close on success.
+      if (!keepTab && page) { try { await page.close(); } catch (e) {} }
     }
   } finally {
     busy = false;
