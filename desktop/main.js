@@ -10,7 +10,7 @@ const { autoUpdater } = require('electron-updater');
 const { getBrowser, firstPage, peekBrowser, launchPlain, launchPlainForSignin, adoptBrowser, dropBrowser } = require('./chromeproc');
 const { runFormWalk, runHiringWalk, clickX, pageMarker, confirmState } = require('./chromewalk');
 
-const VERSION = '0.3.21';
+const VERSION = '0.3.22';
 // Proof image for فتح شيفت uploads: Micheal's OWN fixed image when present
 // (userData/proof.*, seeded from a bundled proof.* on first run), else the
 // app-generated black PNG fallback (24 Nov).
@@ -286,7 +286,9 @@ function accountFromPageFn() {
 async function preparePage(browser, group, formUrl) {
   let page = warmPages[group] || null;
   if (page) {
-    try { await page.url(); } catch (e) { page = null; }
+    // A tab Micheal closed still answers page.url() from cache (that is why a
+    // retry landed on about:blank, 25 Nov) - ping the target for real.
+    try { if (page.isClosed()) page = null; else await page.evaluate(() => 1); } catch (e) { page = null; }
   }
   if (!page) {
     page = await firstPage(browser);
@@ -346,7 +348,7 @@ async function fetchSheetRows(group) {
   const browser = peekBrowser(group);
   if (!browser) return { ok: false, error: 'browser_off' };
   let page = sheetTabs[group] || null;
-  if (page) { try { await page.url(); } catch (e) { page = null; } }
+  if (page) { try { if (page.isClosed()) page = null; else await page.evaluate(() => 1); } catch (e) { page = null; } }
   let fresh = false;
   if (!page) {
     try { page = await browser.newPage(); fresh = true; } catch (e) { return { ok: false, error: 'tab_failed' } };
@@ -727,12 +729,36 @@ async function hiringTick() {
     }
     let res;
     try {
-      const browser = await getBrowser('delta', app.getPath('userData'));
+      let browser = await getBrowser('delta', app.getPath('userData'));
       let page = warmPages.hiring || null;
-      if (page) { try { await page.url(); } catch (e) { page = null; } }
-      if (!page) page = await browser.newPage();
+      if (page) {
+        try { if (page.isClosed()) page = null; else await page.evaluate(() => 1); } catch (e) { page = null; }
+      }
+      // firstPage reuses Chrome's own initial tab instead of leaving a stray
+      // about:blank tab next to the form tab (25 Nov retry bug).
+      if (!page) page = await firstPage(browser);
       warmPages.hiring = page;
-      await page.goto(cfg.url, { waitUntil: 'domcontentloaded', timeout: 60000 });
+      try {
+        await page.goto(cfg.url, { waitUntil: 'domcontentloaded', timeout: 60000 });
+      } catch (e) {
+        // Tab/window Micheal closed between runs: drop everything and retry ONCE
+        // on a freshly attached browser+tab (same recovery as the مد/فك flow).
+        const msg = String(e && (e.message || e) || '');
+        if (!/detached|Target closed|Session closed|Protocol error|Connection closed|Target crashed/i.test(msg)) throw e;
+        try { delete warmPages.hiring; } catch (e2) {}
+        try { await dropBrowser('delta'); } catch (e2) {}
+        browser = await getBrowser('delta', app.getPath('userData'));
+        page = await firstPage(browser);
+        warmPages.hiring = page;
+        await page.goto(cfg.url, { waitUntil: 'domcontentloaded', timeout: 60000 });
+      }
+      // Close any stray about:blank tabs so Micheal only ever sees the form tab.
+      try {
+        for (const p2 of await browser.pages()) {
+          if (p2 === page) continue;
+          try { const u2 = p2.url(); if (!u2 || u2 === 'about:blank') await p2.close(); } catch (e) {}
+        }
+      } catch (e) {}
       const url = await settleUrl(page, 15000);
       if (/accounts\.google\.com/.test(url)) {
         res = { ok: false, error: 'auth_expired', detail: 'delta google sign-in needed (open شيفتات once and sign in)', submitted: false };

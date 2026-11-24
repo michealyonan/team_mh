@@ -9,8 +9,8 @@
   label{display:block;font-size:12px;color:#94a3b8;margin:10px 0 4px}
   input,select,textarea{width:100%;box-sizing:border-box;background:#1e293b;color:#e2e8f0;border:1px solid #334155;border-radius:10px;padding:9px 10px;font:inherit;min-height:40px}
   textarea{resize:vertical;min-height:44px;line-height:1.5}
-  .acts{display:flex;gap:8px}
-  .acts button{flex:1;padding:12px;border:1px solid #334155;border-radius:12px;background:#1e293b;color:#e2e8f0;font:inherit;font-weight:800;cursor:pointer}
+  .acts{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .acts button{padding:12px 6px;border:1px solid #334155;border-radius:12px;background:#1e293b;color:#e2e8f0;font:inherit;font-weight:800;cursor:pointer;font-size:13px}
   .acts button.on{background:#1d4ed8;border-color:#3b82f6}
   #msg{margin-top:12px;font-size:13px;min-height:20px;line-height:1.6;white-space:pre-line}
   .ok{color:#4ade80}.err{color:#f87171}
@@ -24,17 +24,37 @@
   .sub{font-size:11px;color:#64748b;margin-top:8px;line-height:1.6}
   label.chk{display:flex;align-items:center;gap:8px;cursor:pointer;margin:8px 0 0}
   label.chk input{width:auto;min-height:0;padding:0;margin:0}
+  .extRow{display:flex;gap:6px;margin-bottom:6px;align-items:center}
+  .extRow .extCode{flex:1;min-width:0}
+  .extRow .extTime{flex:0 0 110px;width:110px}
+  .extDel{flex:0 0 34px;width:34px;min-height:40px;border:1px solid #7f1d1d;background:#450a0a;color:#fca5a5;border-radius:10px;cursor:pointer;font:inherit;font-weight:900}
+  #addRow{width:100%;margin-top:2px;background:#1e293b;color:#93c5fd;border:1px dashed #3b82f6;border-radius:10px;padding:9px;font:inherit;font-weight:800;cursor:pointer}
 </style>
 </head>
 <body>
 <h2>⚡ مد الشيفت / فك البريك</h2>
 <div class="acts">
-  <button id="actExt" class="on" type="button">⏫ مد الشيفت</button>
-  <button id="actBrk" type="button">☕ فك البريك</button>
-  <button id="actOpen" type="button">🔓 فتح شيفت</button>
+  <button id="mExt1" class="on" type="button">⏫ مد شيفت فردي</button>
+  <button id="mExtN" type="button">⏫ مد شيفت جماعي</button>
+  <button id="mBrk1" type="button">☕ فك بريك فردي</button>
+  <button id="mBrkN" type="button">☕ فك بريك جماعي</button>
+  <button id="mOp1" type="button">🔓 فتح شيفت فردي</button>
+  <button id="mOpN" type="button">🔓 فتح شيفت جماعي</button>
 </div>
-<label for="rider">كود المندوب</label>
-<textarea id="rider" inputmode="numeric" rows="2" placeholder="اكتب ID المندوب - لو أكتر من واحد، كل كود في سطر. وفي المد تقدر تحط وقت كل مندوب جنب كوده: 12345 02:30"></textarea>
+<div id="oneWrap">
+  <label for="riderSingle">كود المندوب</label>
+  <input id="riderSingle" inputmode="numeric" placeholder="اكتب ID المندوب">
+</div>
+<div id="bulkExtWrap" style="display:none">
+  <label>المناديب (كل مندوب وقته جنبه - سيب الوقت فاضي ياخد الوقت الافتراضي)</label>
+  <div id="extRows"></div>
+  <button id="addRow" type="button">➕ إضافة مندوب</button>
+  <div class="sub">تقدر تلصق قائمة أكواد مرة واحدة (كل كود في سطر، ومسموح وقت جنب الكود زي: 12345 02:30) وهتتوزع على الخانات لوحدها.</div>
+</div>
+<div id="bulkTextWrap" style="display:none">
+  <label for="riderBulk">أكواد المناديب</label>
+  <textarea id="riderBulk" inputmode="numeric" rows="3" placeholder="كل كود في سطر (مسافات أو فواصل تنفع برضه)"></textarea>
+</div>
 <label class="chk" id="skipDupWrap"><input type="checkbox" id="skipDup" checked> متمدّش لنفس المندوب لو اتمدّله النهارده</label>
 <label for="city">المدينة</label>
 <select id="city">
@@ -91,17 +111,53 @@
 <script>
 const HOURS=[{h:0,l:'إلي 12:00 بليل'},{h:1,l:'إلي 01:00 الفجر'},{h:2,l:'إلي 02:00 الفجر'},{h:3,l:'إلي 03:00 الفجر'},{h:4,l:'إلي 04:00 الفجر'},{h:5,l:'إلي 05:00 الفجر'},{h:8,l:'إلي 08:00 الصبح'},{h:9,l:'إلي 09:00 الصبح'},{h:10,l:'إلي 10:00 الصبح'},{h:11,l:'إلي 11:00 الصبح'},{h:12,l:'إلي 12:00 الضهر'},{h:13,l:'إلي 01:00 الضهر'},{h:14,l:'إلي 02:00 الضهر'},{h:15,l:'إلي 03:00 الضهر'},{h:16,l:'إلي 04:00 العصر'},{h:17,l:'إلي 05:00 العصر'},{h:18,l:'إلي 06:00 بليل'},{h:19,l:'إلي 07:00 بليل'},{h:20,l:'إلي 08:00 بليل'},{h:21,l:'إلي 09:00 بليل'},{h:22,l:'إلي 10:00 بليل'},{h:23,l:'إلي 11:00 بليل'}];
 const $=id=>document.getElementById(id);
-let action='extend';
+// Mode: action (extend/break/open) x bulk (single/bulk). Micheal 25 Nov:
+// separate buttons for فردي/جماعي on each of مد/فك/فتح, and per-row
+// [ID][time] fields for bulk مد instead of "code HH:MM" in one textarea.
+let action='extend',bulk=false;
 try{$('skipDup').checked=localStorage.getItem('skipDup')!=='0';}catch(e){}
 $('skipDup').onchange=()=>{try{localStorage.setItem('skipDup',$('skipDup').checked?'1':'0');}catch(e){}};
 try{$('manualProof').checked=localStorage.getItem('manualProof')==='1';}catch(e){}
 $('manualProof').onchange=()=>{try{localStorage.setItem('manualProof',$('manualProof').checked?'1':'0');}catch(e){}};
 function isAlex(){return $('city').value==='الإسكندرية'}
+function addExtRow(code,time){
+  const row=document.createElement('div');row.className='extRow';
+  const c=document.createElement('input');c.className='extCode';c.inputMode='numeric';c.placeholder='ID المندوب';if(code)c.value=code;
+  const t=document.createElement('input');t.className='extTime';t.type='time';t.title='وقت نهاية المد للمندوب ده (فاضي = الافتراضي)';if(time)t.value=time;
+  const x=document.createElement('button');x.type='button';x.className='extDel';x.textContent='✕';x.title='مسح المندوب';x.onclick=()=>{row.remove();if(!$('extRows').children.length)addExtRow()};
+  row.append(c,t,x);$('extRows').append(row);
+  return row;
+}
+// Paste a whole list anywhere in the bulk-مد box: rows fill themselves.
+$('extRows').addEventListener('paste',e=>{
+  const txt=(e.clipboardData||window.clipboardData).getData('text')||'';
+  if(!/\d/.test(txt))return;
+  e.preventDefault();
+  const toks=txt.split(/[\s,;،]+/).filter(Boolean);
+  if(!toks.length)return;
+  const items=[];let last=null;
+  for(const tok of toks){
+    const tm=tok.match(/^(\d{1,2}):(\d{2})$/);
+    if(tm){if(last&&!last.time)last.time=(tm[1].length===1?'0':'')+tm[1]+':'+tm[2];continue}
+    if(/^\d{1,15}$/.test(tok)){last={code:tok,time:null};items.push(last)}
+  }
+  if(!items.length)return;
+  $('extRows').replaceChildren();
+  for(const it of items)addExtRow(it.code,it.time);
+});
+$('addRow').onclick=()=>addExtRow();
 function sync(){
-  $('actExt').classList.toggle('on',action==='extend');
-  $('actBrk').classList.toggle('on',action==='break');
-  $('actOpen').classList.toggle('on',action==='open');
+  $('mExt1').classList.toggle('on',action==='extend'&&!bulk);
+  $('mExtN').classList.toggle('on',action==='extend'&&bulk);
+  $('mBrk1').classList.toggle('on',action==='break'&&!bulk);
+  $('mBrkN').classList.toggle('on',action==='break'&&bulk);
+  $('mOp1').classList.toggle('on',action==='open'&&!bulk);
+  $('mOpN').classList.toggle('on',action==='open'&&bulk);
   const open=action==='open';
+  $('oneWrap').style.display=bulk?'none':'';
+  $('bulkExtWrap').style.display=(bulk&&action==='extend')?'':'none';
+  $('bulkTextWrap').style.display=(bulk&&action!=='extend')?'':'none';
+  $('skipDupWrap').style.display=action==='extend'?'':'none';
   $('durWrap').style.display=action==='extend'?'':'none';
   $('reasonWrap').style.display=(action==='break'&&isAlex())?'':'none';
   $('vehWrap').style.display=open?'':'none';
@@ -111,11 +167,15 @@ function sync(){
   $('durSel').style.display=alexTime?'none':'';
   $('durTime').style.display=alexTime?'':'none';
 }
-$('actExt').onclick=()=>{action='extend';sync()};
-$('actBrk').onclick=()=>{action='break';sync()};
-$('actOpen').onclick=()=>{action='open';sync()};
+$('mExt1').onclick=()=>{action='extend';bulk=false;sync()};
+$('mExtN').onclick=()=>{action='extend';bulk=true;sync()};
+$('mBrk1').onclick=()=>{action='break';bulk=false;sync()};
+$('mBrkN').onclick=()=>{action='break';bulk=true;sync()};
+$('mOp1').onclick=()=>{action='open';bulk=false;sync()};
+$('mOpN').onclick=()=>{action='open';bulk=true;sync()};
 $('city').onchange=sync;
 $('durSel').replaceChildren(new Option('اختار وقت نهاية المد…',''));HOURS.forEach(o=>$('durSel').add(new Option(o.l,o.l)));
+addExtRow();addExtRow();addExtRow();
 sync();
 const m=$('msg');
 function say(cls,txt){m.className=cls;m.textContent=txt}
@@ -130,20 +190,43 @@ window.tmhDesktop.onProgress(info=>{
   else if(info.stage==='walking')say('','⚡ بيملى الفورم في كروم… متقفلش النافذة');
   else if(info.stage==='manual_proof')say('','✋ الفورم اتملى - كمّل بنفسك: ارفع صورة الإثبات واضغط إرسال في نافذة كروم، والتطبيق هيسجل النتيجة لوحده');
 });
+function collectEntries(){
+  // Same output shape the verified flow always used: [{code,time|null}].
+  const out=[];const seen=new Set();
+  if(!bulk){
+    const v=$('riderSingle').value.trim();
+    if(/^\d{1,15}$/.test(v))out.push({code:v,time:null});
+    return{entries:out};
+  }
+  if(action==='extend'){
+    for(const row of document.querySelectorAll('#extRows .extRow')){
+      const c=row.querySelector('.extCode').value.trim();
+      if(!c)continue;
+      if(!/^\d{1,15}$/.test(c))return{badCode:c};
+      if(seen.has(c))continue;
+      seen.add(c);
+      out.push({code:c,time:row.querySelector('.extTime').value||null});
+    }
+    return{entries:out};
+  }
+  for(const tok of $('riderBulk').value.split(/[\s,;،]+/)){
+    if(!tok)continue;
+    if(/^\d{1,2}:\d{2}$/.test(tok))continue;
+    if(/^\d{1,15}$/.test(tok)&&!seen.has(tok)){seen.add(tok);out.push({code:tok,time:null})}
+  }
+  return{entries:out};
+}
+function clearRiderInputs(){
+  $('riderSingle').value='';$('riderBulk').value='';
+  $('extRows').replaceChildren();addExtRow();addExtRow();addExtRow();
+}
 $('send').onclick=async()=>{
   say('','');
-  // Multi-rider (Micheal 24 Nov): codes one per line (spaces/commas ok too).
-  // For مد a rider can carry his own end time after his code, 24h: "12345 02:30".
-  // A rider without a time uses the default time picked below.
-  const entries=[];const seen=new Set();
-  for(const tok of $('rider').value.split(/[\s,;،]+/)){
-    if(!tok)continue;
-    const tm=tok.match(/^(\d{1,2}):(\d{2})$/);
-    if(tm){if(entries.length&&!entries[entries.length-1].time)entries[entries.length-1].time=(tm[1].length===1?'0':'')+tm[1]+':'+tm[2];continue}
-    if(/^\d{1,15}$/.test(tok)&&!seen.has(tok)){seen.add(tok);entries.push({code:tok,time:null})}
-  }
+  const got=collectEntries();
+  if(got.badCode){say('err','الكود "'+got.badCode+'" مش صحيح - اكتب ID المندوب أرقام بس');return}
+  const entries=got.entries;
   const city=$('city').value;
-  if(!entries.length){say('err','اكتب كود مندوب صحيح - لو أكتر من واحد، كل كود في سطر');return}
+  if(!entries.length){say('err',bulk?(action==='extend'?'اكتب كود مندوب واحد على الأقل في الخانات':'اكتب أكواد المناديب - كل كود في سطر'):'اكتب كود المندوب');return}
   if(entries.some(e=>e.time&&(+e.time.split(':')[0]>23||+e.time.split(':')[1]>59))){say('err','في وقت مش مظبوط جنب أحد الأكواد - الصيغة س:د زي 02:30');return}
   if(!city){say('err','اختار المدينة');return}
   // Repeat-مد guard (Micheal 24 Nov): ticked = never extend a rider who already
@@ -162,7 +245,7 @@ $('send').onclick=async()=>{
     }catch(e){}
   }
   let duration='';
-  if(action==='extend'){duration=isAlex()?$('durTime').value:$('durSel').value;if(!duration&&todo.some(en=>!en.time)){say('err','اختار وقت نهاية المد - أو اكتب وقت كل مندوب جنب كوده');return}}
+  if(action==='extend'){duration=isAlex()?$('durTime').value:$('durSel').value;if(!duration&&todo.some(en=>!en.time)){say('err','اختار وقت نهاية المد الافتراضي - أو حدد وقت لكل مندوب جنب كوده');return}}
   let reason='';
   if(action==='break'&&isAlex()){reason=$('reason').value;if(!reason){say('err','اختار سبب فك البريك');return}}
   let vehicle='';
@@ -220,7 +303,7 @@ $('send').onclick=async()=>{
     }
     if(!hadErr){
       say('ok',multi?('✅ تم كلهم ('+okCount+'/'+todo.length+') - '+actLabel+'\n'+lines.join('\n')):('✅ تم: '+actLabel+' - '+todo[0].code));
-      $('rider').value='';
+      clearRiderInputs();
     }else{
       say('err',(multi?('النتيجة ('+okCount+' من '+todo.length+' نجح):\n'):'')+lines.join('\n'));
       $('logBtns').style.display='flex';
