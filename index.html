@@ -1286,10 +1286,19 @@ html[data-theme="light"] .kpi .l,html[data-theme="light"] .kpi .s{color:#526a82!
  <div id="chatModal" style="display:none;position:fixed;inset:0;background:#000c;z-index:75;overflow:auto;padding:12px" onclick="if(event.target===this)closeChat()">
   <div class="card" style="max-width:560px;margin:auto;min-height:60vh;display:flex;flex-direction:column">
    <div class="row"><h3 style="margin:0" id="chatTitle">💬 شات</h3><button class="btn" id="chatBack" type="button" style="display:none" onclick="chatList()">→ رجوع</button><button class="btn" style="margin-inline-start:auto" onclick="closeChat()">✕</button></div>
-   <div id="chatListWrap" style="margin-top:10px"></div>
+   <div id="chatListWrap" style="margin-top:10px">
+    <input id="chatSearch" placeholder="🔎 ابحث بالاسم…" style="width:100%;margin-bottom:8px" oninput="renderChatList()">
+    <button class="btn" id="chatMonitorB" type="button" style="display:none;width:100%;margin-bottom:8px" onclick="chatMonitorOpen()">👁 مراقبة محادثة (للأدمن)</button>
+    <div id="chatListRows"></div>
+   </div>
+   <div id="chatMonitorWrap" style="display:none;flex:1;flex-direction:column;margin-top:10px">
+    <div style="display:flex;gap:6px;margin-bottom:8px"><select id="chatMonA" style="flex:1"></select><select id="chatMonB" style="flex:1"></select><button class="btn pr" type="button" onclick="chatMonitorShow()">عرض</button></div>
+    <div id="chatMonMsgs" style="flex:1;min-height:300px;max-height:55vh;overflow:auto;display:flex;flex-direction:column;gap:6px;padding:8px;background:rgba(255,255,255,.04);border-radius:10px"></div>
+   </div>
    <div id="chatThreadWrap" style="display:none;flex:1;flex-direction:column;margin-top:10px">
     <div id="chatMsgs" style="flex:1;min-height:300px;max-height:55vh;overflow:auto;display:flex;flex-direction:column;gap:6px;padding:8px;background:rgba(255,255,255,.04);border-radius:10px"></div>
-    <div style="display:flex;gap:6px;margin-top:8px"><input id="chatIn" placeholder="اكتب رسالة…" style="flex:1" maxlength="1000"><button class="btn pr" id="chatSendBtn" type="button">إرسال ⬅</button></div>
+    <div style="display:flex;gap:6px;margin-top:8px"><button class="btn" id="chatImgB" type="button" title="إرسال صورة" aria-label="إرسال صورة">📷</button><input id="chatIn" placeholder="اكتب رسالة…" style="flex:1" maxlength="1000"><button class="btn pr" id="chatSendBtn" type="button">إرسال ⬅</button></div>
+    <input type="file" id="chatImgFile" accept="image/*" style="display:none">
    </div>
   </div>
  </div>
@@ -6730,38 +6739,71 @@ async function waSend(){if(waBusy)return;const to=$('waTo').value.replace(/\D/g,
 </style>
 <script>
 // 💬 شات (Micheal 24 Nov): WhatsApp-style chat between admin, managers and
-// supervisors. D1-backed, polled while the thread is open.
+// supervisors. D1-backed, polled while the thread is open. v2: search,
+// name-only rows, unread-first, admin monitor mode, image messages, presence.
 let CHAT_PEER=null,CHAT_LAST_ID=0,CHAT_TIMER=null,CHAT_BADGE_TIMER=null;
+let CHAT_CONTACTS=[],CHAT_CONVS=[];
 async function refreshChatBadge(){
   if(!CUR||!['admin','manager','sup'].includes(CUR.r))return;
+  try{api('/api/chat/ping',{method:'POST'}).catch(()=>{})}catch(e){}
   try{const d=await api('/api/chat/inbox');const b=$('chatBadge');if(d&&d.totalUnread>0){b.style.display='';b.textContent=NF(d.totalUnread)}else b.style.display='none'}catch(e){}
 }
 function openChat(){toggleNavDrawer(false);$('chatModal').style.display='';chatList()}
 function closeChat(){$('chatModal').style.display='none';CHAT_PEER=null;if(CHAT_TIMER){clearInterval(CHAT_TIMER);CHAT_TIMER=null}refreshChatBadge()}
+function chatHideAll(){$('chatListWrap').style.display='none';$('chatThreadWrap').style.display='none';$('chatMonitorWrap').style.display='none'}
 async function chatList(){
   CHAT_PEER=null;if(CHAT_TIMER){clearInterval(CHAT_TIMER);CHAT_TIMER=null}
-  $('chatBack').style.display='none';$('chatTitle').textContent='💬 شات';$('chatThreadWrap').style.display='none';$('chatListWrap').style.display='';
-  const w=$('chatListWrap');w.innerHTML='<div class="sub">جاري التحميل…</div>';
+  $('chatBack').style.display='none';$('chatTitle').textContent='💬 شات';chatHideAll();$('chatListWrap').style.display='';
+  $('chatMonitorB').style.display=CUR&&CUR.r==='admin'?'':'none';
+  const w=$('chatListRows');w.innerHTML='<div class="sub">جاري التحميل…</div>';
   try{
     const [inbox,contacts]=await Promise.all([api('/api/chat/inbox'),api('/api/chat/contacts')]);
-    const byU=new Map((inbox.conversations||[]).map(c=>[c.u,c]));
-    const rows=(contacts.contacts||[]).map(c=>{
-      const conv=byU.get(c.u);
-      const last=conv&&conv.last?conv.last.body:'';
-      const badge=conv&&conv.unread?`<span style="background:#ef4444;color:#fff;border-radius:999px;padding:2px 9px;font-size:12px;font-weight:900">${NF(conv.unread)}</span>`:'';
-      return `<button class="btn" style="width:100%;text-align:right;display:flex;align-items:center;gap:8px;margin-bottom:6px" onclick="openThread('${esc(c.u)}')"><span style="flex:1"><b>${esc(c.n||c.u)}</b> <span class="sub">${esc(ROLE[c.r]||c.r)}${c.s?' · '+esc(c.s):''}</span><br><span class="sub">${esc(last.slice(0,60))}</span></span>${badge}</button>`;
-    });
-    w.innerHTML=rows.join('')||'<div class="sub">مفيش حد متاح للشات حاليًا</div>';
+    CHAT_CONVS=inbox.conversations||[];CHAT_CONTACTS=contacts.contacts||[];
+    renderChatList();
   }catch(e){w.innerHTML='<div class="sub">فشل التحميل - جرّب تاني</div>'}
+}
+function renderChatList(){
+  const w=$('chatListRows');if(!w)return;
+  const q=($('chatSearch').value||'').trim();
+  const now=Date.now();
+  const byU=new Map(CHAT_CONVS.map(c=>[c.u,c]));
+  let rows=CHAT_CONTACTS.map(c=>({...c,conv:byU.get(c.u)}));
+  rows.sort((a,b)=>(((b.conv&&b.conv.unread)||0)-((a.conv&&a.conv.unread)||0))||((((b.conv&&b.conv.last)||{}).ts||0)-(((a.conv&&a.conv.last)||{}).ts||0))||String(a.n||a.u).localeCompare(String(b.n||b.u),'ar'));
+  if(q)rows=rows.filter(c=>String(c.n||'').includes(q)||String(c.u||'').toLowerCase().includes(q.toLowerCase()));
+  w.innerHTML=rows.map(c=>{
+    const conv=c.conv,unread=conv&&conv.unread||0;
+    const online=c.seen&&(now-c.seen)<120000;
+    const last=conv&&conv.last?conv.last.body:'';
+    const badge=unread?`<span style="background:#ef4444;color:#fff;border-radius:999px;padding:2px 9px;font-size:12px;font-weight:900">${NF(unread)}</span>`:'';
+    const dot=online?'<span style="color:#22c55e;font-size:11px" title="متصل الآن">● متصل</span>':'';
+    return `<button class="btn" style="width:100%;text-align:right;display:flex;align-items:center;gap:8px;margin-bottom:6px" onclick="openThread('${esc(c.u)}')"><span style="flex:1"><b>${esc(c.n||c.u)}</b> ${dot}<br><span class="sub">${esc(String(last).slice(0,60))}</span></span>${badge}</button>`;
+  }).join('')||'<div class="sub">مفيش حد متاح للشات حاليًا</div>';
 }
 async function openThread(u){
   CHAT_PEER=u;CHAT_LAST_ID=0;
-  $('chatBack').style.display='';$('chatListWrap').style.display='none';$('chatThreadWrap').style.display='flex';
+  $('chatBack').style.display='';chatHideAll();$('chatThreadWrap').style.display='flex';
   $('chatMsgs').innerHTML='<div class="sub">جاري التحميل…</div>';
   $('chatIn').focus();
   await pollThread(true);
   if(CHAT_TIMER)clearInterval(CHAT_TIMER);
   CHAT_TIMER=setInterval(()=>pollThread(false),4000);
+}
+function chatBubble(m){
+  const div=document.createElement('div');
+  div.style.cssText='max-width:80%;padding:8px 12px;border-radius:12px;line-height:1.5;white-space:pre-wrap;word-break:break-word;';
+  if(m.mine)div.style.cssText+='align-self:flex-start;background:#1d4ed8;color:#fff';
+  else div.style.cssText+='align-self:flex-end;background:#1e293b;color:#e2e8f0';
+  if(m.kind==='image'){
+    const img=document.createElement('img');
+    img.src=m.body;img.alt='صورة';img.style.cssText='max-width:100%;border-radius:8px;display:block;cursor:pointer';
+    img.onclick=()=>{const w=window.open('','_blank');if(w){w.document.write('<img src="'+m.body+'" style="max-width:100%">')}};
+    div.appendChild(img);
+  }else div.textContent=m.body;
+  const t=document.createElement('div');
+  t.style.cssText='font-size:10px;opacity:.65;margin-top:2px';
+  t.textContent=new Date(m.ts).toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit',timeZone:'Africa/Cairo'})+(m.mine?(m.read?' ✓✓':' ✓'):'');
+  div.appendChild(t);
+  return div;
 }
 async function pollThread(first){
   if(!CHAT_PEER)return;
@@ -6773,15 +6815,7 @@ async function pollThread(first){
     if(first)box.innerHTML='';
     for(const m of (d.messages||[])){
       CHAT_LAST_ID=Math.max(CHAT_LAST_ID,m.id);
-      const div=document.createElement('div');
-      div.style.cssText='max-width:80%;padding:8px 12px;border-radius:12px;line-height:1.5;white-space:pre-wrap;word-break:break-word;';
-      if(m.mine)div.style.cssText+='align-self:flex-start;background:#1d4ed8;color:#fff';
-      else div.style.cssText+='align-self:flex-end;background:#1e293b;color:#e2e8f0';
-      div.textContent=m.body;
-      const t=document.createElement('div');
-      t.style.cssText='font-size:10px;opacity:.65;margin-top:2px';
-      t.textContent=new Date(m.ts).toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit',timeZone:'Africa/Cairo'})+(m.mine?(m.read?' ✓✓':' ✓'):'');
-      div.appendChild(t);box.appendChild(div);
+      box.appendChild(chatBubble(m));
     }
     if(first&&!(d.messages||[]).length)box.innerHTML='<div class="sub" style="text-align:center;margin-top:20px">ابدأ المحادثة 👋</div>';
     if((d.messages||[]).length)box.scrollTop=box.scrollHeight;
@@ -6794,8 +6828,55 @@ async function sendChat(){
   try{await api('/api/chat/send',{method:'POST',body:{to:CHAT_PEER,body:text}})}catch(e){}
   pollThread(false);
 }
+// Images: compressed to a small JPEG data-URL client-side, stored in D1 (free tier).
+async function sendChatImage(data){
+  if(!CHAT_PEER)return;
+  try{await api('/api/chat/send',{method:'POST',body:{to:CHAT_PEER,body:data,kind:'image'}})}catch(e){}
+  pollThread(false);
+}
+// Admin monitor mode (Micheal 24 Nov): read-only view of any pair's chat.
+function chatMonitorOpen(){
+  CHAT_PEER=null;if(CHAT_TIMER){clearInterval(CHAT_TIMER);CHAT_TIMER=null}
+  $('chatBack').style.display='';$('chatTitle').textContent='👁 مراقبة محادثة';chatHideAll();$('chatMonitorWrap').style.display='flex';
+  const opts=CHAT_CONTACTS.map(c=>`<option value="${esc(c.u)}">${esc(c.n||c.u)}</option>`).join('');
+  $('chatMonA').innerHTML='<option value="">الأول…</option>'+opts;
+  $('chatMonB').innerHTML='<option value="">التاني…</option>'+opts;
+  $('chatMonMsgs').innerHTML='<div class="sub" style="text-align:center;margin-top:20px">اختار الشخصين واضغط عرض</div>';
+}
+async function chatMonitorShow(){
+  const a=$('chatMonA').value,b=$('chatMonB').value;
+  if(!a||!b||a===b)return;
+  const box=$('chatMonMsgs');box.innerHTML='<div class="sub">جاري التحميل…</div>';
+  try{
+    const d=await api('/api/chat/peek?a='+encodeURIComponent(a)+'&b='+encodeURIComponent(b));
+    box.innerHTML='';
+    for(const m of (d.messages||[]))box.appendChild(chatBubble(m));
+    if(!(d.messages||[]).length)box.innerHTML='<div class="sub" style="text-align:center;margin-top:20px">مفيش رسايل بينهم</div>';
+    box.scrollTop=box.scrollHeight;
+  }catch(e){box.innerHTML='<div class="sub">فشل التحميل</div>'}
+}
 $('chatSendBtn').onclick=sendChat;
 $('chatIn').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();sendChat()}});
+$('chatImgB').onclick=()=>$('chatImgFile').click();
+$('chatImgFile').onchange=e=>{
+  const f=e.target.files[0];e.target.value='';
+  if(!f||!CHAT_PEER)return;
+  const url=URL.createObjectURL(f);
+  const img=new Image();
+  img.onload=()=>{
+    const max=900;let w=img.width,h=img.height;
+    if(Math.max(w,h)>max){const k=max/Math.max(w,h);w=Math.round(w*k);h=Math.round(h*k)}
+    const cv=document.createElement('canvas');cv.width=w;cv.height=h;
+    cv.getContext('2d').drawImage(img,0,0,w,h);
+    URL.revokeObjectURL(url);
+    let q=0.72,data=cv.toDataURL('image/jpeg',q);
+    while(data.length>450000&&q>0.3){q-=0.15;data=cv.toDataURL('image/jpeg',q)}
+    if(data.length>500000){$('chatIn').placeholder='الصورة كبيرة جدًا - جرّب صورة أصغر';setTimeout(()=>{$('chatIn').placeholder='اكتب رسالة…'},2500);return}
+    sendChatImage(data);
+  };
+  img.onerror=()=>{URL.revokeObjectURL(url)};
+  img.src=url;
+};
 </script>
 <script src="./admin-usage.js?v=1"></script>
 </body>

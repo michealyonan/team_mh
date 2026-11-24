@@ -72,12 +72,16 @@ async function ensureSchema(env) {
       body TEXT NOT NULL, ts INTEGER NOT NULL, read_at INTEGER)`),
     env.DB.prepare(`CREATE INDEX IF NOT EXISTS chat_from ON chat_messages(from_u, to_u, id)`),
     env.DB.prepare(`CREATE INDEX IF NOT EXISTS chat_to ON chat_messages(to_u, from_u, id)`),
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS chat_presence(u TEXT PRIMARY KEY, ts INTEGER NOT NULL)`),
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS usage_daily(day TEXT PRIMARY KEY, n INTEGER NOT NULL DEFAULT 0)`),
     env.DB.prepare(`CREATE INDEX IF NOT EXISTS form_submissions_user_ts ON form_submissions(u,ts)`),
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS form_phone_jobs(id INTEGER PRIMARY KEY AUTOINCREMENT,u TEXT NOT NULL,job TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'pending',result TEXT NOT NULL DEFAULT '',ts INTEGER NOT NULL,updated INTEGER NOT NULL)`),
   ]);
   try { await env.DB.prepare("ALTER TABLE users ADD COLUMN photo TEXT NOT NULL DEFAULT ''").run(); } catch {}
   schemaReady = true;
+  // kind column for image messages (added 24 Nov) - CREATE TABLE IF NOT EXISTS
+  // won't alter an existing table, so try the ALTER and ignore duplicate-column.
+  try { await env.DB.prepare("ALTER TABLE chat_messages ADD COLUMN kind TEXT NOT NULL DEFAULT 'text'").run(); } catch (e) {}
 }
 
 /* ---------------- Cloudflare free-quota usage meter (estimate) ----------------
@@ -312,17 +316,24 @@ async function handleChat(request, env, json, url) {
 
   if (p === '/api/chat/contacts' && request.method === 'GET') {
     const rows = await env.DB.prepare("SELECT u,n,r,s FROM users WHERE status='active' AND r IN ('admin','manager','sup') AND u<>? ORDER BY n").bind(user.u).all();
-    return json({ contacts: (rows.results || []).map(x => ({ u: x.u, n: x.n, r: x.r, s: x.s })) });
+    const pres = await env.DB.prepare('SELECT u,ts FROM chat_presence').all();
+    const seen = new Map((pres.results || []).map(x => [x.u, x.ts]));
+    return json({ contacts: (rows.results || []).map(x => ({ u: x.u, n: x.n, r: x.r, s: x.s, seen: seen.get(x.u) || 0 })) });
+  }
+
+  if (p === '/api/chat/ping' && request.method === 'POST') {
+    await env.DB.prepare('INSERT INTO chat_presence(u,ts) VALUES(?,?) ON CONFLICT(u) DO UPDATE SET ts=excluded.ts').bind(user.u, Date.now()).run();
+    return json({ ok: true });
   }
 
   if (p === '/api/chat/inbox' && request.method === 'GET') {
-    const msgs = await env.DB.prepare('SELECT id, from_u, to_u, body, ts, read_at FROM chat_messages WHERE to_u=? OR from_u=? ORDER BY id DESC LIMIT 500').bind(user.u, user.u).all();
+    const msgs = await env.DB.prepare('SELECT id, from_u, to_u, body, kind, ts, read_at FROM chat_messages WHERE to_u=? OR from_u=? ORDER BY id DESC LIMIT 500').bind(user.u, user.u).all();
     const peers = new Map();
     for (const m of (msgs.results || [])) {
       const peer = m.from_u === user.u ? m.to_u : m.from_u;
       let e = peers.get(peer);
       if (!e) { e = { u: peer, last: null, unread: 0 }; peers.set(peer, e); }
-      if (!e.last) e.last = { body: m.body, ts: m.ts, mine: m.from_u === user.u };
+      if (!e.last) e.last = { body: m.kind === 'image' ? '📷 صورة' : m.body, ts: m.ts, mine: m.from_u === user.u };
       if (m.to_u === user.u && !m.read_at) e.unread++;
     }
     const list = [...peers.values()];
@@ -335,15 +346,26 @@ async function handleChat(request, env, json, url) {
     return json({ conversations: list, totalUnread: list.reduce((t, e) => t + e.unread, 0) });
   }
 
+  if (p === '/api/chat/peek' && request.method === 'GET') {
+    // Admin-only read of any pair's conversation (Micheal 24 Nov). Read-only:
+    // never marks messages read.
+    if (user.r !== 'admin') return json({ error: 'forbidden' }, 403);
+    const a = String(url.searchParams.get('a') || '').toLowerCase().slice(0, 60);
+    const b = String(url.searchParams.get('b') || '').toLowerCase().slice(0, 60);
+    if (!a || !b || a === b) return json({ error: 'bad_peer' }, 400);
+    const rows = await env.DB.prepare('SELECT id, from_u, body, kind, ts, read_at FROM chat_messages WHERE (from_u=? AND to_u=?) OR (from_u=? AND to_u=?) ORDER BY id ASC LIMIT 300').bind(a, b, b, a).all();
+    return json({ messages: (rows.results || []).map(m => ({ id: m.id, mine: m.from_u === a, body: m.body, kind: m.kind || 'text', ts: m.ts, read: !!m.read_at })) });
+  }
+
   if (p === '/api/chat/thread' && request.method === 'GET') {
     const peer = String(url.searchParams.get('with') || '').toLowerCase().slice(0, 60);
     if (!peer || peer === user.u) return json({ error: 'bad_peer' }, 400);
     const prow = await env.DB.prepare("SELECT u,n,r,s FROM users WHERE u=? AND status='active'").bind(peer).first();
     if (!prow || !CHAT_ROLES.includes(prow.r)) return json({ error: 'bad_peer' }, 400);
     const after = parseInt(url.searchParams.get('after') || '0', 10) || 0;
-    const rows = await env.DB.prepare('SELECT id, from_u, body, ts, read_at FROM chat_messages WHERE id>? AND ((from_u=? AND to_u=?) OR (from_u=? AND to_u=?)) ORDER BY id ASC LIMIT 200').bind(after, user.u, peer, peer, user.u).all();
+    const rows = await env.DB.prepare('SELECT id, from_u, body, kind, ts, read_at FROM chat_messages WHERE id>? AND ((from_u=? AND to_u=?) OR (from_u=? AND to_u=?)) ORDER BY id ASC LIMIT 200').bind(after, user.u, peer, peer, user.u).all();
     await env.DB.prepare('UPDATE chat_messages SET read_at=? WHERE to_u=? AND from_u=? AND read_at IS NULL').bind(Date.now(), user.u, peer).run();
-    return json({ peer: { u: prow.u, n: prow.n, r: prow.r, s: prow.s }, messages: (rows.results || []).map(m => ({ id: m.id, mine: m.from_u === user.u, body: m.body, ts: m.ts, read: !!m.read_at })) });
+    return json({ peer: { u: prow.u, n: prow.n, r: prow.r, s: prow.s }, messages: (rows.results || []).map(m => ({ id: m.id, mine: m.from_u === user.u, body: m.body, kind: m.kind || 'text', ts: m.ts, read: !!m.read_at })) });
   }
 
   if (p === '/api/chat/send' && request.method === 'POST') {
@@ -352,12 +374,19 @@ async function handleChat(request, env, json, url) {
     let body = null;
     try { body = await request.json(); } catch (e) {}
     const peer = String(body && body.to || '').toLowerCase().slice(0, 60);
-    const text = String(body && body.body || '').trim().slice(0, 1000);
-    if (!peer || peer === user.u || !text) return json({ error: 'bad_message' }, 400);
+    const kind = body && body.kind === 'image' ? 'image' : 'text';
+    const text = String(body && body.body || '').trim();
+    if (kind === 'image') {
+      // Images are small data-URLs compressed client-side, stored in D1 (free tier).
+      if (!/^data:image\/(jpeg|png|webp);base64,/.test(text) || text.length > 500000) return json({ error: 'bad_image' }, 400);
+    } else if (!text || text.length > 1000) return json({ error: 'bad_message' }, 400);
+    if (!peer || peer === user.u) return json({ error: 'bad_message' }, 400);
     const prow = await env.DB.prepare("SELECT u FROM users WHERE u=? AND status='active' AND r IN ('admin','manager','sup')").bind(peer).first();
     if (!prow) return json({ error: 'bad_peer' }, 400);
     const ts = Date.now();
-    const r = await env.DB.prepare('INSERT INTO chat_messages(from_u,to_u,body,ts) VALUES(?,?,?,?)').bind(user.u, peer, text, ts).run();
+    const r = await env.DB.prepare('INSERT INTO chat_messages(from_u,to_u,body,kind,ts) VALUES(?,?,?,?,?)').bind(user.u, peer, text, kind, ts).run();
+    // APK push notification for the recipient (Micheal 24 Nov); never fail the send on it.
+    try { await sendFcmToUser(env, peer, '💬 ' + user.n, kind === 'image' ? '📷 صورة' : text.slice(0, 100), ''); } catch (e) {}
     return json({ ok: true, id: r.meta && r.meta.last_row_id, ts });
   }
 
