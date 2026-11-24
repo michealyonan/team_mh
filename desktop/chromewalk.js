@@ -45,6 +45,35 @@ async function clickX(page, x, timeoutMs) {
   throw e;
 }
 
+// Same as clickX but clicks the Nth VISIBLE match (0-based) - the hiring form has
+// five identical 'إضافة ملف' upload buttons, one per image question (24 Nov).
+async function clickXNth(page, x, nth, timeoutMs) {
+  const t0 = Date.now();
+  let lastErr = null;
+  while (Date.now() - t0 < (timeoutMs || 12000)) {
+    const els = await xpAll(page, x);
+    let seen = 0;
+    for (const el of els) {
+      try {
+        let box = await el.boundingBox();
+        if (!box || box.width < 2 || box.height < 2) continue;
+        if (seen++ !== nth) continue;
+        await el.evaluate((n) => { try { n.scrollIntoView({ block: 'center' }); } catch (e) {} });
+        await sleep(80);
+        box = await el.boundingBox();
+        if (!box) { seen--; continue; }
+        await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+        await sleep(300);
+        return;
+      } catch (e) { lastErr = e; }
+    }
+    await sleep(150);
+  }
+  const e = lastErr || new Error('timeout clicking nth(' + nth + ') ' + x.slice(0, 70));
+  e.detail = 'click target nth ' + nth + ': ' + x.slice(0, 90);
+  throw e;
+}
+
 // Trusted click on a specific element handle: real mouse event at its center.
 async function clickEl(page, el) {
   await el.evaluate((n) => { try { n.scrollIntoView({ block: 'center' }); } catch (e) {} });
@@ -417,8 +446,15 @@ async function uploadProof(page, filePath, job) {
     await browserSession.send('Target.setDiscoverTargets', { discover: true }).catch(() => {});
     await attachAll();
 
-    await clickX(page, "//span[contains(text(), 'إضافة ملف') or contains(text(), 'Add file')]", 12000);
-    diag.layers.push('picker opened');
+    // job.uploadIndex selects WHICH upload question's button to open (the hiring
+    // form has five identical إضافة ملف buttons in page order). Default = first.
+    const upIdx = (job && job.uploadIndex) || 0;
+    if (upIdx > 0) {
+      await clickXNth(page, "//span[contains(text(), 'إضافة ملف') or contains(text(), 'Add file')]", upIdx, 12000);
+    } else {
+      await clickX(page, "//span[contains(text(), 'إضافة ملف') or contains(text(), 'Add file')]", 12000);
+    }
+    diag.layers.push('picker opened (index ' + upIdx + ')');
 
     // Layer 1: set the file on any session that has the input (re-attach while hunting).
     let set = false;
@@ -901,4 +937,126 @@ async function runFormWalkInner(page, job) {
   return res;
 }
 
-module.exports = { runFormWalk, clickX, pageMarker, confirmState, ANOTHER_X, uploadProof };
+// ---- رفع الاستعلام: فورم تعيينات الطيارين walk (24 Nov, Micheal 12527112) ----
+// Single-page form: 4 dropdowns (office, hire_type, lecture_office, vehicle),
+// 6 text fields in order, 5 file-upload questions. Dry mode fills everything and
+// stops before إرسال; real runs are only ever for requests Micheal approved on
+// the site.
+
+// Open the dropdown at page-order INDEX and pick the option by its text. The
+// commit check is a POSITIVE match on that same listbox: the placeholder
+// 'اختيار' can stay in textContent after a real selection (24 Nov), so only the
+// chosen value proves the commit. One retry on a missed commit.
+async function pickFromListbox(page, index, text, timeoutMs) {
+  const open = async () => {
+    const t0 = Date.now();
+    while (Date.now() - t0 < (timeoutMs || 12000)) {
+      const lbs = await xpAll(page, "//div[@role='listbox']");
+      if (lbs[index]) {
+        try { await clickEl(page, lbs[index]); return; } catch (e) {}
+      }
+      await sleep(200);
+    }
+    throw new Error('listbox ' + index + ' not found');
+  };
+  const shown = async () => {
+    try {
+      return await page.evaluate((i) => {
+        const ls = document.querySelectorAll("div[role='listbox']");
+        const lb = ls[i];
+        return lb ? String(lb.textContent || '') : '';
+      }, index);
+    } catch (e) { return ''; }
+  };
+  await open();
+  await sleep(400); // let the option overlay render
+  await pickOption(page, text, timeoutMs || 12000);
+  if ((await shown()).indexOf(text) >= 0) return;
+  await open();
+  await sleep(400);
+  await pickOption(page, text, 8000);
+  if ((await shown()).indexOf(text) < 0) {
+    const e = new Error('dropdown_commit_failed: ' + text);
+    e.detail = 'listbox ' + index + ' never showed "' + text + '"';
+    throw e;
+  }
+}
+
+async function runHiringWalk(page, job) {
+  // job: { dry, payload:{office,hire_type,sup_name,lecture_office,rider_name,
+  //   rider_phone,rider_nid,license_no,rider_addr,vehicle}, files:{img_*: path},
+  //   isAborted, onSubmitting, uploadImpl (test hook only) }
+  const steps = [];
+  let lastT = Date.now();
+  const mark = (s) => {
+    if (job.isAborted && job.isAborted()) { const e = new Error('aborted'); e.aborted = true; throw e; }
+    const now = Date.now();
+    steps.push(s + ' +' + (now - lastT) + 'ms');
+    lastT = now;
+  };
+  const fail = (err) => {
+    err.detail = (err.detail ? err.detail + ' | ' : '') + 'steps: ' + steps.slice(-6).join(' | ');
+    throw err;
+  };
+  const uploader = job.uploadImpl || uploadProof;
+  try {
+    {
+      const t0 = Date.now();
+      let ready = false;
+      while (Date.now() - t0 < 15000 && !ready) {
+        try { ready = await page.evaluate(() => !!document.querySelector("div[role='listbox'], input[type='text']")); } catch (e) {}
+        if (!ready) await sleep(300);
+      }
+      if (!ready) throw new Error('form_not_ready');
+    }
+    mark('page:ready');
+    // Tick the record-email consent checkbox if present and unchecked.
+    try {
+      const cb = await page.$("xpath///div[@role='checkbox']");
+      if (cb) {
+        const checked = await cb.evaluate((n) => n.getAttribute('aria-checked'));
+        if (checked !== 'true') await clickEl(page, cb);
+      }
+    } catch (e) {}
+    mark('checkbox');
+
+    // Dropdowns in page order: office=0, hire_type=1, lecture_office=2, vehicle=3.
+    await pickFromListbox(page, 0, job.payload.office, 15000); mark('dd:office');
+    await pickFromListbox(page, 1, job.payload.hire_type, 15000); mark('dd:hire_type');
+    await pickFromListbox(page, 2, job.payload.lecture_office, 15000); mark('dd:lecture_office');
+
+    // Text fields in page order: sup_name, rider_name, phone, nid, license, address.
+    const texts = [job.payload.sup_name, job.payload.rider_name, job.payload.rider_phone,
+      job.payload.rider_nid, job.payload.license_no || '', job.payload.rider_addr];
+    const tins = await xpAll(page, "//input[@type='text']");
+    if (tins.length < 6) throw new Error('expected 6 text inputs, found ' + tins.length);
+    for (let i = 0; i < texts.length; i++) { if (texts[i]) await typeIn(page, tins[i], texts[i]); }
+    mark('texts:6');
+
+    await pickFromListbox(page, 3, job.payload.vehicle, 15000); mark('dd:vehicle');
+
+    // Upload questions in page order. Files are named <nid>_<n>.jpg so each chip
+    // is unique (chip-visible check matches on the file name).
+    const order = ['img_license_front', 'img_license_back', 'img_nid_front', 'img_nid_back', 'img_personal'];
+    for (let i = 0; i < order.length; i++) {
+      const fp = job.files && job.files[order[i]];
+      if (!fp) continue;
+      await uploader(page, fp, Object.assign({}, job, { uploadIndex: i }));
+      mark('upload:' + order[i]);
+    }
+
+    if (job.dry) {
+      mark('dry:stop-before-submit');
+      return { ok: true, submitted: false, dry: true, detail: 'dry run - filled, stopped before إرسال | steps: ' + steps.join(' | ') };
+    }
+    if (job.onSubmitting) job.onSubmitting();
+    await clickX(page, SUBMIT_X, 15000);
+    mark('submit:clicked');
+  } catch (e) { fail(e); }
+  const res = await waitConfirmation(page, 25000);
+  mark('submit:confirmed');
+  res.detail = (res.detail ? res.detail + ' | ' : '') + 'steps: ' + steps.join(' | ');
+  return res;
+}
+
+module.exports = { runFormWalk, runHiringWalk, clickX, clickXNth, pageMarker, confirmState, ANOTHER_X, uploadProof };

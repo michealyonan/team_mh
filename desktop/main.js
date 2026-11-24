@@ -8,9 +8,9 @@ const fs = require('fs');
 const path = require('path');
 const { autoUpdater } = require('electron-updater');
 const { getBrowser, firstPage, peekBrowser, launchPlain, launchPlainForSignin, adoptBrowser, dropBrowser } = require('./chromeproc');
-const { runFormWalk, clickX, pageMarker, confirmState } = require('./chromewalk');
+const { runFormWalk, runHiringWalk, clickX, pageMarker, confirmState } = require('./chromewalk');
 
-const VERSION = '0.3.20';
+const VERSION = '0.3.21';
 // Proof image for فتح شيفت uploads: Micheal's OWN fixed image when present
 // (userData/proof.*, seeded from a bundled proof.* on first run), else the
 // app-generated black PNG fallback (24 Nov).
@@ -41,7 +41,11 @@ function proofPngPath() {
 const SITE = 'https://team-mh.michealuonanayad.workers.dev';
 const FORMS = {
   alex: { url: 'https://docs.google.com/forms/u/0/d/e/1FAIpQLSffSwyTh0w4AYjTU9AG-kj-0UfJHcSTSYnR1DrWJ_h8iPYm3Q/viewform', email: 'alexlogistics.teammh101@gmail.com' },
-  delta: { url: 'https://docs.google.com/forms/u/0/d/e/1FAIpQLSekxaUQPgiWq-Y_IPfsTx7wTANA324a2JklFJZ_Gxg9CGPaKA/viewform', email: 'deltalogistics.teammh1@gmail.com' }
+  delta: { url: 'https://docs.google.com/forms/u/0/d/e/1FAIpQLSekxaUQPgiWq-Y_IPfsTx7wTANA324a2JklFJZ_Gxg9CGPaKA/viewform', email: 'deltalogistics.teammh1@gmail.com' },
+  // فورم تعيينات الطيارين (رفع الاستعلام, 24 Nov): submitted by the DELTA Google
+  // account, so hiring runs share the delta Chrome profile; 'hiring' is only a
+  // warm-page key, never a separate profile.
+  hiring: { url: 'https://docs.google.com/forms/d/e/1FAIpQLSeOLPp1wR7MPqwORaW6mZLmOYL46gi6J7PWOn6c2Ch6B_1KbQ/viewform', email: 'deltalogistics.teammh1@gmail.com' }
 };
 const SIGNIN_WAIT_MS = 6 * 60 * 1000;
 const WALK_WATCHDOG_MS = 150000;
@@ -685,8 +689,91 @@ ipcMain.handle('tmh-run-local', async (_e, payload) => {
   }
 });
 
+// ---- رفع الاستعلام poll loop (24 Nov, Micheal 12527112) ----
+// Admin approves a request on the site -> status 'approved'. While the app is open and
+// idle, poll every 60s, claim the oldest approved job, walk the company form with the
+// delta account, report submitted/failed. Never runs while a shift run is busy.
+let hiringTimer = null;
+let hiringBusy = false;
+async function hiringTick() {
+  if (hiringBusy || busy) return;
+  hiringBusy = true;
+  let jobId = 0;
+  try {
+    const tok = await getToken();
+    if (!tok) return;
+    let d;
+    try { d = await api('/api/hiring/poll'); } catch (e) { return; }
+    if (!d || !d.job) return;
+    const job = d.job; jobId = job.id;
+    const cfg = FORMS.hiring;
+    busy = true;
+    currentRun = { aborted: false, submitClicked: false, abort: null };
+    const thisRun = currentRun;
+    const tmp = path.join(app.getPath('temp'), 'tmh-hiring-' + job.id);
+    try { fs.mkdirSync(tmp, { recursive: true }); } catch (e) {}
+    const files = {};
+    const nid = String(job.payload.rider_nid || '').replace(/[^0-9]/g, '');
+    let n = 0;
+    for (const k of ['img_license_front', 'img_license_back', 'img_nid_front', 'img_nid_back', 'img_personal']) {
+      const du = job.images && job.images[k];
+      if (!du) continue;
+      const m = String(du).match(/^data:image\/(\w+);base64,(.*)$/);
+      if (!m) continue;
+      n++;
+      const fp = path.join(tmp, nid + '_' + n + '.' + (m[1] === 'jpeg' ? 'jpg' : m[1]));
+      fs.writeFileSync(fp, Buffer.from(m[2], 'base64'));
+      files[k] = fp;
+    }
+    let res;
+    try {
+      const browser = await getBrowser('delta', app.getPath('userData'));
+      let page = warmPages.hiring || null;
+      if (page) { try { await page.url(); } catch (e) { page = null; } }
+      if (!page) page = await browser.newPage();
+      warmPages.hiring = page;
+      await page.goto(cfg.url, { waitUntil: 'domcontentloaded', timeout: 60000 });
+      const url = await settleUrl(page, 15000);
+      if (/accounts\.google\.com/.test(url)) {
+        res = { ok: false, error: 'auth_expired', detail: 'delta google sign-in needed (open شيفتات once and sign in)', submitted: false };
+      } else if (!(await waitFormReady(page, 30000))) {
+        res = { ok: false, error: 'form_not_ready', submitted: false };
+      } else {
+        let acct = '';
+        try { acct = String(await page.evaluate(accountFromPageFn) || '').toLowerCase(); } catch (e) {}
+        if (acct && acct !== cfg.email) {
+          res = { ok: false, error: 'wrong_account', detail: 'signed in as ' + acct, submitted: false };
+        } else {
+          res = await Promise.race([
+            runHiringWalk(page, { dry: false, payload: job.payload, files, isAborted: () => !!thisRun.aborted, onSubmitting: () => { thisRun.submitClicked = true; } }),
+            sleep(300000).then(() => ({ ok: false, error: 'watchdog_timeout', submitted: false }))
+          ]);
+        }
+      }
+    } catch (e) {
+      res = { ok: false, error: (e && e.aborted) ? 'aborted' : 'walk_exception', detail: String(e && (e.detail || e.message) || '').slice(0, 700), submitted: false };
+    } finally {
+      busy = false; currentRun = null;
+      try { fs.rmSync(tmp, { recursive: true, force: true }); } catch (e) {}
+    }
+    // Uncertain / click-already-happened results must NOT auto-retry (duplicate risk).
+    const ok = !!(res && res.ok);
+    try {
+      await api('/api/hiring/report', { method: 'POST', body: { id: job.id, ok, error: (res && res.error) || '', detail: (res && res.detail) || '' } });
+    } catch (e) {}
+    notify(ok ? 'team_mh ✅' : 'team_mh ❌', (ok ? 'تم رفع الاستعلام: ' : 'فشل رفع الاستعلام: ') + String(job.payload.rider_name || ''));
+  } catch (e) {
+    if (jobId) { try { await api('/api/hiring/report', { method: 'POST', body: { id: jobId, ok: false, error: 'poll_exception', detail: String(e && e.message || e).slice(0, 300) } }); } catch (e2) {} }
+  } finally { hiringBusy = false; }
+}
+function startHiringPoll() {
+  if (hiringTimer) return;
+  hiringTimer = setInterval(() => { hiringTick().catch(() => {}); }, 60000);
+}
+
 app.whenReady().then(() => {
   createWindow();
+  startHiringPoll();
   seedBundledProof();
   if (app.isPackaged) {
     try {
