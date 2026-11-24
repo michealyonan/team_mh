@@ -1767,6 +1767,7 @@ header{box-shadow:0 8px 24px rgba(2,8,23,.5)}
    <h2 style="font-size:17px;font-weight:900">📨 الاستعلامات</h2>
    <span class="sub" id="queryCount"></span>
    <span style="margin-inline-start:auto;display:flex;gap:6px">
+    <button class="btn pr" id="hiringB" style="display:none">⬆ رفع الاستعلام</button>
     <button class="btn" id="queryExport">⬇ تصدير CSV</button>
     <button class="btn pr" id="queryRefresh">🔄 تحديث التابة</button>
     <button class="btn" id="queryClose">✕ إغلاق</button>
@@ -1787,6 +1788,30 @@ header{box-shadow:0 8px 24px rgba(2,8,23,.5)}
   <div class="card"><div class="tw" id="queryTable"><table><thead id="queryHead"></thead><tbody id="queryBody"></tbody></table></div></div>
  </div>
 </div>
+<div id="hiringModal" style="display:none;position:fixed;inset:0;background:#000c;z-index:72;overflow:auto;padding:12px" onclick="if(event.target===this)this.style.display='none'"><div class="card" style="max-width:640px;margin:auto">
+<div class="row"><h3 style="margin:0">⬆ رفع الاستعلام (تعيين طيار)</h3><button class="btn" style="margin-inline-start:auto" onclick="$('hiringModal').style.display='none'">✕</button></div>
+<div class="chips" style="margin:8px 0"><button class="chip on" id="hTabNew" type="button">رفع جديد</button><button class="chip" id="hTabList" type="button">الطلبات <span id="hPendCount"></span></button></div>
+<div id="hNewWrap">
+<div class="sub" style="margin-bottom:8px">نفس بيانات فورم الشركة بالظبط — الطلب بينتظر موافقة الأدمن، وبعد الموافقة بيترفع على فورم الشركة تلقائي.</div>
+<div class="fm" style="grid-template-columns:1fr 1fr">
+ <div><label>إسم المكتب *</label><select id="hf_office"></select></div>
+ <div><label>نوع التعيين *</label><select id="hf_hire_type"></select></div>
+ <div><label>اسم المشرف *</label><input id="hf_sup_name"></div>
+ <div><label>مكتب طلبات المحاضرة *</label><select id="hf_lecture_office"></select></div>
+ <div><label>إسم الطيار رباعي *</label><input id="hf_rider_name"></div>
+ <div><label>رقم موبايل الطيار *</label><input id="hf_rider_phone" inputmode="tel" dir="ltr" placeholder="01xxxxxxxxx"></div>
+ <div><label>الرقم القومي للطيار *</label><input id="hf_rider_nid" inputmode="numeric" dir="ltr" placeholder="14 رقم"></div>
+ <div><label>رقم رخصة القيادة</label><input id="hf_license_no" dir="ltr"></div>
+ <div style="grid-column:1/-1"><label>عنوان الطيار من البطاقة *</label><input id="hf_rider_addr"></div>
+ <div><label>نوع المركبة *</label><select id="hf_vehicle"></select></div>
+</div>
+<div id="hfImgs" style="display:flex;flex-direction:column;gap:6px;margin-top:10px"></div>
+<div id="hErr" role="alert" style="color:#f87171;font-size:13px;margin-top:6px"></div>
+<button class="btn pr" id="hSubmit" style="width:100%;min-height:46px;margin-top:8px">⬆ رفع الطلب</button>
+</div>
+<div id="hListWrap" style="display:none"><div id="hList"><div class="sub">جاري التحميل…</div></div></div>
+<input type="file" id="hfFile" accept="image/*" style="display:none">
+</div></div>
 <div class="ov section-screen" id="riderMapPanel" style="display:none" role="dialog" aria-modal="true" aria-labelledby="riderMapTitle" aria-hidden="true">
  <section class="section-screen-wrap">
   <div class="section-screen-heading"><h2 id="riderMapTitle">🗺️ خريطة مواقع المناديب</h2><button class="btn" id="riderMapClose" type="button">✕ إغلاق</button></div>
@@ -3415,7 +3440,7 @@ const REMEMBER_LOGIN_KEY='pd_remember_login',REMEMBER_LOGIN_MS=7*24*60*60*1000;a
   $('riderRatingsCard').style.display=x.r==='sup'?'none':'';
   $('dailyHistoryCard').style.display=x.r==='sup'?'none':'';
   $('vehicleChartCard').style.display=x.r==='sup'?'none':'';
-  $('lg').style.display='none';$('who').textContent='👤 '+x.n+' · '+ROLE[x.r]+(x.r==='admin'&&!LOGIN_AUDIT_ENDPOINT?' · ⚠️ سجل الدخول المركزي غير مفعّل':'');$('usrB').style.display=x.r==='admin'?'':'none';$('loginAuditB').style.display=x.r==='admin'?'':'none';$('chatB').style.display=['admin','manager','sup'].includes(x.r)?'':'none';if(['admin','manager','sup'].includes(x.r)){if(!CHAT_BADGE_TIMER)CHAT_BADGE_TIMER=setInterval(refreshChatBadge,30000);setTimeout(refreshChatBadge,3000)}$('quotaB').style.display=x.r==='admin'?'':'none';$('themeB').style.display=x.r==='admin'?'':'none';$('tgB').style.display=x.r==='admin'?'':'none';$('supCaptureAll').style.display=x.r==='admin'?'':'none';$('zoneCaptureAll').style.display=['admin','manager'].includes(x.r)?'':'none';$('zoneCaptureAll').textContent=x.r==='manager'?'🗺️📸 تنزيل صور مناطقي':'🗺️📸 تنزيل صور كل المناطق';$('hcB').style.display=hcCanAccess(x)?'':'none';$('dedB').style.display=['admin','manager','sup'].includes(x.r)?'':'none';$('bookingDashboardB').style.display=bookingCanAccessDashboard(x)?'':'none';$('extB').style.display=(SITE_FORM_ACTIONS&&(FORM_ACTIONS_ADMIN_ONLY?x.r==='admin':['admin','manager','sup'].includes(x.r)))?'':'none';$('brkB').style.display=$('extB').style.display;$('manualActionB').style.display=$('extB').style.display;bookingApplyRoleAccess(x);$('payB').style.display=['admin','manager','sup'].includes(x.r)?'':'none';$('payB').classList.toggle('pay-access',['admin','manager','sup'].includes(x.r));$('prB').style.display=monitor?'none':'';$('profileB').style.display=monitor?'none':'';$('waB').style.display=['admin','manager','sup'].includes(x.r)?'':'none';$('queriesB').style.display=monitor?'none':'';$('reportsB').style.display=monitor?'none':'';$('riderDetailsB').style.display=monitor?'none':'';$('riderMapB').style.display=['admin','sup'].includes(x.r)?'':'none';if(x.r==='viewer'){syncNavGroups();await initViewer(x)}else syncNavGroups();load()}
+  $('lg').style.display='none';$('who').textContent='👤 '+x.n+' · '+ROLE[x.r]+(x.r==='admin'&&!LOGIN_AUDIT_ENDPOINT?' · ⚠️ سجل الدخول المركزي غير مفعّل':'');$('usrB').style.display=x.r==='admin'?'':'none';$('loginAuditB').style.display=x.r==='admin'?'':'none';$('chatB').style.display=['admin','manager','sup'].includes(x.r)?'':'none';if(['admin','manager','sup'].includes(x.r)){if(!CHAT_BADGE_TIMER)CHAT_BADGE_TIMER=setInterval(refreshChatBadge,30000);setTimeout(refreshChatBadge,3000)}$('quotaB').style.display=x.r==='admin'?'':'none';$('themeB').style.display=x.r==='admin'?'':'none';$('tgB').style.display=x.r==='admin'?'':'none';$('supCaptureAll').style.display=x.r==='admin'?'':'none';$('zoneCaptureAll').style.display=['admin','manager'].includes(x.r)?'':'none';$('zoneCaptureAll').textContent=x.r==='manager'?'🗺️📸 تنزيل صور مناطقي':'🗺️📸 تنزيل صور كل المناطق';$('hcB').style.display=hcCanAccess(x)?'':'none';$('dedB').style.display=['admin','manager','sup'].includes(x.r)?'':'none';$('bookingDashboardB').style.display=bookingCanAccessDashboard(x)?'':'none';$('extB').style.display=(SITE_FORM_ACTIONS&&(FORM_ACTIONS_ADMIN_ONLY?x.r==='admin':['admin','manager','sup'].includes(x.r)))?'':'none';$('brkB').style.display=$('extB').style.display;$('manualActionB').style.display=$('extB').style.display;bookingApplyRoleAccess(x);$('payB').style.display=['admin','manager','sup'].includes(x.r)?'':'none';$('payB').classList.toggle('pay-access',['admin','manager','sup'].includes(x.r));$('prB').style.display=monitor?'none':'';$('profileB').style.display=monitor?'none':'';$('waB').style.display=['admin','manager','sup'].includes(x.r)?'':'none';$('queriesB').style.display=monitor?'none':'';$('hiringB').style.display=(!monitor&&['admin','manager','sup'].includes(x.r))?'':'none';$('reportsB').style.display=monitor?'none':'';$('riderDetailsB').style.display=monitor?'none':'';$('riderMapB').style.display=['admin','sup'].includes(x.r)?'':'none';if(x.r==='viewer'){syncNavGroups();await initViewer(x)}else syncNavGroups();load()}
 let USERS=USERS_EMBED.concat(MONITOR_USERS_EMBED),DRAFT=null,VAULT=PW_EMBED;
 async function loadUsers(){}
 const LOGIN_THEMES=[
@@ -6925,6 +6950,107 @@ $('chatImgFile').onchange=e=>{
   img.onerror=()=>{URL.revokeObjectURL(url)};
   img.src=url;
 };
+</script>
+<script>
+/* ⬆ رفع الاستعلام (Micheal 24 Nov): in-site mirror of the company hiring form.
+   Admin approval queues the desktop app to auto-submit to the real Google Form. */
+const HIRING_CFG={
+ offices:["Team mh for Delivery","MTA","El Abtal","Top delivery","Full Speed","El Ezz","Mobasher","Zero Zero Seven","Al Alamia","el Dawlya","El Tohami","Kaf","Speedo","Stop Car","Tanta","Tanta Car","Wakeel","Wasaly","BeCool","Moga","Turbo","Ebad El rahman","Speedy","Yalla fel Sekka","Apache","Barg","Bedaya","Noot","Super Speed","Courier for delivery","MR Delivery","A3M","SOG","Rawahel","Ready","Asphalt","Makhsos","Glesco","Ayla Express","Go Delivery","El Wafaa","El Basma","Hydwing","Galaxy","WSL"],
+ hireTypes:["New Hire (تعيينات جديده)","Reactivation (إعاده تفعيل)"],
+ lectureOffices:["مكتب طلبات المعادي","مكتب طلبات المهندسين","مكتب طلبات المنصوره","مكتب طلبات التجمع","مكتب طلبات الأسكندريه","مكتب طلبات أكتوبر","مكتب طلبات الهرم","مكتب طلبات مدينه نصر","مكتب طلبات الشروق"],
+ vehicles:["Bike","Wallker","Bicycle","Car"],
+ imgs:[{k:'img_license_front',label:'صورة الرخصة - الوش',req:false},{k:'img_license_back',label:'صورة الرخصة - الضهر',req:false},{k:'img_nid_front',label:'صورة البطاقة - الوش',req:true},{k:'img_nid_back',label:'صورة البطاقة - الضهر',req:true},{k:'img_personal',label:'الصورة الشخصية للطيار',req:true}]
+};
+const H_STATUS={pending:'⏳ مستني موافقة الأدمن',approved:'🚀 في طابور الرفع',claimed:'🚀 جاري الرفع على فورم الشركة',submitted:'✅ اترفع على فورم الشركة',failed:'❌ فشل الرفع',rejected:'🚫 مرفوض'};
+let HF_IMGS={},HF_CUR_IMG=null,HIRING_LIST=[];
+function hfFill(id,list,ph,def){const el=$(id);el.innerHTML=(ph?`<option value="">${ph}</option>`:'')+list.map(o=>`<option>${esc(o)}</option>`).join('');el.value=def||''}
+function openHiring(){
+ $('hiringModal').style.display='';
+ HF_IMGS={};$('hErr').textContent='';
+ hfFill('hf_office',HIRING_CFG.offices,'','Team mh for Delivery');
+ hfFill('hf_hire_type',HIRING_CFG.hireTypes,'اختر نوع التعيين');
+ hfFill('hf_lecture_office',HIRING_CFG.lectureOffices,'اختر مكتب المحاضرة');
+ hfFill('hf_vehicle',HIRING_CFG.vehicles,'اختر نوع المركبة');
+ ['hf_sup_name','hf_rider_name','hf_rider_phone','hf_rider_nid','hf_license_no','hf_rider_addr'].forEach(k=>{$(k).value=''});
+ if(CUR&&CUR.r==='sup'&&CUR.s)$('hf_sup_name').value=CUR.s;
+ $('hfImgs').innerHTML=HIRING_CFG.imgs.map(im=>`<div class="row" style="margin:0;align-items:center;gap:8px"><button class="btn" type="button" style="flex:1;text-align:right" onclick="hfPick('${im.k}')">📷 ${esc(im.label)}${im.req?' *':''}</button><span class="sub" id="hfS_${im.k}" style="margin:0;font-size:11px"></span></div>`).join('');
+ hTab('new');loadHiringList(true);
+}
+function hTab(w){
+ $('hTabNew').classList.toggle('on',w==='new');$('hTabList').classList.toggle('on',w==='list');
+ $('hNewWrap').style.display=w==='new'?'':'none';$('hListWrap').style.display=w==='list'?'':'none';
+ if(w==='list')loadHiringList();
+}
+$('hTabNew').onclick=()=>hTab('new');$('hTabList').onclick=()=>hTab('list');
+function hfPick(k){HF_CUR_IMG=k;$('hfFile').click()}
+$('hfFile').onchange=e=>{
+ const f=e.target.files[0];e.target.value='';
+ if(!f||!HF_CUR_IMG)return;
+ const k=HF_CUR_IMG,url=URL.createObjectURL(f),img=new Image();
+ img.onload=()=>{
+  const max=900;let w=img.width,h=img.height;
+  if(Math.max(w,h)>max){const kk=max/Math.max(w,h);w=Math.round(w*kk);h=Math.round(h*kk)}
+  const cv=document.createElement('canvas');cv.width=w;cv.height=h;
+  cv.getContext('2d').drawImage(img,0,0,w,h);
+  URL.revokeObjectURL(url);
+  let q=0.72,data=cv.toDataURL('image/jpeg',q);
+  while(data.length>450000&&q>0.3){q-=0.15;data=cv.toDataURL('image/jpeg',q)}
+  if(data.length>500000){$('hfS_'+k).textContent='❌ كبيرة جدًا';return}
+  HF_IMGS[k]=data;$('hfS_'+k).textContent='✅ جاهزة';
+ };
+ img.onerror=()=>{URL.revokeObjectURL(url);$('hfS_'+k).textContent='❌ مش صورة'};
+ img.src=url;
+};
+$('hSubmit').onclick=async()=>{
+ const E=$('hErr');E.textContent='';
+ const body={
+  office:$('hf_office').value,hire_type:$('hf_hire_type').value,sup_name:$('hf_sup_name').value.trim(),
+  lecture_office:$('hf_lecture_office').value,rider_name:$('hf_rider_name').value.trim(),
+  rider_phone:$('hf_rider_phone').value.trim(),rider_nid:$('hf_rider_nid').value.trim(),
+  license_no:$('hf_license_no').value.trim(),rider_addr:$('hf_rider_addr').value.trim(),
+  vehicle:$('hf_vehicle').value,images:HF_IMGS
+ };
+ if(!body.office||!body.hire_type||!body.lecture_office||!body.vehicle){E.textContent='اختار المكتب ونوع التعيين ومكتب المحاضرة ونوع المركبة';return}
+ if(!body.sup_name||!body.rider_name||!body.rider_addr){E.textContent='كمّل اسم المشرف واسم الطيار والعنوان';return}
+ if(body.rider_nid.replace(/\D/g,'').length!==14){E.textContent='الرقم القومي لازم يكون 14 رقم';return}
+ if(body.rider_phone.replace(/\D/g,'').length<10){E.textContent='اكتب رقم موبايل صحيح';return}
+ for(const im of HIRING_CFG.imgs)if(im.req&&!HF_IMGS[im.k]){E.textContent='لسه ناقص: '+im.label;return}
+ const b=$('hSubmit');b.disabled=true;b.textContent='جارٍ الرفع…';
+ try{
+  await api('/api/hiring/submit',{method:'POST',body});
+  alert('اترفع الطلب ✅ مستني موافقة الأدمن، وبعدها بيترفع على فورم الشركة تلقائي.');
+  openHiring();hTab('list');
+ }catch(e){E.textContent=authErr(e)}
+ finally{b.disabled=false;b.textContent='⬆ رفع الطلب'}
+};
+async function loadHiringList(silent){
+ if(!CUR)return;
+ try{const d=await api('/api/hiring/list');HIRING_LIST=d.items||[]}catch(e){HIRING_LIST=[]}
+ const pend=HIRING_LIST.filter(x=>x.status==='pending').length;
+ $('hPendCount').textContent=(CUR.r==='admin'&&pend)?('('+NF(pend)+' ⏳)'):'';
+ if(silent&&$('hListWrap').style.display==='none')return;
+ renderHiringList();
+}
+function hName(u){const x=(USERS||[]).find(y=>y.u===u);return x?x.n:u}
+function renderHiringList(){
+ const w=$('hList');if(!w)return;
+ const isAdmin=CUR&&CUR.r==='admin';
+ w.innerHTML=HIRING_LIST.map(x=>{
+  const p=x.payload||{};let err='';
+  if(x.status==='failed'&&x.result){try{err=JSON.parse(x.result).error||''}catch(e){}}
+  const adminBar=isAdmin&&x.status==='pending'
+   ?`<div class="row" style="margin:8px 0 0;align-items:center;gap:6px"><select id="hApt_${x.id}" style="flex:1;min-width:0">${HIRING_CFG.hireTypes.map(t=>`<option${t===p.hire_type?' selected':''}>${esc(t)}</option>`).join('')}</select><button class="btn pr" type="button" onclick="hApprove(${x.id})">✅ موافقة على التعيين</button><button class="btn" type="button" onclick="hReject(${x.id})">❌ رفض</button></div>`:'';
+  const retryBar=isAdmin&&x.status==='failed'?`<div class="row" style="margin:8px 0 0"><button class="btn pr" type="button" onclick="hRetry(${x.id})">🔁 إعادة الرفع</button></div>`:'';
+  return `<div class="card" style="margin:8px 0;padding:10px">
+   <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><b>${esc(p.rider_name||'—')}</b><span class="sub" dir="ltr" style="margin:0">${esc(p.rider_nid||'')}</span><span class="sub" style="margin-inline-start:auto;margin:0">${H_STATUS[x.status]||x.status}</span></div>
+   <div class="sub" style="margin:4px 0 0">بواسطة: ${esc(hName(x.u))} · ${esc(p.lecture_office||'')} · ${esc(p.vehicle||'')}${err?' · <span style="color:#f87171">'+esc(err)+'</span>':''}</div>
+   ${adminBar}${retryBar}</div>`;
+ }).join('')||'<div class="sub">مفيش طلبات لسه</div>';
+}
+async function hApprove(id){const sel=$('hApt_'+id);try{await api('/api/hiring/approve',{method:'POST',body:{id,hire_type:sel?sel.value:undefined}});alert('اتوافق ✅ الطلب في طابور الرفع على فورم الشركة — هيترفع تلقائي أول ما التطبيق على اللابتوب يكون مفتوح.');loadHiringList()}catch(e){alert('تعذّرت الموافقة: '+authErr(e))}}
+async function hReject(id){if(!confirm('رفض الطلب ده؟'))return;try{await api('/api/hiring/reject',{method:'POST',body:{id}});loadHiringList()}catch(e){alert('تعذّر الرفض: '+authErr(e))}}
+async function hRetry(id){try{await api('/api/hiring/report',{method:'POST',body:{id,retry:true}});alert('اتعاد للطابور ✅');loadHiringList()}catch(e){alert('تعذّر: '+authErr(e))}}
+$('hiringB').onclick=openHiring;
 </script>
 <script src="./admin-usage.js?v=1"></script>
 </body>
