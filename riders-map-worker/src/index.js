@@ -983,7 +983,7 @@ export default {
         :env.DB.prepare('SELECT id,u,action,rider_id,city,payload,result,ts FROM form_submissions WHERE action=? AND ts>=? AND u=? ORDER BY ts DESC LIMIT 1000').bind(action,since,user.u);
       const data=await query.all();
       const today=cairoDay();
-      return json({day:today,scope:user.r==='admin'?'all':'own',rows:(data.results||[]).filter(r=>cairoDay(r.ts)===today).map(r=>{let p={},v={};try{p=JSON.parse(r.payload)}catch{}try{v=JSON.parse(r.result)}catch{}return {id:r.id,u:r.u,rider_id:r.rider_id,city:r.city,ts:r.ts,duration:p.duration||p['entry.1552166535']||((p['entry.536642639_hour']||'')+':'+(p['entry.536642639_minute']||'')),reason:p.reason||p['entry.1831411232']||'',confirmed:v.ok===true,status:v.status||null}})});
+      return json({day:today,scope:user.r==='admin'?'all':'own',rows:(data.results||[]).filter(r=>cairoDay(r.ts)===today).map(r=>{let p={},v={};try{p=JSON.parse(r.payload)}catch{}try{v=JSON.parse(r.result)}catch{}const outcome=v.ok===true?'confirmed':(String(v.error||'')==='submission_unconfirmed'?'unconfirmed':(String(v.error||'')==='nav_failed'&&v.detail==='did_not_advance')?'held':(String(v.error||'')==='auth_expired'?'auth':'failed');return {id:r.id,u:r.u,rider_id:r.rider_id,city:r.city,ts:r.ts,duration:p.duration||p['entry.1552166535']||((p['entry.536642639_hour']||'')+':'+(p['entry.536642639_minute']||'')),reason:p.reason||p['entry.1831411232']||'',confirmed:v.ok===true,outcome,status:v.status||null}})});
     }
 
     if (url.pathname === '/api/forms/probe' && request.method === 'POST') {
@@ -1069,7 +1069,13 @@ export default {
       let logSaved=true;
       try { await ensureSchema(env);await env.DB.prepare('INSERT INTO form_submissions(u,action,rider_id,city,payload,result,ts) VALUES(?,?,?,?,?,?,?)').bind(user.u, action, riderId, city, JSON.stringify({...fields,duration,reason}), JSON.stringify(result), Date.now()).run(); } catch (e) {logSaved=false;}
       if (result.error === 'auth_expired') return json({ error: 'صلاحية الفورم انتهت. الإدارة هتجددها، جرب تاني بعد شوية.', code: 'relay_auth_expired' }, 502);
-      if (!resp.ok || result.ok !== true || result.error || (result.status && result.status >= 400)) return json({ error: 'relay_failed', detail: result.error || ('HTTP ' + (result.status || resp.status)) }, 502);
+      if (!resp.ok || result.ok !== true || result.error || (result.status && result.status >= 400)) {
+        const re = String(result.error || '');
+        const code = re === 'submission_unconfirmed' ? 'unconfirmed_check_sheet'
+          : (re === 'nav_failed' && result.detail === 'did_not_advance') ? 'gateway_hold'
+          : re === 'auth_expired' ? 'relay_auth_expired' : 'relay_failed';
+        return json({ error: code, detail: result.error || ('HTTP ' + (result.status || resp.status)) }, 502);
+      }
       return json({ ok: true, result,log_saved:logSaved });
     }
 
