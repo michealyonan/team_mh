@@ -1125,6 +1125,11 @@ html[data-theme="light"] body{background:radial-gradient(ellipse at 8% 0%,#d6f4f
 .rider-live-marker.has-order .rider-live-avatar{background:#2563eb}
 .rider-map-label{max-width:240px;padding:1px 5px;background:#fff;color:#111827;border:1px solid #cbd5e1;font:700 11px Arial,sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .rider-map-orders{padding:1px 4px;background:#fff;color:#334155;border:1px solid #cbd5e1;font:10px Arial,sans-serif;white-space:nowrap}
+.maplibregl-popup-content{color:#0f172a;background:#fff;font-family:Cairo,system-ui,sans-serif;direction:rtl;text-align:right;max-width:min(260px,74vw)}
+.maplibregl-popup-content .mp-t{font-weight:700;font-size:14px;color:#0f172a}
+.maplibregl-popup-content .mp-s{color:#475569;font-size:12px}
+.maplibregl-popup-content .mp-r{font-size:13px;color:#1e293b;margin-top:2px}
+.maplibregl-popup-close-button{color:#0f172a}
 #riderMapCanvas.hide-rider-names .rider-map-label{display:none}
 #riderMapCanvas.hide-rider-orders .rider-map-orders{display:none}
 @media(max-width:699px){.rider-map-filters{grid-template-columns:repeat(2,minmax(0,1fr))}.rider-map-toolbar .btn{flex:1 1 calc(50% - 6px);white-space:normal}.rider-live-marker{max-width:210px}.rider-map-label{max-width:150px}}
@@ -6250,7 +6255,10 @@ async function loadSupMapPins(){
    const lon=+g.lon,lat=+g.lat;if(!Number.isFinite(lon)||!Number.isFinite(lat)||Math.abs(lon)>180||Math.abs(lat)>90)continue;
    let group=groups.find(v=>Math.abs(v.lat-lat)<0.001&&Math.abs(v.lon-lon)<0.001);if(!group){group={lat,lon,count:0};groups.push(group)}const dup=group.count++;const offset=dup?[32*dup,0]:[0,0];
    const el=document.createElement('div');el.style.cssText='font-size:24px;cursor:pointer';el.textContent='📍';el.title=g.n||g.u;
-   const popup=new maplibregl.Popup({offset:20}).setHTML('<div style="direction:rtl"><b>'+esc(g.n||g.u)+'</b><br><span dir="ltr">'+esc(g.u)+'</span><br>آخر تسجيل دخول: '+time+'</div>');
+   const mine=items.filter(x=>(x.u||'')===(g.u||''));
+   const lastTs=mine.reduce((m,x)=>Math.max(m,+new Date(x.ts)||0),0)||g.ts;
+   const lastTime=new Date(lastTs).toLocaleString('ar-EG',{hour:'2-digit',minute:'2-digit',day:'numeric',month:'short'});
+   const popup=new maplibregl.Popup({offset:20}).setHTML('<div style="min-width:170px;max-width:230px"><div class="mp-t">'+esc(g.n||g.u)+'</div><div class="mp-s" dir="ltr" style="text-align:right">'+esc(g.u)+'</div><div class="mp-r">مرات الدخول: '+mine.length+'</div><div class="mp-r">آخر تسجيل دخول: '+lastTime+'</div><div class="mp-s" dir="ltr" style="text-align:right">'+lat.toFixed(5)+', '+lon.toFixed(5)+'</div></div>');
    SUP_MAP_MARKERS.push(new maplibregl.Marker({element:el,offset}).setLngLat([lon,lat]).setPopup(popup).addTo(SUP_MAP));
    pts.push([lon,lat]);
   }
