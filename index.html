@@ -1237,7 +1237,7 @@ html[data-theme="light"] .kpi .l,html[data-theme="light"] .kpi .s{color:#526a82!
   <span class="sub" id="who"></span>
   <button class="btn" id="navMenuToggle" type="button" aria-controls="navDrawer" aria-expanded="false" onclick="toggleNavDrawer(true)">☰ القائمة</button>
   <button class="btn" id="themeToggle" type="button" aria-pressed="false">☀️ وضع نهاري</button>
-  <button class="btn" id="out">خروج</button>
+  <button class="btn" id="out" title="خروج" aria-label="خروج">🚪</button>
   <button class="btn pr" id="rf">🔄 تحديث</button>
  </div></div></header>
 <div id="navDrawerBackdrop" class="nav-drawer-backdrop" hidden onclick="if(event.target===this)toggleNavDrawer(false)">
@@ -1276,6 +1276,7 @@ html[data-theme="light"] .kpi .l,html[data-theme="light"] .kpi .s{color:#526a82!
    <div class="nav-group"><div class="nav-group-title">👤 حسابي</div>
     <button class="btn" id="profileB" style="display:none" onclick="toggleNavDrawer(false);openProfile()">👤 الملف الشخصي</button>
     <button class="btn" id="notifB" type="button" style="display:none" onclick="toggleNavDrawer(false);$('notifModal').style.display='';loadNotifs(true)">🔔 الإشعارات <span id="notifBadge" style="display:none;background:#ef4444;color:#fff;border-radius:999px;padding:2px 9px;font-size:12px;font-weight:900;margin-inline-start:6px"></span></button>
+    <button class="btn" id="outDrawer" type="button" onclick="toggleNavDrawer(false);$('out').click()">🚪 خروج</button>
    </div>
   </nav>
  </aside>
