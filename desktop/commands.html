@@ -15,6 +15,11 @@
   .ok{color:#4ade80}.err{color:#f87171}
   #send{width:100%;margin-top:14px;background:#16a34a;color:#fff;border:0;border-radius:12px;padding:12px;font:inherit;font-weight:900;cursor:pointer}
   #send:disabled{opacity:.5;cursor:default}
+  #histBtn{width:100%;margin-top:10px;background:#1e293b;color:#e2e8f0;border:1px solid #334155;border-radius:12px;padding:10px;font:inherit;font-weight:800;cursor:pointer}
+  #histWrap table{width:100%;border-collapse:collapse;font-size:11px;margin-top:6px}
+  #histWrap th,#histWrap td{border-bottom:1px solid #1e293b;padding:5px 4px;text-align:right;white-space:nowrap}
+  #histWrap th{color:#94a3b8;font-weight:700}
+  .st-ok{color:#4ade80}.st-bad{color:#f87171}.st-wait{color:#facc15}
   .sub{font-size:11px;color:#64748b;margin-top:8px;line-height:1.6}
 </style>
 </head>
@@ -57,6 +62,17 @@
 <button id="send" type="button">تأكيد وتنفيذ ✅</button>
 <label for="spacing" style="margin-top:12px">⏱️ الفاصل بين الطلبات (ثواني، أقل حاجة 10)</label>
 <input id="spacing" type="number" min="10" step="1" value="10" inputmode="numeric">
+<button id="histBtn" type="button">📋 حالة الطلبات</button>
+<div id="histWrap" style="display:none">
+  <div style="display:flex;gap:8px;margin-top:10px">
+    <select id="histAction"><option value="">كل العمليات</option><option value="extend">مد الشيفت</option><option value="break">فك البريك</option></select>
+    <select id="histCity"><option value="">كل المدن</option><option>الإسكندرية</option><option>الغردقة</option><option>السويس</option><option>الإسماعيلية</option><option>المنصورة</option><option>المنيا</option><option>الزقازيق</option></select>
+  </div>
+  <div id="histNote" class="sub"></div>
+  <div style="max-height:260px;overflow:auto">
+    <table><thead><tr><th>الوقت</th><th>الكود</th><th>العملية</th><th>المدينة</th><th>الإرسال</th><th>حالة القبول</th></tr></thead><tbody id="histBody"></tbody></table>
+  </div>
+</div>
 <div id="msg"></div>
 <div class="sub">الطلب بينفذ فورًا من اللابتوب ده في نافذة كروم حقيقية (زي أداة البايثون بالظبط)، والنتيجة بتظهر هنا وكإشعار. لو جوجل طلب تسجيل دخول، سجّل في النافذة اللي هتفتح مرة واحدة بس.</div>
 <script>
@@ -130,6 +146,58 @@ $('send').onclick=async()=>{
     say('err','فشل الاتصال بالتطبيق - قفل النافذة وافتحها تاني');
   }finally{$('send').disabled=false}
 };
+// ---- حالة الطلبات: local run history + live approval status from the response sheets.
+let histOpen=false, histTimer=null;
+const sheetCache={alex:[],delta:[]};
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function fmtTs(ts){const d=new Date(ts);return d.toLocaleDateString('ar-EG',{day:'numeric',month:'numeric'})+' '+d.toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'})}
+function sheetStatusFor(row){
+  const rows=sheetCache[row.city==='الإسكندرية'?'alex':'delta']||[];
+  let found=null;
+  for(const r of rows){if(r.rider===row.riderId)found=r}
+  return found;
+}
+async function refreshSheets(){
+  for(const g of ['alex','delta']){
+    try{
+      const r=await window.tmhDesktop.sheetStatus(g);
+      if(r&&r.ok)sheetCache[g]=r.rows||[];
+      else if(r&&r.error==='no_access')sheetCache[g]='NO_ACCESS';
+    }catch(e){}
+  }
+}
+async function renderHistory(){
+  const h=(await window.tmhDesktop.history().catch(()=>[]))||[];
+  const fa=$('histAction').value, fc=$('histCity').value;
+  const rows=h.slice().reverse().filter(r=>(!fa||r.action===fa)&&(!fc||r.city===fc)).slice(0,60);
+  let note='';
+  if(sheetCache.alex==='NO_ACCESS'||sheetCache.delta==='NO_ACCESS')note='⚠️ شيت الردود لسه مش متشارك مع حساب الفورم - حالة القبول هتظهر لما يتشارك (قراءة بس).';
+  $('histNote').textContent=note;
+  $('histBody').innerHTML=rows.map(r=>{
+    const local=r.ok?'<span class="st-ok">✅ تم</span>':'<span class="st-bad">❌ '+esc(r.error||'فشل')+'</span>';
+    const sh=sheetStatusFor(r);
+    let appr='<span class="st-wait">—</span>';
+    if(sh&&sh.status){
+      const s=sh.status;
+      if(/مقبول|تم الرد|تم/.test(s)&&!/قيد/.test(s))appr='<span class="st-ok">'+esc(s)+'</span>';
+      else if(/مرفوض|رفض/.test(s))appr='<span class="st-bad">'+esc(s)+(sh.rejectReason?' ('+esc(sh.rejectReason)+')':'')+'</span>';
+      else appr='<span class="st-wait">'+esc(s)+'</span>';
+    }
+    return '<tr><td>'+fmtTs(r.ts)+'</td><td>'+esc(r.riderId)+'</td><td>'+(r.action==='break'?'☕ فك':'⏫ مد')+'</td><td>'+esc(r.city)+'</td><td>'+local+'</td><td>'+appr+'</td></tr>';
+  }).join('')||'<tr><td colspan="6" style="color:#64748b;text-align:center">لا طلبات لسه</td></tr>';
+}
+$('histBtn').onclick=async()=>{
+  histOpen=!histOpen;
+  $('histWrap').style.display=histOpen?'':'none';
+  if(histOpen){
+    $('histNote').textContent='⏳ بيحمّل…';
+    await renderHistory();
+    refreshSheets().then(renderHistory);
+    histTimer=setInterval(async()=>{await refreshSheets();await renderHistory()},45000);
+  }else if(histTimer){clearInterval(histTimer);histTimer=null}
+};
+$('histAction').onchange=renderHistory;
+$('histCity').onchange=renderHistory;
 </script>
 </body>
 </html>

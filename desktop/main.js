@@ -8,9 +8,9 @@ const fs = require('fs');
 const path = require('path');
 const { autoUpdater } = require('electron-updater');
 const { getBrowser, firstPage } = require('./chromeproc');
-const { runFormWalk } = require('./chromewalk');
+const { runFormWalk, clickX, pageMarker } = require('./chromewalk');
 
-const VERSION = '0.3.4';
+const VERSION = '0.3.5';
 const SITE = 'https://team-mh.michealuonanayad.workers.dev';
 const FORMS = {
   alex: { url: 'https://docs.google.com/forms/u/0/d/e/1FAIpQLSffSwyTh0w4AYjTU9AG-kj-0UfJHcSTSYnR1DrWJ_h8iPYm3Q/viewform', email: 'alexlogistics.teammh101@gmail.com' },
@@ -20,11 +20,31 @@ const SIGNIN_WAIT_MS = 6 * 60 * 1000;
 const WALK_WATCHDOG_MS = 150000;
 const DEFAULT_SPACING_SEC = 10;
 const MIN_SPACING_SEC = 10; // Micheal 24 Nov: HE controls the delay, floor 10s
+// Response sheets Micheal shared (24 Nov): read-only status lookup via GViz JSON.
+const SHEETS = {
+  alex: '1x2kj37jcFZoBYSkzmqjvwWnhtAFECR9KuBTDySUs2jc',
+  delta: '174wAXtlTcRtsAKZMNNOwkVOMoOR4EqxHtR7hRLHGpr8'
+};
 
 let mainWin = null;
 let cmdWin = null;
 let busy = false;
 let lastRunAt = 0;
+const warmPages = {}; // per-group warm form tab: stays open between runs (Micheal 24 Nov: speed, like the pyw)
+
+function historyPath() { return path.join(app.getPath('userData'), 'tmh-history.json'); }
+function readHistory() {
+  try { const r = JSON.parse(fs.readFileSync(historyPath(), 'utf8')); return Array.isArray(r) ? r : []; }
+  catch (e) { return []; }
+}
+function appendHistory(row) {
+  try {
+    const h = readHistory();
+    h.push(row);
+    while (h.length > 300) h.shift();
+    fs.writeFileSync(historyPath(), JSON.stringify(h));
+  } catch (e) {}
+}
 
 function statePath() { return path.join(app.getPath('userData'), 'google-signin-state.json'); }
 function readState() {
@@ -173,6 +193,106 @@ function accountFromPageFn() {
   return m ? m[1] : '';
 }
 
+// Warm-page reuse: if the group's form tab is still open, get a fresh page 0 from
+// it instead of reloading the form from scratch (the slow part Micheal flagged).
+// After a success the tab sits on the confirmation page - click "إرسال رد آخر /
+// Submit another response" to reset. Mid-form (died earlier) -> reload the form.
+async function preparePage(browser, group, formUrl) {
+  let page = warmPages[group] || null;
+  if (page) {
+    try { await page.url(); } catch (e) { page = null; }
+  }
+  if (!page) {
+    page = await firstPage(browser);
+    await page.goto(formUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
+    return { page, cold: true };
+  }
+  const url = page.url();
+  if (!/docs\.google\.com\/forms/.test(url)) {
+    await page.goto(formUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
+    return { page, cold: true };
+  }
+  // Confirmation page -> fresh copy via the "another response" link.
+  try {
+    const hasAnother = await page.evaluate(() => /إرسال رد آخر|Submit another/.test((document.body && document.body.innerText) || ''));
+    if (hasAnother) {
+      const before = await pageMarker(page);
+      await clickX(page, "//a[contains(., 'إرسال رد آخر') or contains(., 'Submit another')]", 5000);
+      const t0 = Date.now();
+      while (Date.now() - t0 < 8000) {
+        await sleep(120);
+        const m = await pageMarker(page);
+        if (m === '0' || (m && m !== before)) break;
+      }
+      return { page, cold: false };
+    }
+  } catch (e) {}
+  // Already a fresh page 0 -> reuse as-is; anything else -> reload.
+  try {
+    if ((await pageMarker(page)) === '0') return { page, cold: false };
+  } catch (e) {}
+  await page.goto(formUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
+  return { page, cold: true };
+}
+
+// ---- Response-sheet status (Micheal 24 Nov): read-only, via the group's own
+// signed-in Chrome using the GViz JSON endpoint. Needs the sheet shared (viewer)
+// with the form account; no API key, nothing written.
+const sheetTabs = {};
+async function fetchSheetRows(group) {
+  const sheetId = SHEETS[group];
+  if (!sheetId) return { ok: false, error: 'no_sheet' };
+  let browser;
+  try { browser = await getBrowser(group, app.getPath('userData')); } catch (e) { return { ok: false, error: 'chrome_not_found' }; }
+  let page = sheetTabs[group] || null;
+  if (page) { try { await page.url(); } catch (e) { page = null; } }
+  if (!page) {
+    try { page = await browser.newPage(); } catch (e) { return { ok: false, error: 'tab_failed' }; }
+    sheetTabs[group] = page;
+  }
+  try {
+    const url = 'https://docs.google.com/spreadsheets/d/' + sheetId + '/gviz/tq?tqx=out:json&headers=1';
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    const out = await page.evaluate(() => {
+      const t = (document.body && document.body.innerText) || '';
+      let data = null;
+      const g = { visualization: { Query: { setResponse: (d) => { data = d; } } } };
+      try { (new Function('google', t))(g); } catch (e) { return JSON.stringify({ error: 'not_json', head: t.slice(0, 150) }); }
+      if (!data || !data.table) return JSON.stringify({ error: 'no_table', head: t.slice(0, 150) });
+      return JSON.stringify({
+        cols: (data.table.cols || []).map((c) => String(c.label || c.id || '')),
+        rows: (data.table.rows || []).map((r) => (r.c || []).map((cell) => {
+          if (!cell) return '';
+          if (cell.f != null) return String(cell.f);
+          if (cell.v == null) return '';
+          return (cell.v instanceof Date) ? cell.v.toISOString() : String(cell.v);
+        }))
+      });
+    });
+    const parsed = JSON.parse(out);
+    if (parsed.error) return { ok: false, error: parsed.error === 'not_json' ? 'no_access' : parsed.error, detail: parsed.head || '' };
+    const cols = parsed.cols;
+    const find = (...keys) => cols.findIndex((c) => keys.some((k) => c.indexOf(k) >= 0));
+    const ciRider = find('كود', 'المندوب', 'ID');
+    const ciStatus = find('حالة', 'قبول');
+    const ciReason = find('سبب الرفض', 'الرفض');
+    const ciAction = find('نوع الطلب', 'الطلب');
+    const rows = parsed.rows.map((r) => ({
+      ts: r[0] || '',
+      rider: (ciRider >= 0 ? r[ciRider] : '').replace(/[^0-9]/g, ''),
+      action: ciAction >= 0 ? r[ciAction] : '',
+      status: ciStatus >= 0 ? r[ciStatus] : '',
+      rejectReason: ciReason >= 0 ? r[ciReason] : ''
+    })).filter((r) => r.rider);
+    return { ok: true, rows, colDebug: cols.join(' | ').slice(0, 200) };
+  } catch (e) {
+    return { ok: false, error: 'fetch_failed', detail: String(e).slice(0, 150) };
+  }
+}
+
+ipcMain.handle('tmh-history', () => readHistory());
+ipcMain.handle('tmh-sheet-status', (_e, group) => fetchSheetRows(String(group)));
+
 ipcMain.on('tmh-google-signin', (_e, which) => { openGoogleSignin(String(which)); });
 ipcMain.handle('tmh-google-state', () => readState());
 ipcMain.handle('tmh-get-settings', () => readSettings());
@@ -297,12 +417,13 @@ ipcMain.handle('tmh-run-local', async (_e, payload) => {
       notify('team_mh ❌', 'مش لاقي جوجل كروم على الجهاز - نزّله الأول');
       return { ok: false, error: 'chrome_not_found' };
     }
-    try { page = await firstPage(browser); }
+    const prepT0 = Date.now();
+    let prep;
+    try { prep = await preparePage(browser, group, cfg.url); }
     catch (e) { return { ok: false, error: 'tab_failed', detail: String(e).slice(0, 200), submitted: false }; }
+    page = prep.page;
     try {
-      try { await page.goto(cfg.url, { waitUntil: 'domcontentloaded', timeout: 60000 }); }
-      catch (e) { keepTab = true; return { ok: false, error: 'page_load_failed', detail: String(e).slice(0, 200), submitted: false }; }
-      let url = await settleUrl(page, 20000);
+      let url = await settleUrl(page, prep.cold ? 15000 : 3000);
 
       // If Google asks for sign-in, leave the window open and wait for Micheal.
       if (/accounts\.google\.com/.test(url)) {
@@ -347,14 +468,21 @@ ipcMain.handle('tmh-run-local', async (_e, payload) => {
       } catch (e) {
         res = { ok: false, error: 'walk_exception', detail: String(e).slice(0, 250), submitted: false };
       }
+      const prepMs = Date.now() - prepT0;
+      if (res) res.detail = 'prep ' + prepMs + 'ms' + (prep.cold ? ' (cold load)' : ' (warm tab)') + (res.detail ? ' | ' + res.detail : '');
       lastRunAt = Date.now();
       if (res && res.ok) notify('team_mh ✅', 'تم: ' + label);
-      else { notify('team_mh ❌', 'فشل: ' + label + ' (' + ((res && res.error) || 'unknown') + ')'); keepTab = true; }
+      else notify('team_mh ❌', 'فشل: ' + label + ' (' + ((res && res.error) || 'unknown') + ')');
+      appendHistory({
+        ts: Date.now(), action, riderId, city, duration, reason,
+        ok: !!(res && res.ok), error: (res && res.error) || '',
+        submitted: !!(res && res.submitted), detail: (res && res.detail || '').slice(0, 400)
+      });
       logDirect({ action, rider_id: riderId, city, duration, reason, result: res });
       return res || { ok: false, error: 'no_result', submitted: false };
     } finally {
-      // Keep the tab open on failure so Micheal sees what Google showed; close on success.
-      if (!keepTab && page) { try { await page.close(); } catch (e) {} }
+      // The tab ALWAYS stays open and warm for the next run (Micheal 24 Nov: speed).
+      if (page) warmPages[group] = page;
     }
   } finally {
     busy = false;

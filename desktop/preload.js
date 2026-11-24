@@ -9,6 +9,8 @@ contextBridge.exposeInMainWorld('tmhDesktop', {
   runLocal: (payload) => ipcRenderer.invoke('tmh-run-local', payload),
   getSettings: () => ipcRenderer.invoke('tmh-get-settings'),
   setSpacing: (sec) => ipcRenderer.invoke('tmh-set-spacing', sec),
+  history: () => ipcRenderer.invoke('tmh-history'),
+  sheetStatus: (group) => ipcRenderer.invoke('tmh-sheet-status', group),
   onState: (cb) => {
     ipcRenderer.on('tmh-google-state', (_e, state) => cb(state));
   },
