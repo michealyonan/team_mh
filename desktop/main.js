@@ -3,14 +3,14 @@
 // machine: a button tap drives the installed Chrome (persistent per-group profile,
 // like Micheal's Python tool) - no server queue, no polling. Result shows as a local
 // notification + in the dialog; a best-effort log line is posted to the site.
-const { app, BrowserWindow, shell, Notification, ipcMain } = require('electron');
+const { app, BrowserWindow, shell, Notification, ipcMain, clipboard } = require('electron');
 const fs = require('fs');
 const path = require('path');
 const { autoUpdater } = require('electron-updater');
 const { getBrowser, firstPage, peekBrowser, launchPlain, launchPlainForSignin, adoptBrowser } = require('./chromeproc');
 const { runFormWalk, clickX, pageMarker, confirmState } = require('./chromewalk');
 
-const VERSION = '0.3.13';
+const VERSION = '0.3.14';
 // Proof image for فتح شيفت uploads: Micheal's OWN fixed image when present
 // (userData/proof.*, seeded from a bundled proof.* on first run), else the
 // app-generated black PNG fallback (24 Nov).
@@ -60,6 +60,21 @@ let busy = false;
 // resolves the walk race immediately; the walk itself throws at its next
 // checkpoint and can never reach إرسال after an abort.
 let currentRun = null;
+ipcMain.handle('tmh-copy-log', async () => {
+  try {
+    const p = path.join(app.getPath('userData'), 'tmh-last-run.log');
+    clipboard.writeText(fs.readFileSync(p, 'utf8'));
+    return { ok: true };
+  } catch (e) { return { ok: false, error: 'no_log' }; }
+});
+ipcMain.handle('tmh-save-log', async () => {
+  try {
+    const srcP = path.join(app.getPath('userData'), 'tmh-last-run.log');
+    const dst = path.join(app.getPath('desktop'), 'team_mh-log-' + Date.now() + '.txt');
+    fs.copyFileSync(srcP, dst);
+    return { ok: true, path: dst };
+  } catch (e) { return { ok: false }; }
+});
 ipcMain.handle('tmh-stop-run', async () => {
   if (!currentRun) return { ok: false, state: 'idle' };
   if (currentRun.submitClicked) return { ok: false, state: 'submitted_uncertain' };
@@ -585,8 +600,16 @@ ipcMain.handle('tmh-run-local', async (_e, payload) => {
       } catch (e) {
         res = currentRun && currentRun.aborted
           ? { ok: false, error: 'aborted', submitted: false }
-          : { ok: false, error: 'walk_exception', detail: String(e).slice(0, 250), submitted: false };
+          : { ok: false, error: (e && e.aborted) ? 'aborted' : 'walk_exception', detail: String(e && (e.detail || e.message) || '').slice(0, 700), submitted: false, diag: (e && e.diag) || null };
       }
+      // Full run log: local file (نسخ/حفظ اللوج buttons) + diag rides the worker post.
+      try {
+        fs.writeFileSync(path.join(app.getPath('userData'), 'tmh-last-run.log'), JSON.stringify({
+          version: VERSION, ts: new Date().toISOString(), action, riderId, city,
+          ok: !!(res && res.ok), error: (res && res.error) || '', detail: (res && res.detail) || '',
+          diag: (res && res.diag) || null
+        }, null, 2));
+      } catch (e) {}
       const prepMs = Date.now() - prepT0;
       // Last-line false-negative guard (also covers the watchdog race): if the
       // tab is on Google's confirmation screen, the response WAS recorded.

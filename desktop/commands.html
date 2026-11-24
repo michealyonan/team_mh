@@ -80,6 +80,7 @@
   </div>
 </div>
 <div id="msg"></div>
+<div id="logBtns" style="display:none;gap:8px;margin-top:6px"><button id="copyLog" type="button">📋 نسخ اللوج</button><button id="saveLog" type="button">💾 حفظ اللوج</button></div>
 <div class="sub">الطلب بينفذ فورًا من اللابتوب ده في نافذة كروم حقيقية (زي أداة البايثون بالظبط)، والنتيجة بتظهر هنا وكإشعار. لو جوجل طلب تسجيل دخول، سجّل في النافذة اللي هتفتح مرة واحدة بس.</div>
 <script>
 const HOURS=[{h:0,l:'إلي 12:00 بليل'},{h:1,l:'إلي 01:00 الفجر'},{h:2,l:'إلي 02:00 الفجر'},{h:3,l:'إلي 03:00 الفجر'},{h:4,l:'إلي 04:00 الفجر'},{h:5,l:'إلي 05:00 الفجر'},{h:8,l:'إلي 08:00 الصبح'},{h:9,l:'إلي 09:00 الصبح'},{h:10,l:'إلي 10:00 الصبح'},{h:11,l:'إلي 11:00 الصبح'},{h:12,l:'إلي 12:00 الضهر'},{h:13,l:'إلي 01:00 الضهر'},{h:14,l:'إلي 02:00 الضهر'},{h:15,l:'إلي 03:00 الضهر'},{h:16,l:'إلي 04:00 العصر'},{h:17,l:'إلي 05:00 العصر'},{h:18,l:'إلي 06:00 بليل'},{h:19,l:'إلي 07:00 بليل'},{h:20,l:'إلي 08:00 بليل'},{h:21,l:'إلي 09:00 بليل'},{h:22,l:'إلي 10:00 بليل'},{h:23,l:'إلي 11:00 بليل'}];
@@ -135,6 +136,7 @@ $('send').onclick=async()=>{
   }
   $('send').disabled=true;
   $('stop').style.display='';
+  $('logBtns').style.display='none';
   say('','🚀 بيجهز التنفيذ…');
   try{
     const r=await window.tmhDesktop.runLocal({action,rider_id:rider,city,duration,reason,vehicle});
@@ -164,11 +166,14 @@ $('send').onclick=async()=>{
         upload_input_not_found:'نافذة رفع الإثبات مافتحتش - جرّب تاني'
       };
       say('err',(emap[em]||('فشل: '+em))+(r&&r.detail?(' — '+String(r.detail).slice(0,180)):''));
+      $('logBtns').style.display='flex';
     }
   }catch(e){
     say('err','فشل الاتصال بالتطبيق - قفل النافذة وافتحها تاني');
   }finally{$('send').disabled=false;$('stop').style.display='none'}
 };
+$('copyLog').onclick=async()=>{const r=await window.tmhDesktop.copyLog().catch(()=>null);say(r&&r.ok?'ok':'err',r&&r.ok?'✅ اللوج اتنسخ - ابعته لمايكل':'مفيش لوج متسجل لسه')};
+$('saveLog').onclick=async()=>{const r=await window.tmhDesktop.saveLog().catch(()=>null);say(r&&r.ok?'ok':'err',r&&r.ok?'✅ اللوج اتحفظ على الديسكتوب':'مفيش لوج متسجل لسه')};
 $('stop').onclick=async()=>{
   $('stop').disabled=true;
   try{

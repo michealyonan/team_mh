@@ -248,6 +248,27 @@ async function uploadProof(page, filePath, job) {
   }
 
   async function pickerButtonPoint() {
+    // Fastest exact path: puppeteer's frame tree (covers in-process iframes and
+    // puppeteer-exposed OOPIFs). The iframe ELEMENT rect comes from the top page.
+    const BTN_JS = "(function(){var bs=document.querySelectorAll('button,[role=button],div');for(var i=0;i<bs.length;i++){var t=(bs[i].textContent||'').trim();if(t.indexOf('تصف')>=0||/browse/i.test(t)){var r=bs[i].getBoundingClientRect();if(r.width>10&&r.width<300&&r.height>10&&r.height<100)return JSON.stringify({x:r.x+r.width/2,y:r.y+r.height/2});}}return ''})()";
+    for (const f of page.frames()) {
+      if (f === page.mainFrame()) continue;
+      try {
+        const v = await f.evaluate(BTN_JS);
+        if (v) {
+          const inner = JSON.parse(v);
+          const fu = f.url();
+          const off = await page.evaluate((u) => {
+            const ifs = Array.from(document.querySelectorAll('iframe'));
+            for (const fr of ifs) { if (u && fr.src && u.indexOf(fr.src.slice(0, 60)) === 0) { const r = fr.getBoundingClientRect(); return { x: r.x, y: r.y }; } }
+            const big = ifs.map((fr) => fr.getBoundingClientRect()).filter((r2) => r2.width > 250 && r2.height > 250);
+            return big.length ? { x: big[0].x, y: big[0].y } : { x: 0, y: 0 };
+          }, fu).catch(() => ({ x: 0, y: 0 }));
+          diag.layers.push('button coords via frame');
+          return { x: off.x + inner.x, y: off.y + inner.y };
+        }
+      } catch (e) {}
+    }
     // Exact coords from a session whose document has the تصفّح button.
     for (const cs of childSessions) {
       if (typeof cs.send !== 'function') continue;
@@ -292,45 +313,76 @@ async function uploadProof(page, filePath, job) {
     return false;
   }
 
-  async function fillNativeDialog() {
-    // Windows only: the native Open dialog gets the path via clipboard paste.
+  async function osClickAndFill(opts) {
+    // Windows only: one PowerShell script does everything at OS level - finds the
+    // Chrome window by title, brings it to front, maps the CSS-viewport point to
+    // physical screen pixels via Chrome_RenderWidgetHostHWND, performs a REAL
+    // mouse click (SetCursorPos + mouse_event), waits for the native Open dialog
+    // (#32770), pastes the file path from the clipboard and presses Enter.
     if (process.platform !== 'win32') return false;
-    const ps1 = path.join(require('os').tmpdir(), 'tmh-filedlg.ps1');
+    const ps1 = path.join(require('os').tmpdir(), 'tmh-osclick.ps1');
     const script = [
-      'param([string]$FilePath)',
+      'param([string]$TitleMatch,[double]$RelX,[double]$RelY,[double]$InnerW,[string]$FilePath)',
       'Add-Type -AssemblyName System.Windows.Forms',
       'Add-Type @"',
       'using System;using System.Runtime.InteropServices;using System.Text;',
-      'public class Win32Dlg {',
+      'public class U32 {',
       ' [DllImport("user32.dll")] public static extern bool EnumWindows(EnumProc cb, IntPtr l);',
       ' public delegate bool EnumProc(IntPtr h, IntPtr l);',
-      ' [DllImport("user32.dll")] public static extern int GetClassName(IntPtr h, StringBuilder s, int n);',
+      ' [DllImport("user32.dll",CharSet=CharSet.Unicode)] public static extern int GetClassName(IntPtr h, StringBuilder s, int n);',
+      ' [DllImport("user32.dll",CharSet=CharSet.Unicode)] public static extern int GetWindowText(IntPtr h, StringBuilder s, int n);',
       ' [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr h);',
       ' [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h);',
-      ' [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid);',
+      ' [DllImport("user32.dll",CharSet=CharSet.Unicode)] public static extern IntPtr FindWindowEx(IntPtr p, IntPtr c, string cls, string title);',
+      ' [DllImport("user32.dll")] public static extern bool GetClientRect(IntPtr h, out RECT r);',
+      ' [DllImport("user32.dll")] public static extern bool ClientToScreen(IntPtr h, ref POINT p);',
+      ' [DllImport("user32.dll")] public static extern bool SetCursorPos(int x, int y);',
+      ' [DllImport("user32.dll")] public static extern void mouse_event(uint f, uint dx, uint dy, uint d, IntPtr e);',
+      ' public struct RECT { public int Left, Top, Right, Bottom; }',
+      ' public struct POINT { public int X, Y; }',
       '}',
       '"@',
-      '$pids = @(Get-Process chrome -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Id)',
+      '$main = [IntPtr]::Zero',
+      '$cb = [U32+EnumProc]{ param($h,$l)',
+      '  $cn = New-Object System.Text.StringBuilder 256; [void][U32]::GetClassName($h,$cn,256)',
+      '  if ($cn.ToString() -eq "Chrome_WidgetWin_1" -and [U32]::IsWindowVisible($h)) {',
+      '    $tt = New-Object System.Text.StringBuilder 512; [void][U32]::GetWindowText($h,$tt,512)',
+      '    if ($tt.ToString() -match [regex]::Escape($TitleMatch)) { $script:main = $h; return $false }',
+      '  }',
+      '  return $true',
+      '}',
+      '[void][U32]::EnumWindows($cb,[IntPtr]::Zero)',
+      'if ($main -eq [IntPtr]::Zero) { Write-Output "NO_WINDOW"; exit 1 }',
+      '$wid = [U32]::FindWindowEx($main,[IntPtr]::Zero,"Chrome_RenderWidgetHostHWND",$null)',
+      'if ($wid -eq [IntPtr]::Zero) { Write-Output "NO_WIDGET"; exit 1 }',
+      '[void][U32]::SetForegroundWindow($main)',
+      'Start-Sleep -Milliseconds 400',
+      '$cr = New-Object U32+RECT',
+      '[void][U32]::GetClientRect($wid,[ref]$cr)',
+      '$scale = ($cr.Right - $cr.Left) / $InnerW',
+      '$pt = New-Object U32+POINT',
+      '$pt.X = [int]($RelX * $scale); $pt.Y = [int]($RelY * $scale)',
+      '[void][U32]::ClientToScreen($wid,[ref]$pt)',
+      '[void][U32]::SetCursorPos($pt.X,$pt.Y)',
+      'Start-Sleep -Milliseconds 250',
+      '[U32]::mouse_event(0x0002,0,0,0,[IntPtr]::Zero)',
+      'Start-Sleep -Milliseconds 90',
+      '[U32]::mouse_event(0x0004,0,0,0,[IntPtr]::Zero)',
       '$dlg = [IntPtr]::Zero',
       '$deadline = (Get-Date).AddSeconds(20)',
       'while ((Get-Date) -lt $deadline -and $dlg -eq [IntPtr]::Zero) {',
       '  $found = [IntPtr]::Zero',
-      '  $cb = [Win32Dlg+EnumProc]{ param($h,$l)',
-      '    $sb = New-Object System.Text.StringBuilder 256',
-      '    [void][Win32Dlg]::GetClassName($h,$sb,256)',
-      '    if ($sb.ToString() -eq "#32770" -and [Win32Dlg]::IsWindowVisible($h)) {',
-      '      $procId = 0',
-      '      [void][Win32Dlg]::GetWindowThreadProcessId($h,[ref]$procId)',
-      '      if ($pids -contains $procId) { $script:found = $h; return $false }',
-      '    }',
+      '  $cb2 = [U32+EnumProc]{ param($h,$l)',
+      '    $cn = New-Object System.Text.StringBuilder 256; [void][U32]::GetClassName($h,$cn,256)',
+      '    if ($cn.ToString() -eq "#32770" -and [U32]::IsWindowVisible($h)) { $script:found = $h; return $false }',
       '    return $true',
       '  }',
-      '  [void][Win32Dlg]::EnumWindows($cb,[IntPtr]::Zero)',
+      '  [void][U32]::EnumWindows($cb2,[IntPtr]::Zero)',
       '  $dlg = $found',
       '  if ($dlg -eq [IntPtr]::Zero) { Start-Sleep -Milliseconds 400 }',
       '}',
       'if ($dlg -eq [IntPtr]::Zero) { Write-Output "NO_DIALOG"; exit 1 }',
-      '[void][Win32Dlg]::SetForegroundWindow($dlg)',
+      '[void][U32]::SetForegroundWindow($dlg)',
       'Start-Sleep -Milliseconds 500',
       'Set-Clipboard -Value $FilePath',
       '[System.Windows.Forms.SendKeys]::SendWait("^v")',
@@ -338,15 +390,17 @@ async function uploadProof(page, filePath, job) {
       '[System.Windows.Forms.SendKeys]::SendWait("{ENTER}")',
       'Write-Output "OK"'
     ].join('\r\n');
-    try { fs.writeFileSync(ps1, '\ufeff' + script); } catch (e) { return false; }
+    try { fs.writeFileSync(ps1, '\ufeff' + script); } catch (e) { diag.layers.push('osclick write failed'); return false; }
     return await new Promise((resolve) => {
-      execFile('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', ps1, '-FilePath', filePath], { timeout: 40000 }, (err, stdout) => {
-        diag.layers.push('native dialog: ' + (err ? String(err).slice(0, 60) : String(stdout || '').trim()));
+      execFile('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', ps1,
+        '-TitleMatch', String(opts.title || 'Google').slice(0, 30),
+        '-RelX', String(opts.x), '-RelY', String(opts.y), '-InnerW', String(opts.innerW || 1280),
+        '-FilePath', filePath], { timeout: 45000 }, (err, stdout) => {
+        diag.layers.push('osclick: ' + (err ? 'err ' + String(err).slice(0, 50) : String(stdout || '').trim()));
         resolve(!err && /OK/.test(String(stdout || '')));
       });
     });
   }
-
   try {
     browserSession = await browser.target().createCDPSession();
     await browserSession.send('Target.setDiscoverTargets', { discover: true }).catch(() => {});
@@ -402,23 +456,137 @@ async function uploadProof(page, filePath, job) {
       }
     }
 
-    // Layer 4 (Windows): real native dialog, path typed by PowerShell.
+    // Layer 3b: the click may have created the <input type=file> LAZILY (this is
+    // what the real picker does) - scan again and set the file on it directly.
+    if (!set && !chooserAnswered && !(await chipVisible())) {
+      const tB = Date.now();
+      while (Date.now() - tB < 12000 && !set && !chooserAnswered) {
+        aborted();
+        await attachAll();
+        for (const f of page.frames()) {
+          let input = null;
+          try { input = await f.$("input[type='file']"); } catch (e) {}
+          if (input) { try { await input.uploadFile(filePath); set = true; diag.layers.push('file set via frame after click'); } catch (e) {} }
+          if (set) break;
+        }
+        if (!set) set = await setViaSessions();
+        if (!set && !chooserAnswered) await sleep(600);
+      }
+      if (set) diag.layers.push('lazy input found after click');
+    }
+
+    // Layer 4 (Windows): OS-level real click + native dialog fill via PowerShell.
     if (!chooserAnswered && !(await chipVisible()) && process.platform === 'win32') {
       // Disarm interception so the NATIVE dialog actually opens this time.
       for (const cs of childSessions) { if (typeof cs.send === 'function') { try { await cs.send('Page.setInterceptFileChooserDialog', { enabled: false }); } catch (e) {} } }
       try { await page.createCDPSession().then((c) => c.send('Page.setInterceptFileChooserDialog', { enabled: false })); } catch (e) {}
       const pt = await pickerButtonPoint();
       if (pt) {
-        await page.mouse.click(pt.x, pt.y);
-        diag.layers.push('تصفّح clicked for native dialog');
-        await fillNativeDialog();
+        let title = ''; try { title = await page.title(); } catch (e) {}
+        let innerW = 1280; try { innerW = await page.evaluate(() => window.innerWidth); } catch (e) {}
+        await osClickAndFill({ title, x: pt.x, y: pt.y, innerW, filePath });
+      } else {
+        diag.layers.push('osclick skipped: no button point');
       }
     }
 
+
+  // The chip proves the upload; the modal must ALSO be gone or it covers إرسال
+  // (his 24 Nov runs: upload ok, then submit click landed on the open modal).
+  async function pickerGone() {
+    try {
+      return await page.evaluate(() => {
+        for (const f of Array.from(document.querySelectorAll('iframe'))) {
+          const r = f.getBoundingClientRect();
+          const st = getComputedStyle(f);
+          if (r.width > 250 && r.height > 250 && st.display !== 'none' && st.visibility !== 'hidden') return false;
+        }
+        return true;
+      });
+    } catch (e) { return true; }
+  }
+  async function ensurePickerClosed() {
+    const t0 = Date.now();
+    while (Date.now() - t0 < 8000) {
+      aborted();
+      if (await pickerGone()) { diag.layers.push('picker closed'); return; }
+      await sleep(700);
+    }
+    // Still open: click its ✕ (upload already attached, closing now does not
+    // discard it) - then re-verify the chip survived. Frames first (in-process
+    // iframes are invisible as CDP targets), sessions as fallback.
+    const X_JS = "(function(){var bs=document.querySelectorAll('button,[role=button],div[aria-label]');for(var i=0;i<bs.length;i++){var t=(bs[i].textContent||'').trim();var al=(bs[i].getAttribute('aria-label')||'');if(t==='✕'||t==='×'||/إغلاق|close/i.test(al)){var r=bs[i].getBoundingClientRect();if(r.width>5&&r.width<80&&r.height>5&&r.height<80)return JSON.stringify({x:r.x+r.width/2,y:r.y+r.height/2});}}return ''})()";
+    let pt = null;
+    for (const f of page.frames()) {
+      if (f === page.mainFrame()) continue;
+      try {
+        const v = await f.evaluate(X_JS);
+        if (v) {
+          const inner = JSON.parse(v);
+          const fu = f.url();
+          const off = await page.evaluate((u) => {
+            const ifs = Array.from(document.querySelectorAll('iframe'));
+            for (const fr of ifs) { if (u && fr.src && u.indexOf(fr.src.slice(0, 60)) === 0) { const r = fr.getBoundingClientRect(); return { x: r.x, y: r.y }; } }
+            const big = ifs.map((fr) => fr.getBoundingClientRect()).filter((r2) => r2.width > 250 && r2.height > 250);
+            return big.length ? { x: big[0].x, y: big[0].y } : { x: 0, y: 0 };
+          }, fu).catch(() => ({ x: 0, y: 0 }));
+          pt = { x: off.x + inner.x, y: off.y + inner.y };
+          break;
+        }
+      } catch (e) {}
+    }
+    for (const cs of childSessions) {
+      if (pt) break;
+      if (typeof cs.send !== 'function') continue;
+      try {
+        const r = await cs.send('Runtime.evaluate', {
+          expression: "(function(){var bs=document.querySelectorAll('button,[role=button],div[aria-label]');for(var i=0;i<bs.length;i++){var t=(bs[i].textContent||'').trim();var al=(bs[i].getAttribute('aria-label')||'');if(t==='✕'||t==='×'||/إغلاق|close/i.test(al)){var r=bs[i].getBoundingClientRect();if(r.width>5&&r.width<80&&r.height>5&&r.height<80)return JSON.stringify({x:r.x+r.width/2,y:r.y+r.height/2});}}return ''})()",
+          returnByValue: true
+        });
+        const v = r && r.result && r.result.value;
+        if (v) {
+          const inner = JSON.parse(v);
+          const href = await cs.send('Runtime.evaluate', { expression: 'location.href', returnByValue: true }).catch(() => null);
+          const frameUrl = href && href.result && href.result.value ? String(href.result.value) : '';
+          const off = await page.evaluate((fu) => {
+            const ifs = Array.from(document.querySelectorAll('iframe'));
+            for (const f of ifs) { if (fu && f.src && fu.indexOf(f.src.slice(0, 60)) === 0) { const r = f.getBoundingClientRect(); return { x: r.x, y: r.y }; } }
+            const big = ifs.map((f) => f.getBoundingClientRect()).filter((r2) => r2.width > 250 && r2.height > 250);
+            return big.length ? { x: big[0].x, y: big[0].y } : { x: 0, y: 0 };
+          }, frameUrl).catch(() => ({ x: 0, y: 0 }));
+          pt = { x: off.x + inner.x, y: off.y + inner.y };
+          break;
+        }
+      } catch (e) {}
+    }
+    if (pt) {
+      await page.mouse.click(pt.x, pt.y);
+      diag.layers.push('picker ✕ clicked');
+      const t1 = Date.now();
+      while (Date.now() - t1 < 10000 && !(await pickerGone())) { aborted(); await sleep(600); }
+      if (!(await chipVisible())) {
+        const e = new Error('upload_not_confirmed');
+        e.detail = 'chip lost after closing picker';
+        e.diag = { file: fileName, layers: diag.layers, targets: diag.targets, chooserAnswered: chooserAnswered };
+        throw e;
+      }
+      diag.layers.push('picker closed via ✕');
+      return;
+    }
+    const e = new Error('picker_still_open');
+    e.detail = 'picker modal did not close after upload and no ✕ found';
+    e.diag = { file: fileName, layers: diag.layers, targets: diag.targets, chooserAnswered: chooserAnswered };
+    throw e;
+  }
+
     // Final verification: the chip (file name) must be back on the form.
-    if (await waitChip(chooserAnswered ? 60000 : 20000)) return;
+    if (await waitChip(chooserAnswered ? 60000 : 20000)) {
+      await ensurePickerClosed();
+      return;
+    }
     const e = new Error('upload_not_confirmed');
     e.detail = 'chip "' + fileName + '" never appeared | layers: ' + diag.layers.join(' > ').slice(0, 200) + ' | targets: ' + diag.targets.slice(0, 8).join(' ; ').slice(0, 220);
+    e.diag = { file: fileName, layers: diag.layers, targets: diag.targets, chooserAnswered: chooserAnswered };
     throw e;
   } finally {
     for (const cs of childSessions) { if (typeof cs.send === 'function') { try { await cs.send('Page.setInterceptFileChooserDialog', { enabled: false }); } catch (e) {} try { await cs.detach(); } catch (e) {} } }
@@ -636,14 +804,37 @@ async function runFormWalkInner(page, job) {
   try {
     // Never submit after an abort - the Stop button must be final (24 Nov).
     if (job.isAborted && job.isAborted()) { const ab = new Error('aborted'); ab.aborted = true; throw ab; }
+    // Wait until no overlay (picker modal) covers إرسال: his 24 Nov runs had the
+    // upload done but the submit click swallowed by the still-open modal.
+    {
+      const tS = Date.now();
+      let clear = false;
+      while (Date.now() - tS < 15000 && !clear) {
+        try {
+          clear = await page.evaluate(() => {
+            const spans = Array.from(document.querySelectorAll('span')).filter((s) => /إرسال|Submit/.test(s.textContent || ''));
+            for (const s of spans) {
+              const r = s.getBoundingClientRect();
+              if (r.width < 2 || r.height < 2) continue;
+              const el = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+              if (el && (el === s || s.contains(el) || el.contains(s))) return true;
+            }
+            return false;
+          });
+        } catch (e) {}
+        if (!clear) await sleep(500);
+      }
+      if (!clear) { const e = new Error('submit_covered'); e.detail = 'an overlay still covers إرسال after 15s'; throw e; }
+      mark('submit:uncovered');
+    }
     if (job.onSubmitting) job.onSubmitting();
     await clickX(page, SUBMIT_X, 15000);
     mark('submit:clicked');
   } catch (e) { fail(e); }
-  const res = await waitConfirmation(page, 10000);
+  const res = await waitConfirmation(page, job.isOpen ? 25000 : 10000);
   mark('submit:confirmed');
   res.detail = (res.detail ? res.detail + ' | ' : '') + 'steps: ' + steps.join(' | ');
   return res;
 }
 
-module.exports = { runFormWalk, clickX, pageMarker, confirmState, ANOTHER_X };
+module.exports = { runFormWalk, clickX, pageMarker, confirmState, ANOTHER_X, uploadProof };

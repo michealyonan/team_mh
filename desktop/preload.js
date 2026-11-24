@@ -8,6 +8,8 @@ contextBridge.exposeInMainWorld('tmhDesktop', {
   openCommands: () => ipcRenderer.send('tmh-open-commands'),
   runLocal: (payload) => ipcRenderer.invoke('tmh-run-local', payload),
   stopRun: () => ipcRenderer.invoke('tmh-stop-run'),
+  copyLog: () => ipcRenderer.invoke('tmh-copy-log'),
+  saveLog: () => ipcRenderer.invoke('tmh-save-log'),
   getSettings: () => ipcRenderer.invoke('tmh-get-settings'),
   setSpacing: (sec) => ipcRenderer.invoke('tmh-set-spacing', sec),
   history: () => ipcRenderer.invoke('tmh-history'),
