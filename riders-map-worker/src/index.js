@@ -76,6 +76,8 @@ async function ensureSchema(env) {
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS usage_daily(day TEXT PRIMARY KEY, n INTEGER NOT NULL DEFAULT 0)`),
     env.DB.prepare(`CREATE INDEX IF NOT EXISTS form_submissions_user_ts ON form_submissions(u,ts)`),
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS form_phone_jobs(id INTEGER PRIMARY KEY AUTOINCREMENT,u TEXT NOT NULL,job TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'pending',result TEXT NOT NULL DEFAULT '',ts INTEGER NOT NULL,updated INTEGER NOT NULL)`),
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS hiring_requests(id INTEGER PRIMARY KEY AUTOINCREMENT,u TEXT NOT NULL,payload TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'pending',result TEXT NOT NULL DEFAULT '',ts INTEGER NOT NULL,updated INTEGER NOT NULL)`),
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS hiring_images(request_id INTEGER NOT NULL,k TEXT NOT NULL,data TEXT NOT NULL,PRIMARY KEY(request_id,k))`),
   ]);
   try { await env.DB.prepare("ALTER TABLE users ADD COLUMN photo TEXT NOT NULL DEFAULT ''").run(); } catch {}
   schemaReady = true;
@@ -388,6 +390,135 @@ async function handleChat(request, env, json, url) {
     // APK push notification for the recipient (Micheal 24 Nov); never fail the send on it.
     try { await sendFcmToUser(env, peer, '💬 ' + user.n, kind === 'image' ? '📷 صورة' : text.slice(0, 100), ''); } catch (e) {}
     return json({ ok: true, id: r.meta && r.meta.last_row_id, ts });
+  }
+
+  return null;
+}
+
+// --- Hiring requests (Micheal 24 Nov): supervisors mirror the company hiring
+// form on-site; admin approval queues the desktop app to auto-submit it.
+const HIRING = {
+  offices: ["Team mh for Delivery","MTA","El Abtal","Top delivery","Full Speed","El Ezz","Mobasher","Zero Zero Seven","Al Alamia","el Dawlya","El Tohami","Kaf","Speedo","Stop Car","Tanta","Tanta Car","Wakeel","Wasaly","BeCool","Moga","Turbo","Ebad El rahman","Speedy","Yalla fel Sekka","Apache","Barg","Bedaya","Noot","Super Speed","Courier for delivery","MR Delivery","A3M","SOG","Rawahel","Ready","Asphalt","Makhsos","Glesco","Ayla Express","Go Delivery","El Wafaa","El Basma","Hydwing","Galaxy","WSL"],
+  hireTypes: ["New Hire (تعيينات جديده)","Reactivation (إعاده تفعيل)"],
+  lectureOffices: ["مكتب طلبات المعادي","مكتب طلبات المهندسين","مكتب طلبات المنصوره","مكتب طلبات التجمع","مكتب طلبات الأسكندريه","مكتب طلبات أكتوبر","مكتب طلبات الهرم","مكتب طلبات مدينه نصر","مكتب طلبات الشروق"],
+  vehicles: ["Bike","Wallker","Bicycle","Car"],
+  imgKeys: ['img_license_front','img_license_back','img_nid_front','img_nid_back','img_personal'],
+  imgRequired: ['img_nid_front','img_nid_back','img_personal'],
+};
+async function handleHiring(request, env, json, url) {
+  const p = url.pathname;
+  const user = await getSessionUser(env, request);
+  if (!user) return json({ error: 'unauthorized' }, 401);
+  const isAdmin = user.r === 'admin';
+
+  if (p === '/api/hiring/submit' && request.method === 'POST') {
+    if (!['admin', 'manager', 'sup'].includes(user.r)) return json({ error: 'forbidden' }, 403);
+    const waitH = await rateLimit(env, 'hiring:' + user.u, 10, 60 * 60 * 1000, 60 * 1000);
+    if (waitH) return json({ error: 'locked', wait: waitH }, 429);
+    const body = await request.json().catch(() => null);
+    if (!body) return json({ error: 'missing_fields' }, 400);
+    const t = (v, n) => String(v || '').trim().slice(0, n);
+    const f = {
+      office: HIRING.offices.includes(body.office) ? body.office : '',
+      hire_type: HIRING.hireTypes.includes(body.hire_type) ? body.hire_type : '',
+      sup_name: t(body.sup_name, 120),
+      lecture_office: HIRING.lectureOffices.includes(body.lecture_office) ? body.lecture_office : '',
+      rider_name: t(body.rider_name, 160),
+      rider_phone: cleanContact.phone(body.rider_phone || ''),
+      rider_nid: String(body.rider_nid || '').replace(/[٠-٩]/g, (c) => '٠١٢٣٤٥٦٧٨٩'.indexOf(c)).replace(/\D/g, '').slice(0, 14),
+      license_no: t(body.license_no, 40),
+      rider_addr: t(body.rider_addr, 200),
+      vehicle: HIRING.vehicles.includes(body.vehicle) ? body.vehicle : '',
+    };
+    if (!f.office || !f.hire_type || !f.sup_name || !f.lecture_office || !f.rider_name || !f.vehicle) return json({ error: 'missing_fields' }, 400);
+    if (f.rider_nid.length !== 14) return json({ error: 'invalid_nid' }, 400);
+    if (!f.rider_phone) return json({ error: 'invalid_phone' }, 400);
+    const imgs = body.images && typeof body.images === 'object' ? body.images : {};
+    const cleanImgs = {};
+    for (const k of HIRING.imgKeys) {
+      const d = typeof imgs[k] === 'string' ? imgs[k] : '';
+      if (!d) continue;
+      if (!/^data:image\/(jpeg|png|webp);base64,/.test(d) || d.length > 500000) return json({ error: 'bad_image' }, 400);
+      cleanImgs[k] = d;
+    }
+    for (const k of HIRING.imgRequired) if (!cleanImgs[k]) return json({ error: 'missing_image' }, 400);
+    const now = Date.now();
+    const ins = await env.DB.prepare("INSERT INTO hiring_requests(u,payload,status,ts,updated) VALUES(?,?,'pending',?,?)").bind(user.u, JSON.stringify(f), now, now).run();
+    const rid = ins.meta.last_row_id;
+    for (const k of HIRING.imgKeys) {
+      if (cleanImgs[k]) await env.DB.prepare('INSERT INTO hiring_images(request_id,k,data) VALUES(?,?,?)').bind(rid, k, cleanImgs[k]).run();
+    }
+    try {
+      const admins = await env.DB.prepare("SELECT u FROM users WHERE r='admin' AND status='active'").all();
+      for (const a of admins.results || []) await sendFcmToUser(env, a.u, '📋 طلب تعيين جديد', f.rider_name + ' — ' + user.n, '');
+    } catch (e) {}
+    return json({ ok: true, id: rid });
+  }
+
+  if (p === '/api/hiring/list' && request.method === 'GET') {
+    const rows = isAdmin
+      ? await env.DB.prepare('SELECT id,u,payload,status,result,ts,updated FROM hiring_requests ORDER BY id DESC LIMIT 200').all()
+      : await env.DB.prepare('SELECT id,u,payload,status,result,ts,updated FROM hiring_requests WHERE u=? ORDER BY id DESC LIMIT 100').bind(user.u).all();
+    return json({ items: (rows.results || []).map((r) => ({ id: r.id, u: r.u, payload: JSON.parse(r.payload), status: r.status, result: r.result, ts: r.ts, updated: r.updated })) });
+  }
+
+  if (p === '/api/hiring/item' && request.method === 'GET') {
+    const id = Number(url.searchParams.get('id') || 0);
+    const r = await env.DB.prepare('SELECT * FROM hiring_requests WHERE id=?').bind(id).first();
+    if (!r || (!isAdmin && r.u !== user.u)) return json({ error: 'not_found' }, 404);
+    const imgs = await env.DB.prepare('SELECT k,data FROM hiring_images WHERE request_id=?').bind(id).all();
+    const images = {};
+    for (const x of imgs.results || []) images[x.k] = x.data;
+    return json({ item: { id: r.id, u: r.u, payload: JSON.parse(r.payload), status: r.status, result: r.result, ts: r.ts, updated: r.updated }, images });
+  }
+
+  if (p === '/api/hiring/approve' && request.method === 'POST') {
+    if (!isAdmin) return json({ error: 'forbidden' }, 403);
+    const body = await request.json().catch(() => null);
+    const id = Number((body && body.id) || 0);
+    const r = await env.DB.prepare("SELECT * FROM hiring_requests WHERE id=? AND status='pending'").bind(id).first();
+    if (!r) return json({ error: 'not_found' }, 404);
+    const payload = JSON.parse(r.payload);
+    if (body && body.hire_type && HIRING.hireTypes.includes(body.hire_type)) payload.hire_type = body.hire_type;
+    await env.DB.prepare("UPDATE hiring_requests SET payload=?, status='approved', updated=? WHERE id=?").bind(JSON.stringify(payload), Date.now(), id).run();
+    return json({ ok: true });
+  }
+
+  if (p === '/api/hiring/reject' && request.method === 'POST') {
+    if (!isAdmin) return json({ error: 'forbidden' }, 403);
+    const body = await request.json().catch(() => null);
+    const id = Number((body && body.id) || 0);
+    const r = await env.DB.prepare("SELECT id FROM hiring_requests WHERE id=? AND status='pending'").bind(id).first();
+    if (!r) return json({ error: 'not_found' }, 404);
+    await env.DB.prepare("UPDATE hiring_requests SET status='rejected', updated=? WHERE id=?").bind(Date.now(), id).run();
+    return json({ ok: true });
+  }
+
+  // Desktop queue: oldest approved request, claimed for 10 minutes.
+  if (p === '/api/hiring/poll' && request.method === 'GET') {
+    if (!isAdmin) return json({ error: 'forbidden' }, 403);
+    const now = Date.now();
+    await env.DB.prepare("UPDATE hiring_requests SET status='approved',updated=? WHERE status='claimed' AND updated<?").bind(now, now - 10 * 60 * 1000).run();
+    const r = await env.DB.prepare("SELECT * FROM hiring_requests WHERE status='approved' ORDER BY id LIMIT 1").first();
+    if (!r) return json({ job: null });
+    await env.DB.prepare("UPDATE hiring_requests SET status='claimed',updated=? WHERE id=? AND status='approved'").bind(now, r.id).run();
+    const imgs = await env.DB.prepare('SELECT k,data FROM hiring_images WHERE request_id=?').bind(r.id).all();
+    const images = {};
+    for (const x of imgs.results || []) images[x.k] = x.data;
+    return json({ job: { id: r.id, u: r.u, payload: JSON.parse(r.payload), images } });
+  }
+
+  if (p === '/api/hiring/report' && request.method === 'POST') {
+    if (!isAdmin) return json({ error: 'forbidden' }, 403);
+    const body = await request.json().catch(() => null);
+    const id = Number((body && body.id) || 0);
+    const r = await env.DB.prepare('SELECT id FROM hiring_requests WHERE id=?').bind(id).first();
+    if (!r) return json({ error: 'not_found' }, 404);
+    const retry = body && body.retry === true;
+    const status = retry ? 'approved' : ((body && body.ok) ? 'submitted' : 'failed');
+    const result = JSON.stringify({ error: String((body && body.error) || '').slice(0, 400), detail: String((body && body.detail) || '').slice(0, 900) });
+    await env.DB.prepare('UPDATE hiring_requests SET status=?,result=?,updated=? WHERE id=?').bind(status, result, Date.now(), id).run();
+    return json({ ok: true });
   }
 
   return null;
@@ -1010,6 +1141,17 @@ export default {
       try {
         await ensureSchema(env);
         const handled = await handleChat(request, env, json, url);
+        if (handled) return handled;
+      } catch (e) {
+        return serverErr(e);
+      }
+      return json({ error: 'not_found' }, 404);
+    }
+
+    if (url.pathname.startsWith('/api/hiring/')) {
+      try {
+        await ensureSchema(env);
+        const handled = await handleHiring(request, env, json, url);
         if (handled) return handled;
       } catch (e) {
         return serverErr(e);
