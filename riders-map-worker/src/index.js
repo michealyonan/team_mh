@@ -1258,6 +1258,16 @@ export default {
       return json({ ok: true });
     }
 
+    if (url.pathname === '/api/forms/phone-jobs' && request.method === 'GET') {
+      const user = await getSessionUser(env, request);
+      if (!user) return json({ error: 'unauthorized' }, 401);
+      if (user.r !== 'admin') return json({ error: 'forbidden' }, 403);
+      await ensureSchema(env);
+      const rows = await env.DB.prepare('SELECT id,u,job,status,result,ts,updated FROM form_phone_jobs ORDER BY id DESC LIMIT 20').all();
+      const jobs = (rows.results || []).map(r => { let j = {}; let res = {}; try { j = JSON.parse(r.job); } catch {} try { res = JSON.parse(r.result || '{}'); } catch {} return { id: r.id, by: r.u, action: j.action, rider_id: j.riderId, city: j.city, status: r.status, result: res, ts: r.ts, updated: r.updated }; });
+      return json({ ok: true, jobs });
+    }
+
     if (url.pathname === '/api/forms/phone-agent' && request.method === 'GET') {
       const user = await getSessionUser(env, request);
       if (!user) return json({ error: 'unauthorized' }, 401);
