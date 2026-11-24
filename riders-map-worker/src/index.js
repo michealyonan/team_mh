@@ -1002,7 +1002,8 @@ export default {
       if (action === 'break' && isAlex && !reason) return json({ error: 'bad_reason' }, 400);
       const relayUrl = isAlex ? env.FORM_RELAY_ALEX : env.FORM_RELAY_GENERAL;
       if (!relayUrl || !env.FORM_RELAY_SECRET) return json({ error: 'relay_not_configured' }, 503);
-      const cityVal = zone || (city === 'الغردقة' ? 'الغرادقه' : city);
+      const FORM_ZONE_VALUES = { 'الغردقة': 'الغرادقه' };
+      const cityVal = FORM_ZONE_VALUES[zone] || FORM_ZONE_VALUES[city] || zone || city;
       let fields, pageHistory;
       if (isAlex) {
         const m = action === 'break' ? ['','0','00',''] : duration.match(/^(\d{1,2}):(\d{2})$/) || duration.match(/(\d{1,2}):(\d{2})\s*(الفجر|الصبح|الضهر|العصر|بليل)/);
@@ -1028,6 +1029,7 @@ export default {
       const result = await resp.json().catch(() => ({error:'invalid_relay_response'}));
       let logSaved=true;
       try { await ensureSchema(env);await env.DB.prepare('INSERT INTO form_submissions(u,action,rider_id,city,payload,result,ts) VALUES(?,?,?,?,?,?,?)').bind(user.u, action, riderId, city, JSON.stringify({...fields,duration,reason}), JSON.stringify(result), Date.now()).run(); } catch (e) {logSaved=false;}
+      if (result.error === 'auth_expired') return json({ error: 'صلاحية الفورم انتهت. الإدارة هتجددها، جرب تاني بعد شوية.', code: 'relay_auth_expired' }, 502);
       if (!resp.ok || result.ok !== true || result.error || (result.status && result.status >= 400)) return json({ error: 'relay_failed', detail: result.error || ('HTTP ' + (result.status || resp.status)) }, 502);
       return json({ ok: true, result,log_saved:logSaved });
     }
