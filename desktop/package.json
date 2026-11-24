@@ -1,0 +1,43 @@
+{
+  "name": "team-mh-desktop",
+  "version": "0.1.0",
+  "description": "team_mh desktop app (Windows)",
+  "main": "main.js",
+  "author": "team_mh",
+  "license": "UNLICENSED",
+  "private": true,
+  "dependencies": {
+    "electron-updater": "^6.3.9"
+  },
+  "devDependencies": {
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.michealyonan.teammh",
+    "productName": "team_mh",
+    "files": [
+      "main.js",
+      "walker.js",
+      "icon.png",
+      "package.json"
+    ],
+    "win": {
+      "target": ["nsis"],
+      "icon": "icon.png"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "shortcutName": "team_mh"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "michealyonan",
+        "repo": "team_mh",
+        "releaseType": "release"
+      }
+    ]
+  }
+}
