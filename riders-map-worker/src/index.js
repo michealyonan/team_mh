@@ -520,6 +520,18 @@ async function handleHiring(request, env, json, url) {
     return json({ job: { id: r.id, u: r.u, payload: JSON.parse(r.payload), images } });
   }
 
+  if (p === '/api/hiring/delete' && request.method === 'POST') {
+    // Micheal 25 Nov: admin can remove any uploaded request (with its images).
+    if (!isAdmin) return json({ error: 'forbidden' }, 403);
+    const body = await request.json().catch(() => null);
+    const id = Number((body && body.id) || 0);
+    const r = await env.DB.prepare('SELECT id FROM hiring_requests WHERE id=?').bind(id).first();
+    if (!r) return json({ error: 'not_found' }, 404);
+    await env.DB.prepare('DELETE FROM hiring_images WHERE request_id=?').bind(id).run();
+    await env.DB.prepare('DELETE FROM hiring_requests WHERE id=?').bind(id).run();
+    return json({ ok: true });
+  }
+
   if (p === '/api/hiring/report' && request.method === 'POST') {
     if (!isAdmin) return json({ error: 'forbidden' }, 403);
     const body = await request.json().catch(() => null);
