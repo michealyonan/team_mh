@@ -636,14 +636,16 @@ async function handleAuth(request, env, json, url) {
   if (p === '/api/auth/forgot' && request.method === 'POST') {
     if (!body || !body.u) return json({ error: 'missing_fields' }, 400);
     const u = String(body.u).toLowerCase().slice(0, 60);
-    const wait = await rateLimit(env, 'forgot:' + u, 3, 60 * 60 * 1000, 30 * 60 * 1000);
+    // 25 Nov: was 3/hour + 30-min lock while the UI said 'wait a minute' (Micheal 12590877). New key drops old stuck locks.
+    const wait = await rateLimit(env, 'forgot2:' + u, 5, 15 * 60 * 1000, 2 * 60 * 1000);
     if (wait) return json({ error: 'locked', wait }, 429);
     const user = await env.DB.prepare('SELECT * FROM users WHERE u=?').bind(u).first();
     if (user && user.status !== 'disabled' && (user.email || user.phone)) {
       const code = await makeCode(env, u, 'reset', 8, 60 * 60 * 1000);
       const text = 'أهلًا ' + user.n + ',\n\nكود إعادة تعيين كلمة المرور: ' + code + '\nصالح لمدة ساعة.\n\nلو مش انت اللي طلبت، كلم الأدمن فورًا.';
       let sent = false, via = '';
-      if (user.email && user.channel !== 'whatsapp') {
+      // Email first for EVERY channel: the worker has no WhatsApp sender, and a 'whatsapp' channel used to fall straight to Brevo SMS, which never arrived.
+      if (user.email) {
         const mail = await sendMail(env, user.email, 'كود إعادة تعيين كلمة المرور', text);
         sent = mail.ok; via = 'email';
       }
