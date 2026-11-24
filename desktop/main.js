@@ -10,7 +10,7 @@ const { autoUpdater } = require('electron-updater');
 const { getBrowser, firstPage, peekBrowser, launchPlain, launchPlainForSignin, adoptBrowser } = require('./chromeproc');
 const { runFormWalk, clickX, pageMarker, confirmState } = require('./chromewalk');
 
-const VERSION = '0.3.14';
+const VERSION = '0.3.15';
 // Proof image for فتح شيفت uploads: Micheal's OWN fixed image when present
 // (userData/proof.*, seeded from a bundled proof.* on first run), else the
 // app-generated black PNG fallback (24 Nov).

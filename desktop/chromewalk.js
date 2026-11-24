@@ -250,7 +250,7 @@ async function uploadProof(page, filePath, job) {
   async function pickerButtonPoint() {
     // Fastest exact path: puppeteer's frame tree (covers in-process iframes and
     // puppeteer-exposed OOPIFs). The iframe ELEMENT rect comes from the top page.
-    const BTN_JS = "(function(){var bs=document.querySelectorAll('button,[role=button],div');for(var i=0;i<bs.length;i++){var t=(bs[i].textContent||'').trim();if(t.indexOf('تصف')>=0||/browse/i.test(t)){var r=bs[i].getBoundingClientRect();if(r.width>10&&r.width<300&&r.height>10&&r.height<100)return JSON.stringify({x:r.x+r.width/2,y:r.y+r.height/2});}}return ''})()";
+    const BTN_JS = "(function(){var bs=document.querySelectorAll('button,[role=button],div');for(var i=0;i<bs.length;i++){var t=(bs[i].textContent||'').trim();if(t.replace(/[\u064B-\u0652\u0640]/g,'').indexOf('تصفح')>=0||/browse/i.test(t)){var r=bs[i].getBoundingClientRect();if(r.width>10&&r.width<300&&r.height>10&&r.height<100)return JSON.stringify({x:r.x+r.width/2,y:r.y+r.height/2});}}return ''})()";
     for (const f of page.frames()) {
       if (f === page.mainFrame()) continue;
       try {
@@ -274,7 +274,7 @@ async function uploadProof(page, filePath, job) {
       if (typeof cs.send !== 'function') continue;
       try {
         const r = await cs.send('Runtime.evaluate', {
-          expression: "(function(){var bs=document.querySelectorAll('button,[role=button],div');for(var i=0;i<bs.length;i++){var t=(bs[i].textContent||'').trim();if(t.indexOf('تصف')>=0||/browse/i.test(t)){var r=bs[i].getBoundingClientRect();if(r.width>10&&r.width<300&&r.height>10&&r.height<100)return JSON.stringify({x:r.x+r.width/2,y:r.y+r.height/2});}}return ''})()",
+          expression: "(function(){var bs=document.querySelectorAll('button,[role=button],div');for(var i=0;i<bs.length;i++){var t=(bs[i].textContent||'').trim();if(t.replace(/[\u064B-\u0652\u0640]/g,'').indexOf('تصفح')>=0||/browse/i.test(t)){var r=bs[i].getBoundingClientRect();if(r.width>10&&r.width<300&&r.height>10&&r.height<100)return JSON.stringify({x:r.x+r.width/2,y:r.y+r.height/2});}}return ''})()",
           returnByValue: true
         });
         const v = r && r.result && r.result.value;
