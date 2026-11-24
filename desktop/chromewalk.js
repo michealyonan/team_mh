@@ -777,7 +777,9 @@ async function runFormWalkInner(page, job) {
             if (clicked) {
               await sleep(500);
               const shown = await page.evaluate(() => { const ls = document.querySelectorAll("div[role='listbox']"); const lb = ls[ls.length - 1]; return lb ? String(lb.textContent || '') : ''; }).catch(() => '');
-              if (shown.trim() && !/اختيار|select/i.test(shown) && (shown.indexOf(wanted) >= 0 || shown.indexOf(wantedPad) >= 0 || shown.indexOf(hh24) >= 0)) picked = true;
+              // Positive match only: the placeholder "اختيار" can linger inside
+              // the control even after a real selection (24 Nov false negative).
+              if (shown.indexOf(wanted) >= 0 || shown.indexOf(wantedPad) >= 0 || shown.indexOf(hh24) >= 0) picked = true;
               // else the click did not commit: loop re-opens the dropdown.
             }
           }
