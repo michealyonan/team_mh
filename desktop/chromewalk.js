@@ -34,6 +34,7 @@ async function clickX(page, x, timeoutMs) {
         box = await el.boundingBox();
         if (!box) continue;
         await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+        await sleep(300); // Micheal 24 Nov: correct over fast - let the page react.
         return;
       } catch (e) { lastErr = e; }
     }
@@ -51,12 +52,13 @@ async function clickEl(page, el) {
   const box = await el.boundingBox();
   if (!box) throw new Error('element not visible');
   await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+  await sleep(250); // settle after every click (24 Nov)
 }
 // Trusted typing into a specific handle: mouse-click it, then real keys.
 async function typeIn(page, el, text) {
   await clickEl(page, el);
-  await page.keyboard.type(String(text), { delay: 15 });
-  await sleep(60);
+  await page.keyboard.type(String(text), { delay: 45 }); // human-ish cadence (24 Nov)
+  await sleep(250);
 }
 
 // Pick a form OPTION by text: strictly prefer role-scoped matches (radio/option)
@@ -867,6 +869,8 @@ async function runFormWalkInner(page, job) {
       }
       if (!clear) { const e = new Error('submit_covered'); e.detail = 'an overlay still covers إرسال after 15s'; throw e; }
       mark('submit:uncovered');
+      // One deliberate beat with the filled form on screen before إرسال (24 Nov).
+      await sleep(1200);
     }
     if (job.onSubmitting) job.onSubmitting();
     await clickX(page, SUBMIT_X, 15000);
