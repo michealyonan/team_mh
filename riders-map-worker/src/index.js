@@ -759,10 +759,10 @@ function walkHiddens(html) {
   return o;
 }
 function walkVisible(html, base) {
-  return html.indexOf('name="entry.' + base + '"') >= 0
-    || html.indexOf('entry.' + base + '_sentinel') >= 0
-    || html.indexOf('entry.' + base + '_hour') >= 0
-    || html.indexOf('entry.' + base + '_minute') >= 0;
+  return html.indexOf('name="' + base + '"') >= 0
+    || html.indexOf(base + '_sentinel') >= 0
+    || html.indexOf(base + '_hour') >= 0
+    || html.indexOf(base + '_minute') >= 0;
 }
 const walkSleep = () => new Promise(r => setTimeout(r, 900 + Math.floor(Math.random() * 800)));
 async function walkFormDirect({ formId, cookie, email, fields, probe }) {
@@ -1223,6 +1223,9 @@ export default {
       const now = Date.now();
       try { await env.DB.prepare("INSERT INTO settings(k,v) VALUES('phone_agent_seen',?) ON CONFLICT(k) DO UPDATE SET v=excluded.v").bind(String(now)).run(); } catch {}
       await env.DB.prepare("UPDATE form_phone_jobs SET status='pending',updated=? WHERE status='claimed' AND updated<?").bind(now, now - 3 * 60 * 1000).run();
+      const lastRow = await env.DB.prepare("SELECT v FROM settings WHERE k='phone_agent_lastjob'").first();
+      const lastJob = lastRow ? Number(lastRow.v) : 0;
+      if (lastJob && now - lastJob < 90 * 1000) return json({ ok: true, job: null, pace_wait: Math.ceil((90 * 1000 - (now - lastJob)) / 1000) });
       const row = await env.DB.prepare("SELECT id,job FROM form_phone_jobs WHERE status='pending' ORDER BY id LIMIT 1").first();
       if (!row) return json({ ok: true, job: null });
       await env.DB.prepare("UPDATE form_phone_jobs SET status='claimed',updated=? WHERE id=? AND status='pending'").bind(now, row.id).run();
@@ -1248,6 +1251,7 @@ export default {
       const retry = body.retry === true && body.error === 'auth_expired';
       await env.DB.prepare('UPDATE form_phone_jobs SET status=?,result=?,updated=? WHERE id=?').bind(retry ? 'pending' : (body.ok ? 'done' : 'error'), JSON.stringify(result), now, id).run();
       if (!retry) {
+        try { await env.DB.prepare("INSERT INTO settings(k,v) VALUES('phone_agent_lastjob',?) ON CONFLICT(k) DO UPDATE SET v=excluded.v").bind(String(now)).run(); } catch {}
         let job = {}; try { job = JSON.parse(row.job); } catch {}
         try { await env.DB.prepare('INSERT INTO form_submissions(u,action,rider_id,city,payload,result,ts) VALUES(?,?,?,?,?,?,?)').bind(row.u, job.action || '', job.riderId || '', job.city || '', JSON.stringify({ ...(job.fields || {}), duration: job.duration, reason: job.reason }), JSON.stringify(result), now).run(); } catch {}
       }
