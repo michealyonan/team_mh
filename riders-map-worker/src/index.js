@@ -67,6 +67,11 @@ async function ensureSchema(env) {
       rider_id TEXT PRIMARY KEY, name TEXT NOT NULL DEFAULT '', state TEXT NOT NULL DEFAULT '',
       sup TEXT NOT NULL DEFAULT '', updated INTEGER NOT NULL)`),
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS form_submissions(id INTEGER PRIMARY KEY AUTOINCREMENT,u TEXT NOT NULL,action TEXT NOT NULL,rider_id TEXT NOT NULL,city TEXT NOT NULL,payload TEXT NOT NULL,result TEXT NOT NULL,ts INTEGER NOT NULL)`),
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS chat_messages(
+      id INTEGER PRIMARY KEY AUTOINCREMENT, from_u TEXT NOT NULL, to_u TEXT NOT NULL,
+      body TEXT NOT NULL, ts INTEGER NOT NULL, read_at INTEGER)`),
+    env.DB.prepare(`CREATE INDEX IF NOT EXISTS chat_from ON chat_messages(from_u, to_u, id)`),
+    env.DB.prepare(`CREATE INDEX IF NOT EXISTS chat_to ON chat_messages(to_u, from_u, id)`),
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS usage_daily(day TEXT PRIMARY KEY, n INTEGER NOT NULL DEFAULT 0)`),
     env.DB.prepare(`CREATE INDEX IF NOT EXISTS form_submissions_user_ts ON form_submissions(u,ts)`),
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS form_phone_jobs(id INTEGER PRIMARY KEY AUTOINCREMENT,u TEXT NOT NULL,job TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'pending',result TEXT NOT NULL DEFAULT '',ts INTEGER NOT NULL,updated INTEGER NOT NULL)`),
@@ -295,6 +300,69 @@ const cleanContact = {
     return d.length >= 8 && d.length <= 15 ? d : '';
   },
 };
+
+// --- Supervisor chat (Micheal 24 Nov): WhatsApp-style messaging between
+// admin, managers and supervisors. Stored in D1, polled from the dashboard.
+const CHAT_ROLES = ['admin', 'manager', 'sup'];
+async function handleChat(request, env, json, url) {
+  const p = url.pathname;
+  const user = await getSessionUser(env, request);
+  if (!user) return json({ error: 'unauthorized' }, 401);
+  if (!CHAT_ROLES.includes(user.r)) return json({ error: 'forbidden' }, 403);
+
+  if (p === '/api/chat/contacts' && request.method === 'GET') {
+    const rows = await env.DB.prepare("SELECT u,n,r,s FROM users WHERE status='active' AND r IN ('admin','manager','sup') AND u<>? ORDER BY n").bind(user.u).all();
+    return json({ contacts: (rows.results || []).map(x => ({ u: x.u, n: x.n, r: x.r, s: x.s })) });
+  }
+
+  if (p === '/api/chat/inbox' && request.method === 'GET') {
+    const msgs = await env.DB.prepare('SELECT id, from_u, to_u, body, ts, read_at FROM chat_messages WHERE to_u=? OR from_u=? ORDER BY id DESC LIMIT 500').bind(user.u, user.u).all();
+    const peers = new Map();
+    for (const m of (msgs.results || [])) {
+      const peer = m.from_u === user.u ? m.to_u : m.from_u;
+      let e = peers.get(peer);
+      if (!e) { e = { u: peer, last: null, unread: 0 }; peers.set(peer, e); }
+      if (!e.last) e.last = { body: m.body, ts: m.ts, mine: m.from_u === user.u };
+      if (m.to_u === user.u && !m.read_at) e.unread++;
+    }
+    const list = [...peers.values()];
+    if (list.length) {
+      const names = await env.DB.prepare("SELECT u,n,r,s FROM users WHERE status='active'").all();
+      const byU = new Map((names.results || []).map(x => [x.u, x]));
+      for (const e of list) { const x = byU.get(e.u); e.n = x ? x.n : e.u; e.r = x ? x.r : ''; e.s = x ? x.s : ''; }
+    }
+    list.sort((a, b) => (b.last ? b.last.ts : 0) - (a.last ? a.last.ts : 0));
+    return json({ conversations: list, totalUnread: list.reduce((t, e) => t + e.unread, 0) });
+  }
+
+  if (p === '/api/chat/thread' && request.method === 'GET') {
+    const peer = String(url.searchParams.get('with') || '').toLowerCase().slice(0, 60);
+    if (!peer || peer === user.u) return json({ error: 'bad_peer' }, 400);
+    const prow = await env.DB.prepare("SELECT u,n,r,s FROM users WHERE u=? AND status='active'").bind(peer).first();
+    if (!prow || !CHAT_ROLES.includes(prow.r)) return json({ error: 'bad_peer' }, 400);
+    const after = parseInt(url.searchParams.get('after') || '0', 10) || 0;
+    const rows = await env.DB.prepare('SELECT id, from_u, body, ts, read_at FROM chat_messages WHERE id>? AND ((from_u=? AND to_u=?) OR (from_u=? AND to_u=?)) ORDER BY id ASC LIMIT 200').bind(after, user.u, peer, peer, user.u).all();
+    await env.DB.prepare('UPDATE chat_messages SET read_at=? WHERE to_u=? AND from_u=? AND read_at IS NULL').bind(Date.now(), user.u, peer).run();
+    return json({ peer: { u: prow.u, n: prow.n, r: prow.r, s: prow.s }, messages: (rows.results || []).map(m => ({ id: m.id, mine: m.from_u === user.u, body: m.body, ts: m.ts, read: !!m.read_at })) });
+  }
+
+  if (p === '/api/chat/send' && request.method === 'POST') {
+    const wait = await rateLimit(env, 'chat:' + user.u, 30, 60000, 60000);
+    if (wait) return json({ error: 'rate_limited', wait }, 429);
+    let body = null;
+    try { body = await request.json(); } catch (e) {}
+    const peer = String(body && body.to || '').toLowerCase().slice(0, 60);
+    const text = String(body && body.body || '').trim().slice(0, 1000);
+    if (!peer || peer === user.u || !text) return json({ error: 'bad_message' }, 400);
+    const prow = await env.DB.prepare("SELECT u FROM users WHERE u=? AND status='active' AND r IN ('admin','manager','sup')").bind(peer).first();
+    if (!prow) return json({ error: 'bad_peer' }, 400);
+    const ts = Date.now();
+    const r = await env.DB.prepare('INSERT INTO chat_messages(from_u,to_u,body,ts) VALUES(?,?,?,?)').bind(user.u, peer, text, ts).run();
+    return json({ ok: true, id: r.meta && r.meta.last_row_id, ts });
+  }
+
+  return null;
+}
 
 async function handleAuth(request, env, json, url) {
   const p = url.pathname;
@@ -847,6 +915,17 @@ export default {
       try {
         await ensureSchema(env);
         const handled = await handleAuth(request, env, json, url);
+        if (handled) return handled;
+      } catch (e) {
+        return serverErr(e);
+      }
+      return json({ error: 'not_found' }, 404);
+    }
+
+    if (url.pathname.startsWith('/api/chat/')) {
+      try {
+        await ensureSchema(env);
+        const handled = await handleChat(request, env, json, url);
         if (handled) return handled;
       } catch (e) {
         return serverErr(e);
