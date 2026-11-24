@@ -21,6 +21,8 @@
   #histWrap th{color:#94a3b8;font-weight:700}
   .st-ok{color:#4ade80}.st-bad{color:#f87171}.st-wait{color:#facc15}
   .sub{font-size:11px;color:#64748b;margin-top:8px;line-height:1.6}
+  label.chk{display:flex;align-items:center;gap:8px;cursor:pointer;margin:8px 0 0}
+  label.chk input{width:auto;min-height:0;padding:0;margin:0}
 </style>
 </head>
 <body>
@@ -32,6 +34,7 @@
 </div>
 <label for="rider">كود المندوب</label>
 <input id="rider" inputmode="numeric" placeholder="اكتب ID المندوب">
+<label class="chk" id="skipDupWrap"><input type="checkbox" id="skipDup" checked> متمدّش لنفس المندوب لو اتمدّله النهارده</label>
 <label for="city">المدينة</label>
 <select id="city">
   <option value="">اختار المدينة</option>
@@ -86,6 +89,8 @@
 const HOURS=[{h:0,l:'إلي 12:00 بليل'},{h:1,l:'إلي 01:00 الفجر'},{h:2,l:'إلي 02:00 الفجر'},{h:3,l:'إلي 03:00 الفجر'},{h:4,l:'إلي 04:00 الفجر'},{h:5,l:'إلي 05:00 الفجر'},{h:8,l:'إلي 08:00 الصبح'},{h:9,l:'إلي 09:00 الصبح'},{h:10,l:'إلي 10:00 الصبح'},{h:11,l:'إلي 11:00 الصبح'},{h:12,l:'إلي 12:00 الضهر'},{h:13,l:'إلي 01:00 الضهر'},{h:14,l:'إلي 02:00 الضهر'},{h:15,l:'إلي 03:00 الضهر'},{h:16,l:'إلي 04:00 العصر'},{h:17,l:'إلي 05:00 العصر'},{h:18,l:'إلي 06:00 بليل'},{h:19,l:'إلي 07:00 بليل'},{h:20,l:'إلي 08:00 بليل'},{h:21,l:'إلي 09:00 بليل'},{h:22,l:'إلي 10:00 بليل'},{h:23,l:'إلي 11:00 بليل'}];
 const $=id=>document.getElementById(id);
 let action='extend';
+try{$('skipDup').checked=localStorage.getItem('skipDup')!=='0';}catch(e){}
+$('skipDup').onchange=()=>{try{localStorage.setItem('skipDup',$('skipDup').checked?'1':'0');}catch(e){}};
 function isAlex(){return $('city').value==='الإسكندرية'}
 function sync(){
   $('actExt').classList.toggle('on',action==='extend');
@@ -123,6 +128,16 @@ $('send').onclick=async()=>{
   const rider=$('rider').value.trim(),city=$('city').value;
   if(!/^\d{1,15}$/.test(rider)){say('err','اكتب كود مندوب صحيح');return}
   if(!city){say('err','اختار المدينة');return}
+  // Repeat-مد guard (Micheal 24 Nov): ticked = never extend a rider who already
+  // got a successful مد today; unticked = extend normally.
+  if(action==='extend'&&$('skipDup').checked){
+    try{
+      const rows=await window.tmhDesktop.history();
+      const today=new Date().toLocaleDateString('en-CA',{timeZone:'Africa/Cairo'});
+      const hit=(rows||[]).find(r=>r&&String(r.riderId)===rider&&r.action==='extend'&&r.ok&&new Date(Number(r.ts)).toLocaleDateString('en-CA',{timeZone:'Africa/Cairo'})===today);
+      if(hit){const t=new Date(Number(hit.ts)).toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit',timeZone:'Africa/Cairo'});say('err','المندوب '+rider+' اتمدّله النهارده الساعة '+t+' - لو عايز تمدّله تاني شيل العلامة من المربع');return}
+    }catch(e){}
+  }
   let duration='';
   if(action==='extend'){duration=isAlex()?$('durTime').value:$('durSel').value;if(!duration){say('err','اختار وقت نهاية المد');return}}
   let reason='';

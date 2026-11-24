@@ -194,6 +194,8 @@ async function uploadProof(page, filePath, job) {
     } catch (e) {}
   }
 
+  const safeUrl = (f) => { try { return f.url() || ''; } catch (e) { return ''; } };
+
   async function attachAll() {
     try {
       const { targetInfos } = await browserSession.send('Target.getTargets');
@@ -207,22 +209,29 @@ async function uploadProof(page, filePath, job) {
         try {
           const r = await browserSession.send('Target.attachToTarget', { targetId: ti.targetId, flatten: true });
           const cs = browserSession.connection().session(r.sessionId);
-          if (cs) { childSessions[key] = cs; childSessions.add(cs); await armSession(cs, ti.type); }
+          if (cs) { childSessions[key] = cs; try { cs.__tmhUrl = ti.url || ''; } catch (e) {} childSessions.add(cs); await armSession(cs, ti.type); }
         } catch (e) {}
       }
     } catch (e) { diag.layers.push('attachAll: ' + String(e).slice(0, 80)); }
   }
 
   async function setViaSessions() {
-    for (const cs of childSessions) {
-      if (typeof cs.send !== 'function') continue;
+    const sessions = [];
+    for (const cs of childSessions) { if (cs && typeof cs.send === 'function') sessions.push(cs); }
+    // Picker sessions first; NEVER the form page session (24 Nov: same trap as
+    // the main frame - the form's hidden input swallows the file, picker stays
+    // empty and the chip never appears).
+    sessions.sort((a, b) => (/picker/i.test(a.__tmhUrl || '') ? 0 : 1) - (/picker/i.test(b.__tmhUrl || '') ? 0 : 1));
+    for (const cs of sessions) {
+      const su = cs.__tmhUrl || '';
+      if (/docs\.google\.com\/forms/i.test(su)) continue;
       try {
         await cs.send('DOM.enable').catch(() => {});
         const doc = await cs.send('DOM.getDocument', { depth: -1, pierce: true });
         const q = await cs.send('DOM.querySelector', { nodeId: doc.root.nodeId, selector: "input[type='file']" });
         if (q && q.nodeId) {
           await cs.send('DOM.setFileInputFiles', { files: [filePath], nodeId: q.nodeId });
-          diag.layers.push('file set via session input');
+          diag.layers.push('file set via session ' + su.slice(0, 60));
           return true;
         }
       } catch (e) {}
@@ -396,7 +405,7 @@ async function uploadProof(page, filePath, job) {
         '-TitleMatch', String(opts.title || 'Google').slice(0, 30),
         '-RelX', String(opts.x), '-RelY', String(opts.y), '-InnerW', String(opts.innerW || 1280),
         '-FilePath', filePath], { timeout: 45000 }, (err, stdout) => {
-        diag.layers.push('osclick: ' + (err ? 'err ' + String(err).slice(0, 50) : String(stdout || '').trim()));
+        diag.layers.push('osclick: ' + (err ? 'err ' + String(((err && err.code) || '') + ' ' + ((err && err.message) || err)).slice(0, 180) : String(stdout || '').trim()));
         resolve(!err && /OK/.test(String(stdout || '')));
       });
     });
@@ -416,14 +425,25 @@ async function uploadProof(page, filePath, job) {
       aborted();
       await attachAll();
       // Fast path: puppeteer frames too (same-process iframes need no attach).
-      for (const f of page.frames()) {
+      // NEVER the main frame (24 Nov: the form page's own hidden file input
+      // swallowed the set - the picker never got the file); picker frames first.
+      const frs = page.frames().filter((f) => { try { return f !== page.mainFrame(); } catch (e) { return false; } });
+      frs.sort((a, b) => (/picker/i.test(safeUrl(a)) ? 0 : 1) - (/picker/i.test(safeUrl(b)) ? 0 : 1));
+      for (const f of frs) {
         let input = null;
         try { input = await f.$("input[type='file']"); } catch (e) {}
-        if (input) { try { await input.uploadFile(filePath); set = true; diag.layers.push('file set via frame'); } catch (e) {} }
+        if (input) { try { await input.uploadFile(filePath); set = true; diag.layers.push('file set via frame ' + safeUrl(f).slice(0, 60)); } catch (e) {} }
         if (set) break;
       }
       if (!set) set = await setViaSessions();
       if (!set) await sleep(600);
+    }
+    // Wrong-input guard (24 Nov): a "set" that yields no chip used to skip every
+    // later layer. Verify; if no chip, clear the flag and keep hunting.
+    if (set && !chooserAnswered) {
+      if (await waitChip(8000)) { diag.layers.push('chip after frame set'); return; }
+      diag.layers.push('set claimed but no chip - continuing');
+      set = false;
     }
 
     // Layer 2: CDP drag-drop of the file onto the modal's drop zone.
@@ -463,16 +483,22 @@ async function uploadProof(page, filePath, job) {
       while (Date.now() - tB < 12000 && !set && !chooserAnswered) {
         aborted();
         await attachAll();
-        for (const f of page.frames()) {
+        const frsB = page.frames().filter((f) => { try { return f !== page.mainFrame(); } catch (e) { return false; } });
+        frsB.sort((a, b) => (/picker/i.test(safeUrl(a)) ? 0 : 1) - (/picker/i.test(safeUrl(b)) ? 0 : 1));
+        for (const f of frsB) {
           let input = null;
           try { input = await f.$("input[type='file']"); } catch (e) {}
-          if (input) { try { await input.uploadFile(filePath); set = true; diag.layers.push('file set via frame after click'); } catch (e) {} }
+          if (input) { try { await input.uploadFile(filePath); set = true; diag.layers.push('file set via frame after click ' + safeUrl(f).slice(0, 60)); } catch (e) {} }
           if (set) break;
         }
         if (!set) set = await setViaSessions();
         if (!set && !chooserAnswered) await sleep(600);
       }
       if (set) diag.layers.push('lazy input found after click');
+      if (set && !chooserAnswered && !(await waitChip(6000))) {
+        diag.layers.push('lazy set claimed but no chip - continuing');
+        set = false;
+      }
     }
 
     // Layer 4 (Windows): OS-level real click + native dialog fill via PowerShell.
@@ -716,29 +742,44 @@ async function runFormWalkInner(page, job) {
       try {
         const lbs = await xpAll(page, "//div[@role='listbox']");
         if (lbs.length) {
-          await clickEl(page, lbs[lbs.length - 1]);
           const wantedH = String(job.hh12).replace(/^0/, '');
           const wanted = wantedH + ':' + job.mm;
-          const wantedPad = (job.hh12.length === 1 ? '0' + job.hh12 : job.hh12) + ':' + job.mm;
+          const wantedPad = (String(job.hh12).length === 1 ? '0' + job.hh12 : job.hh12) + ':' + job.mm;
           const hh24 = job.hh24 + ':' + job.mm;
           const pmK = ['مساء', 'بليل', 'الظهر', 'العصر', 'pm', 'م'];
           const amK = ['صباح', 'الصبح', 'الفجر', 'am', 'ص'];
           let picked = false;
-          for (let pass = 0; pass < 20 && !picked; pass++) {
-            const opts = await xpAll(page, "//div[@role='option']");
-            for (const o of opts) {
-              const val = String(await o.evaluate((n) => n.getAttribute('data-value') || n.innerText || '')).replace(/ /g, ' ').trim().toLowerCase();
-              if (!val) continue;
-              if (val.indexOf(wanted) < 0 && val.indexOf(wantedPad) < 0 && val.indexOf(hh24) < 0) continue;
-              const hasPm = pmK.some((k) => val.indexOf(k) >= 0);
-              const hasAm = amK.some((k) => val.indexOf(k) >= 0);
-              if ((job.isPm && (hasPm || !hasAm)) || (!job.isPm && (hasAm || !hasPm))) {
-                await clickEl(page, o); picked = true; break;
+          // Up to 3 full attempts (24 Nov الغردقة: an option got clicked but the
+          // field never committed - verify the listbox text actually changed).
+          for (let attempt = 0; attempt < 3 && !picked; attempt++) {
+            await clickEl(page, lbs[lbs.length - 1]);
+            let clicked = false;
+            for (let pass = 0; pass < 20 && !clicked; pass++) {
+              const opts = await xpAll(page, "//div[@role='option']");
+              for (const o of opts) {
+                // Only options actually on screen: a stale/hidden popup can
+                // match the text first and eat the click (24 Nov).
+                const vis = await o.evaluate((n) => { const r = n.getBoundingClientRect(); return r.width > 4 && r.height > 4; }).catch(() => false);
+                if (!vis) continue;
+                const val = String(await o.evaluate((n) => n.getAttribute('data-value') || n.innerText || '')).replace(/ /g, ' ').trim().toLowerCase();
+                if (!val) continue;
+                if (val.indexOf(wanted) < 0 && val.indexOf(wantedPad) < 0 && val.indexOf(hh24) < 0) continue;
+                const hasPm = pmK.some((k) => val.indexOf(k) >= 0);
+                const hasAm = amK.some((k) => val.indexOf(k) >= 0);
+                if ((job.isPm && (hasPm || !hasAm)) || (!job.isPm && (hasAm || !hasPm))) {
+                  await clickEl(page, o); clicked = true; break;
+                }
               }
+              if (!clicked) await sleep(200);
             }
-            if (!picked) await sleep(200);
+            if (clicked) {
+              await sleep(500);
+              const shown = await page.evaluate(() => { const ls = document.querySelectorAll("div[role='listbox']"); const lb = ls[ls.length - 1]; return lb ? String(lb.textContent || '') : ''; }).catch(() => '');
+              if (shown.trim() && !/اختيار|select/i.test(shown) && (shown.indexOf(wanted) >= 0 || shown.indexOf(wantedPad) >= 0 || shown.indexOf(hh24) >= 0)) picked = true;
+              // else the click did not commit: loop re-opens the dropdown.
+            }
           }
-          mark('page2:time-pick');
+          mark(picked ? 'page2:time-pick' : 'page2:time-pick-unverified');
         }
       } catch (e) {}
     }

@@ -7,10 +7,10 @@ const { app, BrowserWindow, shell, Notification, ipcMain, clipboard } = require(
 const fs = require('fs');
 const path = require('path');
 const { autoUpdater } = require('electron-updater');
-const { getBrowser, firstPage, peekBrowser, launchPlain, launchPlainForSignin, adoptBrowser } = require('./chromeproc');
+const { getBrowser, firstPage, peekBrowser, launchPlain, launchPlainForSignin, adoptBrowser, dropBrowser } = require('./chromeproc');
 const { runFormWalk, clickX, pageMarker, confirmState } = require('./chromewalk');
 
-const VERSION = '0.3.15';
+const VERSION = '0.3.16';
 // Proof image for فتح شيفت uploads: Micheal's OWN fixed image when present
 // (userData/proof.*, seeded from a bundled proof.* on first run), else the
 // app-generated black PNG fallback (24 Nov).
@@ -310,7 +310,10 @@ async function preparePage(browser, group, formUrl) {
       const t0 = Date.now();
       while (Date.now() - t0 < 8000) {
         await sleep(120);
-        const m = await pageMarker(page);
+        // The click navigates the tab; mid-navigation reads throw "detached
+        // Frame" (24 Nov Micheal). Keep polling until the new page settles.
+        let m = '';
+        try { m = await pageMarker(page); } catch (e) { continue; }
         if (m === '0' || (m && m !== before)) break;
       }
       return { page, cold: false };
@@ -531,7 +534,22 @@ ipcMain.handle('tmh-run-local', async (_e, payload) => {
     const prepT0 = Date.now();
     let prep;
     try { prep = await preparePage(browser, group, cfg.url); }
-    catch (e) { return { ok: false, error: 'tab_failed', detail: String(e).slice(0, 200), submitted: false }; }
+    catch (e) {
+      const msg = String(e && (e.message || e) || '');
+      // Stale tab / dropped CDP connection (24 Nov Micheal's "detached Frame"):
+      // drop everything and retry ONCE on a freshly attached browser+tab.
+      if (/detached|Target closed|Session closed|Protocol error|Connection closed|Target crashed/i.test(msg)) {
+        try { delete warmPages[group]; } catch (e2) {}
+        try { await dropBrowser(group); } catch (e2) {}
+        try { browser = await getBrowser(group, app.getPath('userData')); } catch (e2) {
+          return { ok: false, error: 'tab_failed', detail: msg.slice(0, 200), submitted: false };
+        }
+        try { prep = await preparePage(browser, group, cfg.url); }
+        catch (e2) { return { ok: false, error: 'tab_failed', detail: String(e2 && (e2.message || e2)).slice(0, 200), submitted: false }; }
+      } else {
+        return { ok: false, error: 'tab_failed', detail: msg.slice(0, 200), submitted: false };
+      }
+    }
     page = prep.page;
     // Close any stray about:blank tabs in this window (leftovers from sign-in or
     // a poll tab) so Micheal only ever sees the form tab (24 Nov).

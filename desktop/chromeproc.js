@@ -52,6 +52,21 @@ async function getBrowser(group, userDataRoot) {
   if (!exe) { const e = new Error('chrome_not_found'); e.code = 'chrome_not_found'; throw e; }
   const userDataDir = path.join(userDataRoot, 'chrome-profiles', group);
   try { fs.mkdirSync(userDataDir, { recursive: true }); } catch (e) {}
+  // Singleton-proof (24 Nov): if a Chrome for THIS profile is already running
+  // (a sign-in window we lost track of, or a dropped connection), spawning
+  // chrome.exe again just forwards "open about:blank" to the old process -
+  // that is the blank window Micheal saw on the second مد. Reconnect through
+  // the profile's DevToolsActivePort instead; only launch when connect fails.
+  try {
+    const portFile = path.join(userDataDir, 'DevToolsActivePort');
+    const port = fs.readFileSync(portFile, 'utf8').split(/\r?\n/)[0].trim();
+    if (port) {
+      const existing = await puppeteer.connect({ browserURL: 'http://127.0.0.1:' + port });
+      try { existing.on('disconnected', () => { if (browsers[group] === existing) delete browsers[group]; }); } catch (e) {}
+      browsers[group] = existing;
+      return existing;
+    }
+  } catch (e) {}
   const browser = await puppeteer.launch({
     executablePath: exe,
     userDataDir,
@@ -134,6 +149,14 @@ async function launchPlainForSignin(group, userDataRoot, url, timeoutMs) {
 
 function adoptBrowser(group, browser) { browsers[group] = browser; }
 
+// Hard drop: close (or disconnect) and forget the group's browser, so the next
+// getBrowser re-attaches fresh. Used by the tab_failed retry path (24 Nov).
+async function dropBrowser(group) {
+  const b = browsers[group];
+  delete browsers[group];
+  if (b) { try { await b.close(); } catch (e) { try { b.disconnect(); } catch (e2) {} } }
+}
+
 // Non-launching peek: returns the cached browser ONLY if already connected.
 // Pollers (sheet status) must never relaunch Chrome by themselves - a poll that
 // relaunches is what popped stray about:blank windows every ~45s (24 Nov).
@@ -141,4 +164,4 @@ function peekBrowser(group) {
   return browserAlive(browsers[group]) ? browsers[group] : null;
 }
 
-module.exports = { getBrowser, findChrome, firstPage, peekBrowser, launchPlain, launchPlainForSignin, adoptBrowser };
+module.exports = { getBrowser, findChrome, firstPage, peekBrowser, launchPlain, launchPlainForSignin, adoptBrowser, dropBrowser };
