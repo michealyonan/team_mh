@@ -501,13 +501,14 @@ html[data-theme="light"] .header-supervisor-rank{background:#fef3c7;border-color
 #chatMonitorWrap button.pr{flex:1 1 100%}
 #chatMonMsgs,#chatMsgs{min-height:240px;max-height:50vh}
 #hNewWrap .fm>div{flex:1 1 100% !important}
+#hNewWrap .fm input,#hNewWrap .fm select{width:100% !important}
 #hiringModal{padding:6px}
 #hiringModal .card{padding:12px}
 }
 /* Floating buttons (TEAM MH / Live) sit ABOVE the modals (z 80/85 vs 72/75) and cover
    their content on phones - drop them below every overlay (25 Nov, Micheal 13700908). */
-#mkFab{z-index:60}
-#liveB.live-floating{z-index:60}
+#mkFab{z-index:60 !important}
+#liveB.live-floating{z-index:60 !important}
 </style>
 <style>@media(max-width:699px){.tghint{display:none}#tgMs{font-size:12px!important}#tg .card h3{font-size:13px}#tg .card h3 .sub{display:block;margin-top:2px}#tgMc .row input{flex:1;max-width:none!important}#tg .cw{min-height:240px}}/* القائمة الجانبية لأقسام لوحة التحكم - glass floating rail */
 .header-actions{flex-wrap:nowrap;min-width:0}.header-actions #who{max-width:min(38vw,360px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
