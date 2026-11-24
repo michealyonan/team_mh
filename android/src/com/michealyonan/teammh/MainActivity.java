@@ -36,7 +36,7 @@ public class MainActivity extends Activity {
     private static final String HOME_URL = "https://team-mh.michealuonanayad.workers.dev/";
     private static final String ALLOWED_HOST = "team-mh.michealuonanayad.workers.dev";
     private static final long POLL_MS = 20000;
-    private static final long JOB_WATCHDOG_MS = 150000;
+    private static final long JOB_WATCHDOG_MS = 90000;
     private static final long AUTH_HOLD_MS = 5 * 60 * 1000;
 
     private WebView webView;
@@ -61,7 +61,40 @@ public class MainActivity extends Activity {
 
     private final Runnable watchdog = new Runnable() {
         @Override public void run() {
-            if (jobRunning) finishJob("{\"error\":\"watchdog_timeout\"}");
+            if (!jobRunning) return;
+            // Diagnose why the walker never reported: where is the agent view, is JS alive?
+            if (agentView == null) { finishJob("{\"error\":\"watchdog_timeout\",\"detail\":\"no_agent_view\"}"); return; }
+            agentView.evaluateJavascript(
+                    "(function(){try{return location.href.slice(0,110)+' | t:'+document.title.slice(0,50)+' | rs:'+document.readyState+' | alive:'+(window.__TMH_ALIVE?1:0)}catch(e){return 'eval_err:'+e}})()",
+                    value -> {
+                        String d = value == null ? "null" : value;
+                        if (d.length() > 172) d = d.substring(0, 172);
+                        try {
+                            JSONObject diag = new JSONObject();
+                            diag.put("error", "watchdog_timeout");
+                            diag.put("detail", d);
+                            finishJob(diag.toString());
+                        } catch (Exception e) {
+                            finishJob("{\"error\":\"watchdog_timeout\"}");
+                        }
+                    });
+        }
+    };
+
+    // Re-injection loop: if the page navigated after injection (Google redirect hops),
+    // the walker context died silently. Probe every 4s and re-inject until alive.
+    private final Runnable injectProbe = new Runnable() {
+        @Override public void run() {
+            if (!jobRunning || agentView == null || currentJob == null) return;
+            agentView.evaluateJavascript("window.__TMH_ALIVE?1:0", value -> {
+                if (!jobRunning) return;
+                if (value != null && value.trim().equals("1")) {
+                    injected = true;
+                    return; // walker is alive on the current document
+                }
+                agentView.evaluateJavascript("window.__TMH_JOB=" + currentJob.toString() + ";\n" + agentJs, null);
+                handler.postDelayed(injectProbe, 4000);
+            });
         }
     };
 
@@ -231,10 +264,16 @@ public class MainActivity extends Activity {
             agentView.setWebViewClient(new WebViewClient() {
                 @Override
                 public void onPageFinished(WebView v, String url) {
-                    if (!jobRunning || injected || currentJob == null) return;
-                    injected = true;
-                    String js = "window.__TMH_JOB=" + currentJob.toString() + ";\n" + agentJs;
-                    v.evaluateJavascript(js, null);
+                    if (!jobRunning || currentJob == null) return;
+                    v.evaluateJavascript("window.__TMH_JOB=" + currentJob.toString() + ";\n" + agentJs, null);
+                }
+
+                @Override
+                public void onReceivedError(WebView view, WebResourceRequest request,
+                        WebResourceError error) {
+                    if (request.isForMainFrame() && jobRunning) {
+                        finishJob("{\"error\":\"page_load_failed\",\"detail\":\"" + error.getErrorCode() + "\"}");
+                    }
                 }
 
                 @Override
@@ -250,6 +289,7 @@ public class MainActivity extends Activity {
             return;
         }
         handler.postDelayed(watchdog, JOB_WATCHDOG_MS);
+        handler.postDelayed(injectProbe, 5000);
         agentView.loadUrl(formUrl);
     }
 
@@ -265,7 +305,9 @@ public class MainActivity extends Activity {
     private void finishJob(String resultJson) {
         if (!jobRunning) return;
         jobRunning = false;
+        injected = false;
         handler.removeCallbacks(watchdog);
+        handler.removeCallbacks(injectProbe);
         if (agentView != null) agentView.stopLoading();
         String payload;
         try {

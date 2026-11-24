@@ -3,6 +3,9 @@
 // hidden-input replay, executed from the phone's own Google session and IP.
 // Reads window.__TMH_JOB = {formId, fields, email}; reports via AndroidReport.report(json).
 (async function () {
+  if (window.__TMH_RUNNING) return;
+  window.__TMH_RUNNING = 1;
+  window.__TMH_ALIVE = 1;
   var R = function (o) { try { AndroidReport.report(JSON.stringify(o)); } catch (e) {} };
   try {
     var job = window.__TMH_JOB;
