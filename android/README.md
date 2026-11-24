@@ -22,3 +22,14 @@ Then copy the signed APK to the repo root as `app.apk` - the site serves it at /
 ## Keystore
 The signing keystore (team-mh.keystore) and its passwords are NOT in this repo on purpose.
 Every update MUST be signed with the same key or Android refuses the install.
+
+## v2.0 (versionCode 6) - phone-session form agent
+- Hidden second WebView runs assets/phone_form_agent.js: polls /api/forms/phone-poll
+  (Bearer token read from the dashboard WebView's web storage, NOT cookies - the worker
+  has no cookie auth), walks and submits the Google Form from the phone's own session.
+- Google sign-in happens in the main WebView (accounts.google.com/docs.google.com are
+  allowed in-app; the "; wv" marker is stripped from the UA or Google refuses sign-in).
+- v2 signing key: team-mh-v2.keystore. The v1 key is LOST (v1 installs must uninstall first).
+  v2 key password is in the owner's vault ("team_mh APK signing key v2"); the keystore
+  itself is escrowed base64 in D1 settings key apk_keystore_v2 (admin-only endpoint
+  /api/admin/apk-keystore). All future updates MUST use this key.
