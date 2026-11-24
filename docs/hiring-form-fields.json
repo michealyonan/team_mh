@@ -1,0 +1,24 @@
+{
+  "form_id": "10Qnl-WzHv7d53p7Vv70hemk4eLa-fIbj-3EHbBPwHSQ",
+  "form_e": "1FAIpQLSeOLPp1wR7MPqwORaW6mZLmOYL46gi6J7PWOn6c2Ch6B_1KbQ",
+  "title": "فورم تعينات الطيارين 2025",
+  "requires_google_signin": true,
+  "collects_email": true,
+  "fields": [
+    {"key":"office","title":"-:إسم المكتب","entry":906839457,"type":"dropdown","required":true,"opts":["Team mh for Delivery","MTA","El Abtal","Top delivery","Full Speed","El Ezz","Mobasher","Zero Zero Seven","Al Alamia","el Dawlya","El Tohami","Kaf","Speedo","Stop Car","Tanta","Tanta Car","Wakeel","Wasaly","BeCool","Moga","Turbo","Ebad El rahman","Speedy","Yalla fel Sekka","Apache","Barg","Bedaya","Noot","Super Speed","Courier for delivery","MR Delivery","A3M","SOG","Rawahel","Ready","Asphalt","Makhsos","Glesco","Ayla Express","Go Delivery","El Wafaa","El Basma","Hydwing","Galaxy","WSL"]},
+    {"key":"hire_type","title":"-:نوع التعيين","entry":84659457,"type":"dropdown","required":true,"opts":["New Hire (تعيينات جديده)","Reactivation (إعاده تفعيل)"]},
+    {"key":"sup_name","title":"اسم المشرف","entry":1966936407,"type":"text","required":true},
+    {"key":"lecture_office","title":"إسم مكتب طلبات الذي سيتم حضور المحاضره من خلاله","entry":1305847536,"type":"dropdown","required":true,"opts":["مكتب طلبات المعادي","مكتب طلبات المهندسين","مكتب طلبات المنصوره","مكتب طلبات التجمع","مكتب طلبات الأسكندريه","مكتب طلبات أكتوبر","مكتب طلبات الهرم","مكتب طلبات مدينه نصر","مكتب طلبات الشروق"]},
+    {"key":"rider_name","title":"إسم الطيار رباعي","entry":53427921,"type":"text","required":true},
+    {"key":"rider_phone","title":"رقم موبايل الطيار","entry":89197182,"type":"text","required":true},
+    {"key":"rider_nid","title":"الرقم القومي للطيار","entry":1139169754,"type":"text","required":true},
+    {"key":"license_no","title":"رقم رخصه القياده","entry":912246586,"type":"text","required":false},
+    {"key":"rider_addr","title":"عنوان الطيار من البطاقه","entry":516517283,"type":"text","required":true},
+    {"key":"vehicle","title":"نوع المركبه","entry":1526140493,"type":"dropdown","required":true,"opts":["Bike","Wallker","Bicycle","Car"]},
+    {"key":"img_license_front","title":"صوره الرخصه الوش","entry":1828901664,"type":"image","required":false},
+    {"key":"img_license_back","title":"صوره الرخصه الضهر","entry":2124118780,"type":"image","required":false},
+    {"key":"img_nid_front","title":"صوره بطاقه الطيار - الوش","entry":417770647,"type":"image","required":true},
+    {"key":"img_nid_back","title":"صوره بطاقه الطيار - الضهر","entry":157203840,"type":"image","required":true},
+    {"key":"img_personal","title":"الصوره الشخصيه للطيار","entry":1728534240,"type":"image","required":true}
+  ]
+}
