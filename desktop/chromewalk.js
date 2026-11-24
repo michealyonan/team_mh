@@ -91,15 +91,22 @@ async function pageMarker(page) {
 // if Google bounced us back with a validation error, say which one.
 async function clickNext(page, timeoutMs) {
   const before = await pageMarker(page);
-  await clickX(page, NEXT_X, timeoutMs || 15000);
-  const t0 = Date.now();
-  while (Date.now() - t0 < 8000) {
-    await sleep(120);
-    const after = await pageMarker(page);
-    if (after && after !== before) return;
+  // Two attempts: a fast second click covers a Next pressed before a dropdown
+  // selection committed (Google bounces validation but keeps the page painted).
+  for (let attempt = 0; attempt < 2; attempt++) {
+    await clickX(page, NEXT_X, attempt ? 8000 : (timeoutMs || 15000));
+    const t0 = Date.now();
+    const limit = attempt ? 5000 : 8000;
+    while (Date.now() - t0 < limit) {
+      await sleep(120);
+      const after = await pageMarker(page);
+      if (after && after !== before) return;
+    }
   }
   const err = await page.evaluate(() => {
-    const m = document.body ? document.body.innerText.match(/[^\n]*(?:مطلوب|required question)[^\n]*/i) : null;
+    // Precise error text only - the form legend ("تشير إلى أنّ السؤال مطلوب" /
+    // "Indicates required question") must NOT count as a validation error.
+    const m = document.body ? document.body.innerText.match(/[^\n]*(?:هذا السؤال مطلوب|this is a required question)[^\n]*/i) : null;
     return m ? m[0].slice(0, 120) : '';
   });
   const e = new Error('validation_blocked' + (err ? ': ' + err : ''));
@@ -116,7 +123,7 @@ async function confirmState(page) {
       const t = (document.body && document.body.innerText) || '';
       return {
         recorded: /تم تسجيل ردك|response has been recorded|إرسال رد آخر|Submit another/i.test(t),
-        required: /مطلوب|required question/i.test(t),
+        required: /هذا السؤال مطلوب|this is a required question/i.test(t),
         text: t.slice(0, 400)
       };
     });
@@ -345,11 +352,30 @@ async function runFormWalkInner(page, job) {
     try {
       await clickX(page, "//div[@role='listbox']", 15000);
       await pickOption(page, 'قفل او رفع او فتح شيفت', 15000);
+      await sleep(500);
+      // Verify the dropdown committed; re-select once if it didn't stick.
+      try {
+        const shown = await page.evaluate(() => { const lb = document.querySelector("div[role='listbox']"); return lb ? lb.textContent || '' : ''; });
+        if (shown.indexOf('قفل') < 0) {
+          await clickX(page, "//div[@role='listbox']", 8000);
+          await pickOption(page, 'قفل او رفع او فتح شيفت', 8000);
+          await sleep(500);
+        }
+      } catch (e) {}
       mark('page1:action');
       await clickNext(page);
       mark('page1:next');
       await clickX(page, "//div[@role='listbox']", 12000);
       await pickOption(page, 'فتح شيفت', 9000);
+      await sleep(500);
+      try {
+        const shown = await page.evaluate(() => { const lb = document.querySelector("div[role='listbox']"); return lb ? lb.textContent || '' : ''; });
+        if (shown.indexOf('فتح') < 0) {
+          await clickX(page, "//div[@role='listbox']", 8000);
+          await pickOption(page, 'فتح شيفت', 8000);
+          await sleep(500);
+        }
+      } catch (e) {}
       mark('page2:kind');
       const tins = await xpAll(page, "//input[@type='text']");
       // Field order on the live page: السبب, رقم المركبة, Rider ID, المدينة.

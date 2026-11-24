@@ -714,7 +714,7 @@ function buildFormJob(body) {
   const duration = String(body.duration || '').trim();
   const reason = String(body.reason || '').trim();
   const zone = String(body.zone || '').trim();
-  if (!['extend', 'break'].includes(action)) return { error: 'bad_action' };
+  if (!['extend', 'break', 'open'].includes(action)) return { error: 'bad_action' };
   if (!riderId) return { error: 'bad_rider' };
   if (!city) return { error: 'bad_city' };
   if (action === 'extend' && !duration) return { error: 'bad_duration' };
@@ -1091,7 +1091,7 @@ export default {
       if (!user) return json({error:'unauthorized'},401);
       if (!['admin','manager','sup'].includes(user.r)) return json({error:'forbidden'},403);
       const action = url.searchParams.get('action');
-      if (!['extend','break'].includes(action)) return json({error:'bad_action'},400);
+      if (!['extend','break','open'].includes(action)) return json({error:'bad_action'},400);
       await ensureSchema(env);
       const since=Date.now()-48*3600000;
       const query=user.r==='admin'
@@ -1120,7 +1120,7 @@ export default {
       if (!['admin', 'manager', 'sup'].includes(user.r)) return json({ error: 'forbidden' }, 403);
       const body = await request.json().catch(() => ({}));
       const action = String(body.action || '');
-      if (!['extend', 'break'].includes(action)) return json({ error: 'bad_action' }, 400);
+      if (!['extend', 'break', 'open'].includes(action)) return json({ error: 'bad_action' }, 400);
       const riderId = String(body.rider_id || '').replace(/[^0-9]/g, '');
       if (!riderId) return json({ error: 'bad_rider' }, 400);
       const city = String(body.city || '').trim();

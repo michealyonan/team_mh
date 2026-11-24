@@ -10,7 +10,7 @@ const { autoUpdater } = require('electron-updater');
 const { getBrowser, firstPage, peekBrowser, launchPlain, launchPlainForSignin, adoptBrowser } = require('./chromeproc');
 const { runFormWalk, clickX, pageMarker, confirmState } = require('./chromewalk');
 
-const VERSION = '0.3.9';
+const VERSION = '0.3.10';
 // App-generated black proof image for فتح شيفت uploads (64x64 PNG, written on demand).
 const BLACK_PNG_B64 = 'iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAAIklEQVR4nO3BAQ0AAADCoPdPbQ8HFAAAAAAAAAAAAAAA8G4wQAABiwCo9wAAAABJRU5ErkJggg==';
 function proofPngPath() {
@@ -99,20 +99,37 @@ function createWindow() {
     return { action: 'deny' };
   });
   mainWin.webContents.on('did-finish-load', () => { injectPanel(); });
+  mainWin.webContents.on('did-navigate-in-page', () => { injectPanel(); });
 }
 
 // Collapsible floating panel (Micheal 24 Nov: one small ⚡ tab; panel opens on tap and
-// closes after). Desktop-only; the website itself is unchanged.
+// closes after). Desktop-only; the website itself is unchanged. Only shown while a
+// site session exists; hidden on the login screen (Micheal 24 Nov).
 function injectPanel() {
+  const sessJs = "(function(){try{var t=sessionStorage.getItem('pd_token')||'';if(t)return t;var s=JSON.parse(localStorage.getItem('pd_remember_login')||'null');if(s&&s.expires>Date.now()&&s.t)return s.t;return ''}catch(e){return ''}})()";
+  mainWin.webContents.executeJavaScript(sessJs).then((tok) => {
+    if (!tok) {
+      mainWin.webContents.executeJavaScript(
+        "(function(){window.__tmhPanel=0;var b=document.getElementById('tmh-panel');if(b)b.remove();var t=document.getElementById('tmh-tab');if(t)t.remove();})()"
+      ).catch(() => {});
+      return;
+    }
+    injectPanelDom();
+  }).catch(() => {});
+}
+
+function injectPanelDom() {
   const js = `
 (function(){
   if (window.__tmhPanel || !window.tmhDesktop) return;
   window.__tmhPanel = 1;
   var tab = document.createElement('button');
+  tab.id = 'tmh-tab';
   tab.textContent = '⚡';
   tab.title = 'team_mh';
   tab.style.cssText = 'position:fixed;bottom:16px;inset-inline-start:16px;z-index:99998;width:46px;height:46px;border-radius:50%;background:#16a34a;color:#fff;border:0;font-size:22px;cursor:pointer;box-shadow:0 6px 18px #0008';
   var box = document.createElement('div');
+  box.id = 'tmh-panel';
   box.style.cssText = 'position:fixed;bottom:74px;inset-inline-start:16px;z-index:99999;background:#0f172a;border:1px solid #334155;border-radius:14px;padding:12px;color:#e2e8f0;font-family:Cairo,system-ui,sans-serif;font-size:13px;box-shadow:0 8px 24px #0009;min-width:210px;display:none';
   box.innerHTML = '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">'
     + '<div style="font-weight:800">⚡ team_mh</div>'
