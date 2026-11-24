@@ -1,6 +1,6 @@
 {
   "name": "team-mh-desktop",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "team_mh desktop app (Windows)",
   "main": "main.js",
   "author": "team_mh",
@@ -19,6 +19,8 @@
     "files": [
       "main.js",
       "walker.js",
+      "preload.js",
+      "commands.html",
       "icon.png",
       "package.json"
     ],

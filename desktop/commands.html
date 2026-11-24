@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>team_mh - مد / فك بريك</title>
+<style>
+  body{margin:0;background:#0f172a;color:#e2e8f0;font-family:Cairo,system-ui,sans-serif;padding:16px}
+  h2{margin:0 0 12px;font-size:18px}
+  label{display:block;font-size:12px;color:#94a3b8;margin:10px 0 4px}
+  input,select{width:100%;box-sizing:border-box;background:#1e293b;color:#e2e8f0;border:1px solid #334155;border-radius:10px;padding:9px 10px;font:inherit;min-height:40px}
+  .acts{display:flex;gap:8px}
+  .acts button{flex:1;padding:12px;border:1px solid #334155;border-radius:12px;background:#1e293b;color:#e2e8f0;font:inherit;font-weight:800;cursor:pointer}
+  .acts button.on{background:#1d4ed8;border-color:#3b82f6}
+  #msg{margin-top:12px;font-size:13px;min-height:20px}
+  .ok{color:#4ade80}.err{color:#f87171}
+  #send{width:100%;margin-top:14px;background:#16a34a;color:#fff;border:0;border-radius:12px;padding:12px;font:inherit;font-weight:900;cursor:pointer}
+  #send:disabled{opacity:.5;cursor:default}
+  .sub{font-size:11px;color:#64748b;margin-top:8px}
+</style>
+</head>
+<body>
+<h2>⚡ مد الشيفت / فك البريك</h2>
+<div class="acts">
+  <button id="actExt" class="on" type="button">⏫ مد الشيفت</button>
+  <button id="actBrk" type="button">☕ فك البريك</button>
+</div>
+<label for="rider">كود المندوب</label>
+<input id="rider" inputmode="numeric" placeholder="اكتب ID المندوب">
+<label for="city">المدينة</label>
+<select id="city">
+  <option value="">اختار المدينة</option>
+  <option>الإسكندرية</option>
+  <option>الغردقة</option>
+  <option>السويس</option>
+  <option>الإسماعيلية</option>
+  <option>المنصورة</option>
+  <option>المنيا</option>
+  <option>الزقازيق</option>
+</select>
+<div id="zoneWrap" style="display:none">
+  <label for="zone">الزون</label>
+  <input id="zone" placeholder="اسم الزون">
+</div>
+<div id="durWrap">
+  <label for="durSel" id="durLabel">وقت نهاية المد</label>
+  <select id="durSel"></select>
+  <input id="durTime" type="time" style="display:none">
+</div>
+<div id="reasonWrap" style="display:none">
+  <label for="reason">سبب فك البريك</label>
+  <select id="reason">
+    <option value="">اختار السبب…</option>
+    <option value="TEMP_NOT_WORKING">TEMP_NOT_WORKING</option>
+    <option value="BREAK">BREAK</option>
+  </select>
+</div>
+<button id="send" type="button">تأكيد وإرسال ✅</button>
+<div id="msg"></div>
+<div class="sub">الطلب بيتنفذ من اللابتوب ده أوتوماتيك بالحساب الصح لكل محافظة، والنتيجة بتظهر إشعار وفي السجل.</div>
+<script>
+const HOURS=[{h:0,l:'إلي 12:00 بليل'},{h:1,l:'إلي 01:00 الفجر'},{h:2,l:'إلي 02:00 الفجر'},{h:3,l:'إلي 03:00 الفجر'},{h:4,l:'إلي 04:00 الفجر'},{h:5,l:'إلي 05:00 الفجر'},{h:8,l:'إلي 08:00 الصبح'},{h:9,l:'إلي 09:00 الصبح'},{h:10,l:'إلي 10:00 الصبح'},{h:11,l:'إلي 11:00 الصبح'},{h:12,l:'إلي 12:00 الضهر'},{h:13,l:'إلي 01:00 الضهر'},{h:14,l:'إلي 02:00 الضهر'},{h:15,l:'إلي 03:00 الضهر'},{h:16,l:'إلي 04:00 العصر'},{h:17,l:'إلي 05:00 العصر'},{h:18,l:'إلي 06:00 بليل'},{h:19,l:'إلي 07:00 بليل'},{h:20,l:'إلي 08:00 بليل'},{h:21,l:'إلي 09:00 بليل'},{h:22,l:'إلي 10:00 بليل'},{h:23,l:'إلي 11:00 بليل'}];
+const $=id=>document.getElementById(id);
+let action='extend';
+function isAlex(){return $('city').value==='الإسكندرية'}
+function sync(){
+  $('actExt').classList.toggle('on',action==='extend');
+  $('actBrk').classList.toggle('on',action==='break');
+  $('durWrap').style.display=action==='extend'?'':'none';
+  $('reasonWrap').style.display=(action==='break'&&isAlex())?'':'none';
+  $('zoneWrap').style.display=['الغردقة','السويس','الإسماعيلية'].includes($('city').value)?'':'none';
+  const alexTime=action==='extend'&&isAlex();
+  $('durSel').style.display=alexTime?'none':'';
+  $('durTime').style.display=alexTime?'':'none';
+}
+$('actExt').onclick=()=>{action='extend';sync()};
+$('actBrk').onclick=()=>{action='break';sync()};
+$('city').onchange=sync;
+$('durSel').replaceChildren(new Option('اختار وقت نهاية المد…',''));HOURS.forEach(o=>$('durSel').add(new Option(o.l,o.l)));
+sync();
+$('send').onclick=async()=>{
+  const m=$('msg');m.className='';m.textContent='';
+  const rider=$('rider').value.trim(),city=$('city').value;
+  if(!/^\d{1,15}$/.test(rider)){m.className='err';m.textContent='اكتب كود مندوب صحيح';return}
+  if(!city){m.className='err';m.textContent='اختار المدينة';return}
+  let duration='';
+  if(action==='extend'){duration=isAlex()?$('durTime').value:$('durSel').value;if(!duration){m.className='err';m.textContent='اختار وقت نهاية المد';return}}
+  let reason='';
+  if(action==='break'&&isAlex()){reason=$('reason').value;if(!reason){m.className='err';m.textContent='اختار سبب فك البريك';return}}
+  $('send').disabled=true;m.textContent='بيضاف للطابور…';
+  try{
+    const r=await window.tmhDesktop.enqueue({action,rider_id:rider,city,zone:$('zone').value.trim(),duration,reason,manual:true});
+    m.className='ok';m.textContent='📲 اتضاف للطابور - هيتنفذ أوتوماتيك والنتيجة هتوصلك إشعار';
+    $('rider').value='';
+  }catch(e){
+    const emap={already_queued:'نفس الطلب موجود بالفعل في الطابور',rate_limited:'تباعد حماية: استنى شوية وجرّب تاني',bad_duration_format:'صيغة الوقت مش صح',bad_reason:'اختار سبب فك البريك',bad_duration:'اختار وقت نهاية المد',unauthorized:'سجّل دخولك للموقع الأول في النافذة الرئيسية'};
+    const em=String(e.message||e);m.className='err';m.textContent=emap[em]||('فشل: '+em);
+  }finally{$('send').disabled=false}
+};
+</script>
+</body>
+</html>
