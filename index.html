@@ -41,6 +41,7 @@ main{width:100%;max-width:none;margin:auto;padding:12px 18px;display:grid;gap:12
 .multi-filter-native{display:none!important}
 .multi-filter{position:relative;min-width:0;width:100%;z-index:1}
 .multi-filter.is-open{z-index:30}
+.card:has(.multi-filter.is-open){position:relative;z-index:40}
 .multi-filter-toggle{width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;text-align:start;min-width:0}
 .multi-filter-toggle span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .multi-filter-menu{position:absolute;top:calc(100% + 4px);inset-inline:0;z-index:1000;min-width:min(300px,calc(100vw - 24px));max-width:calc(100vw - 24px);max-height:min(360px,70vh);display:flex;flex-direction:column;gap:8px;padding:9px;background:var(--card);border:1px solid var(--bd);border-radius:12px;box-shadow:0 12px 30px #0009}
