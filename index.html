@@ -1516,6 +1516,7 @@ header{box-shadow:0 8px 24px rgba(2,8,23,.5)}
 <div class="fm"><input id="nu" placeholder="اسم المستخدم" autocapitalize="off"><input id="nn" placeholder="الاسم الظاهر"><select id="nr"><option value="sup">مشرف</option><option value="manager">مدير منطقة</option><option value="monitor">مشرف متابعة</option><option value="viewer">مشاهد (عدة مشرفين)</option><option value="admin">أدمن</option></select><select id="nz" title="فلتر بالمنطقة"></select><select id="ns"></select><input id="np" type="text" placeholder="كلمة المرور (فاضية = تفضل زي ما هي)"><button class="btn pr" id="na">➕ إضافة / تحديث</button></div>
 <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button class="btn pr" type="button" onclick="openContacts()">📇 دليل الاتصالات</button><button class="btn" type="button" onclick="copyContacts()">📋 نسخ كل الأرقام والإيميلات</button><button class="btn" type="button" id="recB" onclick="toggleRec()">🆘 طلبات استرجاع كلمة المرور</button></div><input id="us" placeholder="🔍 ابحث بالمشرف أو الاسم أو المستخدم أو المنطقة..." style="width:100%;margin:10px 0"><div class="tw rt3" style="max-height:45vh"><table style="min-width:600px"><thead><tr><th>الاسم</th><th>المستخدم</th><th>الدور</th><th>مرتبط بـ</th><th>كلمة المرور</th><th></th></tr></thead><tbody id="ut"></tbody></table></div>
 <div id="recWrap" style="margin:12px 0;display:none"><h4 style="margin:6px 0">🆘 طلبات استرجاع كلمة المرور</h4><div id="recList" class="sub">مفيش طلبات معلّقة</div></div><div class="sub" id="gst" style="margin:10px 0 4px;font-weight:700"></div><button class="btn pr" id="downloadUpdated">⬇️ تحميل نسخة احتياطية من المستخدمين</button> <button class="btn" id="nx">📥 تحميل ملف اليوزرات والباسوردات</button> <button class="btn" id="exportSupervisors">⬇️ تحميل أسماء المشرفين</button></div></div>
+<div id="vwModal" style="display:none;position:fixed;inset:0;background:#000c;z-index:75;overflow:auto;padding:12px" onclick="if(event.target===this)this.style.display='none'"><div class="card" style="max-width:520px;margin:auto"><div class="row"><h3 id="vwTitle" style="margin:0">👁 اختار المشرفين</h3><button class="btn" style="margin-inline-start:auto" onclick="$('vwModal').style.display='none'">✕</button></div><input id="vwSearch" type="search" placeholder="🔎 ابحث باسم المشرف" style="width:100%;margin:8px 0" oninput="vwRender()"><div id="vwList" style="max-height:50vh;overflow:auto;display:flex;flex-direction:column;gap:6px"></div><div class="row" style="margin-top:10px;align-items:center"><button class="btn pr" id="vwSave" type="button">💾 حفظ</button><span class="sub" id="vwCount" style="margin:0"></span></div></div></div>
 <div id="bm" style="display:none;position:fixed;inset:0;background:#000c;z-index:55;overflow:auto;padding:12px" onclick="if(event.target===this)this.style.display='none'"><div class="card" style="max-width:1100px;margin:auto"><div class="row"><h3 id="bmt" style="margin:0"></h3><button class="btn pr" id="bmx" onclick="exportDrillExcel()">⬇ تصدير Excel</button><button class="btn" style="margin-inline-start:auto" onclick="$('bm').style.display='none'">✕</button></div><div id="bms" class="sub" style="margin:8px 0"></div><div class="tw" style="max-height:65vh"><table style="min-width:0"><thead id="bmh"><tr><th>#</th><th>الكود</th><th>الاسم</th><th>المنطقة</th><th>المشرف</th><th>المركبة</th><th>أيام</th><th>ساعات مخططة</th><th>ساعات فعلية</th><th>طلبات</th><th>الالتزام</th><th>طلب/س</th></tr></thead><tbody id="bmb"></tbody></table></div></div></div>
 <div id="pm" style="display:none;position:fixed;inset:0;background:#000c;z-index:70;overflow:auto;padding:12px" onclick="if(event.target===this)this.style.display='none'"><div class="card" style="max-width:820px;margin:auto"><div class="row"><h3 style="margin:0">💰 أسعار الباتشات (سعر الطلب بالجنيه) لكل مشرف</h3><button class="btn" style="margin-inline-start:auto" onclick="$('pm').style.display='none'">✕</button></div><div class="row" style="margin:10px 0"><label style="font-weight:700">👷 المشرف</label><select id="psS" style="flex:1;min-width:0"></select></div><div class="tw" style="max-height:60vh"><table style="min-width:0"><thead id="ph"></thead><tbody id="pb"></tbody></table></div><div class="sub" style="margin:10px 0">كل مشرف له أسعاره الخاصة ومفيش أي ارتباط بينه وبين باقي المشرفين. القبض التقريبي = عدد الطلبات × سعر (باتش الطيار + مركبته) حسب مشرف الطيار. الأسعار بتتحفظ على هذا الجهاز؛ علشان تتطبق على كل الأجهزة اضغط "نسخ الكود" واستبدل به سطر <b>PRICES_EMBED</b> في الملف.</div><button class="btn pr" id="ps">💾 حفظ</button> <button class="btn" id="pc">📋 نسخ كود الأسعار</button></div></div>
 <div class="ov" id="tg" style="display:none;z-index:80;padding:0;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch">
@@ -3585,22 +3586,24 @@ async function unlockV(){if(!VAULT||VL)return;const p=prompt('اكتب كلمة 
   try{const m=await vDec(VAULT,p);VP=p;const b=getPW();for(const k in m)if(!b[k])b[k]=m[k];localStorage.setItem('pd_pw',JSON.stringify(b));VL=1}catch(e){alert('كلمة سر الخزنة غلط')}}
 /* ---------- users page (admin) ---------- */
 function zOf(k,nm){return [...new Set(ALL.filter(r=>r[k]===nm).map(r=>r.z).filter(Boolean))]}
-function sc(){const r=$('nr').value,k=r==='manager'?'m':'s',na=['admin','monitor'].includes(r),zs=uniq('z',ALL),cz=$('nz').value;
+function sc(){const r=$('nr').value,k=r==='manager'?'m':'s',na=['admin','monitor','viewer'].includes(r),zs=uniq('z',ALL),cz=$('nz').value;
   $('nz').style.display=na?'none':'';$('ns').style.display=na?'none':'';
   $('nz').innerHTML='<option value="">كل المناطق</option>'+zs.map(x=>`<option${x===cz?' selected':''}>${esc(x)}</option>`).join('');
   const prev=$('ns').value,list=uniq(k,$('nz').value?ALL.filter(x=>x.z===$('nz').value):ALL);
-  $('ns').innerHTML=na?'':list.map(x=>`<option>${esc(x)}</option>`).join('');if(list.includes(prev))$('ns').value=prev}
+  const ph=r==='manager'?'اختر مدير المنطقة':'اختر المشرف';
+  $('ns').innerHTML=na?'':`<option value="">${ph}</option>`+list.map(x=>`<option>${esc(x)}</option>`).join('');$('ns').value=list.includes(prev)?prev:''}
 function pwCell(x){const p=getPW()[x.u.toLowerCase()];return p?`<span dir="ltr" style="cursor:pointer" data-p="${esc(p)}" onclick="if(this.dataset.s){this.textContent='••••••';this.dataset.s=''}else{this.textContent=this.dataset.p;this.dataset.s='1'}">••••••</span>`:'<span class="sub" style="margin:0">غير معروفة</span>'}
 function ru(){gstat();const q=($('us').value||'').trim().toLowerCase();
   $('ut').innerHTML=getU().map((x,i)=>({x,i,z:['admin','monitor'].includes(x.r)?[]:zOf(x.r==='manager'?'m':'s',x.s)})).filter(({x,z})=>!q||[x.n,x.u,x.s,ROLE[x.r],x.email,x.phone,...z].join(' ').toLowerCase().includes(q))
-  .map(({x,i,z})=>`<tr><td>${esc(x.n)}${x.status==='suspended'?' <span title="حساب موقوف">🔒</span>':''}</td><td>${esc(x.u)}</td><td>${ROLE[x.r]}</td><td>${esc(x.r==='monitor'?'كل المحافظات ما عدا القاهرة':x.s||'—')}${x.email?`<div class="sub" style="margin:0" dir="ltr">✉️ ${esc(x.email)}${x.phone?' · 📱 '+esc(x.phone):''}${x.channel?' · '+(x.channel==='whatsapp'?'واتساب':'جيميل'):''}</div>`:''}</td><td>${pwCell(x)}</td><td style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn" onclick="eu(${i})">✏️</button><button class="btn" title="توليد كود تفعيل" onclick="genInvite(${i})">🔑</button><button class="btn" onclick="du(${i})">🗑</button>${x.status==='suspended'?`<button class="btn pr" title="إعادة تفعيل الحساب الموقوف" onclick="reU(${i})">🔓</button>`:''}${x.r==='viewer'?`<button class="btn" title="تحديد المشرفين المسموح مشاهدتهم" onclick="vwA(${i})">👁</button>`:''}${INV_CODES[x.u]?`<button class="btn pr" style="letter-spacing:2px" title="اتولّد واتنسخ — دوس للنسخ" onclick="copyInvite('${x.u}')">${INV_CODES[x.u]}</button>`:''}</td></tr>`).join('')||'<tr><td colspan="6">مفيش نتائج</td></tr>';{const H=['الاسم','المستخدم','الدور','مرتبط بـ','كلمة المرور',''];[...$('ut').rows].forEach(r=>[...r.cells].forEach((c,j)=>c.dataset.l=H[j]))}}
+  .map(({x,i,z})=>`<tr><td>${esc(x.n)}${x.status==='suspended'?' <span title="حساب موقوف">🔒</span>':''}</td><td>${esc(x.u)}</td><td>${ROLE[x.r]}</td><td>${esc(x.r==='monitor'?'كل المحافظات ما عدا القاهرة':x.r==='viewer'?'👁 عدة مشرفين':x.s||'—')}${x.email?`<div class="sub" style="margin:0" dir="ltr">✉️ ${esc(x.email)}${x.phone?' · 📱 '+esc(x.phone):''}${x.channel?' · '+(x.channel==='whatsapp'?'واتساب':'جيميل'):''}</div>`:''}</td><td>${pwCell(x)}</td><td style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn" onclick="eu(${i})">✏️</button><button class="btn" title="توليد كود تفعيل" onclick="genInvite(${i})">🔑</button><button class="btn" onclick="du(${i})">🗑</button>${x.status==='suspended'?`<button class="btn pr" title="إعادة تفعيل الحساب الموقوف" onclick="reU(${i})">🔓</button>`:''}${x.r==='viewer'?`<button class="btn" title="تحديد المشرفين المسموح مشاهدتهم" onclick="vwA(${i})">👁</button>`:''}${INV_CODES[x.u]?`<button class="btn pr" style="letter-spacing:2px" title="اتولّد واتنسخ — دوس للنسخ" onclick="copyInvite('${x.u}')">${INV_CODES[x.u]}</button>`:''}</td></tr>`).join('')||'<tr><td colspan="6">مفيش نتائج</td></tr>';{const H=['الاسم','المستخدم','الدور','مرتبط بـ','كلمة المرور',''];[...$('ut').rows].forEach(r=>[...r.cells].forEach((c,j)=>c.dataset.l=H[j]))}}
 async function reU(i){if(!CUR||CUR.r!=='admin')return;const a=getU();try{await api('/api/auth/admin/users/reactivate',{method:'POST',body:{u:a[i].u}});await refreshUsers();ru()}catch(e){alert('تعذّرت إعادة التفعيل: '+authErr(e))}}
 async function du(i){if(!CUR||CUR.r!=='admin')return;const a=getU();if(a[i].r==='admin'&&a.filter(x=>x.r==='admin').length<2)return alert('لازم يفضل أدمن واحد على الأقل');if(!confirm('حذف '+a[i].n+'؟'))return;try{await api('/api/auth/admin/users/delete',{method:'POST',body:{u:a[i].u}});setPW(a[i].u,null);if(EDITING_USER===a[i].u.toLowerCase()){EDITING_USER=null;$('na').textContent='➕ إضافة / تحديث'}await refreshUsers();ru()}catch(e){alert('تعذّر الحذف: '+authErr(e))}}
 $('usrB').onclick=async()=>{if(!CUR||CUR.r!=='admin')return;$('um').style.display='block';sc();await refreshUsers();ru();renderRecoveries()};
 $('nr').onchange=()=>{$('nz').value='';sc()};$('nz').onchange=sc;$('us').oninput=ru;
 let EDITING_USER=null;
-$('na').onclick=async()=>{if(!CUR||CUR.r!=='admin')return;const u=$('nu').value.trim().toLowerCase(),p0=$('np').value,r=$('nr').value,s=['admin','monitor'].includes(r)?'':$('ns').value,n=$('nn').value.trim()||u;
+$('na').onclick=async()=>{if(!CUR||CUR.r!=='admin')return;const u=$('nu').value.trim().toLowerCase(),p0=$('np').value,r=$('nr').value,s=['admin','monitor','viewer'].includes(r)?'':$('ns').value,n=$('nn').value.trim()||u;
   if(!u)return alert('اكتب اسم المستخدم');
+  if(!['admin','monitor','viewer'].includes(r)&&!s)return alert(r==='manager'?'اختار مدير المنطقة من القايمة الأول':'اختار المشرف من القايمة الأول');
   const a=getU(),i=EDITING_USER?a.findIndex(y=>y.u.toLowerCase()===EDITING_USER):a.findIndex(y=>y.u.toLowerCase()===u);
   if(EDITING_USER&&i<0)return alert('الحساب الجاري تعديله لم يعد موجودًا. حدّث القائمة وحاول مرة أخرى.');
   if(a.some((y,j)=>j!==i&&y.u.toLowerCase()===u))return alert('اسم المستخدم مستخدم بالفعل.');
@@ -3611,6 +3614,7 @@ $('na').onclick=async()=>{if(!CUR||CUR.r!=='admin')return;const u=$('nu').value.
     else{if(p0)setPW(u,p0);alert(p0?'اتحدّث الحساب وكلمة المرور اتغيرت.':'اتحدّث الحساب. كلمة المرور زي ما هي (متغيرتش).')}
     if(EDITING_USER&&EDITING_USER!==u)setPW(EDITING_USER,null);
     EDITING_USER=null;$('na').textContent='➕ إضافة / تحديث';['nu','nn','np'].forEach(k=>$(k).value='');await refreshUsers();ru();
+    if(r==='viewer'){const vi=getU().findIndex(y=>y.u.toLowerCase()===u);if(vi>=0)vwA(vi)}
   }catch(e){alert('تعذّر الحفظ: '+authErr(e))}};
 async function usersPayload(){
   let vault=VAULT||null;const b=getPW();
@@ -6195,14 +6199,27 @@ async function initViewer(x){
   sel.onchange=()=>{CUR.s=sel.value;load()};
  }catch(e){}
 }
+let VW_U=null,VW_SET=new Set(),VW_ROWS=[];
 async function vwA(i){
  if(!CUR||CUR.r!=='admin')return;const a=getU();
- let cur={sups:[]};try{cur=await api('/api/auth/viewer-access?u='+encodeURIComponent(a[i].u))}catch(e){}
- const v=prompt('أسماء المشرفين اللي "'+a[i].n+'" يقدر يشوفهم (افصل بينهم بفاصلة):',(cur.sups||[]).join('، '));
- if(v===null)return;
- const sups=v.split(/[،,]/).map(t=>t.trim()).filter(Boolean);
- try{await api('/api/auth/admin/viewer-access',{method:'POST',body:{u:a[i].u,sups}});alert('اتحفظ ✅ ('+sups.length+' مشرف)')}catch(e){alert('تعذّر الحفظ: '+authErr(e))}
+ VW_U=a[i].u;
+ let cur={sups:[]};try{cur=await api('/api/auth/viewer-access?u='+encodeURIComponent(VW_U))}catch(e){}
+ VW_SET=new Set(cur.sups||[]);
+ $('vwTitle').textContent='👁 المشرفين اللي "'+a[i].n+'" يشوفهم';
+ $('vwSearch').value='';$('vwModal').style.display='block';
+ vwRender();
 }
+function vwRender(){
+ const q=($('vwSearch').value||'').trim();
+ VW_ROWS=uniq('s',ALL).filter(nm=>!q||nm.includes(q));
+ $('vwList').innerHTML=VW_ROWS.map((nm,i)=>`<label class="btn" style="display:flex;align-items:center;gap:8px;text-align:right;cursor:pointer;font-weight:400"><input type="checkbox" ${VW_SET.has(nm)?'checked':''} onchange="vwToggle(${i},this.checked)" style="width:18px;height:18px;accent-color:#22c55e"><span>${esc(nm)}</span></label>`).join('')||'<div class="sub">مفيش مشرفين بالاسم ده</div>';
+ $('vwCount').textContent=NF(VW_SET.size)+' مشرف مختار';
+}
+function vwToggle(i,on){const nm=VW_ROWS[i];if(!nm)return;if(on)VW_SET.add(nm);else VW_SET.delete(nm);$('vwCount').textContent=NF(VW_SET.size)+' مشرف مختار'}
+$('vwSave').onclick=async()=>{
+ if(!VW_U)return;
+ try{await api('/api/auth/admin/viewer-access',{method:'POST',body:{u:VW_U,sups:[...VW_SET]}});$('vwModal').style.display='none';alert('اتحفظ ✅ ('+VW_SET.size+' مشرف)')}catch(e){alert('تعذّر الحفظ: '+authErr(e))}
+};
 async function openContacts(){$('contactsModal').style.display='';$('cstat').textContent='جاري التحميل…';try{await refreshUsers()}catch(e){}renderContacts()}
 function renderContacts(){
  const q=($('cs').value||'').trim().toLowerCase();
