@@ -10,7 +10,14 @@ const { autoUpdater } = require('electron-updater');
 const { getBrowser, firstPage, peekBrowser } = require('./chromeproc');
 const { runFormWalk, clickX, pageMarker, confirmState } = require('./chromewalk');
 
-const VERSION = '0.3.6';
+const VERSION = '0.3.7';
+// App-generated black proof image for فتح شيفت uploads (64x64 PNG, written on demand).
+const BLACK_PNG_B64 = 'iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAAIklEQVR4nO3BAQ0AAADCoPdPbQ8HFAAAAAAAAAAAAAAA8G4wQAABiwCo9wAAAABJRU5ErkJggg==';
+function proofPngPath() {
+  const p = path.join(app.getPath('userData'), 'tmh-proof-black.png');
+  try { if (!fs.existsSync(p)) fs.writeFileSync(p, Buffer.from(BLACK_PNG_B64, 'base64')); } catch (e) {}
+  return p;
+}
 const SITE = 'https://team-mh.michealuonanayad.workers.dev';
 const FORMS = {
   alex: { url: 'https://docs.google.com/forms/u/0/d/e/1FAIpQLSffSwyTh0w4AYjTU9AG-kj-0UfJHcSTSYnR1DrWJ_h8iPYm3Q/viewform', email: 'alexlogistics.teammh101@gmail.com' },
@@ -383,18 +390,25 @@ ipcMain.handle('tmh-run-local', async (_e, payload) => {
   const riderId = String(p.rider_id || '').replace(/[^0-9]/g, '');
   const city = String(p.city || '').trim();
   const duration = String(p.duration || '').trim();
-  const reason = String(p.reason || '').trim();
-  if (!['extend', 'break'].includes(action)) return { ok: false, error: 'bad_action' };
+  let reason = String(p.reason || '').trim();
+  if (!['extend', 'break', 'open'].includes(action)) return { ok: false, error: 'bad_action' };
   if (!riderId) return { ok: false, error: 'bad_rider' };
   if (!city) return { ok: false, error: 'bad_city' };
   if (action === 'extend' && !duration) return { ok: false, error: 'bad_duration' };
   const isAlex = city === 'الإسكندرية';
   if (action === 'break' && isAlex && !reason) return { ok: false, error: 'bad_reason' };
-  const dur = parseDuration(action, isAlex, duration);
+  // فتح شيفت: Delta form only, needs the vehicle number; reason defaults to موجود في الزون.
+  const vehicle = String(p.vehicle || '').trim();
+  if (action === 'open') {
+    if (isAlex) return { ok: false, error: 'open_not_alex' };
+    if (!vehicle) return { ok: false, error: 'bad_vehicle' };
+    if (!reason) reason = 'موجود في الزون';
+  }
+  const dur = action === 'open' ? {} : parseDuration(action, isAlex, duration);
   if (dur.error) return { ok: false, error: dur.error };
   // Zone = city everywhere (Micheal 24 Nov); keep the form's expected spelling for الغردقة.
   const cityVal = city === 'الغردقة' ? 'الغرادقه' : city;
-  const label = (action === 'break' ? 'فك بريك' : 'مد الشيفت') + ' - ' + riderId;
+  const label = (action === 'break' ? 'فك بريك' : action === 'open' ? 'فتح شيفت' : 'مد الشيفت') + ' - ' + riderId;
 
   if (busy) return { ok: false, error: 'busy' };
   busy = true;
@@ -410,7 +424,7 @@ ipcMain.handle('tmh-run-local', async (_e, payload) => {
     }
     lastRunAt = Date.now();
 
-    const group = isAlex ? 'alex' : 'delta';
+    const group = (isAlex && action !== 'open') ? 'alex' : 'delta';
     const cfg = FORMS[group];
     progress('launch', {});
     let browser;
@@ -460,7 +474,7 @@ ipcMain.handle('tmh-run-local', async (_e, payload) => {
       }
 
       progress('walking', {});
-      const job = Object.assign({ isAlex, action, riderId, city, cityVal, reason, duration }, dur);
+      const job = Object.assign({ isAlex: isAlex && action !== 'open', isOpen: action === 'open', action, riderId, city, cityVal, reason, duration, vehicle, proofPath: action === 'open' ? proofPngPath() : '' }, dur);
       let res;
       try {
         res = await Promise.race([
@@ -485,11 +499,11 @@ ipcMain.handle('tmh-run-local', async (_e, payload) => {
       else if (res && res.uncertain) notify('team_mh ⚠️', 'مش متأكد: ' + label + ' - اتأكد من الشيت قبل ما تعيد الطلب');
       else notify('team_mh ❌', 'فشل: ' + label + ' (' + ((res && res.error) || 'unknown') + ')');
       appendHistory({
-        ts: Date.now(), action, riderId, city, duration, reason,
+        ts: Date.now(), action, riderId, city, duration, reason, vehicle,
         ok: !!(res && res.ok), error: (res && res.error) || '', uncertain: !!(res && res.uncertain),
         submitted: !!(res && res.submitted), detail: (res && res.detail || '').slice(0, 400)
       });
-      logDirect({ action, rider_id: riderId, city, duration, reason, result: res });
+      logDirect({ action, rider_id: riderId, city, duration, reason, vehicle, result: res });
       return res || { ok: false, error: 'no_result', submitted: false };
     } finally {
       // The tab ALWAYS stays open and warm for the next run (Micheal 24 Nov: speed).

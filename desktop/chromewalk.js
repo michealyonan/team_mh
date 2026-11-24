@@ -139,6 +139,39 @@ async function waitConfirmation(page, timeoutMs) {
   return { ok: false, error: 'unconfirmed', uncertain: true, submitted: false, detail: 'no confirmation within ' + (timeoutMs || 15000) + 'ms' };
 }
 
+// Google Forms file upload: click 'إضافة ملف', find the <input type=file> inside
+// the Docs picker iframe, CDP-upload the file, then wait for the picker to close
+// (chip back on the question). No Drive UI driving needed.
+async function uploadProof(page, filePath) {
+  await clickX(page, "//span[contains(text(), 'إضافة ملف') or contains(text(), 'Add file')]", 12000);
+  const t0 = Date.now();
+  let input = null;
+  while (Date.now() - t0 < 20000 && !input) {
+    for (const f of page.frames()) {
+      try { input = await f.$("input[type='file']"); } catch (e) {}
+      if (input) break;
+    }
+    if (!input) await sleep(500);
+  }
+  if (!input) { const e = new Error('upload_input_not_found'); e.detail = 'file picker never appeared'; throw e; }
+  await input.uploadFile(filePath);
+  // Wait until the picker frame detaches (upload accepted back into the form).
+  const t1 = Date.now();
+  while (Date.now() - t1 < 45000) {
+    let pickerOpen = false;
+    for (const f of page.frames()) {
+      try { if (/picker|docs\.google/.test(f.url()) && await f.$("input[type='file']")) pickerOpen = true; } catch (e) {}
+    }
+    if (!pickerOpen) return;
+    await sleep(800);
+  }
+  // Picker still open: try its confirm button once, then give up as uncertain.
+  try {
+    await clickX(page, "//span[contains(text(), 'تحميل') or contains(text(), 'Upload') or contains(text(), 'إدخال') or contains(text(), 'Select')]", 4000);
+  } catch (e) {}
+  await sleep(3000);
+}
+
 async function runFormWalk(page, job) {
   try {
     return await runFormWalkInner(page, job);
@@ -230,7 +263,7 @@ async function runFormWalkInner(page, job) {
         }
       } catch (e) {}
     }
-  } else {
+  } else if (!job.isOpen) {
     // ---- Delta cities (process_request) ----
     try {
       await clickX(page, "//div[@role='listbox']", 15000);
@@ -283,6 +316,31 @@ async function runFormWalkInner(page, job) {
       }
       mark('page2:rider-city');
     } catch (e) {}
+  }
+
+  if (job.isOpen) {
+    // ---- فتح شيفت (Delta form, 24 Nov): page 1 listbox -> 'قفل او رفع او فتح شيفت',
+    // page 2: kind listbox (فتح شيفت), السبب / رقم المركبة / Rider ID / المدينة texts,
+    // الإثبات file upload (app-generated black proof image).
+    try {
+      await clickX(page, "//div[@role='listbox']", 15000);
+      await pickOption(page, 'قفل او رفع او فتح شيفت', 15000);
+      mark('page1:action');
+      await clickNext(page);
+      mark('page1:next');
+      await clickX(page, "//div[@role='listbox']", 12000);
+      await pickOption(page, 'فتح شيفت', 9000);
+      mark('page2:kind');
+      const tins = await xpAll(page, "//input[@type='text']");
+      // Field order on the live page: السبب, رقم المركبة, Rider ID, المدينة.
+      const vals = [job.reason, job.vehicle, job.riderId, job.cityVal];
+      for (let i = 0; i < tins.length && i < vals.length; i++) {
+        if (vals[i]) await typeIn(page, tins[i], vals[i]);
+      }
+      mark('page2:fields');
+      await uploadProof(page, job.proofPath);
+      mark('page2:upload');
+    } catch (e) { fail(e); }
   }
 
   // Submit (never in test/dry mode - real submissions only on Micheal's explicit taps).

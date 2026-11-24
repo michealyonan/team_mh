@@ -28,6 +28,7 @@
 <div class="acts">
   <button id="actExt" class="on" type="button">⏫ مد الشيفت</button>
   <button id="actBrk" type="button">☕ فك البريك</button>
+  <button id="actOpen" type="button">🔓 فتح شيفت</button>
 </div>
 <label for="rider">كود المندوب</label>
 <input id="rider" inputmode="numeric" placeholder="اكتب ID المندوب">
@@ -42,6 +43,14 @@
   <option>المنيا</option>
   <option>الزقازيق</option>
 </select>
+<div id="vehWrap" style="display:none">
+  <label for="vehicle">رقم المركبة</label>
+  <input id="vehicle" placeholder="اكتب رقم المركبة">
+</div>
+<div id="openReasonWrap" style="display:none">
+  <label for="openReason">السبب</label>
+  <input id="openReason" value="موجود في الزون">
+</div>
 <div id="durWrap">
   <label for="durSel" id="durLabel">وقت نهاية المد</label>
   <select id="durSel"></select>
@@ -61,7 +70,7 @@
 <button id="histBtn" type="button">📋 حالة الطلبات</button>
 <div id="histWrap" style="display:none">
   <div style="display:flex;gap:8px;margin-top:10px">
-    <select id="histAction"><option value="">كل العمليات</option><option value="extend">مد الشيفت</option><option value="break">فك البريك</option></select>
+    <select id="histAction"><option value="">كل العمليات</option><option value="extend">مد الشيفت</option><option value="break">فك البريك</option><option value="open">فتح شيفت</option></select>
     <select id="histCity"><option value="">كل المدن</option><option>الإسكندرية</option><option>الغردقة</option><option>السويس</option><option>الإسماعيلية</option><option>المنصورة</option><option>المنيا</option><option>الزقازيق</option></select>
   </div>
   <div id="histNote" class="sub"></div>
@@ -79,14 +88,19 @@ function isAlex(){return $('city').value==='الإسكندرية'}
 function sync(){
   $('actExt').classList.toggle('on',action==='extend');
   $('actBrk').classList.toggle('on',action==='break');
+  $('actOpen').classList.toggle('on',action==='open');
+  const open=action==='open';
   $('durWrap').style.display=action==='extend'?'':'none';
   $('reasonWrap').style.display=(action==='break'&&isAlex())?'':'none';
+  $('vehWrap').style.display=open?'':'none';
+  $('openReasonWrap').style.display=open?'':'none';
   const alexTime=action==='extend'&&isAlex();
   $('durSel').style.display=alexTime?'none':'';
   $('durTime').style.display=alexTime?'':'none';
 }
 $('actExt').onclick=()=>{action='extend';sync()};
 $('actBrk').onclick=()=>{action='break';sync()};
+$('actOpen').onclick=()=>{action='open';sync()};
 $('city').onchange=sync;
 $('durSel').replaceChildren(new Option('اختار وقت نهاية المد…',''));HOURS.forEach(o=>$('durSel').add(new Option(o.l,o.l)));
 sync();
@@ -111,12 +125,19 @@ $('send').onclick=async()=>{
   if(action==='extend'){duration=isAlex()?$('durTime').value:$('durSel').value;if(!duration){say('err','اختار وقت نهاية المد');return}}
   let reason='';
   if(action==='break'&&isAlex()){reason=$('reason').value;if(!reason){say('err','اختار سبب فك البريك');return}}
+  let vehicle='';
+  if(action==='open'){
+    if(isAlex()){say('err','فتح الشيفت متاح لمدن الدلتا بس (مش الإسكندرية)');return}
+    vehicle=$('vehicle').value.trim();
+    if(!vehicle){say('err','اكتب رقم المركبة');return}
+    reason=$('openReason').value.trim()||'موجود في الزون';
+  }
   $('send').disabled=true;
   say('','🚀 بيجهز التنفيذ…');
   try{
-    const r=await window.tmhDesktop.runLocal({action,rider_id:rider,city,duration,reason});
+    const r=await window.tmhDesktop.runLocal({action,rider_id:rider,city,duration,reason,vehicle});
     if(r&&r.ok){
-      say('ok','✅ تم: '+(action==='break'?'فك بريك':'مد الشيفت')+' - '+rider);
+      say('ok','✅ تم: '+(action==='break'?'فك بريك':action==='open'?'فتح شيفت':'مد الشيفت')+' - '+rider);
       $('rider').value='';
     }else{
       const em=String((r&&r.error)||'unknown');
@@ -134,7 +155,9 @@ $('send').onclick=async()=>{
         did_not_advance:'الفورم ماإكدش الإرسال (ممكن حجب مؤقت من جوجل) - جرّب بعد شوية',
         watchdog_timeout:'مش متأكد لو الطلب اتبعت (التنفيذ خد وقت طويل) - اتأكد من الشيت قبل ما تعيد',
         unconfirmed:'⚠️ غير مؤكد: ممكن الطلب يكون اتبعت - اتأكد من الشيت أو الجدول قبل ما تعيد',
-        bad_rider:'اكتب كود مندوب صحيح',bad_city:'اختار المدينة',bad_duration:'اختار وقت نهاية المد',bad_reason:'اختار سبب فك البريك',bad_duration_format:'صيغة الوقت مش صح'
+        bad_rider:'اكتب كود مندوب صحيح',bad_city:'اختار المدينة',bad_duration:'اختار وقت نهاية المد',bad_reason:'اختار سبب فك البريك',bad_duration_format:'صيغة الوقت مش صح',
+        bad_vehicle:'اكتب رقم المركبة',open_not_alex:'فتح الشيفت متاح لمدن الدلتا بس (مش الإسكندرية)',
+        upload_input_not_found:'نافذة رفع الإثبات مافتحتش - جرّب تاني'
       };
       say('err',(emap[em]||('فشل: '+em))+(r&&r.detail?(' — '+String(r.detail).slice(0,180)):''));
     }
@@ -180,7 +203,7 @@ async function renderHistory(){
       else if(/مرفوض|رفض/.test(s))appr='<span class="st-bad">'+esc(s)+(sh.rejectReason?' ('+esc(sh.rejectReason)+')':'')+'</span>';
       else appr='<span class="st-wait">'+esc(s)+'</span>';
     }
-    return '<tr><td>'+fmtTs(r.ts)+'</td><td>'+esc(r.riderId)+'</td><td>'+(r.action==='break'?'☕ فك':'⏫ مد')+'</td><td>'+esc(r.city)+'</td><td>'+local+'</td><td>'+appr+'</td></tr>';
+    return '<tr><td>'+fmtTs(r.ts)+'</td><td>'+esc(r.riderId)+'</td><td>'+(r.action==='break'?'☕ فك':r.action==='open'?'🔓 فتح':'⏫ مد')+'</td><td>'+esc(r.city)+'</td><td>'+local+'</td><td>'+appr+'</td></tr>';
   }).join('')||'<tr><td colspan="6" style="color:#64748b;text-align:center">لا طلبات لسه</td></tr>';
 }
 $('histBtn').onclick=async()=>{
