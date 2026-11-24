@@ -10,7 +10,7 @@ const { autoUpdater } = require('electron-updater');
 const { getBrowser, firstPage } = require('./chromeproc');
 const { runFormWalk } = require('./chromewalk');
 
-const VERSION = '0.3.1';
+const VERSION = '0.3.3';
 const SITE = 'https://team-mh.michealuonanayad.workers.dev';
 const FORMS = {
   alex: { url: 'https://docs.google.com/forms/u/0/d/e/1FAIpQLSffSwyTh0w4AYjTU9AG-kj-0UfJHcSTSYnR1DrWJ_h8iPYm3Q/viewform', email: 'alexlogistics.teammh101@gmail.com' },
@@ -86,43 +86,21 @@ function injectPanel() {
   tab.title = 'team_mh';
   tab.style.cssText = 'position:fixed;bottom:16px;inset-inline-start:16px;z-index:99998;width:46px;height:46px;border-radius:50%;background:#16a34a;color:#fff;border:0;font-size:22px;cursor:pointer;box-shadow:0 6px 18px #0008';
   var box = document.createElement('div');
-  box.style.cssText = 'position:fixed;bottom:74px;inset-inline-start:16px;z-index:99999;background:#0f172a;border:1px solid #334155;border-radius:14px;padding:10px 12px;color:#e2e8f0;font-family:Cairo,system-ui,sans-serif;font-size:13px;box-shadow:0 8px 24px #0009;min-width:230px;display:none';
-  function row(which,label){
-    return '<div style="display:flex;align-items:center;gap:8px;margin:4px 0">'
-      + '<button data-tmh="' + which + '" style="flex:1;background:#1d4ed8;color:#fff;border:0;border-radius:10px;padding:8px 10px;font:inherit;font-weight:700;cursor:pointer">' + label + '</button>'
-      + '<span data-tmh-st="' + which + '" style="font-size:11px;color:#94a3b8;max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">…</span></div>';
-  }
-  box.innerHTML = '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">'
-    + '<div style="font-weight:800">🔐 دخول جوجل للفورم</div>'
+  box.style.cssText = 'position:fixed;bottom:74px;inset-inline-start:16px;z-index:99999;background:#0f172a;border:1px solid #334155;border-radius:14px;padding:12px;color:#e2e8f0;font-family:Cairo,system-ui,sans-serif;font-size:13px;box-shadow:0 8px 24px #0009;min-width:210px;display:none';
+  box.innerHTML = '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">'
+    + '<div style="font-weight:800">⚡ team_mh</div>'
     + '<button data-tmh-close="1" style="background:none;border:0;color:#94a3b8;font-size:16px;cursor:pointer">✕</button></div>'
-    + row('alex','تسجيل دخول (اسكندرية)')
-    + row('delta','تسجيل دخول (باقي المحافظات)')
-    + '<button data-tmh-cmd="1" style="width:100%;margin-top:8px;background:#16a34a;color:#fff;border:0;border-radius:10px;padding:10px;font:inherit;font-weight:900;cursor:pointer">⚡ مد الشيفت / فك البريك</button>'
-    + '<div style="font-size:10px;color:#475569;margin-top:6px">v${VERSION}</div>';
+    + '<button data-tmh-cmd="1" style="width:100%;background:#16a34a;color:#fff;border:0;border-radius:10px;padding:10px;font:inherit;font-weight:900;cursor:pointer">⚡ مد الشيفت / فك البريك</button>'
+    + '<div style="font-size:10px;color:#475569;margin-top:6px">v${VERSION} - دخول جوجل بيتم لوحده أول مرة في نافذة كروم</div>';
   document.body.appendChild(tab);
   document.body.appendChild(box);
-  function paint(st){
-    st = st || {};
-    ['alex','delta'].forEach(function(w){
-      var el = box.querySelector('[data-tmh-st="' + w + '"]');
-      if (!el) return;
-      var acc = st[w] && st[w].account;
-      el.textContent = acc ? ('✅ ' + acc) : 'مش مسجل';
-      el.style.color = acc ? '#4ade80' : '#94a3b8';
-      el.title = acc || '';
-    });
-  }
   tab.addEventListener('click', function(){
     box.style.display = box.style.display === 'none' ? '' : 'none';
-    if (box.style.display !== 'none') window.tmhDesktop.getState().then(paint).catch(function(){});
   });
   box.addEventListener('click', function(ev){
     if (ev.target.closest('[data-tmh-close]')) { box.style.display = 'none'; return; }
-    var b = ev.target.closest('button[data-tmh]');
-    if (b) window.tmhDesktop.signin(b.getAttribute('data-tmh'));
     if (ev.target.closest('button[data-tmh-cmd]')) { window.tmhDesktop.openCommands(); box.style.display = 'none'; }
   });
-  window.tmhDesktop.onState(paint);
 })();`;
   try { mainWin.webContents.executeJavaScript(js); } catch (e) {}
 }

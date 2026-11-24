@@ -58,7 +58,6 @@ async function getBrowser(group, userDataRoot) {
       '--start-maximized',
       '--no-first-run',
       '--no-default-browser-check',
-      '--disable-blink-features=AutomationControlled',
       '--disable-session-crashed-bubble',
       '--hide-crash-restore-bubble',
       '--disable-features=ChromeWhatsNewUI'
