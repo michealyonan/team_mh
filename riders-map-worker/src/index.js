@@ -1630,7 +1630,7 @@ export default {
       try {
         const user = await getSessionUser(env, request);
         if (!user) return json({ error: 'unauthorized' }, 401);
-        if (user.r !== 'admin' && user.r !== 'manager') return json({ error: 'forbidden' }, 403);
+        if (!['admin', 'manager', 'sup'].includes(user.r)) return json({ error: 'forbidden' }, 403);
         if (!env.AI) return json({ error: 'ai_unavailable' }, 503);
         const dayKey = cairoDay() + ':' + user.u;
         const used = (_aiUse.get(dayKey) || 0);
@@ -1642,7 +1642,7 @@ export default {
         if (!q) return json({ error: 'missing_fields' }, 400);
         let ctxStr = '{}';
         try { ctxStr = JSON.stringify((body && body.ctx) || {}).slice(0, 9000); } catch (e) {}
-        const sys = 'إنت "TEAM MH"، المساعد الذكي بتاع لوحة تحكم Team MH لمتابعة أداء المناديب (الطيارين). بتجاوب دايمًا بالعامية المصرية، باختصار ووضوح، وبتعتمد على البيانات اللي بتتبعتلك في رسالة المستخدم بس. متخترعش أرقام مش موجودة، ولو البيانات مش كفاية قول ده بصراحة. لو السؤال مش له علاقة بشغل اللوحة والمناديب والأرقام، اعتذر بأدب وقول إنك مساعد لوحة التحكم بس. نسّق الإجابة في سطور قصيرة، ولو فيها قائمة خلي كل بند في سطر.';
+        const sys = 'إنت "TEAM MH"، مساعد لوحة تحكم Team MH لمتابعة أداء المناديب (الطيارين). بتجاوب دايمًا بالعامية المصرية، باختصار ووضوح. نوعين من الأسئلة: (1) سؤال عن بيانات اللوحة: جاوب من البيانات المبعوتة في رسالة المستخدم بس، متخترعش أرقام، ولو البيانات مش كفاية قول ده بصراحة. (2) سؤال عام مش له علاقة بالبيانات: جاوب عادي من معرفتك وساعده برضه، وخلّي إجابتك قصيرة ومفيدة، ومتقولش إن ده من بيانات اللوحة. نسّق الإجابة في سطور قصيرة، ولو فيها قائمة خلي كل بند في سطر.';
         const r = await env.AI.run('@cf/meta/llama-3.3-70b-instruct-fp8-fast', {
           messages: [
             { role: 'system', content: sys },
