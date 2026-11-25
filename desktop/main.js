@@ -13,7 +13,7 @@ try { ({ autoUpdater } = require('electron-updater')); } catch (e) { console.log
 const { getBrowser, firstPage, peekBrowser, launchPlain, launchPlainForSignin, adoptBrowser, dropBrowser } = require('./chromeproc');
 const { runFormWalk, runHiringWalk, clickX, pageMarker, confirmState } = require('./chromewalk');
 
-const VERSION = '0.3.32';
+const VERSION = '0.3.33';
 // Proof image for فتح شيفت uploads: Micheal's OWN fixed image when present
 // (userData/proof.*, seeded from a bundled proof.* on first run), else the
 // app-generated black PNG fallback (24 Nov).
@@ -709,23 +709,13 @@ async function runShiftLocal(payload) {
   }
 }
 
-// ---- رفع الاستعلام poll loop (24 Nov, Micheal 12527112) ----
-// Admin approves a request on the site -> status 'approved'. While the app is open and
-// idle, poll every 60s, claim the oldest approved job, walk the company form with the
-// delta account, report submitted/failed. Never runs while a shift run is busy.
-let hiringTimer = null;
-let hiringBusy = false;
-async function hiringTick() {
-  if (hiringBusy || busy) return;
-  hiringBusy = true;
-  let jobId = 0;
+// ---- Combined agent poll loop (25 Nov, Micheal: start within seconds) ----
+// ONE lightweight endpoint, polled every 5s: heartbeat + oldest queued job
+// (shift commands first, then hiring approvals). Cost ~12 req/min ≈ 17k/day
+// worst case 24h, well inside Cloudflare's 100k/day free quota.
+async function runHiringJob(job) {
+  let jobId = job.id;
   try {
-    const tok = await getToken();
-    if (!tok) return;
-    let d;
-    try { d = await api('/api/hiring/poll?v=' + encodeURIComponent(VERSION)); } catch (e) { return; }
-    if (!d || !d.job) return;
-    const job = d.job; jobId = job.id;
     const cfg = FORMS.hiring;
     busy = true;
     currentRun = { aborted: false, submitClicked: false, abort: null };
@@ -809,30 +799,12 @@ async function hiringTick() {
     notify(ok ? 'team_mh ✅' : 'team_mh ❌', (ok ? 'تم رفع الاستعلام: ' : 'فشل رفع الاستعلام: ') + String(job.payload.rider_name || '') + ' (v' + VERSION + ')');
   } catch (e) {
     if (jobId) { try { await api('/api/hiring/report', { method: 'POST', body: { id: jobId, ok: false, error: 'poll_exception', detail: String(e && e.message || e).slice(0, 300) } }); } catch (e2) {} }
-  } finally { hiringBusy = false; }
-}
-function startHiringPoll() {
-  if (hiringTimer) return;
-  hiringTimer = setInterval(() => { hiringTick().catch(() => {}); }, 60000);
+  }
 }
 
-// ---- Site shift-command poll loop (25 Nov) ----
-// Admin confirms an individual command on the site -> status 'pending'. While
-// the app is open and idle, poll every 30s, claim the oldest pending command,
-// run it locally, report done/failed. Never runs while another run is busy.
-let shiftCmdTimer = null;
-let shiftCmdBusy = false;
-async function shiftCmdTick() {
-  if (shiftCmdBusy || busy || hiringBusy) return;
-  shiftCmdBusy = true;
-  let jobId = 0;
+async function runShiftCmdJob(job) {
+  let jobId = job.id;
   try {
-    const tok = await getToken();
-    if (!tok) return;
-    let d;
-    try { d = await api('/api/shiftcmd/poll?v=' + encodeURIComponent(VERSION)); } catch (e) { return; }
-    if (!d || !d.job) return;
-    const job = d.job; jobId = job.id;
     let res;
     try {
       res = await runShiftLocal(job.payload);
@@ -845,17 +817,34 @@ async function shiftCmdTick() {
     } catch (e) {}
   } catch (e) {
     if (jobId) { try { await api('/api/shiftcmd/report', { method: 'POST', body: { id: jobId, ok: false, error: 'poll_exception', detail: String(e && e.message || e).slice(0, 300) } }); } catch (e2) {} }
-  } finally { shiftCmdBusy = false; }
+  }
 }
-function startShiftCmdPoll() {
-  if (shiftCmdTimer) return;
-  shiftCmdTimer = setInterval(() => { shiftCmdTick().catch(() => {}); }, 30000);
+
+let agentTimer = null;
+let agentBusy = false;
+async function agentTick() {
+  if (agentBusy) return;
+  agentBusy = true;
+  try {
+    const tok = await getToken();
+    if (!tok) return;
+    let d;
+    // busy=1 while a run is active: heartbeat only, no claim, so the site's
+    // "متصل" indicator stays honest during long walks.
+    try { d = await api('/api/agent/poll?v=' + encodeURIComponent(VERSION) + (busy ? '&busy=1' : '')); } catch (e) { return; }
+    if (!d || !d.job || busy) return;
+    if (d.job.kind === 'shift') await runShiftCmdJob(d.job);
+    else if (d.job.kind === 'hiring') await runHiringJob(d.job);
+  } finally { agentBusy = false; }
+}
+function startAgentPoll() {
+  if (agentTimer) return;
+  agentTimer = setInterval(() => { agentTick().catch(() => {}); }, 5000);
 }
 
 app.whenReady().then(() => {
   createWindow();
-  startHiringPoll();
-  startShiftCmdPoll();
+  startAgentPoll();
   seedBundledProof();
   if (app.isPackaged && autoUpdater) {
     try {

@@ -670,6 +670,37 @@ async function handleShiftCmd(request, env, json, url) {
   return null;
 }
 
+// --- Combined agent poll (Micheal 25 Nov): ONE cheap endpoint the desktop
+// hits every 5s. Updates both heartbeats, recovers stale claims, and hands out
+// the oldest queued job (shift commands first - live ops - then hiring).
+// ?busy=1 = heartbeat only, no claim (app mid-run; keeps the site indicator
+// honest during long walks).
+async function handleAgentPoll(request, env, json, url) {
+  const user = await getSessionUser(env, request);
+  if (!user) return json({ error: 'unauthorized' }, 401);
+  if (user.r !== 'admin') return json({ error: 'forbidden' }, 403);
+  const now = Date.now();
+  const pv = String(url.searchParams.get('v') || '').slice(0, 20);
+  const hb = JSON.stringify({ ts: now, v: pv });
+  await env.DB.prepare("INSERT INTO settings(k,v) VALUES('hiring_agent',?) ON CONFLICT(k) DO UPDATE SET v=excluded.v").bind(hb).run();
+  await env.DB.prepare("INSERT INTO settings(k,v) VALUES('shift_agent',?) ON CONFLICT(k) DO UPDATE SET v=excluded.v").bind(hb).run();
+  await env.DB.prepare("UPDATE shift_commands SET status='pending',updated=? WHERE status='claimed' AND updated<?").bind(now, now - 6 * 60 * 1000).run();
+  await env.DB.prepare("UPDATE hiring_requests SET status='approved',updated=? WHERE status='claimed' AND updated<?").bind(now, now - 6 * 60 * 1000).run();
+  if (url.searchParams.get('busy')) return json({ job: null });
+  const s = await env.DB.prepare("SELECT * FROM shift_commands WHERE status='pending' ORDER BY id LIMIT 1").first();
+  if (s) {
+    await env.DB.prepare("UPDATE shift_commands SET status='claimed',updated=? WHERE id=? AND status='pending'").bind(now, s.id).run();
+    return json({ job: { kind: 'shift', id: s.id, payload: JSON.parse(s.payload) } });
+  }
+  const r = await env.DB.prepare("SELECT * FROM hiring_requests WHERE status='approved' ORDER BY id LIMIT 1").first();
+  if (!r) return json({ job: null });
+  await env.DB.prepare("UPDATE hiring_requests SET status='claimed',updated=? WHERE id=? AND status='approved'").bind(now, r.id).run();
+  const imgs = await env.DB.prepare('SELECT k,data FROM hiring_images WHERE request_id=?').bind(r.id).all();
+  const images = {};
+  for (const x of imgs.results || []) images[x.k] = x.data;
+  return json({ job: { kind: 'hiring', id: r.id, u: r.u, payload: JSON.parse(r.payload), images } });
+}
+
 async function handleAuth(request, env, json, url) {
   const p = url.pathname;
   let body = request.method === 'POST' ? await request.json().catch(() => null) : null;
@@ -1298,6 +1329,15 @@ export default {
         return serverErr(e);
       }
       return json({ error: 'not_found' }, 404);
+    }
+
+    if (url.pathname === '/api/agent/poll' && request.method === 'GET') {
+      try {
+        await ensureSchema(env);
+        return await handleAgentPoll(request, env, json, url);
+      } catch (e) {
+        return serverErr(e);
+      }
     }
 
     if (url.pathname.startsWith('/api/shiftcmd/')) {
