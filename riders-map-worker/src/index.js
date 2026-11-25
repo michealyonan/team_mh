@@ -1382,23 +1382,20 @@ export default {
     const hub = env.RIDER_MAP_HUB.get(env.RIDER_MAP_HUB.idFromName('riders-global'));
 
     // 25 Nov: desktop download hosted here (replaces public GitHub release links before repo goes private).
-    // The 126MB zip is chunked in /dl-chunks/ (assets limit is 25MiB/file) and streamed in order.
-    if (url.pathname === '/dl/desktop' && (request.method === 'GET' || request.method === 'HEAD')) {
-      const chunks = ['desktop-00.bin', 'desktop-01.bin', 'desktop-02.bin', 'desktop-03.bin', 'desktop-04.bin', 'desktop-05.bin', 'desktop-06.bin'];
-      const total = 126042999;
-      const dlHeaders = { ...SEC_HEADERS, 'Content-Type': 'application/zip', 'Content-Disposition': 'attachment; filename="team-mh-desktop-win-x64.zip"', 'Content-Length': String(total), 'Cache-Control': 'public, max-age=300' };
-      if (request.method === 'HEAD') return new Response(null, { headers: dlHeaders });
-      // pull-based stream: one chunk read per backpressure pull, no side promise
-      let idx = 0;
-      const readable = new ReadableStream({
-        async pull(controller) {
-          if (idx >= chunks.length) { controller.close(); return; }
-          const r = await env.ASSETS.fetch(new URL('/dl-chunks/' + chunks[idx++], url));
-          if (!r.ok) { controller.error(new Error('chunk_missing')); return; }
-          controller.enqueue(await r.arrayBuffer());
-        },
-      });
-      return new Response(readable, { headers: dlHeaders });
+    // The 126MB zip is chunked in /dl-chunks/ (assets limit 25MiB/file). Worker-side streaming hit the
+    // free CPU cap mid-stream, so this page merges the chunks in the browser (plain cached 20MB GETs).
+    if (url.pathname === '/dl/desktop' && request.method === 'GET') {
+      const page = '<!doctype html><html lang="ar" dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>TEAM MH | تحميل نسخة الكمبيوتر</title>'
+        + '<style>body{margin:0;background:#101827;color:#edf2fa;font:17px system-ui;display:grid;place-items:center;min-height:100vh}main{max-width:430px;padding:24px;text-align:center}button{background:#2dc19f;color:#06231b;border:0;border-radius:10px;padding:14px 28px;font:inherit;font-weight:700;cursor:pointer}#bar{height:12px;border-radius:99px;background:#1b293e;overflow:hidden;margin:16px 0 6px}#fill{height:100%;width:0%;background:#2dc19f;transition:width .3s}.sub{color:#8fa1b8;font-size:14px}</style>'
+        + '<main><h1>تحميل نسخة الكمبيوتر TEAM MH</h1><p class="sub">اضغط الزر واستنى شوية — الملف 126 ميجا، بيتجمّع وبيتحمّل لوحده.</p><button id="go">⬇️ تحميل team-mh-desktop-win-x64.zip</button><div id="bar" hidden><div id="fill"></div></div><p class="sub" id="st"></p></main>'
+        + '<script>const chunks=["desktop-00.bin","desktop-01.bin","desktop-02.bin","desktop-03.bin","desktop-04.bin","desktop-05.bin","desktop-06.bin"];'
+        + 'document.getElementById("go").onclick=async()=>{const st=document.getElementById("st"),fill=document.getElementById("fill");document.getElementById("bar").hidden=false;'
+        + 'try{const parts=[];let done=0;for(const c of chunks){st.textContent="بيجمع جزء "+(done+1)+" من "+chunks.length+"...";const r=await fetch("/dl-chunks/"+c,{cache:"default"});if(!r.ok)throw new Error("fetch failed: "+r.status);parts.push(await r.arrayBuffer());done++;fill.style.width=(done/chunks.length*100)+"%"}'
+        + 'st.textContent="بيحفظ الملف...";const blob=new Blob(parts,{type:"application/zip"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="team-mh-desktop-win-x64.zip";a.click();'
+        + 'st.textContent="✅ اتحمّل — هتلاقيه في التنزيلات ("+(blob.size/1048576).toFixed(0)+" ميجا)"}catch(e){st.textContent="❌ حصلت مشكلة في التحميل — جرب تاني"} };</script>';
+      const h = new Headers({ ...SEC_HEADERS, 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+      h.set('Content-Security-Policy', "default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'");
+      return new Response(page, { headers: h });
     }
 
     // convenience: the current APK already lives at /app.apk
