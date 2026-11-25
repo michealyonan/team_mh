@@ -78,6 +78,7 @@ async function ensureSchema(env) {
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS form_phone_jobs(id INTEGER PRIMARY KEY AUTOINCREMENT,u TEXT NOT NULL,job TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'pending',result TEXT NOT NULL DEFAULT '',ts INTEGER NOT NULL,updated INTEGER NOT NULL)`),
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS hiring_requests(id INTEGER PRIMARY KEY AUTOINCREMENT,u TEXT NOT NULL,payload TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'pending',result TEXT NOT NULL DEFAULT '',ts INTEGER NOT NULL,updated INTEGER NOT NULL)`),
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS hiring_images(request_id INTEGER NOT NULL,k TEXT NOT NULL,data TEXT NOT NULL,PRIMARY KEY(request_id,k))`),
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS shift_commands(id INTEGER PRIMARY KEY AUTOINCREMENT,u TEXT NOT NULL,payload TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'pending',result TEXT NOT NULL DEFAULT '',ts INTEGER NOT NULL,updated INTEGER NOT NULL)`),
   ]);
   try { await env.DB.prepare("ALTER TABLE users ADD COLUMN photo TEXT NOT NULL DEFAULT ''").run(); } catch {}
   schemaReady = true;
@@ -577,6 +578,92 @@ async function handleHiring(request, env, json, url) {
     const status = retry ? 'approved' : ((body && body.ok) ? 'submitted' : 'failed');
     const result = JSON.stringify({ error: String((body && body.error) || '').slice(0, 400), detail: String((body && body.detail) || '').slice(0, 3500) });
     await env.DB.prepare('UPDATE hiring_requests SET status=?,result=?,updated=? WHERE id=?').bind(status, result, Date.now(), id).run();
+    return json({ ok: true });
+  }
+
+  return null;
+}
+
+// --- Shift commands relay (Micheal 25 Nov): individual مد/فك بريك/فتح شيفت
+// enqueued on the site (admin only, per-tap confirm), executed by the Windows
+// desktop app on its next poll. Site checks the desktop heartbeat first and
+// refuses to queue when the desktop is offline.
+async function handleShiftCmd(request, env, json, url) {
+  const p = url.pathname;
+  const user = await getSessionUser(env, request);
+  if (!user) return json({ error: 'unauthorized' }, 401);
+  const isAdmin = user.r === 'admin';
+  const now = Date.now();
+
+  if (p === '/api/shiftcmd/submit' && request.method === 'POST') {
+    if (!isAdmin) return json({ error: 'forbidden' }, 403);
+    const body = await request.json().catch(() => null);
+    const f = body && body.payload;
+    if (!f || typeof f !== 'object') return json({ error: 'missing_fields' }, 400);
+    const action = String(f.action || '');
+    if (!['extend', 'break', 'open'].includes(action)) return json({ error: 'bad_action' }, 400);
+    const riderId = String(f.rider_id || '').replace(/[^0-9]/g, '');
+    const city = String(f.city || '').trim();
+    if (!riderId || !city) return json({ error: 'missing_fields' }, 400);
+    const payload = {
+      action, rider_id: riderId, city,
+      duration24: String(f.duration24 || '').slice(0, 5),
+      reason: String(f.reason || '').slice(0, 60),
+      vehicle: String(f.vehicle || '').slice(0, 30)
+    };
+    const ins = await env.DB.prepare("INSERT INTO shift_commands(u,payload,status,ts,updated) VALUES(?,?,'pending',?,?)").bind(user.u, JSON.stringify(payload), now, now).run();
+    return json({ ok: true, id: ins.meta.last_row_id });
+  }
+
+  if (p === '/api/shiftcmd/list' && request.method === 'GET') {
+    if (!isAdmin) return json({ error: 'forbidden' }, 403);
+    const agentRow = await env.DB.prepare("SELECT v FROM settings WHERE k='shift_agent'").first();
+    let agent = null;
+    try { agent = agentRow ? JSON.parse(agentRow.v) : null; } catch (e) {}
+    const rows = await env.DB.prepare('SELECT id,u,payload,status,result,ts,updated FROM shift_commands ORDER BY id DESC LIMIT 50').all();
+    return json({ commands: rows.results || [], agent });
+  }
+
+  if (p === '/api/shiftcmd/item' && request.method === 'GET') {
+    if (!isAdmin) return json({ error: 'forbidden' }, 403);
+    const id = Number(url.searchParams.get('id') || 0);
+    const r = await env.DB.prepare('SELECT id,payload,status,result,ts,updated FROM shift_commands WHERE id=?').bind(id).first();
+    if (!r) return json({ error: 'not_found' }, 404);
+    return json({ item: r });
+  }
+
+  if (p === '/api/shiftcmd/delete' && request.method === 'POST') {
+    if (!isAdmin) return json({ error: 'forbidden' }, 403);
+    const body = await request.json().catch(() => null);
+    const id = Number((body && body.id) || 0);
+    const r = await env.DB.prepare('SELECT id,status FROM shift_commands WHERE id=?').bind(id).first();
+    if (!r) return json({ error: 'not_found' }, 404);
+    if (r.status === 'claimed') return json({ error: 'already_running' }, 409);
+    await env.DB.prepare('DELETE FROM shift_commands WHERE id=?').bind(id).run();
+    return json({ ok: true });
+  }
+
+  if (p === '/api/shiftcmd/poll' && request.method === 'GET') {
+    if (!isAdmin) return json({ error: 'forbidden' }, 403);
+    const pv = String(url.searchParams.get('v') || '').slice(0, 20);
+    await env.DB.prepare("INSERT INTO settings(k,v) VALUES('shift_agent',?) ON CONFLICT(k) DO UPDATE SET v=excluded.v").bind(JSON.stringify({ ts: now, v: pv })).run();
+    // Recover commands claimed >6 min ago by a desktop that died mid-run.
+    await env.DB.prepare("UPDATE shift_commands SET status='pending',updated=? WHERE status='claimed' AND updated<?").bind(now, now - 6 * 60 * 1000).run();
+    const r = await env.DB.prepare("SELECT * FROM shift_commands WHERE status='pending' ORDER BY id LIMIT 1").first();
+    if (!r) return json({ job: null });
+    await env.DB.prepare("UPDATE shift_commands SET status='claimed',updated=? WHERE id=? AND status='pending'").bind(now, r.id).run();
+    return json({ job: { id: r.id, payload: JSON.parse(r.payload) } });
+  }
+
+  if (p === '/api/shiftcmd/report' && request.method === 'POST') {
+    if (!isAdmin) return json({ error: 'forbidden' }, 403);
+    const body = await request.json().catch(() => null);
+    const id = Number((body && body.id) || 0);
+    const r = await env.DB.prepare('SELECT id FROM shift_commands WHERE id=?').bind(id).first();
+    if (!r) return json({ error: 'not_found' }, 404);
+    const status = (body && body.ok) ? 'done' : 'failed';
+    const result = JSON.stringify({ error: String((body && body.error) || '').slice(0, 400), detail: String((body && body.detail) || '').slice(0, 1500) });
+    await env.DB.prepare('UPDATE shift_commands SET status=?,result=?,updated=? WHERE id=?').bind(status, result, Date.now(), id).run();
     return json({ ok: true });
   }
 
@@ -1206,6 +1293,17 @@ export default {
       try {
         await ensureSchema(env);
         const handled = await handleChat(request, env, json, url);
+        if (handled) return handled;
+      } catch (e) {
+        return serverErr(e);
+      }
+      return json({ error: 'not_found' }, 404);
+    }
+
+    if (url.pathname.startsWith('/api/shiftcmd/')) {
+      try {
+        await ensureSchema(env);
+        const handled = await handleShiftCmd(request, env, json, url);
         if (handled) return handled;
       } catch (e) {
         return serverErr(e);

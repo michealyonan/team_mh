@@ -13,7 +13,7 @@ try { ({ autoUpdater } = require('electron-updater')); } catch (e) { console.log
 const { getBrowser, firstPage, peekBrowser, launchPlain, launchPlainForSignin, adoptBrowser, dropBrowser } = require('./chromeproc');
 const { runFormWalk, runHiringWalk, clickX, pageMarker, confirmState } = require('./chromewalk');
 
-const VERSION = '0.3.30';
+const VERSION = '0.3.31';
 // Proof image for فتح شيفت uploads: Micheal's OWN fixed image when present
 // (userData/proof.*, seeded from a bundled proof.* on first run), else the
 // app-generated black PNG fallback (24 Nov).
@@ -510,7 +510,12 @@ function durationParts(hh, mm, isPm, isAlex) {
   return { hh12: String(hh12v), mm, isPm, hh24: String(hh24) };
 }
 
-ipcMain.handle('tmh-run-local', async (_e, payload) => {
+ipcMain.handle('tmh-run-local', async (_e, payload) => runShiftLocal(payload));
+
+// Site -> desktop shift-command relay (Micheal 25 Nov): the site queues an
+// individual مد/فك بريك/فتح شيفت; this runs it through the exact same local
+// path as the ⚡ panel, then reports the result back to the site.
+async function runShiftLocal(payload) {
   const p = payload || {};
   const action = String(p.action || '');
   const riderId = String(p.rider_id || '').replace(/[^0-9]/g, '');
@@ -702,7 +707,7 @@ ipcMain.handle('tmh-run-local', async (_e, payload) => {
       if (b) { b.close().catch(() => {}); }
     }
   }
-});
+}
 
 // ---- رفع الاستعلام poll loop (24 Nov, Micheal 12527112) ----
 // Admin approves a request on the site -> status 'approved'. While the app is open and
@@ -811,9 +816,46 @@ function startHiringPoll() {
   hiringTimer = setInterval(() => { hiringTick().catch(() => {}); }, 60000);
 }
 
+// ---- Site shift-command poll loop (25 Nov) ----
+// Admin confirms an individual command on the site -> status 'pending'. While
+// the app is open and idle, poll every 30s, claim the oldest pending command,
+// run it locally, report done/failed. Never runs while another run is busy.
+let shiftCmdTimer = null;
+let shiftCmdBusy = false;
+async function shiftCmdTick() {
+  if (shiftCmdBusy || busy || hiringBusy) return;
+  shiftCmdBusy = true;
+  let jobId = 0;
+  try {
+    const tok = await getToken();
+    if (!tok) return;
+    let d;
+    try { d = await api('/api/shiftcmd/poll?v=' + encodeURIComponent(VERSION)); } catch (e) { return; }
+    if (!d || !d.job) return;
+    const job = d.job; jobId = job.id;
+    let res;
+    try {
+      res = await runShiftLocal(job.payload);
+    } catch (e) {
+      res = { ok: false, error: 'walk_exception', detail: String(e && (e.detail || e.message) || '').slice(0, 1200) };
+    }
+    const ok = !!(res && res.ok);
+    try {
+      await api('/api/shiftcmd/report', { method: 'POST', body: { id: job.id, ok, error: (res && res.error) || '', detail: (((res && res.detail) || '') + ' | app v' + VERSION).slice(0, 1400) } });
+    } catch (e) {}
+  } catch (e) {
+    if (jobId) { try { await api('/api/shiftcmd/report', { method: 'POST', body: { id: jobId, ok: false, error: 'poll_exception', detail: String(e && e.message || e).slice(0, 300) } }); } catch (e2) {} }
+  } finally { shiftCmdBusy = false; }
+}
+function startShiftCmdPoll() {
+  if (shiftCmdTimer) return;
+  shiftCmdTimer = setInterval(() => { shiftCmdTick().catch(() => {}); }, 30000);
+}
+
 app.whenReady().then(() => {
   createWindow();
   startHiringPoll();
+  startShiftCmdPoll();
   seedBundledProof();
   if (app.isPackaged && autoUpdater) {
     try {

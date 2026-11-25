@@ -1269,6 +1269,7 @@ html[data-theme="light"] .kpi .l,html[data-theme="light"] .kpi .s{color:#526a82!
   <nav class="nav-drawer-links" aria-label="أقسام لوحة التحكم">
    <div class="nav-group"><div class="nav-group-title">👁 المتابعة اليومية</div>
     <button class="btn" id="hiringNavB" type="button" style="display:none" onclick="toggleNavDrawer(false);openHiring()">⬆ رفع الاستعلام</button>
+    <button class="btn" id="shcB" type="button" style="display:none" onclick="toggleNavDrawer(false);shcOpen()">⚡ أمر شيفت من الموقع</button>
     <button class="btn" id="chatB" type="button" style="display:none" onclick="openChat()">💬 شات <span id="chatBadge" style="display:none;background:#ef4444;color:#fff;border-radius:999px;padding:2px 9px;font-size:12px;font-weight:900;margin-inline-start:6px"></span></button>
     <button class="btn" id="riderDetailsB" type="button" aria-expanded="false">📋 تفاصيل الطيارين</button>
     <button class="btn" id="riderMapB" type="button" aria-expanded="false" aria-controls="riderMapPanel" style="display:none">🗺️ خريطة المناديب</button>
@@ -1407,6 +1408,25 @@ header{box-shadow:0 8px 24px rgba(2,8,23,.5)}
    <button class="btn pr" id="ccB" style="min-height:46px" onclick="submitContactGate()">حفظ ودخول ←</button>
   </form>
  </div>
+<div id="shcModal" style="display:none;position:fixed;inset:0;background:#000c;z-index:75;overflow:auto;padding:12px" onclick="if(event.target===this)this.style.display='none'">
+  <div class="card" style="max-width:560px;margin:auto">
+   <div class="row"><h3 style="margin:0">⚡ أمر شيفت من الموقع</h3><button class="btn" style="margin-inline-start:auto" onclick="$('shcModal').style.display='none'">✕</button></div>
+   <p class="sub" id="shcAgentLine" style="margin:6px 0"></p>
+   <label for="shcAction">الإجراء</label>
+   <select id="shcAction" onchange="shcSync()"><option value="extend">⏫ مد الشيفت</option><option value="break">☕ فك البريك</option><option value="open">🔓 فتح شيفت</option></select>
+   <label for="shcRider" style="margin-top:8px">كود المندوب</label>
+   <input id="shcRider" inputmode="numeric" placeholder="اكتب الكود">
+   <label for="shcCity" style="margin-top:8px">المدينة</label>
+   <select id="shcCity" onchange="shcSync()"><option value="">اختار المدينة</option><option>الإسكندرية</option><option>الغردقة</option><option>السويس</option><option>الإسماعيلية</option><option>المنصورة</option><option>المنيا</option><option>الزقازيق</option></select>
+   <div id="shcDurWrap" style="margin-top:8px"><label for="shcDur">وقت نهاية المد (24 ساعة)</label><input id="shcDur" type="time"></div>
+   <div id="shcReasonWrap" style="margin-top:8px;display:none"><label for="shcReason">سبب فك البريك (الإسكندرية)</label><select id="shcReason"><option value="">اختار السبب…</option><option value="TEMP_NOT_WORKING">TEMP_NOT_WORKING</option><option value="BREAK">BREAK</option></select></div>
+   <div id="shcVehWrap" style="margin-top:8px;display:none"><label for="shcVeh">رقم المركبة</label><input id="shcVeh" placeholder="اكتب رقم المركبة"></div>
+   <button class="btn pr" id="shcSend" style="width:100%;min-height:46px;margin-top:12px" onclick="shcSend()">تأكيد وإرسال للتطبيق ✅</button>
+   <div id="shcMsg" class="sub" style="margin-top:8px"></div>
+   <h4 style="margin:12px 0 4px">آخر الأوامر</h4>
+   <div id="shcList" style="display:grid;gap:6px;max-height:220px;overflow:auto"></div>
+  </div>
+</div>
 <div id="contactsModal" style="display:none;position:fixed;inset:0;background:#000c;z-index:75;overflow:auto;padding:12px" onclick="if(event.target===this)this.style.display='none'">
   <div class="card" style="max-width:720px;margin:auto">
    <div class="row"><h3 style="margin:0">📇 دليل اتصالات الفريق</h3><button class="btn" type="button" onclick="copyContacts()">📋 نسخ الكل</button><button class="btn" style="margin-inline-start:auto" onclick="$('contactsModal').style.display='none'">✕</button></div>
@@ -3468,7 +3488,7 @@ const REMEMBER_LOGIN_KEY='pd_remember_login',REMEMBER_LOGIN_MS=7*24*60*60*1000;a
   $('riderRatingsCard').style.display=x.r==='sup'?'none':'';
   $('dailyHistoryCard').style.display=x.r==='sup'?'none':'';
   $('vehicleChartCard').style.display=x.r==='sup'?'none':'';
-  $('lg').style.display='none';$('who').textContent='👤 '+x.n+' · '+ROLE[x.r]+(x.r==='admin'&&!LOGIN_AUDIT_ENDPOINT?' · ⚠️ سجل الدخول المركزي غير مفعّل':'');$('usrB').style.display=x.r==='admin'?'':'none';$('loginAuditB').style.display=x.r==='admin'?'':'none';$('chatB').style.display=['admin','manager','sup'].includes(x.r)?'':'none';if(['admin','manager','sup'].includes(x.r)){if(!CHAT_BADGE_TIMER)CHAT_BADGE_TIMER=setInterval(refreshChatBadge,30000);setTimeout(refreshChatBadge,3000)}$('quotaB').style.display=x.r==='admin'?'':'none';$('themeB').style.display=x.r==='admin'?'':'none';$('tgB').style.display=x.r==='admin'?'':'none';$('supCaptureAll').style.display=x.r==='admin'?'':'none';$('zoneCaptureAll').style.display=['admin','manager'].includes(x.r)?'':'none';$('zoneCaptureAll').textContent=x.r==='manager'?'🗺️📸 تنزيل صور مناطقي':'🗺️📸 تنزيل صور كل المناطق';$('hcB').style.display=hcCanAccess(x)?'':'none';$('dedB').style.display=['admin','manager','sup'].includes(x.r)?'':'none';$('bookingDashboardB').style.display=bookingCanAccessDashboard(x)?'':'none';$('extB').style.display=(SITE_FORM_ACTIONS&&(FORM_ACTIONS_ADMIN_ONLY?x.r==='admin':['admin','manager','sup'].includes(x.r)))?'':'none';$('brkB').style.display=$('extB').style.display;$('manualActionB').style.display=$('extB').style.display;bookingApplyRoleAccess(x);$('payB').style.display=['admin','manager','sup'].includes(x.r)?'':'none';$('payB').classList.toggle('pay-access',['admin','manager','sup'].includes(x.r));$('prB').style.display=monitor?'none':'';$('profileB').style.display=monitor?'none':'';$('waB').style.display=['admin','manager','sup'].includes(x.r)?'':'none';$('queriesB').style.display=monitor?'none':'';$('hiringB').style.display=(!monitor&&['admin','manager','sup'].includes(x.r))?'':'none';$('hiringNavB').style.display=$('hiringB').style.display;$('reportsB').style.display=monitor?'none':'';$('riderDetailsB').style.display=monitor?'none':'';$('riderMapB').style.display=['admin','sup'].includes(x.r)?'':'none';if(x.r==='viewer'){syncNavGroups();await initViewer(x)}else syncNavGroups();load()}
+  $('lg').style.display='none';$('who').textContent='👤 '+x.n+' · '+ROLE[x.r]+(x.r==='admin'&&!LOGIN_AUDIT_ENDPOINT?' · ⚠️ سجل الدخول المركزي غير مفعّل':'');$('usrB').style.display=x.r==='admin'?'':'none';$('loginAuditB').style.display=x.r==='admin'?'':'none';$('chatB').style.display=['admin','manager','sup'].includes(x.r)?'':'none';if(['admin','manager','sup'].includes(x.r)){if(!CHAT_BADGE_TIMER)CHAT_BADGE_TIMER=setInterval(refreshChatBadge,30000);setTimeout(refreshChatBadge,3000)}$('quotaB').style.display=x.r==='admin'?'':'none';$('themeB').style.display=x.r==='admin'?'':'none';$('tgB').style.display=x.r==='admin'?'':'none';$('supCaptureAll').style.display=x.r==='admin'?'':'none';$('zoneCaptureAll').style.display=['admin','manager'].includes(x.r)?'':'none';$('zoneCaptureAll').textContent=x.r==='manager'?'🗺️📸 تنزيل صور مناطقي':'🗺️📸 تنزيل صور كل المناطق';$('hcB').style.display=hcCanAccess(x)?'':'none';$('dedB').style.display=['admin','manager','sup'].includes(x.r)?'':'none';$('bookingDashboardB').style.display=bookingCanAccessDashboard(x)?'':'none';$('extB').style.display=(SITE_FORM_ACTIONS&&(FORM_ACTIONS_ADMIN_ONLY?x.r==='admin':['admin','manager','sup'].includes(x.r)))?'':'none';$('brkB').style.display=$('extB').style.display;$('manualActionB').style.display=$('extB').style.display;bookingApplyRoleAccess(x);$('payB').style.display=['admin','manager','sup'].includes(x.r)?'':'none';$('payB').classList.toggle('pay-access',['admin','manager','sup'].includes(x.r));$('prB').style.display=monitor?'none':'';$('profileB').style.display=monitor?'none':'';$('waB').style.display=['admin','manager','sup'].includes(x.r)?'':'none';$('queriesB').style.display=monitor?'none':'';$('hiringB').style.display=(!monitor&&['admin','manager','sup'].includes(x.r))?'':'none';$('hiringNavB').style.display=$('hiringB').style.display;$('shcB').style.display=x.r==='admin'?'':'none';$('reportsB').style.display=monitor?'none':'';$('riderDetailsB').style.display=monitor?'none':'';$('riderMapB').style.display=['admin','sup'].includes(x.r)?'':'none';if(x.r==='viewer'){syncNavGroups();await initViewer(x)}else syncNavGroups();load()}
 let USERS=USERS_EMBED.concat(MONITOR_USERS_EMBED),DRAFT=null,VAULT=PW_EMBED;
 async function loadUsers(){}
 const LOGIN_THEMES=[
@@ -7196,6 +7216,80 @@ async function hDelete(id){
  if(!confirm('مسح طلب "'+nm+'" نهائي؟ مش هيعود تاني، حتى لو في طابور الرفع.'))return;
  try{await api('/api/hiring/delete',{method:'POST',body:{id}});loadHiringList()}catch(e){alert('تعذّر المسح: '+authErr(e))}
 }
+/* Micheal 25 Nov: site -> desktop shift commands (individual مد/فك بريك/فتح شيفت). */
+const SHC_ACTION_L={extend:'⏫ مد الشيفت',break:'☕ فك البريك',open:'🔓 فتح شيفت'};
+const SHC_STATUS_L={pending:'⏳ مستني التطبيق',claimed:'⚙️ بيتنفذ دلوقتي',done:'✅ تم',failed:'❌ فشل'};
+function shcSync(){
+ const a=$('shcAction').value,city=$('shcCity').value;
+ $('shcDurWrap').style.display=a==='extend'?'':'none';
+ $('shcReasonWrap').style.display=(a==='break'&&city==='الإسكندرية')?'':'none';
+ $('shcVehWrap').style.display=a==='open'?'':'none';
+}
+function shcAgentOnline(d){
+ const ag=d&&d.agent;if(!ag||!ag.ts)return false;
+ return (Date.now()-ag.ts)<3*60*1000;
+}
+async function shcOpen(){
+ $('shcModal').style.display='';shcSync();$('shcMsg').textContent='';
+ await shcRefresh();
+}
+async function shcRefresh(){
+ let d=null;
+ try{d=await api('/api/shiftcmd/list')}catch(e){$('shcAgentLine').textContent='تعذّر فحص التطبيق: '+authErr(e);return}
+ const on=shcAgentOnline(d);
+ $('shcAgentLine').textContent=on?('تطبيق اللابتوب: ✅ متصل'+(d.agent&&d.agent.v?' (v'+d.agent.v+')':'')):'تطبيق اللابتوب: ❌ مش متصل — افتح التطبيق على اللابتوب الأول';
+ $('shcAgentLine').style.color=on?'#16a34a':'#f87171';
+ const rows=(d.commands||[]).slice(0,10).map(c=>{
+  const p=JSON.parse(c.payload||'{}');
+  const st=SHC_STATUS_L[c.status]||c.status;
+  let det='';
+  if(c.status==='failed'&&c.result){try{det=' — '+esc(JSON.parse(c.result).error||'')}catch(e){}}
+  const del=(c.status==='pending')?` <button class="btn" type="button" style="font-size:11px;padding:2px 8px" onclick="shcCancel(${c.id})">إلغاء</button>`:'';
+  return `<div class="row" style="gap:6px;align-items:center;border:1px solid var(--bd);border-radius:8px;padding:6px 8px"><span style="font-size:12px">${SHC_ACTION_L[p.action]||''} — مندوب ${esc(p.rider_id||'')} (${esc(p.city||'')})</span><span class="sub" style="margin-inline-start:auto;font-size:11px">${st}${det}</span>${del}</div>`;
+ });
+ $('shcList').innerHTML=rows.join('')||'<span class="sub">مفيش أوامر لسه</span>';
+}
+async function shcCancel(id){
+ if(!confirm('إلغاء الأمر #'+id+' قبل ما التطبيق ينفذه؟'))return;
+ try{await api('/api/shiftcmd/delete',{method:'POST',body:{id}});shcRefresh()}catch(e){alert('تعذّر الإلغاء: '+authErr(e))}
+}
+async function shcSend(){
+ const action=$('shcAction').value,rider_id=$('shcRider').value.trim(),city=$('shcCity').value;
+ const duration24=$('shcDur').value,reason=$('shcReason').value,vehicle=$('shcVeh').value.trim();
+ const m=$('shcMsg');
+ if(!/^\d{1,15}$/.test(rider_id)){m.textContent='اكتب كود مندوب صحيح';return}
+ if(!city){m.textContent='اختار المدينة';return}
+ if(action==='extend'&&!/^\d{2}:\d{2}$/.test(duration24)){m.textContent='اختار وقت نهاية المد';return}
+ if(action==='break'&&city==='الإسكندرية'&&!reason){m.textContent='اختار سبب فك البريك';return}
+ if(action==='open'){if(city==='الإسكندرية'){m.textContent='فتح الشيفت متاح لمدن الدلتا بس (مش الإسكندرية)';return}if(!vehicle){m.textContent='اكتب رقم المركبة';return}}
+ let d=null;
+ try{d=await api('/api/shiftcmd/list')}catch(e){m.textContent='تعذّر فحص التطبيق: '+authErr(e);return}
+ if(!shcAgentOnline(d)){m.textContent='❌ تطبيق اللابتوب مش متصل دلوقتي — الأمر مش هيتنفذ. افتح التطبيق الأول وبعدين ابعت.';await shcRefresh();return}
+ const sum=SHC_ACTION_L[action]+'\nكود المندوب: '+rider_id+'\nالمدينة: '+city+(action==='extend'?'\nنهاية المد: '+duration24:'')+(action==='break'&&reason?'\nالسبب: '+reason:'')+(action==='open'?'\nرقم المركبة: '+vehicle:'')+'\n\nالتطبيق على اللابتوب هينفذ الأمر ده أوتوماتيك خلال ثواني. متأكد؟';
+ if(!confirm(sum))return;
+ $('shcSend').disabled=true;m.textContent='بيتبعت…';
+ try{
+  const r=await api('/api/shiftcmd/submit',{method:'POST',body:{payload:{action,rider_id,city,duration24,reason,vehicle}}});
+  m.textContent='✅ الأمر اتسجّل (# '+r.id+'). التطبيق هيلقطه خلال ~30 ثانية. بتابع النتيجة…';
+  shcRefresh();
+  shcWatch(r.id);
+ }catch(e){m.textContent='تعذّر الإرسال: '+authErr(e)}
+ finally{$('shcSend').disabled=false}
+}
+async function shcWatch(id){
+ for(let i=0;i<18;i++){
+  await new Promise(r=>setTimeout(r,10000));
+  try{
+   const d=await api('/api/shiftcmd/item?id='+id);
+   const it=d&&d.item;if(!it)return;
+   if(it.status==='done'){$('shcMsg').textContent='✅ الأمر # '+id+' اتنفذ بنجاح.';shcRefresh();return}
+   if(it.status==='failed'){let er='';try{er=JSON.parse(it.result||'{}').error||''}catch(e){}$('shcMsg').textContent='❌ الأمر # '+id+' فشل'+(er?': '+er:'')+'. راجع التطبيق.';shcRefresh();return}
+  }catch(e){}
+ }
+ $('shcMsg').textContent='⏳ الأمر # '+id+' لسه مستني — لو التطبيق مش مفتوح افتحه وهيكمل لوحده.';
+ shcRefresh();
+}
+
 /* Micheal 25 Nov: per-request view-data + download buttons (zip of images + data.txt). */
 const H_FIELDS=[['office','المكتب'],['hire_type','نوع التعيين'],['sup_name','اسم المشرف'],['lecture_office','مكتب المحاضرة'],['rider_name','اسم الطيار'],['rider_phone','موبايل الطيار'],['rider_nid','الرقم القومي'],['license_no','رقم الرخصة'],['rider_addr','العنوان'],['vehicle','نوع المركبة']];
 /* Micheal 26 Nov: tap any value in البيانات to copy it (+ نسخ الكل). */
