@@ -13,7 +13,7 @@ try { ({ autoUpdater } = require('electron-updater')); } catch (e) { console.log
 const { getBrowser, firstPage, peekBrowser, launchPlain, launchPlainForSignin, adoptBrowser, dropBrowser } = require('./chromeproc');
 const { runFormWalk, runHiringWalk, clickX, pageMarker, confirmState } = require('./chromewalk');
 
-const VERSION = '0.3.27';
+const VERSION = '0.3.28';
 // Proof image for فتح شيفت uploads: Micheal's OWN fixed image when present
 // (userData/proof.*, seeded from a bundled proof.* on first run), else the
 // app-generated black PNG fallback (24 Nov).
@@ -93,8 +93,17 @@ let lastRunAt = 0;
 const warmPages = {}; // per-group warm form tab: stays open between runs (Micheal 24 Nov: speed, like the pyw)
 
 function historyPath() { return path.join(app.getPath('userData'), 'tmh-history.json'); }
+function todayKey() { const d = new Date(); return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); }
 function readHistory() {
-  try { const r = JSON.parse(fs.readFileSync(historyPath(), 'utf8')); return Array.isArray(r) ? r : []; }
+  try {
+    const r = JSON.parse(fs.readFileSync(historyPath(), 'utf8'));
+    if (!Array.isArray(r)) return [];
+    // 25 Nov (Micheal): the list belongs to today only - entries from before
+    // local midnight drop out on read, so the open window clears itself on
+    // its next refresh after 12 AM, and the stored file gets pruned on write.
+    const tk = todayKey();
+    return r.filter((x) => { const d = new Date(x && x.ts || 0); return (d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate()) === tk; });
+  }
   catch (e) { return []; }
 }
 function appendHistory(row) {
