@@ -3,7 +3,7 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('tmhDesktop', {
-  version: require('./package.json').version,
+  version: () => ipcRenderer.invoke('tmh-version'),
   signin: (which) => ipcRenderer.send('tmh-google-signin', which),
   getState: () => ipcRenderer.invoke('tmh-google-state'),
   openCommands: () => ipcRenderer.send('tmh-open-commands'),

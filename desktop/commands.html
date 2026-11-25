@@ -32,7 +32,7 @@
 </style>
 </head>
 <body>
-<script>try{if(window.tmhDesktop&&tmhDesktop.version)document.addEventListener('DOMContentLoaded',()=>{document.getElementById('verBadge').textContent='v'+tmhDesktop.version})}catch(e){}</script>
+<script>try{if(window.tmhDesktop&&tmhDesktop.version)document.addEventListener('DOMContentLoaded',()=>{Promise.resolve(tmhDesktop.version()).then(v=>{document.getElementById('verBadge').textContent='v'+v}).catch(()=>{})})}catch(e){}</script>
 <h2>⚡ مد الشيفت / فك البريك <span id="verBadge" style="font-size:11px;color:#8aa;vertical-align:middle"></span></h2>
 <div class="acts">
   <button id="mExt1" class="on" type="button">⏫ مد شيفت فردي</button>

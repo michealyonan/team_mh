@@ -13,7 +13,7 @@ try { ({ autoUpdater } = require('electron-updater')); } catch (e) { console.log
 const { getBrowser, firstPage, peekBrowser, launchPlain, launchPlainForSignin, adoptBrowser, dropBrowser } = require('./chromeproc');
 const { runFormWalk, runHiringWalk, clickX, pageMarker, confirmState } = require('./chromewalk');
 
-const VERSION = '0.3.25';
+const VERSION = '0.3.26';
 // Proof image for فتح شيفت uploads: Micheal's OWN fixed image when present
 // (userData/proof.*, seeded from a bundled proof.* on first run), else the
 // app-generated black PNG fallback (24 Nov).
@@ -408,6 +408,7 @@ ipcMain.handle('tmh-sheet-status', (_e, group) => fetchSheetRows(String(group)))
 ipcMain.on('tmh-google-signin', (_e, which) => { openGoogleSignin(String(which)); });
 ipcMain.handle('tmh-google-state', () => readState());
 ipcMain.handle('tmh-get-settings', () => readSettings());
+ipcMain.handle('tmh-version', () => VERSION);
 ipcMain.handle('tmh-set-spacing', (_e, sec) => {
   let n = parseInt(sec, 10);
   if (!isFinite(n) || n < MIN_SPACING_SEC) n = MIN_SPACING_SEC;

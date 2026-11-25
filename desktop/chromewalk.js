@@ -190,12 +190,14 @@ async function waitConfirmation(page, timeoutMs) {
 // (24 Nov). Now: browser-level FLAT attach (Target.attachToTarget flatten:true)
 // exposes every frame target including the picker OOPIF; each session gets
 // Page.setInterceptFileChooserDialog. Layers:
-//  1) DOM.setFileInputFiles on any session whose document has input[type=file];
-//  2) Input.dispatchDragEvent (dragEnter/over/drop with files) onto the picker
-//     modal's drop zone, coords from the iframe element's viewport rect;
-//  3) trusted click on تصفّح (exact coords from the picker session when found,
-//     else proportional inside the iframe rect) with chooser interception;
-//  4) Windows: same click WITHOUT interception, then PowerShell types the path
+//  v0.3.26 layers (drag-drop REMOVED - a missed drop opened the file as a
+//  Chrome tab, Micheal 25 Nov videos):
+//  1) تصفّح click inside the visible picker + chooser interception (main page
+//     session armed too - in-process iframes fire on the page target);
+//  2) DOM.setFileInputFiles on the VISIBLE picker frame only (a stale closed
+//     picker iframe swallows the set silently);
+//  3) CDP session scan for a picker page.frames cannot see;
+//  4) Windows: real click WITHOUT interception, then PowerShell types the path
 //     into the native Open dialog (clipboard paste + Enter).
 // Passes only when the file chip (its name) is visible back on the form;
 // otherwise throws with a full diagnostic trace, and the walk never submits.
@@ -471,91 +473,103 @@ async function uploadProof(page, filePath, job) {
       diag.layers.push('picker opened (remaining-index ' + upIdx + ')');
     }
 
-    // Layer 1: set the file on any session that has the input (re-attach while hunting).
-    let set = false;
-    const t0 = Date.now();
-    while (Date.now() - t0 < 12000 && !set) {
+    // Arm the MAIN page session too: this picker is an in-process iframe
+    // (page.frames sees it), so its file chooser fires on the page target -
+    // arming only OOPIF sessions is why the chooser path never answered (25 Nov).
+    try { const mcs = await page.createCDPSession(); await armSession(mcs, 'page'); } catch (e) {}
+    await attachAll();
+
+    // Only a picker frame whose iframe element is CURRENTLY visible: closed
+    // dialogs keep their iframe in the DOM, and handing a file to a stale
+    // picker silently does nothing (25 Nov: upload #1 ok, #2 vanished).
+    async function visiblePickerFrame() {
+      const visSrc = await page.evaluate(() => {
+        for (const f of Array.from(document.querySelectorAll('iframe'))) {
+          const r = f.getBoundingClientRect();
+          const st = getComputedStyle(f);
+          if (r.width > 250 && r.height > 250 && st.display !== 'none' && st.visibility !== 'hidden') return f.src || '';
+        }
+        return '';
+      }).catch(() => '');
+      let best = null;
+      for (const f of page.frames()) {
+        let u = '';
+        try { if (f === page.mainFrame()) continue; u = safeUrl(f); } catch (e) { continue; }
+        if (!/picker/i.test(u)) continue;
+        if (visSrc && u && visSrc.indexOf(u.slice(0, 60)) === 0) return f;
+        if (!best) best = f;
+      }
+      return best;
+    }
+
+    // Wait for the picker dialog to actually appear (the container click is async).
+    {
+      const tP = Date.now();
+      while (Date.now() - tP < 10000 && !(await visiblePickerFrame())) { aborted(); await sleep(400); }
+    }
+
+    // Attempt 1 (the proven mechanism): click تصفّح inside the picker and let
+    // the armed chooser interception hand it the file - one deterministic
+    // hand-off. The old drag-drop layer is gone for good: a drop that misses
+    // the zone is what opened Micheal's images as Chrome tabs (25 Nov videos).
+    for (let attempt = 0; attempt < 2 && !chooserAnswered; attempt++) {
       aborted();
-      await attachAll();
-      // Fast path: puppeteer frames too (same-process iframes need no attach).
-      // NEVER the main frame (24 Nov: the form page's own hidden file input
-      // swallowed the set - the picker never got the file); picker frames first.
-      const frs = page.frames().filter((f) => { try { return f !== page.mainFrame(); } catch (e) { return false; } });
-      frs.sort((a, b) => (/picker/i.test(safeUrl(a)) ? 0 : 1) - (/picker/i.test(safeUrl(b)) ? 0 : 1));
-      for (const f of frs) {
-        let input = null;
-        try { input = await f.$("input[type='file']"); } catch (e) {}
-        if (input) { try { await input.uploadFile(filePath); set = true; diag.layers.push('file set via frame ' + safeUrl(f).slice(0, 60)); } catch (e) {} }
-        if (set) break;
-      }
-      if (!set) set = await setViaSessions();
-      if (!set) await sleep(600);
-    }
-    // Wrong-input guard (24 Nov): a "set" that yields no chip used to skip every
-    // later layer. Verify; if no chip, clear the flag and keep hunting.
-    if (set && !chooserAnswered) {
-      if (await waitChip(8000)) { diag.layers.push('chip after frame set'); return; }
-      diag.layers.push('set claimed but no chip - continuing');
-      set = false;
-    }
-
-    // Layer 2: CDP drag-drop of the file onto the modal's drop zone.
-    if (!set && !chooserAnswered) {
-      const rect = await pickerRect();
-      if (rect) {
+      let clicked = false;
+      const pf = await visiblePickerFrame();
+      if (pf) {
         try {
-          const client = await page.createCDPSession();
-          const cx = rect.x + rect.w * 0.5, cy = rect.y + rect.h * 0.55;
-          const data = { items: [], files: [filePath], dragOperationsMask: 1 };
-          await client.send('Input.dispatchDragEvent', { type: 'dragEnter', x: cx, y: cy, data });
-          await client.send('Input.dispatchDragEvent', { type: 'dragOver', x: cx, y: cy, data });
-          await client.send('Input.dispatchDragEvent', { type: 'drop', x: cx, y: cy, data });
-          diag.layers.push('drag-drop dispatched');
-          if (await waitChip(8000)) { diag.layers.push('chip after drag-drop'); return; }
-        } catch (e) { diag.layers.push('drag-drop failed: ' + String(e).slice(0, 80)); }
+          clicked = await pf.evaluate(() => {
+            var bs = document.querySelectorAll('button,[role=button],div,span');
+            for (var i = 0; i < bs.length; i++) {
+              var t = (bs[i].textContent || '').trim().replace(/[\u064B-\u0652\u0640]/g, '');
+              var r = bs[i].getBoundingClientRect();
+              if ((t === '\u062a\u0635\u0641\u062d' || /^browse/i.test(t)) && r.width > 10 && r.width < 300 && r.height > 10 && r.height < 100) { bs[i].click(); return true; }
+            }
+            var inp = document.querySelector("input[type='file']");
+            if (inp) { inp.click(); return true; }
+            return false;
+          });
+        } catch (e) {}
       }
+      diag.layers.push('browse click ' + (clicked ? 'ok' : 'no-picker') + ' (attempt ' + (attempt + 1) + ')');
+      const t1 = Date.now();
+      while (Date.now() - t1 < 8000 && !chooserAnswered) { aborted(); await sleep(250); }
+    }
+    if (chooserAnswered) {
+      diag.layers.push('file handed via chooser');
+      if (await waitChip(60000)) { diag.layers.push('chip after chooser'); await ensurePickerClosed(); return; }
+      diag.layers.push('chooser answered but no chip - continuing');
     }
 
-    // Layer 3: trusted click on تصفّح with chooser interception armed everywhere.
-    if (!chooserAnswered && !(await chipVisible())) {
-      const pt = await pickerButtonPoint();
-      if (pt) {
-        await page.mouse.click(pt.x, pt.y);
-        diag.layers.push('تصفّح clicked');
-        const t1 = Date.now();
-        while (Date.now() - t1 < 10000 && !chooserAnswered) { aborted(); await sleep(300); }
-      } else {
-        diag.layers.push('no picker rect/button for click');
+    // Attempt 2: set the input directly on the VISIBLE picker frame.
+    if (!(await chipVisible())) {
+      const pf = await visiblePickerFrame();
+      if (pf) {
+        try {
+          const input = await pf.$("input[type='file']");
+          if (input) { await input.uploadFile(filePath); diag.layers.push('file set on visible picker frame'); }
+        } catch (e) {}
       }
+      if (await waitChip(8000)) { diag.layers.push('chip after visible-frame set'); await ensurePickerClosed(); return; }
+      diag.layers.push('visible-frame set claimed but no chip - continuing');
     }
 
-    // Layer 3b: the click may have created the <input type=file> LAZILY (this is
-    // what the real picker does) - scan again and set the file on it directly.
-    if (!set && !chooserAnswered && !(await chipVisible())) {
-      const tB = Date.now();
-      while (Date.now() - tB < 12000 && !set && !chooserAnswered) {
+    // Attempt 3: CDP session scan (covers a picker page.frames cannot see).
+    if (!(await chipVisible())) {
+      const t2 = Date.now();
+      let set3 = false;
+      while (Date.now() - t2 < 10000 && !set3) {
         aborted();
         await attachAll();
-        const frsB = page.frames().filter((f) => { try { return f !== page.mainFrame(); } catch (e) { return false; } });
-        frsB.sort((a, b) => (/picker/i.test(safeUrl(a)) ? 0 : 1) - (/picker/i.test(safeUrl(b)) ? 0 : 1));
-        for (const f of frsB) {
-          let input = null;
-          try { input = await f.$("input[type='file']"); } catch (e) {}
-          if (input) { try { await input.uploadFile(filePath); set = true; diag.layers.push('file set via frame after click ' + safeUrl(f).slice(0, 60)); } catch (e) {} }
-          if (set) break;
-        }
-        if (!set) set = await setViaSessions();
-        if (!set && !chooserAnswered) await sleep(600);
+        set3 = await setViaSessions();
+        if (!set3) await sleep(600);
       }
-      if (set) diag.layers.push('lazy input found after click');
-      if (set && !chooserAnswered && !(await waitChip(6000))) {
-        diag.layers.push('lazy set claimed but no chip - continuing');
-        set = false;
-      }
+      if (set3 && await waitChip(8000)) { diag.layers.push('chip after session set'); await ensurePickerClosed(); return; }
+      if (set3) diag.layers.push('session set claimed but no chip - continuing');
     }
 
-    // Layer 4 (Windows): OS-level real click + native dialog fill via PowerShell.
-    if (!chooserAnswered && !(await chipVisible()) && process.platform === 'win32') {
+    // Attempt 4 (Windows): OS-level real click + native dialog fill via PowerShell.
+    if (!(await chipVisible()) && process.platform === 'win32') {
       // Disarm interception so the NATIVE dialog actually opens this time.
       for (const cs of childSessions) { if (typeof cs.send === 'function') { try { await cs.send('Page.setInterceptFileChooserDialog', { enabled: false }); } catch (e) {} } }
       try { await page.createCDPSession().then((c) => c.send('Page.setInterceptFileChooserDialog', { enabled: false })); } catch (e) {}
@@ -568,7 +582,6 @@ async function uploadProof(page, filePath, job) {
         diag.layers.push('osclick skipped: no button point');
       }
     }
-
 
   // The chip proves the upload; the modal must ALSO be gone or it covers إرسال
   // (his 24 Nov runs: upload ok, then submit click landed on the open modal).
@@ -1007,7 +1020,20 @@ async function runHiringWalk(page, job) {
   // any NEW tab when the walk ends, success or failure.
   let tabsBefore = null;
   try { tabsBefore = new Set(await page.browser().pages()); } catch (e) {}
+  // NEVER let a local file open as a tab: a missed drop/click during uploads
+  // used to navigate Chrome to file://... (25 Nov Micheal videos). Close any
+  // file:// target the moment it appears, for the whole walk.
+  const killFileTab = async (t) => {
+    try {
+      const u = (t && t.url && t.url()) || '';
+      if (!u.startsWith('file://')) return;
+      const p = await t.page().catch(() => null);
+      if (p && p !== page) await p.close().catch(() => {});
+    } catch (e) {}
+  };
+  try { page.browser().on('targetcreated', killFileTab); page.browser().on('targetchanged', killFileTab); } catch (e) {}
   const closeNewTabs = async () => {
+    try { page.browser().off('targetcreated', killFileTab); page.browser().off('targetchanged', killFileTab); } catch (e) {}
     if (!tabsBefore) return 0;
     let closed = 0;
     let pages = [];
