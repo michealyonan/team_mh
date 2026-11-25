@@ -1498,7 +1498,7 @@ export default {
     const withSec = (resp, isHtml) => {
       const h = new Headers(resp.headers);
       for (const [k, v] of Object.entries(SEC_HEADERS)) h.set(k, v);
-      if (isHtml) h.set('Content-Security-Policy', CSP);
+      if (isHtml) { h.set('Content-Security-Policy', CSP); h.set('Cache-Control', 'no-store'); }
       return new Response(resp.body, { status: resp.status, headers: h });
     };
     const hub = env.RIDER_MAP_HUB.get(env.RIDER_MAP_HUB.idFromName('riders-global'));
