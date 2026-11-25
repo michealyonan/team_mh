@@ -105,6 +105,7 @@ async function ensureSchema(env) {
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS legal_cases(id INTEGER PRIMARY KEY AUTOINCREMENT,rider_id TEXT NOT NULL,rider_name TEXT NOT NULL,national_id TEXT NOT NULL,amount TEXT NOT NULL,phone TEXT NOT NULL,phone2 TEXT NOT NULL DEFAULT '',city TEXT NOT NULL DEFAULT '',u TEXT NOT NULL,u_name TEXT NOT NULL DEFAULT '',status TEXT NOT NULL DEFAULT 'received',case_number TEXT NOT NULL DEFAULT '',settle_amount TEXT NOT NULL DEFAULT '',judgment_status TEXT NOT NULL DEFAULT '',judgment_detail TEXT NOT NULL DEFAULT '',judgment_amount TEXT NOT NULL DEFAULT '',created INTEGER NOT NULL,updated INTEGER NOT NULL)`),
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS legal_case_images(case_id INTEGER NOT NULL,k TEXT NOT NULL,data TEXT NOT NULL,PRIMARY KEY(case_id,k))`),
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS legal_case_history(id INTEGER PRIMARY KEY AUTOINCREMENT,case_id INTEGER NOT NULL,status TEXT NOT NULL,note TEXT NOT NULL DEFAULT '',by_u TEXT NOT NULL,by_name TEXT NOT NULL,ts INTEGER NOT NULL)`),
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS legal_case_deletes(id INTEGER PRIMARY KEY AUTOINCREMENT,case_id INTEGER NOT NULL,snapshot TEXT NOT NULL DEFAULT '',by_u TEXT NOT NULL,by_name TEXT NOT NULL,ts INTEGER NOT NULL)`),
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS shift_commands(id INTEGER PRIMARY KEY AUTOINCREMENT,u TEXT NOT NULL,payload TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'pending',result TEXT NOT NULL DEFAULT '',ts INTEGER NOT NULL,updated INTEGER NOT NULL)`),
   ]);
   try { await env.DB.prepare("ALTER TABLE users ADD COLUMN photo TEXT NOT NULL DEFAULT ''").run(); } catch {}
@@ -841,11 +842,14 @@ async function handleLegal(request, env, json, url) {
     const id = Number((body && body.id) || 0);
     const r = await env.DB.prepare('SELECT * FROM legal_cases WHERE id=?').bind(id).first();
     if (!r) return json({ error: 'not_found' }, 404);
+    if (r.status === 'closed') return json({ error: 'case_closed' }, 409); // closed = view-only, rejects every edit (Micheal 16408616)
     const st = String((body && body.status) || '');
-    if (!['received', 'paid', 'filed', 'judgment'].includes(st)) return json({ error: 'bad_status' }, 400);
-    if (isLegal) { /* the legal officer (or admin) moves any status */ }
+    if (!['received', 'contacted', 'paid', 'filed', 'judgment', 'closed'].includes(st)) return json({ error: 'bad_status' }, 400);
+    if (isLegal) { /* the legal officer (or admin) moves any status, including the new contacted + closed steps */ }
     else if (isSupSide && r.u === user.u && st === 'paid') { /* supervisor reports their own rider paid */ }
     else return json({ error: 'forbidden' }, 403);
+    // after سداد every checkbox is locked; only the settlement amount stays editable, legal side only
+    if (r.status === 'paid' && !(isLegal && st === 'paid')) return json({ error: 'paid_locked' }, 409);
     const tn = (v, n) => String(v || '').trim().slice(0, n);
     const settle = isLegal && body.settle_amount !== undefined
       ? String(body.settle_amount || '').replace(/[٠-٩]/g, (c) => '٠١٢٣٤٥٦٧٨٩'.indexOf(c)).replace(/\D/g, '').slice(0, 9)
@@ -858,9 +862,12 @@ async function handleLegal(request, env, json, url) {
   }
 
   if (p === '/api/legal/delete' && request.method === 'POST') {
-    if (user.r !== 'admin') return json({ error: 'forbidden' }, 403);
+    // admin or the legal officer (duplicates / resubmit requests, Micheal 16411808); a snapshot log survives the delete
+    if (user.r !== 'admin' && user.r !== 'legal') return json({ error: 'forbidden' }, 403);
     const body = await request.json().catch(() => null);
     const id = Number((body && body.id) || 0);
+    const r = await env.DB.prepare('SELECT * FROM legal_cases WHERE id=?').bind(id).first();
+    if (r) await env.DB.prepare('INSERT INTO legal_case_deletes(case_id,snapshot,by_u,by_name,ts) VALUES(?,?,?,?,?)').bind(id, JSON.stringify(r).slice(0, 4000), user.u, user.n, Date.now()).run();
     await env.DB.prepare('DELETE FROM legal_cases WHERE id=?').bind(id).run();
     await env.DB.prepare('DELETE FROM legal_case_images WHERE case_id=?').bind(id).run();
     await env.DB.prepare('DELETE FROM legal_case_history WHERE case_id=?').bind(id).run();
