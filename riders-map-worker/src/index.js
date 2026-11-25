@@ -658,6 +658,11 @@ async function handleShiftCmd(request, env, json, url) {
       reason: String(f.reason || '').slice(0, 60),
       vehicle: String(f.vehicle || '').slice(0, 30)
     };
+    // 25 Nov: dedupe — a double-click or two admins sending the same action for the same rider
+    // must not execute twice (a second مد would double the extension on the Google form).
+    const dup = await env.DB.prepare("SELECT id FROM shift_commands WHERE status IN ('pending','claimed') AND payload LIKE ? AND payload LIKE ? LIMIT 1")
+      .bind('%"action":"' + action + '"%', '%"rider_id":"' + riderId + '"%').first();
+    if (dup) return json({ ok: true, id: dup.id, already_queued: true });
     const ins = await env.DB.prepare("INSERT INTO shift_commands(u,payload,status,ts,updated) VALUES(?,?,'pending',?,?)").bind(user.u, JSON.stringify(payload), now, now).run();
     return json({ ok: true, id: ins.meta.last_row_id });
   }
