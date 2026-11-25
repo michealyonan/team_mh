@@ -3746,7 +3746,7 @@ function comboify(id,ph,strict){
   const hid=document.createElement('input');hid.type='hidden';hid.id=id;
   const wrap=document.createElement('div');wrap.id=id+'_wrap';wrap.style.cssText='position:relative;min-width:0';
   const inp=document.createElement('input');inp.placeholder=ph||'';inp.autocomplete='off';inp.style.width='100%';
-  const dd=document.createElement('div');dd.style.cssText='display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;max-height:220px;overflow:auto;background:#141d31;border:1px solid var(--bd,#33415c);border-radius:10px;z-index:60;padding:4px;box-shadow:0 8px 24px #0009';
+  const dd=document.createElement('div');dd.style.cssText='display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;max-height:220px;overflow:auto;background:#141d31;border:1px solid var(--bd,#33415c);border-radius:10px;z-index:60;padding:4px;box-shadow:0 8px 24px #0009;pointer-events:none';
   wrap.appendChild(inp);wrap.appendChild(dd);
   old.parentNode.replaceChild(wrap,old);wrap.appendChild(hid);
   const st={items:[],inp,dd,hid,onchange:null,strict:!!strict};COMBO[id]=st;
@@ -3754,7 +3754,7 @@ function comboify(id,ph,strict){
   const render=()=>{
     const q=inp.value.trim();
     const shown=st.items.filter(o=>!q||o.l.includes(q));
-    dd.innerHTML=shown.map(o=>`<div data-i="${st.items.indexOf(o)}" style="padding:10px 8px;border-radius:8px;cursor:pointer;font-size:13px" onmouseover="this.style.background='rgba(255,255,255,.08)'" onmouseout="this.style.background=''">${esc(o.l)}</div>`).join('')||`<div class="sub" style="padding:8px">${st.strict?'مفيش نتائج — اختار من القايمة بس':'مفيش نتائج - الاسم اللي كتبته هيتحفظ زي ما هو'}</div>`;
+    dd.innerHTML=shown.map(o=>`<div data-i="${st.items.indexOf(o)}" style="pointer-events:auto;padding:10px 8px;border-radius:8px;cursor:pointer;font-size:13px" onmouseover="this.style.background='rgba(255,255,255,.08)'" onmouseout="this.style.background=''">${esc(o.l)}</div>`).join('')||`<div class="sub" style="padding:8px">${st.strict?'مفيش نتائج — اختار من القايمة بس':'مفيش نتائج - الاسم اللي كتبته هيتحفظ زي ما هو'}</div>`;
     dd.innerHTML+=`<div class="sub" style="padding:6px 8px;font-size:11px;border-top:1px solid var(--bd,#33415c);margin-top:4px">بيظهر ${shown.length} من ${st.items.length}</div>`;
     // Micheal 25 Nov: mousedown (not click) so selection fires BEFORE the input blurs,
     // and blur hides instantly - the open dropdown used to swallow the first click on إضافة/موافقة.
