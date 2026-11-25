@@ -766,15 +766,18 @@ async function handleAuth(request, env, json, url) {
     if (waitIp) return json({ error: 'locked', wait: waitIp }, 429);
     const user = await env.DB.prepare('SELECT * FROM users WHERE u=?').bind(u).first();
     if (!user || user.status === 'disabled') return json({ error: 'invalid_credentials' }, 401);
+    // Micheal 25 Nov: 5 failed passwords -> 30-minute timed lock (was full suspension).
+    const flock = await env.DB.prepare('SELECT until FROM rl WHERE k=?').bind('flock:' + u).first();
+    if (flock && flock.until > Date.now()) return json({ error: 'locked', wait: Math.ceil((flock.until - Date.now()) / 1000) }, 429);
     if (user.status === 'pending') return json({ error: 'pending_approval' }, 403);
     if (user.status === 'suspended') return json({ error: 'suspended' }, 403);
     if (!await verifyUserPassword(env, u, user.h, String(body.p))) {
       await env.DB.prepare('INSERT INTO login_fails(u,n) VALUES(?,1) ON CONFLICT(u) DO UPDATE SET n=n+1').bind(u).run();
       const f = await env.DB.prepare('SELECT n FROM login_fails WHERE u=?').bind(u).first();
       if (f && f.n >= 5) {
-        await env.DB.prepare("UPDATE users SET status='suspended', updated_at=? WHERE u=?").bind(Date.now(), u).run();
-        await env.DB.prepare('DELETE FROM sessions WHERE u=?').bind(u).run();
-        return json({ error: 'suspended' }, 403);
+        await env.DB.prepare('DELETE FROM login_fails WHERE u=?').bind(u).run();
+        await env.DB.prepare("INSERT INTO rl(k,n,until) VALUES(?,1,?) ON CONFLICT(k) DO UPDATE SET n=1, until=excluded.until").bind('flock:' + u, Date.now() + 30 * 60 * 1000).run();
+        return json({ error: 'locked', wait: 1800 }, 429);
       }
       return json({ error: 'invalid_credentials', attempts_left: 5 - (f ? f.n : 1) }, 401);
     }
