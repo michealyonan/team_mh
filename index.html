@@ -7469,7 +7469,7 @@ $('hiringB').onclick=openHiring;
  <input type="file" id="lgNidFile" accept="image/jpeg,image/png,image/webp" hidden>
  <div class="sub" id="lgImgSt" style="margin:4px 0">صورة الإيصال مطلوبة</div>
  <div id="lgImgPrev" style="display:none;margin:4px 0"></div>
- <div class="sub" id="lgNidImgSt" style="margin:4px 0">صورة البطاقة (وش) اختيارية</div>
+ <div class="sub" id="lgNidImgSt" style="margin:4px 0">صورة البطاقة (وش) مطلوبة</div>
  <div id="lgNidImgPrev" style="display:none;margin:4px 0"></div>
  <div class="row"><button class="btn pr" id="lgSend" type="button">📤 إرسال للشئون القانونية</button></div>
  <div class="sub" id="lgMsg" style="margin-top:6px"></div>
@@ -7539,7 +7539,7 @@ $('lgNidFile').onchange=e=>{
  img.onerror=()=>{URL.revokeObjectURL(url);$('lgNidImgSt').textContent='❌ الملف مش صورة'};
  img.src=url;
 };
-function lgClearNidImg(){LG_NID_IMG='';$('lgNidImgSt').textContent='صورة البطاقة (وش) اختيارية';$('lgNidImgB').textContent='🪪 ارفع صورة البطاقة (وش)';const p=$('lgNidImgPrev');if(p){p.style.display='none';p.innerHTML=''}}
+function lgClearNidImg(){LG_NID_IMG='';$('lgNidImgSt').textContent='صورة البطاقة (وش) مطلوبة';$('lgNidImgB').textContent='🪪 ارفع صورة البطاقة (وش)';const p=$('lgNidImgPrev');if(p){p.style.display='none';p.innerHTML=''}}
 window.lgClearNidImg=lgClearNidImg;
 $('lgSend').onclick=async()=>{
  const m=$('lgMsg');m.textContent='';
@@ -7547,6 +7547,7 @@ $('lgSend').onclick=async()=>{
  if(!body.rider_id||!body.rider_name||!body.national_id||!body.amount||!body.phone){m.textContent='❌ كمّل كل الحقول المطلوبة';return}
  if(body.national_id.replace(/\D/g,'').length!==14){m.textContent='❌ الرقم القومي لازم ١٤ رقم';return}
  if(!LG_IMG){m.textContent='❌ ارفق صورة الإيصال';return}
+ if(!LG_NID_IMG){m.textContent='❌ ارفق صورة البطاقة (وش)';return}
  m.textContent='⏳ بيتم الإرسال...';
  try{
   await api('/api/legal/submit',{method:'POST',body});
