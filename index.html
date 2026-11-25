@@ -3873,6 +3873,7 @@ async function supRepRun(dry){
     h+=supRepSection('⚠️ مشرفين في الشيت ملهمش حساب مطابق على الموقع (اتخطّوا)',(d.noAccount||[]),x=>'<div>• '+esc(x)+'</div>');
     h+=supRepSection('⚠️ أسماء مطابقة لأكتر من حساب (اتخطّت لحد ما تتظبط)',(d.ambiguous||[]),x=>'<div>• '+esc(x)+'</div>');
     h+=supRepSection('❌ فشل الإرسال',(d.failed||[]),x=>'<div>• <b>'+esc(x.sup)+'</b> <span class="sub">'+esc(x.email||'')+' — '+esc(x.error||'')+'</span></div>');
+    if(dry&&!SUPREP_LAST.length&&!(d.noAccount||[]).length)h+='<div class="sub" style="margin-top:6px">⚠️ مفيش بيانات رجعت للفترة دي — لو متأكد إن فيها شغل، جرب المعاينة تاني (الشيت ساعات بيتأخر في الرد).</div>';
     $('srResult').innerHTML=h;
     $('srStatus').textContent=(dry?'👁 معاينة جاهزة — مفيش إيميلات اتبعتت':'✅ خلص الإرسال')+': '+NF(SUPREP_LAST.length)+' مشرف · '+NF((d.noAccount||[]).length)+' بدون حساب · '+NF((d.noEmail||[]).length)+' بدون إيميل · '+NF((d.failed||[]).length)+' فشل';
   }catch(e){

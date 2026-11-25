@@ -1411,25 +1411,30 @@ function repVehicle(name) {
 const HC_GID = '2127591673'; // شيت الهيدكاونت: صف واحد لكل مندوب (محفظة + عقد + حالة + مشرف) — مصدر المحافظ والعقود
 // أداء يوم واحد بس: فلترة عند جوجل نفسها (بدل ما نسحب الشيت كله ~40MB ونتجاوز حد CPU المجاني).
 // ملحوظة: gviz out:csv بيطبّق where لكن بيرجّع كل الأعمدة بترتيبها الأصلي — القراءة بالأعمدة الأصلية.
+// gviz ساعات بيرجع HTTP 200 مع صفحة خطأ HTML بدل الـ CSV (ضغط/ريت ليميت) — من غير فحص كانت بتطلع
+// نتيجة فاضية صامتة (باج Micheal 25 Nov: "التاريخ غلط" ومعاينة فاضية). الفحص: صف الهيدر لازم يبدأ بالعمود المتوقع، ولو لأ نعيد المحاولة مرة وبعدين نرمي خطأ واضح.
+async function repFetchCsv(url, expectHeader) {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const res = await fetch(url + '&_=' + Date.now());
+      if (!res.ok) continue;
+      const rows = parseCsv(await res.text());
+      if (rows.length && String(rows[0][0] || '').trim() === expectHeader) return rows.slice(1);
+    } catch (e) {}
+  }
+  throw new Error('sheet_fetch_failed');
+}
 async function repFetchPerfRange(d1, d2) {
   const q = encodeURIComponent("select * where F >= date '" + d1 + "' and F <= date '" + d2 + "'");
-  const url = 'https://docs.google.com/spreadsheets/d/' + PERF_SHEET_ID + '/gviz/tq?tqx=out:csv&gid=0&headers=1&tq=' + q + '&_=' + Date.now();
-  const res = await fetch(url);
-  if (!res.ok) throw new Error('sheet_fetch_failed');
-  return parseCsv(await res.text()).slice(1);
+  return repFetchCsv('https://docs.google.com/spreadsheets/d/' + PERF_SHEET_ID + '/gviz/tq?tqx=out:csv&gid=0&headers=1&tq=' + q, 'rider_id');
 }
 async function repFetchHc() {
-  const url = 'https://docs.google.com/spreadsheets/d/' + PERF_SHEET_ID + '/gviz/tq?tqx=out:csv&gid=' + HC_GID + '&headers=1&_=' + Date.now();
-  const res = await fetch(url);
-  if (!res.ok) throw new Error('sheet_fetch_failed');
-  return parseCsv(await res.text()).slice(1);
+  return repFetchCsv('https://docs.google.com/spreadsheets/d/' + PERF_SHEET_ID + '/gviz/tq?tqx=out:csv&gid=' + HC_GID + '&headers=1', 'ID المندوب');
 }
 async function repLatestDay() {
   try {
-    const res = await fetch('https://docs.google.com/spreadsheets/d/' + PERF_SHEET_ID + '/gviz/tq?tqx=out:csv&gid=0&headers=1&tq=' + encodeURIComponent('select max(F)') + '&_=' + Date.now());
-    if (!res.ok) return '';
-    const rows = parseCsv(await res.text());
-    return repNormDay(rows[1] && rows[1][0]);
+    const rows = await repFetchCsv('https://docs.google.com/spreadsheets/d/' + PERF_SHEET_ID + '/gviz/tq?tqx=out:csv&gid=0&headers=1&tq=' + encodeURIComponent('select max(F)'), 'max التاريخ');
+    return repNormDay(rows[0] && rows[0][0]);
   } catch (e) { return ''; }
 }
 
