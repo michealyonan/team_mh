@@ -108,10 +108,15 @@ async function ensureSchema(env) {
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS legal_case_history(id INTEGER PRIMARY KEY AUTOINCREMENT,case_id INTEGER NOT NULL,status TEXT NOT NULL,note TEXT NOT NULL DEFAULT '',by_u TEXT NOT NULL,by_name TEXT NOT NULL,ts INTEGER NOT NULL)`),
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS legal_case_deletes(id INTEGER PRIMARY KEY AUTOINCREMENT,case_id INTEGER NOT NULL,snapshot TEXT NOT NULL DEFAULT '',by_u TEXT NOT NULL,by_name TEXT NOT NULL,ts INTEGER NOT NULL)`),
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS shift_commands(id INTEGER PRIMARY KEY AUTOINCREMENT,u TEXT NOT NULL,payload TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'pending',result TEXT NOT NULL DEFAULT '',ts INTEGER NOT NULL,updated INTEGER NOT NULL)`),
+    // Scheduled shift commands (Micheal 26 Nov: اعتماد الكل) — admin sets action/time/repeat,
+    // the 2-min cron enqueues real shift_commands when due; the desktop executes them as usual.
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS shiftcmd_schedules(id INTEGER PRIMARY KEY AUTOINCREMENT,action TEXT NOT NULL,target TEXT NOT NULL DEFAULT 'codes',codes TEXT NOT NULL DEFAULT '',city TEXT NOT NULL DEFAULT '',duration24 TEXT NOT NULL DEFAULT '',reason TEXT NOT NULL DEFAULT '',vehicle TEXT NOT NULL DEFAULT '',time_hhmm TEXT NOT NULL,daily INTEGER NOT NULL DEFAULT 1,enabled INTEGER NOT NULL DEFAULT 1,by_u TEXT NOT NULL,by_name TEXT NOT NULL DEFAULT '',last_run TEXT NOT NULL DEFAULT '',created INTEGER NOT NULL)`),
     // تقارير المشرفين: سجل إرسالات التقارير بالإيميل (Micheal 25 Nov) — مين بعت وإمتى وكم واحد وصل
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS report_logs(id INTEGER PRIMARY KEY AUTOINCREMENT,admin_u TEXT NOT NULL,day TEXT NOT NULL,types TEXT NOT NULL,sent INTEGER NOT NULL,failed INTEGER NOT NULL,ts INTEGER NOT NULL)`),
   ]);
   try { await env.DB.prepare("ALTER TABLE users ADD COLUMN photo TEXT NOT NULL DEFAULT ''").run(); } catch {}
+  // rider zone (26 Nov) - lets scheduled 'break_all' rules route each rider to his own form.
+  try { await env.DB.prepare("ALTER TABLE rider_states ADD COLUMN zone TEXT NOT NULL DEFAULT ''").run(); } catch {}
   schemaReady = true;
   // kind column for image messages (added 24 Nov) - CREATE TABLE IF NOT EXISTS
   // won't alter an existing table, so try the ALTER and ignore duplicate-column.
@@ -725,6 +730,67 @@ async function handleShiftCmd(request, env, json, url) {
     if (!r) return json({ error: 'not_found' }, 404);
     if (!isAdmin && r.u !== user.u && !String(r.payload || '').includes('"city":"' + String(user.s || '') + '"')) return json({ error: 'forbidden' }, 403);
     return json({ item: r });
+  }
+
+  // ---- Scheduled commands (26 Nov, admin only) ----
+  if (p === '/api/shiftcmd/sched/list' && request.method === 'GET') {
+    if (!isAdmin) return json({ error: 'forbidden' }, 403);
+    const rows = await env.DB.prepare('SELECT * FROM shiftcmd_schedules ORDER BY time_hhmm, id').all();
+    return json({ schedules: rows.results || [] });
+  }
+
+  if (p === '/api/shiftcmd/sched/add' && request.method === 'POST') {
+    if (!isAdmin) return json({ error: 'forbidden' }, 403);
+    const body = await request.json().catch(() => null) || {};
+    const action = String(body.action || '');
+    if (!['extend', 'break'].includes(action)) return json({ error: 'bad_action' }, 400);
+    const target = String(body.target || 'codes');
+    if (!['codes', 'break_all'].includes(target)) return json({ error: 'bad_target' }, 400);
+    if (target === 'break_all' && action !== 'break') return json({ error: 'bad_target' }, 400);
+    const time = String(body.time || '');
+    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(time)) return json({ error: 'bad_time' }, 400);
+    const duration24 = String(body.duration24 || '').slice(0, 5);
+    if (action === 'extend' && !/^([01]\d|2[0-3]):[0-5]\d$/.test(duration24)) return json({ error: 'bad_duration' }, 400);
+    const codes = target === 'codes' ? String(body.codes || '').split(/[^0-9]+/).filter(Boolean).slice(0, 50).join(' ') : '';
+    if (target === 'codes' && !codes) return json({ error: 'no_codes' }, 400);
+    const city = target === 'codes' ? String(body.city || '').trim() : String(body.city || '').trim();
+    if (target === 'codes' && !city) return json({ error: 'missing_city' }, 400);
+    const reason = String(body.reason || '').slice(0, 60);
+    if (action === 'break' && target === 'break_all' && !reason) return json({ error: 'bad_reason' }, 400); // Alex riders need it
+    if (action === 'break' && target === 'codes' && city === 'الإسكندرية' && !reason) return json({ error: 'bad_reason' }, 400);
+    const daily = body.daily === false ? 0 : 1;
+    // If today's time already passed, mark today as run so the first fire is tomorrow
+    // (a one-shot whose time passed is rejected - it would never fire).
+    const { day, hm } = cairoNowParts();
+    let lastRun = '';
+    if (time <= hm) {
+      if (!daily) return json({ error: 'time_passed' }, 400);
+      lastRun = day;
+    }
+    const ins = await env.DB.prepare('INSERT INTO shiftcmd_schedules(action,target,codes,city,duration24,reason,vehicle,time_hhmm,daily,enabled,by_u,by_name,last_run,created) VALUES(?,?,?,?,?,?,?,?,?,1,?,?,?,?)')
+      .bind(action, target, codes, city, duration24, reason, String(body.vehicle || '').slice(0, 30), time, daily, user.u, user.n || user.u, lastRun, now).run();
+    return json({ ok: true, id: ins.meta.last_row_id });
+  }
+
+  if (p === '/api/shiftcmd/sched/del' && request.method === 'POST') {
+    if (!isAdmin) return json({ error: 'forbidden' }, 403);
+    const body = await request.json().catch(() => null) || {};
+    await env.DB.prepare('DELETE FROM shiftcmd_schedules WHERE id=?').bind(Number(body.id || 0)).run();
+    return json({ ok: true });
+  }
+
+  if (p === '/api/shiftcmd/sched/toggle' && request.method === 'POST') {
+    if (!isAdmin) return json({ error: 'forbidden' }, 403);
+    const body = await request.json().catch(() => null) || {};
+    const id = Number(body.id || 0);
+    const en = body.enabled ? 1 : 0;
+    // re-enabling a schedule whose time already passed today starts it tomorrow.
+    const { day, hm } = cairoNowParts();
+    const r = await env.DB.prepare('SELECT time_hhmm FROM shiftcmd_schedules WHERE id=?').bind(id).first();
+    if (!r) return json({ error: 'not_found' }, 404);
+    const lastRun = (en && String(r.time_hhmm) <= hm) ? day : '';
+    await env.DB.prepare('UPDATE shiftcmd_schedules SET enabled=?, last_run=? WHERE id=?').bind(en, lastRun, id).run();
+    return json({ ok: true });
   }
 
   if (p === '/api/shiftcmd/delete' && request.method === 'POST') {
@@ -1618,18 +1684,19 @@ async function runStatusCron(env) {
       name: String(r[3] || '').trim().slice(0, 80),
       state: String(r[14] || '').trim().slice(0, 60),
       sup: String(r[16] || '').trim().slice(0, 80),
+      zone: String(r[1] || '').trim().slice(0, 80),
     });
   }
-  const prevRows = await env.DB.prepare('SELECT rider_id,name,state,sup FROM rider_states').all();
-  const prev = new Map((prevRows.results || []).map(r => [r.rider_id, { state: r.state, name: r.name, sup: r.sup }]));
+  const prevRows = await env.DB.prepare('SELECT rider_id,name,state,sup,zone FROM rider_states').all();
+  const prev = new Map((prevRows.results || []).map(r => [r.rider_id, { state: r.state, name: r.name, sup: r.sup, zone: r.zone }]));
   const seeded = prev.size > 0;
   const stmts = [];
   const changed = [];
   for (const [id, cur] of current) {
     const old = prev.get(id);
-    if (old && old.state === cur.state && old.name === cur.name && old.sup === cur.sup) continue; // unchanged: no write
-    stmts.push(env.DB.prepare('INSERT INTO rider_states(rider_id,name,state,sup,updated) VALUES(?,?,?,?,?) ON CONFLICT(rider_id) DO UPDATE SET name=excluded.name, state=excluded.state, sup=excluded.sup, updated=excluded.updated')
-      .bind(id, cur.name, cur.state, cur.sup, Date.now()));
+    if (old && old.state === cur.state && old.name === cur.name && old.sup === cur.sup && old.zone === cur.zone) continue; // unchanged: no write
+    stmts.push(env.DB.prepare('INSERT INTO rider_states(rider_id,name,state,sup,zone,updated) VALUES(?,?,?,?,?,?) ON CONFLICT(rider_id) DO UPDATE SET name=excluded.name, state=excluded.state, sup=excluded.sup, zone=excluded.zone, updated=excluded.updated')
+      .bind(id, cur.name, cur.state, cur.sup, cur.zone, Date.now()));
     changed.push([id, cur, old]);
   }
   // riders that vanished from the sheet: drop their state rows
@@ -1650,6 +1717,56 @@ async function runStatusCron(env) {
     for (const u of targets.keys()) {
       await insertNotification(env, u, 'تغيير حالة مندوب', `${cur.name}: من "${oldState || 'بدون حالة'}" إلى "${cur.state}"`, id);
     }
+  }
+}
+
+// ---- Scheduled shift commands (26 Nov) ----
+function cairoNowParts() {
+  const parts = new Intl.DateTimeFormat('en-US', { timeZone: 'Africa/Cairo', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date());
+  const g = (t) => (parts.find(p => p.type === t) || {}).value || '';
+  return { day: g('year') + '-' + g('month') + '-' + g('day'), hm: g('hour') + ':' + g('minute') };
+}
+// Same normalization the site applies (extNormZone): sheet zone label -> form city value.
+function normZoneCity(z) {
+  const zl = String(z || '').trim().toLowerCase();
+  const m = { 'alexandria': 'الإسكندرية', 'alex': 'الإسكندرية', 'ismalia city': 'الإسماعيلية', 'ismailia city': 'الإسماعيلية', 'mansoura': 'المنصورة', 'minya': 'المنيا', 'tanta': 'طنطا', 'zagazig': 'الزقازيق', 'hurghada': 'الغردقة', 'hurgada': 'الغردقة', 'الغردقه': 'الغردقة', 'suez': 'السويس', 'ismailia': 'الإسماعيلية', 'الاسماعيليه': 'الإسماعيلية' };
+  return m[zl] || String(z || '').trim();
+}
+async function runScheduleCron(env) {
+  await ensureSchema(env);
+  const { day, hm } = cairoNowParts();
+  const rows = await env.DB.prepare('SELECT * FROM shiftcmd_schedules WHERE enabled=1').all();
+  const now = Date.now();
+  for (const s of (rows.results || [])) {
+    try {
+      if (s.last_run === day) continue; // already fired today
+      if (String(s.time_hhmm) > hm) continue; // not due yet (string compare works on HH:MM)
+      let targets = [];
+      if (s.target === 'break_all') {
+        const br = await env.DB.prepare("SELECT rider_id,zone FROM rider_states WHERE state='BREAK'").all();
+        targets = (br.results || []).map(r => ({ rider_id: r.rider_id, city: normZoneCity(r.zone) || s.city }));
+      } else {
+        targets = String(s.codes).split(/[^0-9]+/).filter(Boolean).slice(0, 50).map(id => ({ rider_id: id, city: s.city }));
+      }
+      let n = 0, skipped = 0;
+      for (const t of targets) {
+        if (!t.rider_id || !t.city) { skipped++; continue; }
+        if (s.action === 'break' && t.city === 'الإسكندرية' && !s.reason) { skipped++; continue; }
+        const payload = { action: s.action, rider_id: t.rider_id, city: t.city, duration24: s.duration24 || '', reason: s.reason || '', vehicle: s.vehicle || '' };
+        const dup = await env.DB.prepare("SELECT id FROM shift_commands WHERE status IN ('pending','claimed') AND payload LIKE ? AND payload LIKE ? LIMIT 1")
+          .bind('%"action":"' + s.action + '"%', '%"rider_id":"' + t.rider_id + '"%').first();
+        if (dup) { skipped++; continue; }
+        await env.DB.prepare("INSERT INTO shift_commands(u,payload,status,ts,updated) VALUES(?,?,'pending',?,?)").bind(s.by_u, JSON.stringify(payload), now, now).run();
+        n++;
+      }
+      await env.DB.prepare('UPDATE shiftcmd_schedules SET last_run=? WHERE id=?').bind(day, s.id).run();
+      if (!s.daily) await env.DB.prepare('UPDATE shiftcmd_schedules SET enabled=0 WHERE id=?').bind(s.id).run();
+      const actL = s.action === 'extend' ? 'مد الشيفت' : s.action === 'break' ? 'فك البريك' : 'فتح شيفت';
+      const admins = await env.DB.prepare("SELECT u FROM users WHERE r='admin' AND status='active'").all();
+      for (const a of (admins.results || [])) {
+        await insertNotification(env, a.u, '⏰ أمر مجدول اتنفذ', actL + (s.target === 'break_all' ? ' لكل اللي على البريك' : '') + ' الساعة ' + s.time_hhmm + ': ' + n + ' أمر اتضاف للطابور' + (skipped ? ' (' + skipped + ' اتخطّى)' : ''), '');
+      }
+    } catch (e) { /* one bad schedule never blocks the rest */ }
   }
 }
 
@@ -2595,6 +2712,7 @@ export default {
   async scheduled(event, env, ctx) {
     bumpUsage(env, ctx);
     ctx.waitUntil(runStatusCron(env).catch(() => {}));
+    ctx.waitUntil(runScheduleCron(env).catch(() => {}));
   },
 };
 

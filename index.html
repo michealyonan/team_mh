@@ -1448,6 +1448,28 @@ header{box-shadow:0 8px 24px rgba(2,8,23,.5)}
    <div id="shcMsg" class="sub" style="margin-top:8px"></div>
    <h4 style="margin:12px 0 4px">آخر الأوامر</h4>
    <div id="shcList" style="display:grid;gap:6px;max-height:220px;overflow:auto"></div>
+   <div id="shcSchedCard" style="display:none;margin-top:14px;border-top:1px solid var(--bd);padding-top:10px">
+    <h4 style="margin:0 0 6px">⏰ أوامر مجدولة (أوتوماتيك)</h4>
+    <p class="sub" style="margin:0 0 8px">السيرفر يضيف الأمر للطابور في معاده بتوقيت القاهرة وتطبيق اللابتوب ينفذه — لازم التطبيق يكون شغال (وهو دلوقتي بيفضل شغال جنب الساعة).</p>
+    <label for="shcSchedAction">الإجراء</label>
+    <select id="shcSchedAction" onchange="shcSchedSync()"><option value="extend">⏫ مد الشيفت</option><option value="break">☕ فك البريك</option></select>
+    <div id="shcSchedCodesWrap" style="margin-top:8px">
+     <label for="shcSchedCodes">أكواد المناديب (افصل بينهم بمسافة أو سطر)</label>
+     <textarea id="shcSchedCodes" rows="2" inputmode="numeric" placeholder="مثال: 12345 67890"></textarea>
+     <label for="shcSchedCity" style="margin-top:8px">المدينة</label>
+     <select id="shcSchedCity" onchange="shcSchedSync()"><option value="">اختار المدينة</option><option>الإسكندرية</option><option>الغردقة</option><option>السويس</option><option>الإسماعيلية</option><option>المنصورة</option><option>المنيا</option><option>الزقازيق</option></select>
+    </div>
+    <label id="shcSchedAllWrap" style="margin-top:8px;display:none;align-items:center;gap:8px"><input id="shcSchedAll" type="checkbox" checked disabled> كل اللي على البريك وقت التنفيذ (حالتهم BREAK في اللايف)</label>
+    <div id="shcSchedDurWrap" style="margin-top:8px"><label for="shcSchedDur">وقت نهاية المد (24 ساعة)</label><input id="shcSchedDur" type="time"></div>
+    <div id="shcSchedReasonWrap" style="margin-top:8px;display:none"><label for="shcSchedReason">سبب فك البريك (بيتستخدم لمناديب الإسكندرية)</label><select id="shcSchedReason"><option value="">اختار السبب…</option><option value="TEMP_NOT_WORKING">TEMP_NOT_WORKING</option><option value="BREAK">BREAK</option></select></div>
+    <div class="row" style="margin-top:8px;gap:10px;align-items:end;flex-wrap:wrap">
+     <div><label for="shcSchedTime">ساعة التنفيذ (بتوقيت القاهرة)</label><input id="shcSchedTime" type="time"></div>
+     <label style="display:flex;align-items:center;gap:6px;padding-bottom:8px"><input id="shcSchedDaily" type="checkbox" checked> كل يوم</label>
+    </div>
+    <button class="btn pr" id="shcSchedAdd" style="width:100%;min-height:44px;margin-top:10px" onclick="shcSchedAdd()">➕ إضافة الجدولة</button>
+    <div id="shcSchedMsg" class="sub" style="margin-top:6px"></div>
+    <div id="shcSchedList" style="display:grid;gap:6px;margin-top:8px"></div>
+   </div>
   </div>
 </div>
 <div id="contactsModal" style="display:none;position:fixed;inset:0;background:#000c;z-index:75;overflow:auto;padding:12px" onclick="if(event.target===this)this.style.display='none'">
@@ -7520,7 +7542,65 @@ async function shcOpen(){
  const citySel=$('shcCity');
  if(shcZone){if(![...citySel.options].some(o=>o.value===shcZone||o.text===shcZone))citySel.add(new Option(shcZone,shcZone));citySel.value=shcZone;citySel.disabled=true}else citySel.disabled=false;
  shcSync();$('shcMsg').textContent='';
+ // ⏰ scheduling is admin-only (26 Nov, Micheal اعتماد الكل)
+ $('shcSchedCard').style.display=CUR&&CUR.r==='admin'?'':'none';
+ if(CUR&&CUR.r==='admin'){shcSchedSync();shcSchedRefresh()}
  await shcRefresh();
+}
+function shcSchedSync(){
+ const a=$('shcSchedAction').value;
+ const all=a==='break'; // فك البريك → target كل اللي على البريك؛ مد → codes
+ $('shcSchedCodesWrap').style.display=all?'none':'';
+ $('shcSchedAllWrap').style.display=all?'flex':'none';
+ $('shcSchedDurWrap').style.display=a==='extend'?'':'none';
+ const city=$('shcSchedCity').value;
+ $('shcSchedReasonWrap').style.display=(a==='break'&&(all||city==='الإسكندرية'))?'':'none';
+}
+async function shcSchedRefresh(){
+ try{
+  const d=await api('/api/shiftcmd/sched/list');
+  const rows=(d.schedules||[]).map(s=>{
+   const act=s.action==='extend'?'⏫ مد':'☕ فك';
+   const tgt=s.target==='break_all'?'كل اللي على البريك':(String(s.codes||'').split(' ').filter(Boolean).length+' مندوب ('+esc(s.city||'')+')');
+   const rep=s.daily?'كل يوم':'مرة واحدة';
+   const on=s.enabled?1:0;
+   return `<div class="row" style="gap:6px;align-items:center;border:1px solid var(--bd);border-radius:8px;padding:6px 8px;${on?'':'opacity:.55'}"><span style="font-size:12px">${act} — ${tgt} — 🕐 ${esc(s.time_hhmm)} — ${rep}${s.last_run?' — آخر تنفيذ: '+esc(s.last_run):''}</span><span style="margin-inline-start:auto;display:flex;gap:4px"><button class="btn" type="button" style="font-size:11px;padding:2px 8px" onclick="shcSchedToggle(${s.id},${on?0:1})">${on?'إيقاف':'تشغيل'}</button><button class="btn" type="button" style="font-size:11px;padding:2px 8px" onclick="shcSchedDel(${s.id})">مسح</button></span></div>`;
+  });
+  $('shcSchedList').innerHTML=rows.join('')||'<span class="sub">مفيش جدولات لسه</span>';
+ }catch(e){$('shcSchedList').innerHTML='<span class="sub">تعذّر تحميل الجدولات: '+esc(authErr(e))+'</span>'}
+}
+async function shcSchedAdd(){
+ const m=$('shcSchedMsg');
+ const action=$('shcSchedAction').value;
+ const target=action==='break'?'break_all':'codes';
+ const codes=$('shcSchedCodes').value.trim();
+ const city=$('shcSchedCity').value;
+ const duration24=$('shcSchedDur').value;
+ const reason=$('shcSchedReason').value;
+ const time=$('shcSchedTime').value;
+ const daily=$('shcSchedDaily').checked;
+ if(!/^\d{2}:\d{2}$/.test(time)){m.textContent='اختار ساعة التنفيذ';return}
+ if(action==='extend'&&!/^\d{2}:\d{2}$/.test(duration24)){m.textContent='اختار وقت نهاية المد';return}
+ if(target==='codes'&&!codes.trim()){m.textContent='اكتب أكواد المناديب';return}
+ if(target==='codes'&&!city){m.textContent='اختار المدينة';return}
+ if(action==='break'&&(target==='break_all'||city==='الإسكندرية')&&!reason){m.textContent='اختار سبب فك البريك (مطلوب للإسكندرية)';return}
+ const actL=action==='extend'?'مد الشيفت':'فك البريك';
+ const tgtL=target==='break_all'?'كل اللي على البريك وقت التنفيذ':'الأكواد: '+codes;
+ if(!confirm('جدولة جديدة:\n'+actL+'\n'+tgtL+'\nالساعة '+time+' بتوقيت القاهرة\n'+(daily?'كل يوم':'مرة واحدة بس')+'\n\nالأمر هيتنفذ أوتوماتيك في معاده طالما تطبيق اللابتوب شغال. متأكد؟'))return;
+ $('shcSchedAdd').disabled=true;m.textContent='بيتحفظ…';
+ try{
+  await api('/api/shiftcmd/sched/add',{method:'POST',body:{action,target,codes,city,duration24,reason,time,daily}});
+  m.textContent='✅ الجدولة اتحفظت.'+(time<=new Date().toLocaleTimeString('en-GB',{timeZone:'Africa/Cairo',hour:'2-digit',minute:'2-digit'})&&daily?' الوقت عدّى النهاردة — أول تنفيذ بكرة.':'');
+  $('shcSchedCodes').value='';shcSchedRefresh();
+ }catch(e){m.textContent='تعذّر الحفظ: '+authErr(e)}
+ finally{$('shcSchedAdd').disabled=false}
+}
+async function shcSchedToggle(id,en){
+ try{await api('/api/shiftcmd/sched/toggle',{method:'POST',body:{id,enabled:!!en}});shcSchedRefresh()}catch(e){alert('تعذّر التغيير: '+authErr(e))}
+}
+async function shcSchedDel(id){
+ if(!confirm('مسح الجدولة دي نهائي؟'))return;
+ try{await api('/api/shiftcmd/sched/del',{method:'POST',body:{id}});shcSchedRefresh()}catch(e){alert('تعذّر المسح: '+authErr(e))}
 }
 async function shcRefresh(){
  let d=null;
