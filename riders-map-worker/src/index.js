@@ -2078,11 +2078,12 @@ export default {
         // اختياري: الإرسال لمشرف واحد بس (إعادة إرسال أو تجربة) — body.sup باسم المشرف زي الشيت
         const onlyKey = repNameKey(body && body.sup);
         const sent = [], failed = [], noEmail = [];
+        for (const [, m] of matched) if (!String(m.user.email || '').trim()) noEmail.push({ sup: m.file.name, u: m.user.u });
         if (!body.dryRun) {
           for (const [mk, m] of matched) {
             if (onlyKey && mk !== onlyKey) continue;
             const email = String(m.user.email || '').trim();
-            if (!email) { noEmail.push({ sup: m.file.name, u: m.user.u }); continue; }
+            if (!email) continue;
             const bytes = repBuildXlsx(m.file.sheets);
             const sections = types.map(t => '• ' + REPORT_TYPES[t]).join('\n');
             const text = 'أهلًا ' + m.user.n + ' 👋\n\nده تقرير TEAM MH عن يوم ' + day + ' — البيانات اللي فيه خاصة بمناديبك بس.\n\nالأقسام الموجودة في ملف الإكسل المرفق:\n' + sections + '\n\nالتقرير اتولّد أوتوماتيك من لوحة المتابعة. لو فيه رقم مش مظبوط كلم الإدارة.';
