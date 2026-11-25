@@ -3714,7 +3714,7 @@ setTimeout(hideBootSplash,9000);
       wall('لازم تحدّث التطبيق ⬇️','النسخة اللي عندك قديمة ومش هتشتغل صح. نزّل آخر نسخة وثبّتها مكانها - حسابك وبياناتك زي ما هي.','/app.apk','تحميل آخر نسخة');
       return;
     }
-    window.tmhDesktop.version().then(v=>fetch('/app.minversion.json?_='+Date.now()).then(r=>r.ok?r.json():null).catch(()=>null).then(cfg=>{
+    window.tmhDesktop.version().then(v=>fetch('/app.minversion?_='+Date.now()).then(r=>r.ok?r.json():null).catch(()=>null).then(cfg=>{
       const min=cfg&&cfg.desktop;if(!min)return;
       const parts=x=>String(x||'').split('.').map(n=>parseInt(n,10)||0),a=parts(v),b=parts(min);
       let old=false;for(let i=0;i<3;i++){if((a[i]||0)<(b[i]||0)){old=true;break}if((a[i]||0)>(b[i]||0))break}
