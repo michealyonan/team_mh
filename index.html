@@ -7530,8 +7530,8 @@ async function lgRefresh(){
  const rows=d.cases||[],el=$('lgRows');
  if(!rows.length){el.innerHTML='<div class="sub" style="padding:8px">مفيش حالات مطابقة.</div>';return}
  el.innerHTML=rows.map(c=>'<div class="card" style="padding:8px;margin:6px 0;cursor:pointer" onclick="lgOpen('+c.id+')"><b>'+esc(c.rider_name)+'</b> ('+esc(c.rider_id)+') — '+esc(c.amount)+' ج'
-  +(c.city?' · '+esc(c.city):'')+'<br><span class="sub">'+(LG_ST[c.status]||esc(c.status))
-  +(c.case_number?' — قضية رقم '+esc(c.case_number):'')+(c.settle_amount?' — تسوية: '+esc(c.settle_amount)+' ج':'')
+  +(c.city?' · '+esc(c.city):'')+(c.case_number?' <span style="background:#7f1d1d;color:#fecaca;padding:2px 8px;border-radius:8px;font-size:12px;font-weight:800">⚖️ عليه قضية رقم '+esc(c.case_number)+'</span>':'')+'<br><span class="sub">'+(LG_ST[c.status]||esc(c.status))
+  +(c.settle_amount?' — تسوية: '+esc(c.settle_amount)+' ج':'')
   +'<br>'+new Date(c.updated).toLocaleString('ar-EG')+'</span></div>').join('');
 }
 async function lgOpen(id){
@@ -7543,6 +7543,7 @@ async function lgOpen(id){
   +F('تليفون',c.phone)+F('تليفون تاني',c.phone2)+F('المدينة',c.city)+F('المشرف',c.u_name)
   +F('الحالة',(LG_ST[c.status]||c.status))+F('رقم القضية',c.case_number)+F('مبلغ التسوية/المحامي',c.settle_amount?c.settle_amount+' ج':'')
   +F('حالة الحكم',c.judgment_status)+F('تفاصيل الحكم',c.judgment_detail)+F('مبلغ الحكم',c.judgment_amount?c.judgment_amount+' ج':'');
+ if(c.case_number)html+='<div style="background:#7f1d1d;color:#fecaca;padding:8px 12px;border-radius:10px;margin:8px 0;font-weight:800">⚖️ المندوب ده عليه قضية رقم '+esc(c.case_number)+'</div>';
  if(d.images&&d.images.receipt)html+='<button class="btn" type="button" onclick="const i=$(\'lgRecImg\');i.style.display=i.style.display===\'none\'?\'\':\'none\'">📷 عرض/إخفاء الإيصال</button><img id="lgRecImg" src="'+d.images.receipt+'" style="display:none;max-width:100%;border-radius:10px;margin-top:6px">';
  html+='<h4 style="margin:10px 0 4px">📜 سجل الحالة</h4>'+hist.map(x=>'<div class="sub" style="margin:2px 0">• '+(LG_ST[x.status]||esc(x.status))+' — '+esc(x.by_name)+' — '+new Date(x.ts).toLocaleString('ar-EG')+(x.note?'<br>📝 '+esc(x.note):'')+'</div>').join('');
  if(LG_IS_LEGAL){
@@ -7588,6 +7589,8 @@ async function lgSaveStatus(){
 }
 window.lgSaveStatus=lgSaveStatus;
 async function lgMarkPaid(){
+ const c=LG_CUR,warn=c&&c.case_number?'⚠️ تنبيه مهم: المندوب ده عليه قضية رقم '+c.case_number+' — متأكد إنك استلمت الفلوس منه؟':'متأكد إنك استلمت الفلوس من المندوب؟';
+ if(!confirm(warn))return;
  const m=$('lgNMsg');m.textContent='⏳ ...';
  try{await api('/api/legal/status',{method:'POST',body:{id:LG_CUR.id,status:'paid'}});m.textContent='✅ اتسجل السداد';lgRefresh()}catch(e){m.textContent='❌ '+authErr(e)}
 }
