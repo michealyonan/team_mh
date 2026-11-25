@@ -923,7 +923,7 @@ async function handleAuth(request, env, json, url) {
     if (pw.length < 4) return json({ error: 'weak_password' }, 400);
     const email = cleanContact.email(String(body.email || '').trim());
     const phone = cleanContact.phone(body.phone || '');
-    const channel = body.channel === 'whatsapp' ? 'whatsapp' : 'email';
+    const channel = 'email'; // fixed: login codes always go to Gmail (Micheal 16318052)
     if (!email) return json({ error: 'invalid_email' }, 400);
     if (!phone) return json({ error: 'invalid_phone' }, 400);
     const n = (String(body.n || '').trim() || u).slice(0, 120);
@@ -946,7 +946,7 @@ async function handleAuth(request, env, json, url) {
     if (chk !== 'ok') return json({ error: chk === 'expired' ? 'code_expired' : 'invalid_code' }, 401);
     const email = cleanContact.email(String(body.email || '').trim());
     const phone = cleanContact.phone(body.phone || '');
-    const channel = body.channel === 'whatsapp' ? 'whatsapp' : 'email';
+    const channel = 'email'; // fixed: login codes always go to Gmail (Micheal 16318052)
     if (!email) return json({ error: 'invalid_email' }, 400);
     await env.DB.prepare('UPDATE users SET email=?, phone=?, channel=?, status=?, updated_at=? WHERE u=?')
       .bind(email, phone, channel, 'active', Date.now(), u).run();
@@ -1063,7 +1063,7 @@ async function handleAuth(request, env, json, url) {
     if (!user) return json({ error: 'unauthorized' }, 401);
     const email = cleanContact.email(String(body && body.email || '').trim());
     const phone = cleanContact.phone(body && body.phone || '');
-    const channel = body && body.channel === 'whatsapp' ? 'whatsapp' : 'email';
+    const channel = 'email'; // fixed: login codes always go to Gmail (Micheal 16318052)
     if (!email) return json({ error: 'invalid_email' }, 400);
     if (!phone) return json({ error: 'invalid_phone' }, 400);
     await env.DB.prepare('UPDATE users SET email=?, phone=?, channel=?, updated_at=? WHERE u=?').bind(email, phone, channel, Date.now(), user.u).run();
