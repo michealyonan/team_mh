@@ -1408,34 +1408,29 @@ function repVehicle(name) {
   return 'مكنة';
 }
 
-// نفس ترتيب أعمدة شيت الأداء اللي index.html بيقراه (ingest)
-function repPerfRow(r) {
-  return {
-    id: String(r[0] || '').trim(),
-    p: +r[1] || 0, a: +r[2] || 0, b: +r[3] || 0,
-    o: parseInt(r[4]) || 0,
-    day: repNormDay(r[5]),
-    s: String(r[6] || '').trim(),
-    n: String(r[8] || '').trim(),
-    z: String(r[10] || '').trim(),
-    w: parseFloat(String(r[12] || '0').replace(/,/g, '')) || 0,
-    bt: String(r[13] || '').trim(),
-    e: repNormDay(r[14]),
-  };
+const HC_GID = '2127591673'; // شيت الهيدكاونت: صف واحد لكل مندوب (محفظة + عقد + حالة + مشرف) — مصدر المحافظ والعقود
+// أداء يوم واحد بس: فلترة عند جوجل نفسها (بدل ما نسحب الشيت كله ~40MB ونتجاوز حد CPU المجاني).
+// ملحوظة: gviz out:csv بيطبّق where لكن بيرجّع كل الأعمدة بترتيبها الأصلي — القراءة بالأعمدة الأصلية.
+async function repFetchPerfDay(day) {
+  const q = encodeURIComponent("select * where F = date '" + day + "'");
+  const url = 'https://docs.google.com/spreadsheets/d/' + PERF_SHEET_ID + '/gviz/tq?tqx=out:csv&gid=0&headers=1&tq=' + q + '&_=' + Date.now();
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('sheet_fetch_failed');
+  return parseCsv(await res.text()).slice(1);
 }
-
-async function repFetchRows() {
-  const urls = [
-    'https://docs.google.com/spreadsheets/d/' + PERF_SHEET_ID + '/gviz/tq?tqx=out:csv&gid=0&headers=1&_=' + Date.now(),
-    'https://docs.google.com/spreadsheets/d/' + PERF_SHEET_ID + '/gviz/tq?tqx=out:csv&sheet=' + encodeURIComponent('الاداء') + '&headers=1&_=' + Date.now(),
-  ];
-  for (const u of urls) {
-    try {
-      const res = await fetch(u);
-      if (res.ok) { const rows = parseCsv(await res.text()); if (rows.length > 1) return rows.slice(1); }
-    } catch (e) {}
-  }
-  throw new Error('sheet_fetch_failed');
+async function repFetchHc() {
+  const url = 'https://docs.google.com/spreadsheets/d/' + PERF_SHEET_ID + '/gviz/tq?tqx=out:csv&gid=' + HC_GID + '&headers=1&_=' + Date.now();
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('sheet_fetch_failed');
+  return parseCsv(await res.text()).slice(1);
+}
+async function repLatestDay() {
+  try {
+    const res = await fetch('https://docs.google.com/spreadsheets/d/' + PERF_SHEET_ID + '/gviz/tq?tqx=out:csv&gid=0&headers=1&tq=' + encodeURIComponent('select max(F)') + '&_=' + Date.now());
+    if (!res.ok) return '';
+    const rows = parseCsv(await res.text());
+    return repNormDay(rows[1] && rows[1][0]);
+  } catch (e) { return ''; }
 }
 
 /* ---- مولّد Excel بسيط: ZIP تخزين مباشر (من غير ضغط) + XML جداول ----
@@ -1501,32 +1496,38 @@ function repU8ToB64(u8) { let s = ''; const CH = 0x8000; for (let i = 0; i < u8.
 /* تجميع التقرير: يرجع لكل مشرف (بالاسم الظاهر في الشيت) ملفاته وعدّاداته.
    perf = صفوف اليوم المختار بس · wallets/contracts = آخر صف لكل مندوب لحد اليوم المختار */
 async function repAssemble(env, types, day) {
-  const raw = await repFetchRows();
-  const rows = raw.map(repPerfRow).filter(r => r.id && r.s);
-  let latestDay = '';
-  for (const r of rows) if (r.day && r.day > latestDay) latestDay = r.day;
-  const bySup = new Map(); // nameKey -> { name, perf: Map(id->agg), latest: Map(id->row) }
-  for (const r of rows) {
-    const k = repNameKey(r.s);
+  const bySup = new Map(); // nameKey -> { name, perf: [], hc: [] }
+  const group = (name) => {
+    const k = repNameKey(name);
     let g = bySup.get(k);
-    if (!g) { g = { name: r.s, perf: new Map(), latest: new Map() }; bySup.set(k, g); }
-    if (r.day === day) {
-      let x = g.perf.get(r.id);
-      if (!x) { x = { id: r.id, n: r.n, z: r.z, bt: r.bt, o: 0, a: 0, p: 0, b: 0 }; g.perf.set(r.id, x); }
-      x.o += r.o; x.a += r.a; x.p += r.p; x.b += r.b;
-      if (r.n) x.n = r.n; if (r.z) x.z = r.z; if (r.bt) x.bt = r.bt;
+    if (!g) { g = { name: String(name || '').trim(), perf: [], hc: [] }; bySup.set(k, g); }
+    return g;
+  };
+  let latestDay = '', perfRowCount = 0;
+  const jobs = [];
+  if (types.includes('perf')) jobs.push((async () => {
+    for (const r of await repFetchPerfDay(day)) {
+      const id = String(r[0] || '').trim(), s = String(r[6] || '').trim();
+      if (!id || !s) continue;
+      perfRowCount++;
+      group(s).perf.push({ id, p: +r[1] || 0, a: +r[2] || 0, b: +r[3] || 0, o: parseInt(r[4]) || 0, n: String(r[8] || '').trim(), z: String(r[10] || '').trim(), bt: String(r[13] || '').trim() });
     }
-    if (r.day && r.day <= day) {
-      const prev = g.latest.get(r.id);
-      if (!prev || r.day >= prev.day) g.latest.set(r.id, r);
+  })());
+  if (types.includes('wallets') || types.includes('contracts')) jobs.push((async () => {
+    for (const r of await repFetchHc()) {
+      const id = String(r[0] || '').trim(), s = String(r[9] || '').trim();
+      if (!id || !s) continue;
+      group(s).hc.push({ id, n: String(r[1] || '').trim(), bt: String(r[2] || '').trim(), st: String(r[5] || '').trim(), e: String(r[7] || '').trim(), w: parseFloat(String(r[10] || '0').replace(/,/g, '')) || 0 });
     }
-  }
+  })());
+  jobs.push((async () => { latestDay = await repLatestDay(); })());
+  await Promise.all(jobs);
   const dayMs = Date.parse(day + 'T00:00:00Z');
-  const files = new Map(); // nameKey -> { name, riders, sheets:[{name,headers,rows}] }
+  const files = new Map(); // nameKey -> { name, riders, sheets: [{name,headers,rows}] }
   for (const [k, g] of bySup) {
     const sheets = [];
     if (types.includes('perf')) {
-      const list = [...g.perf.values()].sort((x, y) => y.o - x.o);
+      const list = g.perf.slice().sort((x, y) => y.o - x.o);
       sheets.push({
         name: REPORT_TYPES.perf,
         headers: ['الكود', 'الاسم', 'المنطقة', 'الباتش', 'المركبة', 'الطلبات', 'الساعات الفعلية', 'الساعات المخططة', 'نسبة الالتزام %', 'طلب/ساعة', 'الراحة'],
@@ -1534,27 +1535,30 @@ async function repAssemble(env, types, day) {
       });
     }
     if (types.includes('wallets')) {
-      const list = [...g.latest.values()].sort((x, y) => x.w - y.w);
+      const list = g.hc.slice().sort((x, y) => x.w - y.w);
       sheets.push({
         name: REPORT_TYPES.wallets,
-        headers: ['الكود', 'الاسم', 'المنطقة', 'الباتش', 'المحفظة'],
-        rows: list.map(x => [x.id, x.n, x.z, x.bt, Math.round(x.w * 100) / 100]),
+        headers: ['الكود', 'الاسم', 'الحالة', 'الباتش', 'المحفظة'],
+        rows: list.map(x => [x.id, x.n, x.st, x.bt, Math.round(x.w * 100) / 100]),
       });
     }
     if (types.includes('contracts')) {
-      const list = [...g.latest.values()].filter(x => x.e).map(x => {
+      const list = g.hc.filter(x => x.e && x.st !== 'إقالة').map(x => {
         const left = Math.ceil((Date.parse(x.e + 'T00:00:00Z') - dayMs) / 86400000);
         return { x, left };
       }).sort((a, b) => a.left - b.left);
       sheets.push({
         name: REPORT_TYPES.contracts,
-        headers: ['الكود', 'الاسم', 'المنطقة', 'نهاية العقد', 'الأيام المتبقية'],
-        rows: list.map(({ x, left }) => [x.id, x.n, x.z, x.e, left]),
+        headers: ['الكود', 'الاسم', 'الحالة', 'نهاية العقد', 'الأيام المتبقية'],
+        rows: list.map(({ x, left }) => [x.id, x.n, x.st, x.e, left]),
       });
     }
-    files.set(k, { name: g.name, riders: g.latest.size || g.perf.size, sheets });
+    const ids = new Set();
+    for (const x of g.perf) ids.add(x.id);
+    for (const x of g.hc) ids.add(x.id);
+    files.set(k, { name: g.name, riders: ids.size, sheets });
   }
-  return { files, latestDay };
+  return { files, latestDay, perfRowCount };
 }
 
 // مطابقة مشرف الشيت بحسابه: تطبيع كامل بس على الاسم الظاهر أو اسم المستخدم.
@@ -2092,7 +2096,7 @@ export default {
           } catch (e) {}
         }
         return json({
-          ok: true, day, types, dryRun: !!body.dryRun, latestDay: assembled.latestDay, only: onlyKey || undefined,
+          ok: true, day, types, dryRun: !!body.dryRun, latestDay: assembled.latestDay, only: onlyKey || undefined, perfRows: assembled.perfRowCount,
           ready: [...matched.values()].map(m => ({ sup: m.file.name, u: m.user.u, email: String(m.user.email || ''), riders: m.file.riders })),
           sent, failed, noEmail, noAccount, ambiguous,
           supCount: files.size,
