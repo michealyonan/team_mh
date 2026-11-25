@@ -296,7 +296,10 @@ async function fcmAccessToken(env) {
   return _fcmTok;
 }
 async function sendFcmToUser(env, u, title, body, riderId) {
-  if (!env.FCM_SA_JSON) return;
+  if (!env.FCM_SA_JSON) {
+    try { await env.DB.prepare('INSERT INTO push_log(u,token_tail,status,resp,ts) VALUES(?,?,?,?,?)').bind(u, '', -4, 'fcm_not_configured', Date.now()).run(); } catch (e) {}
+    return;
+  }
   const log = async (status, resp) => {
     try { await env.DB.prepare('INSERT INTO push_log(u,token_tail,status,resp,ts) VALUES(?,?,?,?,?)').bind(u, '', status, String(resp || '').slice(0, 500), Date.now()).run(); } catch (e) {}
   };
@@ -2260,7 +2263,7 @@ export default {
         const rows = await env.DB.prepare('SELECT token,ts FROM push_tokens WHERE u=? ORDER BY ts DESC').bind(user.u).all();
         const list = rows.results || [];
         const logs = await env.DB.prepare('SELECT token_tail,status,resp,ts FROM push_log WHERE u=? ORDER BY ts DESC LIMIT 5').bind(user.u).all().catch(() => ({ results: [] }));
-        return json({ registered: list.length > 0, devices: list.length, last_ts: list.length ? list[0].ts : 0, last_sends: logs.results || [] });
+        return json({ registered: list.length > 0, devices: list.length, last_ts: list.length ? list[0].ts : 0, fcm_configured: !!env.FCM_SA_JSON, fcm_project: env.FCM_PROJECT_ID || 'pilot-dashboard-d0983', last_sends: logs.results || [] });
       } catch (e) { return serverErr(e); }
     }
 
