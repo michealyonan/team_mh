@@ -16,6 +16,7 @@ import android.view.Gravity;
 import android.view.View;
 import android.view.WindowManager;
 import android.webkit.CookieManager;
+import android.webkit.GeolocationPermissions;
 import android.webkit.JavascriptInterface;
 import android.webkit.PermissionRequest;
 import android.webkit.SslErrorHandler;
@@ -73,6 +74,10 @@ public class MainActivity extends FragmentActivity {
     private ValueCallback<Uri[]> fileCallback;
     private Uri cameraUri;
     private PermissionRequest pendingMicRequest;
+    private String pendingGeoOrigin;
+    private GeolocationPermissions.Callback pendingGeoCallback;
+    private static final int RC_STARTUP_PERMS = 45;
+    private static final int RC_GEO_PERM = 46;
 
     // ---- phone form agent (admin only; the worker gates every endpoint on role) ----
     private final Handler handler = new Handler(Looper.getMainLooper());
@@ -210,6 +215,28 @@ public class MainActivity extends FragmentActivity {
                     ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.RECORD_AUDIO}, RC_MIC_PERM);
                 }
             }
+
+            // v3.1: site geolocation (rider live map / geo capture) needs the app-side grant too.
+            @Override
+            public void onGeolocationPermissionsShowPrompt(String origin, GeolocationPermissions.Callback callback) {
+                boolean ours = origin != null && origin.contains(ALLOWED_HOST);
+                if (!ours) { callback.invoke(origin, false, false); return; }
+                if (ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+                        || ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+                    callback.invoke(origin, true, false);
+                } else {
+                    pendingGeoOrigin = origin;
+                    pendingGeoCallback = callback;
+                    ActivityCompat.requestPermissions(MainActivity.this,
+                            new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION}, RC_GEO_PERM);
+                }
+            }
+
+            @Override
+            public void onGeolocationPermissionsHidePrompt() {
+                pendingGeoOrigin = null;
+                pendingGeoCallback = null;
+            }
         });
 
         webView.setWebViewClient(new WebViewClient() {
@@ -254,10 +281,7 @@ public class MainActivity extends FragmentActivity {
         FcmService.ensureChannel(this);
         FirebaseMessaging.getInstance().getToken().addOnSuccessListener(token ->
                 getSharedPreferences(FcmService.PREFS, MODE_PRIVATE).edit().putString("token", token).apply());
-        if (Build.VERSION.SDK_INT >= 33
-                && ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.POST_NOTIFICATIONS}, RC_NOTIF_PERM);
-        }
+        gateEntry();
 
         // v3: biometric gate before the dashboard loads (skipped when the device
         // has no enrolled biometric/credential - never locks anyone out).
@@ -269,6 +293,114 @@ public class MainActivity extends FragmentActivity {
 
         // v3: in-app update check (restored from v1.4; v2 lost it).
         checkUpdate();
+    }
+
+    // v3.1 (Micheal, 26 Nov): permissions are mandatory. The app does not open until
+    // notifications + mic + camera + location are all granted; if he permanently denied
+    // one, the gate sends him to the app's system settings page instead of looping.
+    private FrameLayout permView;
+
+    private java.util.ArrayList<String> missingRequiredPerms() {
+        java.util.ArrayList<String> want = new java.util.ArrayList<>();
+        if (Build.VERSION.SDK_INT >= 33
+                && ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED)
+            want.add(Manifest.permission.POST_NOTIFICATIONS);
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED)
+            want.add(Manifest.permission.RECORD_AUDIO);
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED)
+            want.add(Manifest.permission.CAMERA);
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED)
+            want.add(Manifest.permission.ACCESS_FINE_LOCATION);
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED)
+            want.add(Manifest.permission.ACCESS_COARSE_LOCATION);
+        return want;
+    }
+
+    private void gateEntry() {
+        if (!missingRequiredPerms().isEmpty()) { showPermGate(); return; }
+        if (permView != null) { permView.setVisibility(View.GONE); permView = null; }
+        if (needsLock()) showLock(); else unlock();
+    }
+
+    private void showPermGate() {
+        final java.util.ArrayList<String> missing = missingRequiredPerms();
+        if (missing.isEmpty()) { gateEntry(); return; }
+        // permanently denied = already asked and no rationale left -> only settings can fix it
+        boolean permanentlyDenied = false;
+        for (String perm : missing) {
+            if (!ActivityCompat.shouldShowRequestPermissionRationale(this, perm)
+                    && getSharedPreferences(FcmService.PREFS, MODE_PRIVATE).getBoolean("asked_perms_v1", false)) {
+                permanentlyDenied = true;
+                break;
+            }
+        }
+        if (permView != null && permView.getParent() instanceof android.view.ViewGroup) {
+            ((android.view.ViewGroup) permView.getParent()).removeView(permView);
+        }
+        permView = new FrameLayout(this);
+        permView.setBackgroundColor(Color.parseColor("#0f172a"));
+        TextView t = new TextView(this);
+        t.setText("🔐 الأذونات مطلوبة");
+        t.setTextColor(Color.WHITE);
+        t.setTextSize(24);
+        t.setGravity(Gravity.CENTER);
+        FrameLayout.LayoutParams tp = new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT);
+        tp.gravity = Gravity.CENTER;
+        tp.bottomMargin = 300;
+        TextView d = new TextView(this);
+        d.setText("التطبيق محتاج الأذونات دي عشان يشتغل صح:\nالإشعارات والمايكروفون والكاميرا والموقع.\nمش هيشتغل من غيرها.");
+        d.setTextColor(Color.parseColor("#cbd5e1"));
+        d.setTextSize(16);
+        d.setGravity(Gravity.CENTER);
+        FrameLayout.LayoutParams dp = new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT);
+        dp.gravity = Gravity.CENTER;
+        dp.bottomMargin = 120;
+        dp.leftMargin = 48; dp.rightMargin = 48;
+        Button b = new Button(this);
+        b.setText(permanentlyDenied ? "فتح إعدادات التطبيق" : "تفعيل الأذونات");
+        b.setTextSize(18);
+        FrameLayout.LayoutParams bp = new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT);
+        bp.gravity = Gravity.CENTER;
+        bp.topMargin = 120;
+        permView.addView(t, tp);
+        permView.addView(d, dp);
+        permView.addView(b, bp);
+        final boolean toSettings = permanentlyDenied;
+        b.setOnClickListener(v -> {
+            if (toSettings) {
+                try {
+                    startActivity(new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                            Uri.parse("package:" + getPackageName())));
+                } catch (Exception e) {
+                    startActivity(new Intent(android.provider.Settings.ACTION_SETTINGS));
+                }
+            } else {
+                getSharedPreferences(FcmService.PREFS, MODE_PRIVATE).edit().putBoolean("asked_perms_v1", true).apply();
+                ActivityCompat.requestPermissions(this, missing.toArray(new String[0]), RC_STARTUP_PERMS);
+            }
+        });
+        if (permView.getParent() == null) {
+            addContentView(permView, new FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+        }
+        permView.setVisibility(View.VISIBLE);
+        permView.bringToFront();
+        // ask immediately on first launch, no need to wait for the button
+        if (!permanentlyDenied
+                && !getSharedPreferences(FcmService.PREFS, MODE_PRIVATE).getBoolean("asked_perms_v1", false)) {
+            getSharedPreferences(FcmService.PREFS, MODE_PRIVATE).edit().putBoolean("asked_perms_v1", true).apply();
+            ActivityCompat.requestPermissions(this, missing.toArray(new String[0]), RC_STARTUP_PERMS);
+        }
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // back from the system permission dialog or app settings: re-evaluate the gate
+        if (permView != null && !unlocked) gateEntry();
     }
 
     // ---------------- biometric lock ----------------
@@ -393,6 +525,14 @@ public class MainActivity extends FragmentActivity {
             if (granted) pendingMicRequest.grant(new String[]{PermissionRequest.RESOURCE_AUDIO_CAPTURE});
             else pendingMicRequest.deny();
             pendingMicRequest = null;
+        } else if (requestCode == RC_STARTUP_PERMS) {
+            gateEntry();
+        } else if (requestCode == RC_GEO_PERM && pendingGeoCallback != null) {
+            boolean anyLoc = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+                    || ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED;
+            pendingGeoCallback.invoke(pendingGeoOrigin, anyLoc, false);
+            pendingGeoOrigin = null;
+            pendingGeoCallback = null;
         } else if (requestCode == RC_STORAGE_PERM) {
             if (granted) launchFileChooser();
             else if (fileCallback != null) { fileCallback.onReceiveValue(null); fileCallback = null; }

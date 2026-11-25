@@ -3693,6 +3693,35 @@ loadLoginTheme();
 async function boot(){await loadUsers();boot0();loadSupervisorTargets()}
 function hideBootSplash(){const e=$('bootSplash');if(e)e.style.display='none'}
 setTimeout(hideBootSplash,9000);
+// 26 Nov: old-install update wall (Micheal 18949433) - a blocking screen with the
+// download link, shown before anything else. Old Android app = WebView UA without the
+// v3 TeamMH bridge; old desktop = tmhDesktop bridge with version below the server minimum.
+(function appUpdateGate(){
+  try{
+    const ua=navigator.userAgent||'';
+    const isOldAndroidApp=/; wv\)/.test(ua)&&!window.TeamMH;
+    const isDesktop=!!(window.tmhDesktop&&window.tmhDesktop.version);
+    if(!isOldAndroidApp&&!isDesktop)return;
+    const wall=(title,msg,url,btn)=>{
+      const o=document.createElement('div');
+      o.style.cssText='position:fixed;inset:0;z-index:99999;background:#0f172a;color:#e2e8f0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px';
+      const h=document.createElement('div');h.style.cssText='font-size:22px;font-weight:700;margin-bottom:12px';h.textContent=title;
+      const m=document.createElement('div');m.style.cssText='font-size:15px;color:#cbd5e1;max-width:420px;line-height:1.8;margin-bottom:20px';m.textContent=msg;
+      const a=document.createElement('a');a.href=url;a.textContent=btn;a.style.cssText='background:#2dc19f;color:#06231b;padding:14px 28px;border-radius:10px;font-size:17px;font-weight:700;text-decoration:none';
+      o.append(h,m,a);document.body.appendChild(o);
+    };
+    if(isOldAndroidApp){
+      wall('لازم تحدّث التطبيق ⬇️','النسخة اللي عندك قديمة ومش هتشتغل صح. نزّل آخر نسخة وثبّتها مكانها - حسابك وبياناتك زي ما هي.','/app.apk','تحميل آخر نسخة');
+      return;
+    }
+    window.tmhDesktop.version().then(v=>fetch('/app.minversion.json?_='+Date.now()).then(r=>r.ok?r.json():null).catch(()=>null).then(cfg=>{
+      const min=cfg&&cfg.desktop;if(!min)return;
+      const parts=x=>String(x||'').split('.').map(n=>parseInt(n,10)||0),a=parts(v),b=parts(min);
+      let old=false;for(let i=0;i<3;i++){if((a[i]||0)<(b[i]||0)){old=true;break}if((a[i]||0)>(b[i]||0))break}
+      if(old)wall('لازم تحدّث برنامج الكمبيوتر ⬇️','النسخة اللي عندك ('+v+') قديمة ومش بتتحدّث لوحدها. نزّل المثبت الجديد وثبّته - من هنا ورايح بيحدّث نفسه.','/dl/desktop','تحميل النسخة الجديدة');
+    })).catch(()=>{});
+  }catch(e){}
+})();
 async function boot0(){let t='';try{localStorage.removeItem('pd_sess');t=sessionStorage.getItem('pd_token')||'';const saved=JSON.parse(localStorage.getItem(REMEMBER_LOGIN_KEY)||'null');if(saved&&saved.expires>Date.now()&&saved.t)t=saved.t;else if(saved)localStorage.removeItem(REMEMBER_LOGIN_KEY)}catch(e){}if(!t){$('lg').style.display='flex';hideBootSplash();return}try{const d=await api('/api/auth/me');d.profile.token=t;Promise.resolve(enter(d.profile)).finally(()=>setTimeout(hideBootSplash,600))}catch(e){try{sessionStorage.removeItem('pd_token');localStorage.removeItem(REMEMBER_LOGIN_KEY)}catch(_){} $('lg').style.display='flex';hideBootSplash()}}
 const AR_D=t=>String(t).replace(/[٠-٩]/g,d=>'٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/[۰-۹]/g,d=>'۰۱۲۳۴۵۶۷۸۹'.indexOf(d));
 let LGBUSY=false,FAIL=0,LOCK=0;
@@ -7284,7 +7313,7 @@ async function startVoiceRec(){
   if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia||!window.MediaRecorder){alert('المتصفح ده مش بيدعم تسجيل فويس');return}
   let stream;
   try{stream=await navigator.mediaDevices.getUserMedia({audio:true})}
-  catch(e){alert('محتاج إذن المايك عشان تسجّل فويس. فعّله من إعدادات المتصفح وجرّب تاني.');return}
+  catch(e){let micMsg='محتاج إذن المايك عشان تسجّل فويس. ';if(window.TeamMH)micMsg+='فعّل المايكروفون من: إعدادات الموبايل ← التطبيقات ← TEAM MH ← الأذونات ← المايكروفون ← سماح، وجرّب تاني.';else if(/; wv\)/.test(navigator.userAgent))micMsg+='نسخة التطبيق عندك قديمة ومش بتدعم الفويس - حدّث لآخر نسخة من زرار تحميل التطبيق في صفحة الدخول.';else micMsg+='فعّله من إعدادات المتصفح وجرّب تاني.';alert(micMsg);return}
   VR_MIME=vrPickMime();
   let rec=null;
   try{rec=VR_MIME?new MediaRecorder(stream,{mimeType:VR_MIME,audioBitsPerSecond:24000}):new MediaRecorder(stream)}
