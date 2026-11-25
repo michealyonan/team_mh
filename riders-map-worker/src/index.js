@@ -79,6 +79,7 @@ async function ensureSchema(env) {
       ts INTEGER NOT NULL)`),
     env.DB.prepare(`CREATE INDEX IF NOT EXISTS notif_ud ON notifications(u, day, id)`),
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS notifications_read(u TEXT PRIMARY KEY, ts INTEGER NOT NULL DEFAULT 0)`),
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS legal_reminders(case_id INTEGER PRIMARY KEY, by_u TEXT NOT NULL, by_name TEXT NOT NULL DEFAULT '', ts INTEGER NOT NULL, seen INTEGER NOT NULL DEFAULT 0)`),
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS settings(k TEXT PRIMARY KEY, v TEXT NOT NULL DEFAULT '')`),
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS push_tokens(u TEXT NOT NULL, token TEXT NOT NULL, ts INTEGER NOT NULL, PRIMARY KEY(u, token))`),
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS viewer_access(
@@ -846,6 +847,27 @@ async function handleLegal(request, env, json, url) {
     return json({ ok: true, id: cid });
   }
 
+  // Reminder (Micheal 25 Nov, msg 16732996): sup/manager/admin pings the legal officer about a case.
+  // One outstanding reminder per case; legal sees who/when on the card + detail; opening the detail marks it seen.
+  if (p === '/api/legal/remind' && request.method === 'POST') {
+    if (user.r === 'legal') return json({ error: 'forbidden' }, 403);
+    if (!isSupSide) return json({ error: 'forbidden' }, 403);
+    const wait = await rateLimit(env, 'legalremind:' + user.u, 20, 60 * 60 * 1000, 60 * 1000);
+    if (wait) return json({ error: 'locked', wait }, 429);
+    const body = await request.json().catch(() => null);
+    const cid = Number(body && body.id || 0);
+    const r = await env.DB.prepare('SELECT id,rider_id,rider_name,u FROM legal_cases WHERE id=?').bind(cid).first();
+    if (!r) return json({ error: 'not_found' }, 404);
+    if (user.r === 'sup' && r.u !== user.u) return json({ error: 'forbidden' }, 403);
+    const now = Date.now();
+    await env.DB.prepare('INSERT INTO legal_reminders(case_id,by_u,by_name,ts,seen) VALUES(?,?,?,?,0) ON CONFLICT(case_id) DO UPDATE SET by_u=excluded.by_u, by_name=excluded.by_name, ts=excluded.ts, seen=0').bind(cid, user.u, user.n || user.u, now).run();
+    const legals = await env.DB.prepare("SELECT u FROM users WHERE r='legal' AND status='active'").all();
+    for (const lg of (legals.results || [])) {
+      await insertNotification(env, lg.u, '🔔 تذكير بخصوص حالة', 'المندوب ' + r.rider_name + ' (' + r.rider_id + ') — حالة #' + r.id + ' — تذكير من ' + (user.n || user.u), String(r.rider_id || ''));
+    }
+    return json({ ok: true, ts: now });
+  }
+
   if (p === '/api/legal/list' && request.method === 'GET') {
     let rows;
     if (isLegal) rows = (await env.DB.prepare('SELECT ' + LIST_COLS + ' FROM legal_cases ORDER BY id DESC LIMIT 300').all()).results || [];
@@ -855,6 +877,12 @@ async function handleLegal(request, env, json, url) {
     const q = String(url.searchParams.get('q') || '').replace(/\D/g, '').slice(0, 14);
     if (st) rows = rows.filter((r) => r.status === st);
     if (q) rows = rows.filter((r) => String(r.national_id).includes(q) || String(r.rider_id).includes(q));
+    if (rows.length) {
+      const rems = await env.DB.prepare('SELECT case_id,by_name,ts FROM legal_reminders WHERE seen=0').all();
+      const rmap = {};
+      for (const x of rems.results || []) rmap[x.case_id] = { by_name: x.by_name, ts: x.ts };
+      for (const r of rows) if (rmap[r.id]) r.reminder = rmap[r.id];
+    }
     return json({ cases: rows });
   }
 
@@ -863,11 +891,13 @@ async function handleLegal(request, env, json, url) {
     const r = await env.DB.prepare('SELECT * FROM legal_cases WHERE id=?').bind(id).first();
     if (!r) return json({ error: 'not_found' }, 404);
     if (!isLegal && r.u !== user.u) return json({ error: 'forbidden' }, 403);
+    const rem = await env.DB.prepare('SELECT by_name,ts,seen FROM legal_reminders WHERE case_id=?').bind(id).first();
+    if (rem && user.r === 'legal' && !rem.seen) await env.DB.prepare('UPDATE legal_reminders SET seen=1 WHERE case_id=?').bind(id).run();
     const imgs = await env.DB.prepare('SELECT k,data FROM legal_case_images WHERE case_id=?').bind(id).all();
     const images = {};
     for (const x of imgs.results || []) images[x.k] = x.data;
     const hist = await env.DB.prepare('SELECT status,note,by_name,ts FROM legal_case_history WHERE case_id=? ORDER BY id').bind(id).all();
-    return json({ item: r, images, history: hist.results || [] });
+    return json({ item: r, images, history: hist.results || [], reminder: rem && !rem.seen ? { by_name: rem.by_name, ts: rem.ts } : null });
   }
 
   if (p === '/api/legal/status' && request.method === 'POST') {

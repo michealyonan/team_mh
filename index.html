@@ -7539,6 +7539,8 @@ $('lgNidFile').onchange=e=>{
 };
 function lgClearNidImg(){LG_NID_IMG='';$('lgNidImgSt').textContent='صورة البطاقة (وش) مطلوبة';$('lgNidImgB').textContent='🪪 ارفع صورة البطاقة (وش)';const p=$('lgNidImgPrev');if(p){p.style.display='none';p.innerHTML=''}}
 window.lgClearNidImg=lgClearNidImg;
+async function lgRemind(id,btn){try{btn.disabled=true;await api('/api/legal/remind',{method:'POST',body:{id}});btn.textContent='✅ اتبعت التذكير';setTimeout(()=>{btn.disabled=false;btn.textContent='🔔 تذكير'},4000)}catch(e){btn.disabled=false;alert('تعذّر إرسال التذكير: '+authErr(e))}}
+window.lgRemind=lgRemind;
 $('lgSend').onclick=async()=>{
  const m=$('lgMsg');m.textContent='';
  const body={rider_id:$('lgRiderId').value.trim(),rider_name:$('lgName').value.trim(),national_id:$('lgNid').value.trim(),amount:$('lgAmount').value.trim(),phone:$('lgPhone').value.trim(),phone2:$('lgPhone2').value.trim(),city:$('lgCity').value.trim(),receipt:LG_IMG,nid_front:LG_NID_IMG};
@@ -7560,7 +7562,10 @@ async function lgRefresh(){
  let d;try{d=await api('/api/legal/list?status='+encodeURIComponent(st)+'&q='+encodeURIComponent(q))}catch(e){$('lgRows').innerHTML='<div class="sub">'+esc(authErr(e))+'</div>';return}
  const rows=d.cases||[],el=$('lgRows');
  if(!rows.length){el.innerHTML='<div class="sub" style="padding:8px">مفيش حالات مطابقة.</div>';return}
+ let unseen=0;rows.forEach(c=>{if(c.reminder)unseen++});const _tb=$('lgTabList');if(_tb)_tb.textContent='📋 الحالات'+(unseen&&CUR&&CUR.r==='legal'?' <span style="background:#b45309;color:#fef3c7;border-radius:999px;padding:1px 8px;font-size:12px">🔔 '+unseen+'</span>':'');
  el.innerHTML=rows.map(c=>'<div class="card" style="padding:8px;margin:6px 0;cursor:pointer" onclick="lgOpen('+c.id+')"><b>'+esc(c.rider_name)+'</b> ('+esc(c.rider_id)+') — '+esc(c.amount)+' ج'
+  +(c.reminder?' <span style="background:#b45309;color:#fef3c7;padding:2px 8px;border-radius:8px;font-size:12px;font-weight:800">🔔 تذكير من '+esc(c.reminder.by_name)+' — '+new Date(c.reminder.ts).toLocaleString('ar-EG')+'</span>':'')
+  +(LG_CAN_SUBMIT?' <button class="btn" type="button" style="padding:4px 10px;font-size:12px" onclick="event.stopPropagation();lgRemind('+c.id+',this)">🔔 تذكير</button>':'')
   +(c.city?' · '+esc(c.city):'')+(c.case_number?' <span style="background:#7f1d1d;color:#fecaca;padding:2px 8px;border-radius:8px;font-size:12px;font-weight:800">⚖️ عليه قضية رقم '+esc(c.case_number)+'</span>':'')+'<br><span class="sub">'+(LG_ST[c.status]||esc(c.status))
   +(c.settle_amount?' — تسوية: '+esc(c.settle_amount)+' ج':'')
   +'<br>'+new Date(c.updated).toLocaleString('ar-EG')+'</span></div>').join('');
@@ -7577,6 +7582,7 @@ async function lgOpen(id){
  if(c.case_number)html+='<div style="background:#7f1d1d;color:#fecaca;padding:8px 12px;border-radius:10px;margin:8px 0;font-weight:800">⚖️ المندوب ده عليه قضية رقم '+esc(c.case_number)+'</div>';
  if(d.images&&d.images.receipt)html+='<button class="btn" type="button" onclick="const i=$(\'lgRecImg\');i.style.display=i.style.display===\'none\'?\'\':\'none\'">📷 عرض/إخفاء الإيصال</button><img id="lgRecImg" src="'+d.images.receipt+'" style="display:none;max-width:100%;border-radius:10px;margin-top:6px">';
  if(d.images&&d.images.nid_front)html+=' <button class="btn" type="button" onclick="const i=$(\'lgNidImgV\');i.style.display=i.style.display===\'none\'?\'\':\'none\'">🪪 عرض/إخفاء صورة البطاقة</button><img id="lgNidImgV" src="'+d.images.nid_front+'" style="display:none;max-width:100%;border-radius:10px;margin-top:6px">';
+ if(d.reminder)html+='<div style="background:#78350f;color:#fef3c7;padding:8px 12px;border-radius:10px;margin:8px 0;font-weight:800">🔔 تذكير من '+esc(d.reminder.by_name)+' — '+new Date(d.reminder.ts).toLocaleString('ar-EG')+'</div>';
  if(!CUR||CUR.r!=='legal')html+='<h4 style="margin:10px 0 4px">📜 سجل الحالة</h4>'+hist.map(x=>'<div class="sub" style="margin:2px 0">• '+(LG_ST[x.status]||esc(x.status))+' — '+esc(x.by_name)+' — '+new Date(x.ts).toLocaleString('ar-EG')+(x.note?'<br>📝 '+esc(x.note):'')+'</div>').join('');
  if(LG_IS_LEGAL){
   const closed=c.status==='closed',paid=c.status==='paid';
