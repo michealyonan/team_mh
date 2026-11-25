@@ -218,11 +218,17 @@ async function uploadProof(page, filePath, job) {
       await cs.send('Page.enable').catch(() => {});
       await cs.send('Page.setInterceptFileChooserDialog', { enabled: true }).catch(() => {});
       cs.on('Page.fileChooserOpened', async (ev) => {
+        // v0.3.27: answer ONCE. The same dialog reaches every armed session of
+        // the page target, and a second setFileInputFiles mid-upload resets the
+        // input - the upload restarts/aborts and the chip never appears
+        // (25 Nov: slots 1-2 ok, slot 3 answered twice, no chip).
+        if (chooserAnswered) { diag.layers.push('chooser re-fired - ignored'); return; }
+        chooserAnswered = true;
         try {
           await cs.send('DOM.setFileInputFiles', { files: [filePath], backendNodeId: ev.backendNodeId });
-          chooserAnswered = true;
           diag.layers.push('chooser answered via ' + label);
         } catch (e) { diag.layers.push('chooser answer failed: ' + String(e).slice(0, 80)); }
+        try { await cs.send('Page.setInterceptFileChooserDialog', { enabled: false }); } catch (e) {}
       });
     } catch (e) {}
   }
@@ -234,6 +240,7 @@ async function uploadProof(page, filePath, job) {
       const { targetInfos } = await browserSession.send('Target.getTargets');
       for (const ti of targetInfos) {
         if (ti.type === 'browser') continue;
+        if (ti.type === 'page') continue; // main page session is armed separately; a second armed session on it double-answers the chooser
         const key = ti.targetId;
         if (diag.targets.indexOf(ti.type + ':' + (ti.url || '').slice(0, 60)) < 0) {
           diag.targets.push(ti.type + ':' + (ti.url || '').slice(0, 60));
@@ -1157,6 +1164,9 @@ async function runHiringWalk(page, job) {
         throw e;
       }
       mark('upload:' + slot.key);
+      // Let Google finish registering this upload before opening the next
+      // picker - back-to-back uploads race and the later chip never lands.
+      await sleep(2500);
     }
     // Pre-submit guard: every REQUIRED upload question must hold a chip.
     if (!job.dry) {

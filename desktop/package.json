@@ -1,6 +1,6 @@
 {
   "name": "team-mh-desktop",
-  "version": "0.3.26",
+  "version": "0.3.27",
   "description": "team_mh desktop app (Windows)",
   "main": "main.js",
   "author": "team_mh",
