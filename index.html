@@ -414,7 +414,7 @@ html{-webkit-text-size-adjust:100%}body{overflow-x:hidden}
  /* هيدر: أزرار في شبكة بدل سكرول أفقي */
  .hr>.row{display:grid!important;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:6px;overflow:visible!important;flex-wrap:wrap!important;width:100%}
  .hr>.row #who{grid-column:1/-1;font-size:12px}
- .hr .btn{width:100%;min-height:42px;padding:6px 8px}
+ .hr>.row .btn{width:100%;min-height:42px;padding:6px 8px}
  .chip{padding:9px 14px;font-size:13px}
  .li{padding:12px 4px!important;font-size:13px!important}
  .ov{padding:14px 12px calc(14px + env(safe-area-inset-bottom))}
@@ -3085,6 +3085,11 @@ $('exp').onclick=()=>{const h=COLS.filter(c=>c[0]!=='r').map(c=>c[1]);const rows
   const blob=new Blob(['\ufeff'+Papa.unparse([h,...rows])],{type:'text/csv'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='pilots.csv';a.click()};
 /* ---------- refresh / upload ---------- */
 $('rf').onclick=()=>{SUP_TARGET_PROMISE=null;loadSupervisorTargets();load()};
+// Micheal 25 Nov: on phones the 🚪 button lives in the actions row, right after (left of) تحديث;
+// on desktop it stays small next to the title. .hr>.row .btn above keeps it from going full-width.
+const OUT_H1=$('out').closest('h1'),OUT_ROW=$('rf').parentElement;
+function placeOutBtn(){const mob=matchMedia('(max-width:699px)').matches;if(mob&&$('out').parentElement!==OUT_ROW)OUT_ROW.insertBefore($('out'),$('rf').nextSibling);else if(!mob&&$('out').parentElement!==OUT_H1)OUT_H1.appendChild($('out'))}
+placeOutBtn();addEventListener('resize',placeOutBtn);
 
 /* ---------- إضافات جديدة ---------- */
 let LAST=null;
