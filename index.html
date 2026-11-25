@@ -3498,9 +3498,10 @@ function applyHiddenTabs(){
   const adm=!!CUR&&CUR.r==='admin';
   for(const [tab,ids] of TAB_DEFS){
     const hidden=HIDDEN_TABS.includes(tab);
+    const selfTab=tab==='legal'&&CUR&&CUR.r==='legal'; // the legal officer never loses his own tab
     for(const id of ids){
       const b=$(id);if(!b)continue;
-      if(!adm&&hidden)b.style.display='none';
+      if(!adm&&hidden&&!selfTab)b.style.display='none';
       b.classList.toggle('tab-hidden-admin',adm&&hidden);
       let eye=b.querySelector('.tab-eye');
       if(adm&&!eye){
@@ -3542,7 +3543,7 @@ async function toggleTabHidden(tab){
   try{await api('/api/ui/tabs',{method:'POST',body:{hidden:HIDDEN_TABS}})}catch(e){alert('تعذّر حفظ الإخفاء: '+authErr(e));await loadHiddenTabs();applyHiddenTabs()}
 }
 
-const REMEMBER_LOGIN_KEY='pd_remember_login',REMEMBER_LOGIN_MS=7*24*60*60*1000;async function enter(x,remember){CUR=x;updateLiveRoleControls(x);const monitor=x.r==='monitor';document.querySelector('main').style.display=monitor?'none':'';$('navMenuToggle').style.display=monitor?'none':'';document.querySelectorAll('.nav-drawer-links>button').forEach(button=>button.style.display=monitor?'none':'');if(monitor){$('liveB').style.display='';$('liveClose').style.display='none';openLivePanel()}else $('liveClose').style.display='';try{if(remember===true)localStorage.setItem(REMEMBER_LOGIN_KEY,JSON.stringify({t:x.token||'',expires:Date.now()+REMEMBER_LOGIN_MS}));else if(remember===false)localStorage.removeItem(REMEMBER_LOGIN_KEY);sessionStorage.setItem('pd_token',x.token||'')}catch(e){}idleReset();startNotifLoop(monitor);initAndroidBridge();mkSetup(x);if(!monitor){captureGeo();if(!x.has_email||!x.has_phone){const nk='pd_contact_nudged_'+(x.u||'');let seen=false;try{seen=!!localStorage.getItem(nk)}catch(e){}if(!seen){try{localStorage.setItem(nk,'1')}catch(e){}openProfile();setTimeout(()=>{const e=$("pfErr");if(e){e.style.color="#fbbf24";e.textContent="📇 كمّل الجيميل ورقم الواتساب من هنا - مرة واحدة، وأي تعديل بعد كده من الملف الشخصي"}},400)}}}logDashboardOpen(x);
+const REMEMBER_LOGIN_KEY='pd_remember_login',REMEMBER_LOGIN_MS=7*24*60*60*1000;async function enter(x,remember){CUR=x;updateLiveRoleControls(x);const monitor=x.r==='monitor',legalOnly=x.r==='legal';document.querySelector('main').style.display=(monitor||legalOnly)?'none':'';$('navMenuToggle').style.display=monitor?'none':'';document.querySelectorAll('.nav-drawer-links>button').forEach(button=>button.style.display=(monitor||legalOnly)?'none':'');if(monitor){$('liveB').style.display='';$('liveClose').style.display='none';openLivePanel()}else if(!legalOnly)$('liveClose').style.display='';try{if(remember===true)localStorage.setItem(REMEMBER_LOGIN_KEY,JSON.stringify({t:x.token||'',expires:Date.now()+REMEMBER_LOGIN_MS}));else if(remember===false)localStorage.removeItem(REMEMBER_LOGIN_KEY);sessionStorage.setItem('pd_token',x.token||'')}catch(e){}idleReset();startNotifLoop(monitor||legalOnly);initAndroidBridge();mkSetup(x);if(!monitor&&!legalOnly){captureGeo();if(!x.has_email||!x.has_phone){const nk='pd_contact_nudged_'+(x.u||'');let seen=false;try{seen=!!localStorage.getItem(nk)}catch(e){}if(!seen){try{localStorage.setItem(nk,'1')}catch(e){}openProfile();setTimeout(()=>{const e=$("pfErr");if(e){e.style.color="#fbbf24";e.textContent="📇 كمّل الجيميل ورقم الواتساب من هنا - مرة واحدة، وأي تعديل بعد كده من الملف الشخصي"}},400)}}}logDashboardOpen(x);
   const canViewSupervisorCharts=['admin','manager'].includes(x.r);
   $('supervisorPerformanceCard').style.display=canViewSupervisorCharts?'':'none';
   $('supervisorHoursCard').style.display=canViewSupervisorCharts?'':'none';
@@ -3550,7 +3551,7 @@ const REMEMBER_LOGIN_KEY='pd_remember_login',REMEMBER_LOGIN_MS=7*24*60*60*1000;a
   $('riderRatingsCard').style.display=x.r==='sup'?'none':'';
   $('dailyHistoryCard').style.display=x.r==='sup'?'none':'';
   $('vehicleChartCard').style.display=x.r==='sup'?'none':'';
-  $('lg').style.display='none';$('who').textContent='👤 '+x.n+' · '+ROLE[x.r]+(x.r==='admin'&&!LOGIN_AUDIT_ENDPOINT?' · ⚠️ سجل الدخول المركزي غير مفعّل':'');$('usrB').style.display=x.r==='admin'?'':'none';$('loginAuditB').style.display=x.r==='admin'?'':'none';$('chatB').style.display=['admin','manager','sup'].includes(x.r)?'':'none';if(['admin','manager','sup'].includes(x.r)){if(!CHAT_BADGE_TIMER)CHAT_BADGE_TIMER=setInterval(refreshChatBadge,30000);setTimeout(refreshChatBadge,3000)}$('quotaB').style.display=x.r==='admin'?'':'none';$('themeB').style.display=x.r==='admin'?'':'none';$('tgB').style.display=x.r==='admin'?'':'none';$('supCaptureAll').style.display=x.r==='admin'?'':'none';$('zoneCaptureAll').style.display=['admin','manager'].includes(x.r)?'':'none';$('zoneCaptureAll').textContent=x.r==='manager'?'🗺️📸 تنزيل صور مناطقي':'🗺️📸 تنزيل صور كل المناطق';$('hcB').style.display=hcCanAccess(x)?'':'none';$('dedB').style.display=['admin','manager','sup'].includes(x.r)?'':'none';$('bookingDashboardB').style.display=bookingCanAccessDashboard(x)?'':'none';$('extB').style.display=(SITE_FORM_ACTIONS&&(FORM_ACTIONS_ADMIN_ONLY?x.r==='admin':['admin','manager','sup'].includes(x.r)))?'':'none';$('brkB').style.display=$('extB').style.display;$('manualActionB').style.display=$('extB').style.display;bookingApplyRoleAccess(x);$('payB').style.display=['admin','manager','sup'].includes(x.r)?'':'none';$('payB').classList.toggle('pay-access',['admin','manager','sup'].includes(x.r));$('prB').style.display=monitor?'none':'';$('profileB').style.display=monitor?'none':'';$('waB').style.display=['admin','manager','sup'].includes(x.r)?'':'none';$('queriesB').style.display=monitor?'none':'';$('hiringB').style.display=(!monitor&&['admin','manager','sup'].includes(x.r))?'':'none';$('hiringNavB').style.display=$('hiringB').style.display;$('legalB').style.display=['admin','manager','sup','legal'].includes(x.r)?'':'none';$('legalNavB').style.display=$('legalB').style.display;$('shcB').style.display=x.r==='admin'?'':'none';$('reportsB').style.display=monitor?'none':'';$('riderDetailsB').style.display=monitor?'none':'';$('riderMapB').style.display=['admin','sup'].includes(x.r)?'':'none';if(x.r==='viewer'){syncNavGroups();await initViewer(x)}else syncNavGroups();await loadHiddenTabs();applyHiddenTabs();applyTabOrder();setupTabDrag();syncNavGroups();load()}
+  $('lg').style.display='none';$('who').textContent='👤 '+x.n+' · '+ROLE[x.r]+(x.r==='admin'&&!LOGIN_AUDIT_ENDPOINT?' · ⚠️ سجل الدخول المركزي غير مفعّل':'');if(legalOnly){document.querySelectorAll('#navDrawer .nav-drawer-links .btn').forEach(b=>b.style.display='none');$('legalNavB').style.display='';openLegal();return}$('usrB').style.display=x.r==='admin'?'':'none';$('loginAuditB').style.display=x.r==='admin'?'':'none';$('chatB').style.display=['admin','manager','sup'].includes(x.r)?'':'none';if(['admin','manager','sup'].includes(x.r)){if(!CHAT_BADGE_TIMER)CHAT_BADGE_TIMER=setInterval(refreshChatBadge,30000);setTimeout(refreshChatBadge,3000)}$('quotaB').style.display=x.r==='admin'?'':'none';$('themeB').style.display=x.r==='admin'?'':'none';$('tgB').style.display=x.r==='admin'?'':'none';$('supCaptureAll').style.display=x.r==='admin'?'':'none';$('zoneCaptureAll').style.display=['admin','manager'].includes(x.r)?'':'none';$('zoneCaptureAll').textContent=x.r==='manager'?'🗺️📸 تنزيل صور مناطقي':'🗺️📸 تنزيل صور كل المناطق';$('hcB').style.display=hcCanAccess(x)?'':'none';$('dedB').style.display=['admin','manager','sup'].includes(x.r)?'':'none';$('bookingDashboardB').style.display=bookingCanAccessDashboard(x)?'':'none';$('extB').style.display=(SITE_FORM_ACTIONS&&(FORM_ACTIONS_ADMIN_ONLY?x.r==='admin':['admin','manager','sup'].includes(x.r)))?'':'none';$('brkB').style.display=$('extB').style.display;$('manualActionB').style.display=$('extB').style.display;bookingApplyRoleAccess(x);$('payB').style.display=['admin','manager','sup'].includes(x.r)?'':'none';$('payB').classList.toggle('pay-access',['admin','manager','sup'].includes(x.r));$('prB').style.display=monitor?'none':'';$('profileB').style.display=monitor?'none':'';$('waB').style.display=['admin','manager','sup'].includes(x.r)?'':'none';$('queriesB').style.display=monitor?'none':'';$('hiringB').style.display=(!monitor&&['admin','manager','sup'].includes(x.r))?'':'none';$('hiringNavB').style.display=$('hiringB').style.display;$('legalB').style.display=['admin','manager','sup','legal'].includes(x.r)?'':'none';$('legalNavB').style.display=$('legalB').style.display;$('shcB').style.display=x.r==='admin'?'':'none';$('reportsB').style.display=monitor?'none':'';$('riderDetailsB').style.display=monitor?'none':'';$('riderMapB').style.display=['admin','sup'].includes(x.r)?'':'none';if(x.r==='viewer'){syncNavGroups();await initViewer(x)}else syncNavGroups();await loadHiddenTabs();applyHiddenTabs();applyTabOrder();setupTabDrag();syncNavGroups();load()}
 let USERS=USERS_EMBED.concat(MONITOR_USERS_EMBED),DRAFT=null,VAULT=PW_EMBED;
 async function loadUsers(){}
 const LOGIN_THEMES=[
@@ -7431,6 +7432,38 @@ async function hDl(id,btn){
 $('hiringB').onclick=openHiring;
 </script>
 <script src="./admin-usage.js?v=2"></script>
+<div id="legalModal" style="display:none;position:fixed;inset:0;background:#000c;z-index:75;overflow:auto;padding:12px" onclick="if(event.target===this)this.style.display='none'">
+<div class="card" style="max-width:560px;margin:auto">
+<div class="row"><h3 style="margin:0">⚖️ شئون قانونية</h3><button class="btn" style="margin-inline-start:auto" type="button" onclick="$('legalModal').style.display='none'">✕</button></div>
+<div class="row" style="margin:8px 0"><button class="btn pr" id="lgTabNew" type="button">➕ تقديم حالة</button><button class="btn" id="lgTabList" type="button">📋 الحالات</button></div>
+<div id="lgNew">
+ <div class="fm" style="grid-template-columns:1fr 1fr">
+  <input id="lgRiderId" placeholder="كود المندوب" inputmode="numeric">
+  <input id="lgName" placeholder="الاسم رباعي">
+  <input id="lgNid" placeholder="الرقم القومي (١٤ رقم)" inputmode="numeric">
+  <input id="lgAmount" placeholder="المبلغ المستحق على المندوب (جنيه)" inputmode="numeric">
+  <input id="lgPhone" placeholder="رقم التليفون" inputmode="tel">
+  <input id="lgPhone2" placeholder="رقم تليفون تاني (اختياري)" inputmode="tel">
+  <input id="lgCity" placeholder="المدينة / المنطقة">
+  <button class="btn" id="lgImgB" type="button">📷 ارفع صورة الإيصال</button>
+ </div>
+ <input type="file" id="lgFile" accept="image/jpeg,image/png,image/webp" hidden>
+ <div class="sub" id="lgImgSt" style="margin:4px 0">صورة الإيصال مطلوبة</div>
+ <div id="lgImgPrev" style="display:none;margin:4px 0"></div>
+ <div class="row"><button class="btn pr" id="lgSend" type="button">📤 إرسال للشئون القانونية</button></div>
+ <div class="sub" id="lgMsg" style="margin-top:6px"></div>
+</div>
+<div id="lgList" style="display:none">
+ <div class="fm" style="grid-template-columns:1fr 1fr 1fr;margin-bottom:8px">
+  <select id="lgFStatus"><option value="">كل الحالات</option><option value="received">📨 استلمت الطلب</option><option value="paid">✅ تم السداد</option><option value="filed">⚖️ تم رفع قضية</option><option value="judgment">📜 صدر حكم</option></select>
+  <input id="lgFQ" placeholder="بحث برقم قومي / كود مندوب" inputmode="numeric">
+  <button class="btn" id="lgRefresh" type="button">🔄 تحديث</button>
+ </div>
+ <div id="lgRows"></div>
+</div>
+</div>
+</div>
+<div id="lgDetail" style="display:none;position:fixed;inset:0;background:#000d;z-index:76;overflow:auto;padding:12px" onclick="if(event.target===this)this.style.display='none'"><div class="card" style="max-width:560px;margin:auto" id="lgDetailCard"></div></div>
 <script>
 const LG_ST={received:'📨 الشئون القانونية استلمت الطلب',paid:'✅ تم السداد',filed:'⚖️ تم رفع قضية',judgment:'📜 صدر حكم'};
 let LG_IMG='',LG_CAN_SUBMIT=false,LG_IS_LEGAL=false,LG_CUR=null;
@@ -7458,11 +7491,14 @@ $('lgFile').onchange=e=>{
   let q=0.72,data=cv.toDataURL('image/jpeg',q);
   while(data.length>450000&&q>0.3){q-=0.15;data=cv.toDataURL('image/jpeg',q)}
   if(data.length>500000){$('lgImgSt').textContent='❌ الصورة كبيرة جدًا';return}
-  LG_IMG=data;$('lgImgSt').textContent='✅ صورة الإيصال جاهزة';
+  LG_IMG=data;$('lgImgSt').textContent='✅ تم رفع الصورة';$('lgImgB').textContent='📷 تغيير الصورة';
+  $('lgImgPrev').style.display='';$('lgImgPrev').innerHTML='<img src="'+data+'" style="max-height:90px;border-radius:8px;vertical-align:middle;margin-inline-end:8px"><span class="sub">'+esc(f.name)+'</span> <button class="btn" type="button" style="padding:4px 10px;margin-inline-start:8px" onclick="lgClearImg()">✕ مسح الصورة</button>';
  };
  img.onerror=()=>{URL.revokeObjectURL(url);$('lgImgSt').textContent='❌ الملف مش صورة'};
  img.src=url;
 };
+function lgClearImg(){LG_IMG='';$('lgImgSt').textContent='صورة الإيصال مطلوبة';$('lgImgB').textContent='📷 ارفع صورة الإيصال';const p=$('lgImgPrev');if(p){p.style.display='none';p.innerHTML=''}}
+window.lgClearImg=lgClearImg;
 $('lgSend').onclick=async()=>{
  const m=$('lgMsg');m.textContent='';
  const body={rider_id:$('lgRiderId').value.trim(),rider_name:$('lgName').value.trim(),national_id:$('lgNid').value.trim(),amount:$('lgAmount').value.trim(),phone:$('lgPhone').value.trim(),phone2:$('lgPhone2').value.trim(),city:$('lgCity').value.trim(),receipt:LG_IMG};
@@ -7474,7 +7510,7 @@ $('lgSend').onclick=async()=>{
   await api('/api/legal/submit',{method:'POST',body});
   m.textContent='✅ اتبعت — الشئون القانونية استلمت الطلب';
   ['lgRiderId','lgName','lgNid','lgAmount','lgPhone','lgPhone2','lgCity'].forEach(i=>$(i).value='');
-  LG_IMG='';$('lgImgSt').textContent='صورة الإيصال مطلوبة';
+  lgClearImg();
  }catch(e){m.textContent='❌ '+authErr(e)}
 };
 async function lgRefresh(){
@@ -7536,36 +7572,5 @@ async function lgDelete(){
 }
 window.lgDelete=lgDelete;
 </script>
-<div id="legalModal" style="display:none;position:fixed;inset:0;background:#000c;z-index:75;overflow:auto;padding:12px" onclick="if(event.target===this)this.style.display='none'">
-<div class="card" style="max-width:560px;margin:auto">
-<div class="row"><h3 style="margin:0">⚖️ شئون قانونية</h3><button class="btn" style="margin-inline-start:auto" type="button" onclick="$('legalModal').style.display='none'">✕</button></div>
-<div class="row" style="margin:8px 0"><button class="btn pr" id="lgTabNew" type="button">➕ تقديم حالة</button><button class="btn" id="lgTabList" type="button">📋 الحالات</button></div>
-<div id="lgNew">
- <div class="fm" style="grid-template-columns:1fr 1fr">
-  <input id="lgRiderId" placeholder="كود المندوب" inputmode="numeric">
-  <input id="lgName" placeholder="الاسم رباعي">
-  <input id="lgNid" placeholder="الرقم القومي (١٤ رقم)" inputmode="numeric">
-  <input id="lgAmount" placeholder="المبلغ المستحق على المندوب (جنيه)" inputmode="numeric">
-  <input id="lgPhone" placeholder="رقم التليفون" inputmode="tel">
-  <input id="lgPhone2" placeholder="رقم تليفون تاني (اختياري)" inputmode="tel">
-  <input id="lgCity" placeholder="المدينة / المنطقة">
-  <button class="btn" id="lgImgB" type="button">📷 صورة الإيصال ✅</button>
- </div>
- <input type="file" id="lgFile" accept="image/*" hidden>
- <div class="sub" id="lgImgSt" style="margin:4px 0">صورة الإيصال مطلوبة</div>
- <div class="row"><button class="btn pr" id="lgSend" type="button">✅ إرسال للشئون القانونية</button></div>
- <div class="sub" id="lgMsg" style="margin-top:6px"></div>
-</div>
-<div id="lgList" style="display:none">
- <div class="fm" style="grid-template-columns:1fr 1fr 1fr;margin-bottom:8px">
-  <select id="lgFStatus"><option value="">كل الحالات</option><option value="received">📨 استلمت الطلب</option><option value="paid">✅ تم السداد</option><option value="filed">⚖️ تم رفع قضية</option><option value="judgment">📜 صدر حكم</option></select>
-  <input id="lgFQ" placeholder="بحث برقم قومي / كود مندوب" inputmode="numeric">
-  <button class="btn" id="lgRefresh" type="button">🔄 تحديث</button>
- </div>
- <div id="lgRows"></div>
-</div>
-</div>
-</div>
-<div id="lgDetail" style="display:none;position:fixed;inset:0;background:#000d;z-index:76;overflow:auto;padding:12px" onclick="if(event.target===this)this.style.display='none'"><div class="card" style="max-width:560px;margin:auto" id="lgDetailCard"></div></div>
 </body>
 </html>

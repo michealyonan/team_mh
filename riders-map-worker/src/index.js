@@ -781,7 +781,7 @@ async function handleLegal(request, env, json, url) {
   const p = url.pathname;
   const user = await getSessionUser(env, request);
   if (!user) return json({ error: 'unauthorized' }, 401);
-  if (tabBlockedFor(await getHiddenTabs(env), 'legal', user)) return json({ error: 'tab_hidden' }, 403);
+  if (user.r !== 'legal' && tabBlockedFor(await getHiddenTabs(env), 'legal', user)) return json({ error: 'tab_hidden' }, 403);
   const isLegal = user.r === 'legal' || user.r === 'admin';
   const isSupSide = ['admin', 'manager', 'sup'].includes(user.r);
   const now = Date.now();
@@ -1526,6 +1526,15 @@ export default {
     }
 
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
+
+    // 25 Nov (Micheal 16288124): the legal role is fenced into شئون قانونية — every other
+    // data API 403s for it. The client hides everything else and lands it on the legal tab.
+    if (url.pathname.startsWith('/api/') && !url.pathname.startsWith('/api/auth/') && !url.pathname.startsWith('/api/legal/')) {
+      try {
+        const u0 = await getSessionUser(env, request);
+        if (u0 && u0.r === 'legal') return json({ error: 'forbidden' }, 403);
+      } catch (e) { return serverErr(e); }
+    }
 
     if (url.pathname.startsWith('/api/auth/')) {
       try {
