@@ -6,7 +6,10 @@
 const { app, BrowserWindow, shell, Notification, ipcMain, clipboard } = require('electron');
 const fs = require('fs');
 const path = require('path');
-const { autoUpdater } = require('electron-updater');
+// electron-updater is optional: a zip without node_modules must degrade to
+// "no auto-update", never crash on start (25 Nov Micheal crash report).
+let autoUpdater = null;
+try { ({ autoUpdater } = require('electron-updater')); } catch (e) { console.log('electron-updater unavailable:', e && e.message); }
 const { getBrowser, firstPage, peekBrowser, launchPlain, launchPlainForSignin, adoptBrowser, dropBrowser } = require('./chromeproc');
 const { runFormWalk, runHiringWalk, clickX, pageMarker, confirmState } = require('./chromewalk');
 
@@ -802,7 +805,7 @@ app.whenReady().then(() => {
   createWindow();
   startHiringPoll();
   seedBundledProof();
-  if (app.isPackaged) {
+  if (app.isPackaged && autoUpdater) {
     try {
       autoUpdater.on('error', () => {}); // no update feed until CI publishing lands
       autoUpdater.checkForUpdatesAndNotify().catch(() => {});
