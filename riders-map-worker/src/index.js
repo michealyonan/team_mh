@@ -1388,20 +1388,24 @@ export default {
       const total = 126042999;
       const dlHeaders = { ...SEC_HEADERS, 'Content-Type': 'application/zip', 'Content-Disposition': 'attachment; filename="team-mh-desktop-win-x64.zip"', 'Content-Length': String(total), 'Cache-Control': 'public, max-age=300' };
       if (request.method === 'HEAD') return new Response(null, { headers: dlHeaders });
-      const { readable, writable } = new TransformStream();
-      const pump = (async () => {
-        const w = writable.getWriter();
-        try {
-          for (const c of chunks) {
-            const r = await env.ASSETS.fetch(new URL('/dl-chunks/' + c, url));
-            if (!r.ok || !r.body) throw new Error('chunk_missing:' + c);
-            const reader = r.body.getReader();
-            for (;;) { const read = await reader.read(); if (read.done) break; await w.write(read.value); }
+      // pull-based stream: one chunk read per backpressure pull, no side promise
+      let idx = 0, reader = null;
+      const readable = new ReadableStream({
+        async pull(controller) {
+          for (;;) {
+            if (!reader) {
+              if (idx >= chunks.length) { controller.close(); return; }
+              const r = await env.ASSETS.fetch(new URL('/dl-chunks/' + chunks[idx++], url));
+              if (!r.ok || !r.body) { controller.error(new Error('chunk_missing')); return; }
+              reader = r.body.getReader();
+            }
+            const read = await reader.read();
+            if (read.done) { reader = null; continue; }
+            controller.enqueue(read.value);
+            return;
           }
-          await w.close();
-        } catch (e) { try { await w.abort(e); } catch (e2) {} }
-      })();
-      ctx.waitUntil(pump);
+        },
+      });
       return new Response(readable, { headers: dlHeaders });
     }
 
