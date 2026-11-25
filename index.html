@@ -7273,7 +7273,7 @@ function stopVoiceRec(cancel){
     try{
       const type=(mime||'audio/webm').split(';')[0];
       const blob=new Blob(chunks,{type});
-      if(!blob.size)return;
+      if(!blob.size){alert('التسجيل طلع فاضي - اتأكد إن المايك شغال وجرّب تاني');return}
       let dataUrl=await new Promise((res,rej)=>{const fr=new FileReader();fr.onload=()=>res(fr.result);fr.onerror=rej;fr.readAsDataURL(blob)});
       // carry the duration inside the data-URL media params so any device can show it
       if(typeof dataUrl==='string')dataUrl=dataUrl.replace(';base64,',';dur='+Math.round(durSec)+';base64,');

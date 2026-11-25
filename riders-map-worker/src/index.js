@@ -487,7 +487,7 @@ async function handleChat(request, env, json, url) {
       // Voice notes (Micheal 25 Nov): short audio data-URLs (<=60s, compressed client-side),
       // stored in D1 like images. Optional ;dur=SECONDS media param carries the duration for display.
       // Cap stays far under D1's 2MB row limit; audio is never auto-deleted, same rule as images.
-      if (!/^data:audio\/(webm|mp4|ogg|mpeg|aac|x-m4a)(;[\w=.+-]+)*;base64,/.test(text) || text.length > 700000) return json({ error: 'bad_voice' }, 400);
+      if (!/^data:audio\/(webm|mp4|ogg|mpeg|aac|x-m4a)(;[\w=.+-]+)*;base64,/.test(text) || text.length < 500 || text.length > 700000) return json({ error: 'bad_voice' }, 400);
     } else if (!text || text.length > 1000) return json({ error: 'bad_message' }, 400);
     if (!peer || peer === user.u) return json({ error: 'bad_message' }, 400);
     const prow = await env.DB.prepare("SELECT u FROM users WHERE u=? AND status='active' AND r IN ('admin','manager','sup')").bind(peer).first();
