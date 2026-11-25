@@ -692,11 +692,12 @@ async function handleShiftCmd(request, env, json, url) {
   if (p === '/api/shiftcmd/list' && request.method === 'GET') {
     if (!isShiftSide) return json({ error: 'forbidden' }, 403);
     if (shiftBlocked) return json({ error: 'tab_hidden' }, 403);
+    // the desktop heartbeat is read-only status (ts + app version) - every
+    // shift-side role must see the same real state, otherwise supervisors
+    // always read "offline" and their submissions get blocked (Micheal 16530778)
+    const agentRow = await env.DB.prepare("SELECT v FROM settings WHERE k='shift_agent'").first();
     let agent = null;
-    if (isAdmin) {
-      const agentRow = await env.DB.prepare("SELECT v FROM settings WHERE k='shift_agent'").first();
-      try { agent = agentRow ? JSON.parse(agentRow.v) : null; } catch (e) {}
-    }
+    try { agent = agentRow ? JSON.parse(agentRow.v) : null; } catch (e) {}
     // non-admin sees only his own commands and commands targeting his zone
     const rows = isAdmin
       ? await env.DB.prepare('SELECT id,u,payload,status,result,ts,updated FROM shift_commands ORDER BY id DESC LIMIT 50').all()
