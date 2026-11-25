@@ -2107,8 +2107,15 @@ export default {
         if (body && body.sup) onlySet.add(repNameKey(body.sup));
         if (body && Array.isArray(body.sups)) for (const nm of body.sups) onlySet.add(repNameKey(nm));
         const onlyKey = onlySet.size === 1 ? [...onlySet][0] : '';
-        const sent = [], failed = [], noEmail = [];
-        for (const [, m] of matched) if (!String(m.user.email || '').trim()) noEmail.push({ sup: m.file.name, u: m.user.u });
+        const sent = [], failed = [], ready = [], noEmail = [];
+        // Micheal 25 Nov: "ready" = matched AND has a real registered email on the site account.
+        // Matched accounts without an email go ONLY to noEmail - never counted as ready,
+        // and the send loop below skips them, so no report can go to a wrong/guessed address.
+        for (const m of matched.values()) {
+          const em = String(m.user.email || '').trim();
+          if (em) ready.push({ sup: m.file.name, u: m.user.u, email: em, riders: m.file.riders });
+          else noEmail.push({ sup: m.file.name, u: m.user.u });
+        }
         if (!body.dryRun) {
           for (const [mk, m] of matched) {
             if (onlySet.size && !onlySet.has(mk)) continue;
@@ -2128,7 +2135,7 @@ export default {
         }
         return json({
           ok: true, day: d2, d1, d2, types, dryRun: !!body.dryRun, latestDay: assembled.latestDay, only: onlyKey || undefined, perfRows: assembled.perfRowCount,
-          ready: [...matched.values()].map(m => ({ sup: m.file.name, u: m.user.u, email: String(m.user.email || ''), riders: m.file.riders })),
+          ready,
           sent, failed, noEmail, noAccount, ambiguous,
           supCount: files.size,
         });

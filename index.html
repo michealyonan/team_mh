@@ -3741,7 +3741,7 @@ async function unlockV(){if(!VAULT||VL)return;const p=prompt('اكتب كلمة 
 /* Searchable picker (Micheal 25 Nov): type to filter the list, tap to select,
    and free text is kept as-is so a brand-new supervisor name can be typed. */
 const COMBO={};
-function comboify(id,ph){
+function comboify(id,ph,strict){
   const old=$(id);if(!old||COMBO[id])return;
   const hid=document.createElement('input');hid.type='hidden';hid.id=id;
   const wrap=document.createElement('div');wrap.id=id+'_wrap';wrap.style.cssText='position:relative;min-width:0';
@@ -3749,30 +3749,35 @@ function comboify(id,ph){
   const dd=document.createElement('div');dd.style.cssText='display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;max-height:220px;overflow:auto;background:#141d31;border:1px solid var(--bd,#33415c);border-radius:10px;z-index:60;padding:4px;box-shadow:0 8px 24px #0009';
   wrap.appendChild(inp);wrap.appendChild(dd);
   old.parentNode.replaceChild(wrap,old);wrap.appendChild(hid);
-  const st={items:[],inp,dd,hid,onchange:null};COMBO[id]=st;
+  const st={items:[],inp,dd,hid,onchange:null,strict:!!strict};COMBO[id]=st;
+  const syncInp=()=>{const o=st.items.find(x=>x.v===hid.value);inp.value=st.strict?((o&&o.v!=='')?o.l:''):(o?o.l:hid.value)};
   const render=()=>{
     const q=inp.value.trim();
     const shown=st.items.filter(o=>!q||o.l.includes(q));
-    dd.innerHTML=shown.map(o=>`<div data-i="${st.items.indexOf(o)}" style="padding:10px 8px;border-radius:8px;cursor:pointer;font-size:13px" onmouseover="this.style.background='rgba(255,255,255,.08)'" onmouseout="this.style.background=''">${esc(o.l)}</div>`).join('')||'<div class="sub" style="padding:8px">مفيش نتائج - الاسم اللي كتبته هيتحفظ زي ما هو</div>';
+    dd.innerHTML=shown.map(o=>`<div data-i="${st.items.indexOf(o)}" style="padding:10px 8px;border-radius:8px;cursor:pointer;font-size:13px" onmouseover="this.style.background='rgba(255,255,255,.08)'" onmouseout="this.style.background=''">${esc(o.l)}</div>`).join('')||`<div class="sub" style="padding:8px">${st.strict?'مفيش نتائج — اختار من القايمة بس':'مفيش نتائج - الاسم اللي كتبته هيتحفظ زي ما هو'}</div>`;
     dd.innerHTML+=`<div class="sub" style="padding:6px 8px;font-size:11px;border-top:1px solid var(--bd,#33415c);margin-top:4px">بيظهر ${shown.length} من ${st.items.length}</div>`;
-    [...dd.querySelectorAll('[data-i]')].forEach(el=>el.onclick=()=>{const o=st.items[+el.dataset.i];inp.value=o.l;hid.value=o.v;dd.style.display='none';if(st.onchange)st.onchange()});
+    // Micheal 25 Nov: mousedown (not click) so selection fires BEFORE the input blurs,
+    // and blur hides instantly - the open dropdown used to swallow the first click on إضافة/موافقة.
+    [...dd.querySelectorAll('[data-i]')].forEach(el=>el.onmousedown=e=>{e.preventDefault();const o=st.items[+el.dataset.i];hid.value=o.v;syncInp();dd.style.display='none';if(st.onchange)st.onchange()});
   };
-  inp.addEventListener('input',()=>{hid.value=inp.value;dd.style.display='';render();if(st.onchange)st.onchange()});
+  // strict (zone filters): typing only searches the list - the value changes ONLY by picking an item,
+  // so a typed name can never become a garbage zone that silently empties the supervisor list.
+  inp.addEventListener('input',()=>{if(!st.strict){hid.value=inp.value}dd.style.display='';render();if(!st.strict&&st.onchange)st.onchange()});
   inp.addEventListener('focus',()=>{dd.style.display='';render()});
-  inp.addEventListener('blur',()=>setTimeout(()=>{dd.style.display='none'},200));
-  st.render=render;
+  inp.addEventListener('blur',()=>{if(st.strict)syncInp();dd.style.display='none'});
+  st.render=render;st.syncInp=syncInp;
 }
 function comboSet(id,items,ph){const st=COMBO[id];if(!st)return;st.items=items;if(ph)st.inp.placeholder=ph;if(st.dd.style.display!=='none')st.render()}
 function comboGet(id){const h=$(id);return h?h.value:''}
-function comboSetValue(id,v){const st=COMBO[id];if(!st)return;st.hid.value=v||'';const o=st.items.find(x=>x.v===v);st.inp.value=o?o.l:(v||'')}
+function comboSetValue(id,v){const st=COMBO[id];if(!st)return;st.hid.value=v||'';st.syncInp()}
 function comboOnChange(id,fn){const st=COMBO[id];if(st)st.onchange=fn}
 
 function zOf(k,nm){return [...new Set(ALL.filter(r=>r[k]===nm).map(r=>r.z).filter(Boolean))]}
 function sc(){
-  comboify('nz','كل المناطق');comboify('ns','اختر المشرف');comboOnChange('nz',sc);
+  comboify('nz','🗺 فلترة بالمنطقة — اختيار من القايمة بس',true);comboify('ns','👤 اكتب أو اختار اسم المشرف');comboOnChange('nz',sc);
   const r=$('nr').value,k=r==='manager'?'m':'s',na=['admin','monitor','viewer','legal'].includes(r),zs=uniq('z',ALL);
   $('nz_wrap').style.display=na?'none':'';$('ns_wrap').style.display=na?'none':'';
-  comboSet('nz',[{v:'',l:'كل المناطق'}].concat(zs.map(x=>({v:x,l:x}))),'كل المناطق');
+  comboSet('nz',[{v:'',l:'كل المناطق'}].concat(zs.map(x=>({v:x,l:x}))),'🗺 فلترة بالمنطقة — اختيار من القايمة بس');
   const prev=comboGet('ns'),zone=comboGet('nz');
   // Micheal 25 Nov: dashboard names PLUS accounts with this role (a supervisor
   // with no riders today still shows), and free text covers brand-new names.
@@ -3802,10 +3807,10 @@ async function regReject(u){const x=regFind(u);if(!confirm('رفض وحذف طل
   try{await api('/api/auth/admin/registrations/reject',{method:'POST',body:{u}});await renderRegs();await refreshUsers();ru()}catch(e){alert('تعذّر الرفض: '+authErr(e))}}
 let APR_U=null;
 function aprSc(){
-  comboify('aprZ','كل المناطق');comboify('aprS','اختر المشرف');comboOnChange('aprZ',aprSc);
+  comboify('aprZ','🗺 فلترة بالمنطقة — اختيار من القايمة بس',true);comboify('aprS','👤 اكتب أو اختار اسم المشرف');comboOnChange('aprZ',aprSc);
   const r=$('aprR').value,k=r==='manager'?'m':'s',na=['admin','monitor','viewer','legal'].includes(r),zs=uniq('z',ALL);
   $('aprZ_wrap').style.display=na?'none':'';$('aprS_wrap').style.display=na?'none':'';
-  comboSet('aprZ',[{v:'',l:'كل المناطق'}].concat(zs.map(x=>({v:x,l:x}))),'كل المناطق');
+  comboSet('aprZ',[{v:'',l:'كل المناطق'}].concat(zs.map(x=>({v:x,l:x}))),'🗺 فلترة بالمنطقة — اختيار من القايمة بس');
   const prev=comboGet('aprS'),zone=comboGet('aprZ');
   let list=uniq(k,zone?ALL.filter(x=>x.z===zone):ALL);
   const role=k==='m'?'manager':'sup';
@@ -3817,7 +3822,7 @@ function aprSc(){
 function aprOpen(u){if(!CUR||CUR.r!=='admin')return;const x=regFind(u);APR_U=u;
   $('aprTitle').textContent='✅ موافقة على "'+x.n+'"';
   $('aprInfo').textContent='اختار الدور والمشرف المرتبط بيه — مش هيقدر يدخل غير بعد ما توافق';
-  $('aprR').value='sup';$('aprZ').value='';aprSc();
+  $('aprR').value='sup';aprSc();comboSetValue('aprZ','');comboSetValue('aprS','');aprSc();
   $('aprModal').style.display='block'}
 $('aprR').onchange=()=>{comboSetValue('aprZ','');comboSetValue('aprS','');aprSc()};comboOnChange('aprZ',aprSc);
 $('aprGo').onclick=async()=>{if(!APR_U)return;const u2=APR_U,r=$('aprR').value,s=['admin','monitor','viewer','legal'].includes(r)?'':$('aprS').value;
@@ -3834,8 +3839,8 @@ function supRepDates(){return{d1:$('srD1').value,d2:$('srD2').value}}
 function supRepSyncDates(){const on=$('srPerf').checked;$('srDatesWrap').style.display=on?'':'none';$('srD1').disabled=$('srD2').disabled=!on}
 ['srPerf','srWallets','srContracts'].forEach(id=>$(id).onchange=supRepSyncDates);
 $('supRepB').onclick=()=>{if(!CUR||CUR.r!=='admin')return;$('supRepModal').style.display='block';if(!$('srD2').value){const d=new Date();d.setDate(d.getDate()-1);$('srD2').value=d.toISOString().slice(0,10)}if(!$('srD1').value)$('srD1').value=$('srD2').value;supRepSyncDates()};
-function supRepToggle(sup,on){if(on)SUPREP_SEL.add(sup);else SUPREP_SEL.delete(sup)}
-function supRepToggleAll(on){SUPREP_SEL=new Set(on?SUPREP_LAST.map(x=>x.sup):[]);document.querySelectorAll('#srResult input[data-sup-chk]').forEach(c=>c.checked=on)}
+function supRepToggle(sup,on){if(on)SUPREP_SEL.add(sup);else SUPREP_SEL.delete(sup);const c=$('srFltCount');if(c)c.textContent='بيظهر '+NF(supRepFiltered().length)+' من '+NF(SUPREP_LAST.length)+' · متحدد '+NF([...SUPREP_SEL].length)}
+function supRepToggleAll(on){const flt=supRepFiltered();for(const x of flt){if(on)SUPREP_SEL.add(x.sup);else SUPREP_SEL.delete(x.sup)}supRepRenderReady()}
 async function supRepDownload(sup){
   const types=supRepTypes(),{d1,d2}=supRepDates();
   try{
@@ -3850,6 +3855,43 @@ function supRepSection(title,items,render){
   let h='<h4 style="margin:10px 0 4px">'+title+' ('+NF(items.length)+')</h4>';
   for(const x of items)h+=render(x);
   return h;
+}
+// Micheal 25 Nov: search + zone filter over the ready list; تحديد الكل applies to the filtered set.
+let SUPREP_CTX=null,SUPREP_FLT={q:'',zone:''};
+function supRepZonesOf(sup){return zOf('s',sup)}
+function supRepFiltered(){
+  const q=SUPREP_FLT.q.trim(),z=SUPREP_FLT.zone;
+  return SUPREP_LAST.filter(x=>(!q||x.sup.includes(q))&&(!z||supRepZonesOf(x.sup).includes(z)));
+}
+function supRepRenderReady(){
+  const w=$('srReadyWrap');if(!w)return;
+  const flt=supRepFiltered();
+  const cnt=$('srFltCount');if(cnt)cnt.textContent='بيظهر '+NF(flt.length)+' من '+NF(SUPREP_LAST.length)+' · متحدد '+NF([...SUPREP_SEL].length);
+  w.innerHTML=flt.map(x=>'<div class="row" style="justify-content:space-between;gap:6px;flex-wrap:wrap;align-items:center"><span><input type="checkbox" data-sup-chk '+(SUPREP_SEL.has(x.sup)?'checked':'')+' onchange="supRepToggle(SUPREP_LAST['+SUPREP_LAST.indexOf(x)+'].sup,this.checked)"> <b>'+esc(x.sup)+'</b> <span class="sub">'+esc(x.email||'')+' · '+NF(x.riders)+' مندوب</span></span><button class="btn" type="button" onclick="supRepDownload(SUPREP_LAST['+SUPREP_LAST.indexOf(x)+'].sup)">⬇ تحميل الملف</button></div>').join('')||'<div class="sub" style="padding:6px">مفيش مشرفين مطابقين للفلتر</div>';
+}
+function supRepSetFlt(){
+  SUPREP_FLT={q:$('srQ')?$('srQ').value:'',zone:$('srZoneFlt')?$('srZoneFlt').value:''};
+  supRepRenderReady();
+}
+function supRepRenderResults(d,dry){
+  SUPREP_CTX={d,dry};SUPREP_FLT={q:'',zone:''};
+  let h='';
+  if(d.latestDay)h+='<div class="sub" style="margin-bottom:6px">📅 أحدث يوم فيه بيانات في الشيت: <b>'+esc(d.latestDay)+'</b>'+(d.latestDay<supRepDates().d2?' — ⚠️ نهاية الفترة اللي اخترتها أحدث من البيانات المتاحة، ممكن الأداء يطلع فاضي':'')+'</div>';
+  if(dry&&SUPREP_LAST.length){
+    const zones=[...new Set(SUPREP_LAST.flatMap(x=>supRepZonesOf(x.sup)))].sort((a,b)=>a.localeCompare(b,'ar'));
+    h+='<div class="row" style="gap:8px;margin:4px 0"><button class="btn" type="button" onclick="supRepToggleAll(true)">✅ تحديد الكل</button><button class="btn" type="button" onclick="supRepToggleAll(false)">⬜ إلغاء الكل</button><span class="sub" style="margin-inline-start:auto">علّم ✓ على اللي عايز تبعتلهم، أو سيب الكل محدد</span></div>';
+    h+='<div class="row" style="gap:8px;margin:4px 0;flex-wrap:wrap"><input id="srQ" type="text" placeholder="🔍 ابحث باسم المشرف..." style="flex:1;min-width:160px" oninput="supRepSetFlt()"><select id="srZoneFlt" style="min-width:150px" onchange="supRepSetFlt()"><option value="">🗺 كل المناطق</option>'+zones.map(z=>'<option value="'+esc(z)+'">'+esc(z)+'</option>').join('')+'</select><span class="sub" id="srFltCount"></span></div>';
+    h+='<h4 style="margin:10px 0 4px">👁 جاهز للإرسال ('+NF(SUPREP_LAST.length)+')</h4><div id="srReadyWrap"></div>';
+  }else if(!dry){
+    h+=supRepSection('✅ اتبعت',SUPREP_LAST,x=>'<div class="row" style="justify-content:space-between;gap:6px;flex-wrap:wrap;align-items:center"><span><b>'+esc(x.sup)+'</b> <span class="sub">'+esc(x.email||'')+' · '+NF(x.riders)+' مندوب</span></span><button class="btn" type="button" onclick="supRepDownload(SUPREP_LAST['+SUPREP_LAST.indexOf(x)+'].sup)">⬇ تحميل الملف</button></div>');
+  }
+  h+=supRepSection('⚠️ حسابات من غير إيميل مسجل (اتخطّت)',(d.noEmail||[]),x=>'<div>• <b>'+esc(x.sup)+'</b> <span class="sub">('+esc(x.u)+')</span></div>');
+  h+=supRepSection('⚠️ مشرفين في الشيت ملهمش حساب مطابق على الموقع (اتخطّوا)',(d.noAccount||[]),x=>'<div>• '+esc(x)+'</div>');
+  h+=supRepSection('⚠️ أسماء مطابقة لأكتر من حساب (اتخطّت لحد ما تتظبط)',(d.ambiguous||[]),x=>'<div>• '+esc(x)+'</div>');
+  h+=supRepSection('❌ فشل الإرسال',(d.failed||[]),x=>'<div>• <b>'+esc(x.sup)+'</b> <span class="sub">'+esc(x.email||'')+' — '+esc(x.error||'')+'</span></div>');
+  if(dry&&!SUPREP_LAST.length&&!(d.noAccount||[]).length)h+='<div class="sub" style="margin-top:6px">⚠️ مفيش بيانات رجعت للفترة دي — لو متأكد إن فيها شغل، جرب المعاينة تاني (الشيت ساعات بيتأخر في الرد).</div>';
+  $('srResult').innerHTML=h;
+  if(dry)supRepRenderReady();
 }
 async function supRepRun(dry){
   if(!CUR||CUR.r!=='admin')return;
@@ -3869,16 +3911,7 @@ async function supRepRun(dry){
     const d=await api('/api/reports/send',{method:'POST',body});
     SUPREP_LAST=(dry?d.ready:d.sent)||[];
     if(dry)SUPREP_SEL=new Set(SUPREP_LAST.map(x=>x.sup));
-    let h='';
-    if(d.latestDay)h+='<div class="sub" style="margin-bottom:6px">📅 أحدث يوم فيه بيانات في الشيت: <b>'+esc(d.latestDay)+'</b>'+(d.latestDay<d2?' — ⚠️ نهاية الفترة اللي اخترتها أحدث من البيانات المتاحة، ممكن الأداء يطلع فاضي':'')+'</div>';
-    if(dry&&SUPREP_LAST.length)h+='<div class="row" style="gap:8px;margin:4px 0"><button class="btn" type="button" onclick="supRepToggleAll(true)">✅ تحديد الكل</button><button class="btn" type="button" onclick="supRepToggleAll(false)">⬜ إلغاء الكل</button><span class="sub" style="margin-inline-start:auto">علّم ✓ على اللي عايز تبعتلهم، أو سيب الكل محدد</span></div>';
-    h+=supRepSection(dry?'👁 جاهز للإرسال':'✅ اتبعت',SUPREP_LAST,(x,i)=>'<div class="row" style="justify-content:space-between;gap:6px;flex-wrap:wrap;align-items:center"><span>'+(dry?'<input type="checkbox" data-sup-chk checked onchange="supRepToggle(SUPREP_LAST['+SUPREP_LAST.indexOf(x)+'].sup,this.checked)"> ':'')+'<b>'+esc(x.sup)+'</b> <span class="sub">'+esc(x.email||'')+' · '+NF(x.riders)+' مندوب</span></span><button class="btn" type="button" onclick="supRepDownload(SUPREP_LAST['+SUPREP_LAST.indexOf(x)+'].sup)">⬇ تحميل الملف</button></div>');
-    h+=supRepSection('⚠️ حسابات من غير إيميل مسجل (اتخطّت)',(d.noEmail||[]),x=>'<div>• <b>'+esc(x.sup)+'</b> <span class="sub">('+esc(x.u)+')</span></div>');
-    h+=supRepSection('⚠️ مشرفين في الشيت ملهمش حساب مطابق على الموقع (اتخطّوا)',(d.noAccount||[]),x=>'<div>• '+esc(x)+'</div>');
-    h+=supRepSection('⚠️ أسماء مطابقة لأكتر من حساب (اتخطّت لحد ما تتظبط)',(d.ambiguous||[]),x=>'<div>• '+esc(x)+'</div>');
-    h+=supRepSection('❌ فشل الإرسال',(d.failed||[]),x=>'<div>• <b>'+esc(x.sup)+'</b> <span class="sub">'+esc(x.email||'')+' — '+esc(x.error||'')+'</span></div>');
-    if(dry&&!SUPREP_LAST.length&&!(d.noAccount||[]).length)h+='<div class="sub" style="margin-top:6px">⚠️ مفيش بيانات رجعت للفترة دي — لو متأكد إن فيها شغل، جرب المعاينة تاني (الشيت ساعات بيتأخر في الرد).</div>';
-    $('srResult').innerHTML=h;
+    supRepRenderResults(d,dry);
     $('srStatus').textContent=(dry?'👁 معاينة جاهزة — مفيش إيميلات اتبعتت':'✅ خلص الإرسال')+': '+NF(SUPREP_LAST.length)+' مشرف · '+NF((d.noAccount||[]).length)+' بدون حساب · '+NF((d.noEmail||[]).length)+' بدون إيميل · '+NF((d.failed||[]).length)+' فشل';
   }catch(e){
     const m={no_types:'اختار نوع تقرير واحد على الأقل',bad_day:'التواريخ المختارة غير صحيحة',range_too_long:'الفترة طويلة — أقصى حد شهرين',daily_limit:'وصلت للحد اليومي للإرسال — جرب بكرة',sheet_fetch_failed:'تعذّر سحب بيانات الشيت — جرب تاني بعد شوية',forbidden:'الميزة دي للأدمن بس'};
