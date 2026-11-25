@@ -3639,13 +3639,51 @@ async function vDec(o,p){const k=await vKey(p,ub64(o.s)),d=await crypto.subtle.d
 async function unlockV(){if(!VAULT||VL)return;const p=prompt('اكتب كلمة سر الخزنة علشان تظهر الباسوردات (سيبها فاضية للتخطي):');if(!p)return;
   try{const m=await vDec(VAULT,p);VP=p;const b=getPW();for(const k in m)if(!b[k])b[k]=m[k];localStorage.setItem('pd_pw',JSON.stringify(b));VL=1}catch(e){alert('كلمة سر الخزنة غلط')}}
 /* ---------- users page (admin) ---------- */
+/* Searchable picker (Micheal 25 Nov): type to filter the list, tap to select,
+   and free text is kept as-is so a brand-new supervisor name can be typed. */
+const COMBO={};
+function comboify(id,ph){
+  const old=$(id);if(!old||COMBO[id])return;
+  const hid=document.createElement('input');hid.type='hidden';hid.id=id;
+  const wrap=document.createElement('div');wrap.id=id+'_wrap';wrap.style.cssText='position:relative;min-width:0';
+  const inp=document.createElement('input');inp.placeholder=ph||'';inp.autocomplete='off';inp.style.width='100%';
+  const dd=document.createElement('div');dd.style.cssText='display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;max-height:220px;overflow:auto;background:#141d31;border:1px solid var(--bd,#33415c);border-radius:10px;z-index:60;padding:4px;box-shadow:0 8px 24px #0009';
+  wrap.appendChild(inp);wrap.appendChild(dd);
+  old.parentNode.replaceChild(wrap,old);wrap.appendChild(hid);
+  const st={items:[],inp,dd,hid,onchange:null};COMBO[id]=st;
+  const render=()=>{
+    const q=inp.value.trim();
+    const shown=st.items.filter(o=>!q||o.l.includes(q));
+    dd.innerHTML=shown.map(o=>`<div data-i="${st.items.indexOf(o)}" style="padding:10px 8px;border-radius:8px;cursor:pointer;font-size:13px" onmouseover="this.style.background='rgba(255,255,255,.08)'" onmouseout="this.style.background=''">${esc(o.l)}</div>`).join('')||'<div class="sub" style="padding:8px">مفيش نتائج - الاسم اللي كتبته هيتحفظ زي ما هو</div>';
+    dd.innerHTML+=`<div class="sub" style="padding:6px 8px;font-size:11px;border-top:1px solid var(--bd,#33415c);margin-top:4px">بيظهر ${shown.length} من ${st.items.length}</div>`;
+    [...dd.querySelectorAll('[data-i]')].forEach(el=>el.onclick=()=>{const o=st.items[+el.dataset.i];inp.value=o.l;hid.value=o.v;dd.style.display='none';if(st.onchange)st.onchange()});
+  };
+  inp.addEventListener('input',()=>{hid.value=inp.value;dd.style.display='';render();if(st.onchange)st.onchange()});
+  inp.addEventListener('focus',()=>{dd.style.display='';render()});
+  inp.addEventListener('blur',()=>setTimeout(()=>{dd.style.display='none'},200));
+  st.render=render;
+}
+function comboSet(id,items,ph){const st=COMBO[id];if(!st)return;st.items=items;if(ph)st.inp.placeholder=ph;if(st.dd.style.display!=='none')st.render()}
+function comboGet(id){const h=$(id);return h?h.value:''}
+function comboSetValue(id,v){const st=COMBO[id];if(!st)return;st.hid.value=v||'';const o=st.items.find(x=>x.v===v);st.inp.value=o?o.l:(v||'')}
+function comboOnChange(id,fn){const st=COMBO[id];if(st)st.onchange=fn}
+
 function zOf(k,nm){return [...new Set(ALL.filter(r=>r[k]===nm).map(r=>r.z).filter(Boolean))]}
-function sc(){const r=$('nr').value,k=r==='manager'?'m':'s',na=['admin','monitor','viewer'].includes(r),zs=uniq('z',ALL),cz=$('nz').value;
-  $('nz').style.display=na?'none':'';$('ns').style.display=na?'none':'';
-  $('nz').innerHTML='<option value="">كل المناطق</option>'+zs.map(x=>`<option${x===cz?' selected':''}>${esc(x)}</option>`).join('');
-  const prev=$('ns').value,list=uniq(k,$('nz').value?ALL.filter(x=>x.z===$('nz').value):ALL);
-  const ph=r==='manager'?'اختر مدير المنطقة':'اختر المشرف';
-  $('ns').innerHTML=na?'':`<option value="">${ph}</option>`+list.map(x=>`<option>${esc(x)}</option>`).join('');$('ns').value=list.includes(prev)?prev:''}
+function sc(){
+  comboify('nz','كل المناطق');comboify('ns','اختر المشرف');comboOnChange('nz',sc);
+  const r=$('nr').value,k=r==='manager'?'m':'s',na=['admin','monitor','viewer'].includes(r),zs=uniq('z',ALL);
+  $('nz_wrap').style.display=na?'none':'';$('ns_wrap').style.display=na?'none':'';
+  comboSet('nz',[{v:'',l:'كل المناطق'}].concat(zs.map(x=>({v:x,l:x}))),'كل المناطق');
+  const prev=comboGet('ns'),zone=comboGet('nz');
+  // Micheal 25 Nov: dashboard names PLUS accounts with this role (a supervisor
+  // with no riders today still shows), and free text covers brand-new names.
+  let list=uniq(k,zone?ALL.filter(x=>x.z===zone):ALL);
+  const role=k==='m'?'manager':'sup';
+  for(const u of getU())if(u.r===role&&u.n&&!list.includes(u.n))list.push(u.n);
+  list.sort((a,b)=>a.localeCompare(b,'ar'));
+  const ph=r==='manager'?'ابحث أو اكتب اسم مدير المنطقة':'ابحث أو اكتب اسم المشرف';
+  comboSet('ns',list.map(x=>({v:x,l:x})),ph);
+  comboSetValue('ns',prev)}
 function pwCell(x){const p=getPW()[x.u.toLowerCase()];return p?`<span dir="ltr" style="cursor:pointer" data-p="${esc(p)}" onclick="if(this.dataset.s){this.textContent='••••••';this.dataset.s=''}else{this.textContent=this.dataset.p;this.dataset.s='1'}">••••••</span>`:'<span class="sub" style="margin:0">غير معروفة</span>'}
 function ru(){gstat();const q=($('us').value||'').trim().toLowerCase();
   $('ut').innerHTML=getU().map((x,i)=>({x,i,z:['admin','monitor'].includes(x.r)?[]:zOf(x.r==='manager'?'m':'s',x.s)})).filter(({x,z})=>!q||[x.n,x.u,x.s,ROLE[x.r],x.email,x.phone,...z].join(' ').toLowerCase().includes(q))
@@ -3664,18 +3702,25 @@ function regFind(u){return REG_ITEMS.find(x=>x.u===u)||{u,n:u}}
 async function regReject(u){const x=regFind(u);if(!confirm('رفض وحذف طلب "'+x.n+'"؟ مش هيقدر يدخل بالبيانات دي.'))return;
   try{await api('/api/auth/admin/registrations/reject',{method:'POST',body:{u}});await renderRegs();await refreshUsers();ru()}catch(e){alert('تعذّر الرفض: '+authErr(e))}}
 let APR_U=null;
-function aprSc(){const r=$('aprR').value,k=r==='manager'?'m':'s',na=['admin','monitor','viewer'].includes(r),zs=uniq('z',ALL),cz=$('aprZ').value;
-  $('aprZ').style.display=na?'none':'';$('aprS').style.display=na?'none':'';
-  $('aprZ').innerHTML='<option value="">كل المناطق</option>'+zs.map(x=>`<option${x===cz?' selected':''}>${esc(x)}</option>`).join('');
-  const prev=$('aprS').value,list=uniq(k,$('aprZ').value?ALL.filter(x=>x.z===$('aprZ').value):ALL);
-  const ph=r==='manager'?'اختر مدير المنطقة':'اختر المشرف';
-  $('aprS').innerHTML=na?'':`<option value="">${ph}</option>`+list.map(x=>`<option>${esc(x)}</option>`).join('');$('aprS').value=list.includes(prev)?prev:''}
+function aprSc(){
+  comboify('aprZ','كل المناطق');comboify('aprS','اختر المشرف');comboOnChange('aprZ',aprSc);
+  const r=$('aprR').value,k=r==='manager'?'m':'s',na=['admin','monitor','viewer'].includes(r),zs=uniq('z',ALL);
+  $('aprZ_wrap').style.display=na?'none':'';$('aprS_wrap').style.display=na?'none':'';
+  comboSet('aprZ',[{v:'',l:'كل المناطق'}].concat(zs.map(x=>({v:x,l:x}))),'كل المناطق');
+  const prev=comboGet('aprS'),zone=comboGet('aprZ');
+  let list=uniq(k,zone?ALL.filter(x=>x.z===zone):ALL);
+  const role=k==='m'?'manager':'sup';
+  for(const u of getU())if(u.r===role&&u.n&&!list.includes(u.n))list.push(u.n);
+  list.sort((a,b)=>a.localeCompare(b,'ar'));
+  const ph=r==='manager'?'ابحث أو اكتب اسم مدير المنطقة':'ابحث أو اكتب اسم المشرف';
+  comboSet('aprS',list.map(x=>({v:x,l:x})),ph);
+  comboSetValue('aprS',prev)}
 function aprOpen(u){if(!CUR||CUR.r!=='admin')return;const x=regFind(u);APR_U=u;
   $('aprTitle').textContent='✅ موافقة على "'+x.n+'"';
   $('aprInfo').textContent='اختار الدور والمشرف المرتبط بيه — مش هيقدر يدخل غير بعد ما توافق';
   $('aprR').value='sup';$('aprZ').value='';aprSc();
   $('aprModal').style.display='block'}
-$('aprR').onchange=()=>{$('aprZ').value='';aprSc()};$('aprZ').onchange=aprSc;
+$('aprR').onchange=()=>{comboSetValue('aprZ','');comboSetValue('aprS','');aprSc()};comboOnChange('aprZ',aprSc);
 $('aprGo').onclick=async()=>{if(!APR_U)return;const u2=APR_U,r=$('aprR').value,s=['admin','monitor','viewer'].includes(r)?'':$('aprS').value;
   if(!['admin','monitor','viewer'].includes(r)&&!s)return alert(r==='manager'?'اختار مدير المنطقة من القايمة الأول':'اختار المشرف من القايمة الأول');
   const b=$('aprGo');b.disabled=true;
@@ -3683,7 +3728,7 @@ $('aprGo').onclick=async()=>{if(!APR_U)return;const u2=APR_U,r=$('aprR').value,s
     if(r==='viewer'){const vi=getU().findIndex(y=>y.u.toLowerCase()===u2);if(vi>=0)vwA(vi)}
   }catch(e){alert('تعذّرت الموافقة: '+authErr(e))}finally{b.disabled=false}};
 $('usrB').onclick=async()=>{if(!CUR||CUR.r!=='admin')return;$('um').style.display='block';sc();await refreshUsers();ru();renderRecoveries();renderRegs()};
-$('nr').onchange=()=>{$('nz').value='';sc()};$('nz').onchange=sc;$('us').oninput=ru;
+$('nr').onchange=()=>{comboSetValue('nz','');comboSetValue('ns','');sc()};comboOnChange('nz',sc);$('us').oninput=ru;
 let EDITING_USER=null;
 $('na').onclick=async()=>{if(!CUR||CUR.r!=='admin')return;const u=$('nu').value.trim().toLowerCase(),p0=$('np').value,r=$('nr').value,s=['admin','monitor','viewer'].includes(r)?'':$('ns').value,n=$('nn').value.trim()||u;
   if(!u)return alert('اكتب اسم المستخدم');
