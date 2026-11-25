@@ -143,8 +143,18 @@ $('extRows').addEventListener('paste',e=>{
     if(/^\d{1,15}$/.test(tok)){last={code:tok,time:null};items.push(last)}
   }
   if(!items.length)return;
-  $('extRows').replaceChildren();
-  for(const it of items)addExtRow(it.code,it.time);
+  // Bugfix (Micheal 25 Nov): pasting used to wipe every row, so a code the
+  // user typed (or pasted) earlier vanished. Now: keep all existing values,
+  // fill empty rows first, append new rows only for what doesn't fit.
+  const rows=[...$('extRows').children];let ri=0;
+  for(const it of items){
+    while(ri<rows.length&&rows[ri].querySelector('.extCode').value.trim())ri++;
+    let row;
+    if(ri<rows.length){row=rows[ri];ri++}
+    else{row=addExtRow();rows.push(row)}
+    row.querySelector('.extCode').value=it.code;
+    if(it.time)row.querySelector('.extTime').value=it.time;
+  }
 });
 $('addRow').onclick=()=>addExtRow();
 function sync(){
