@@ -7552,7 +7552,7 @@ async function lgOpen(id){
   +F('حالة الحكم',c.judgment_status)+F('تفاصيل الحكم',c.judgment_detail)+F('مبلغ الحكم',c.judgment_amount?c.judgment_amount+' ج':'');
  if(c.case_number)html+='<div style="background:#7f1d1d;color:#fecaca;padding:8px 12px;border-radius:10px;margin:8px 0;font-weight:800">⚖️ المندوب ده عليه قضية رقم '+esc(c.case_number)+'</div>';
  if(d.images&&d.images.receipt)html+='<button class="btn" type="button" onclick="const i=$(\'lgRecImg\');i.style.display=i.style.display===\'none\'?\'\':\'none\'">📷 عرض/إخفاء الإيصال</button><img id="lgRecImg" src="'+d.images.receipt+'" style="display:none;max-width:100%;border-radius:10px;margin-top:6px">';
- if(!LG_IS_LEGAL)html+='<h4 style="margin:10px 0 4px">📜 سجل الحالة</h4>'+hist.map(x=>'<div class="sub" style="margin:2px 0">• '+(LG_ST[x.status]||esc(x.status))+' — '+esc(x.by_name)+' — '+new Date(x.ts).toLocaleString('ar-EG')+(x.note?'<br>📝 '+esc(x.note):'')+'</div>').join('');
+ if(!CUR||CUR.r!=='legal')html+='<h4 style="margin:10px 0 4px">📜 سجل الحالة</h4>'+hist.map(x=>'<div class="sub" style="margin:2px 0">• '+(LG_ST[x.status]||esc(x.status))+' — '+esc(x.by_name)+' — '+new Date(x.ts).toLocaleString('ar-EG')+(x.note?'<br>📝 '+esc(x.note):'')+'</div>').join('');
  if(LG_IS_LEGAL){
   const closed=c.status==='closed',paid=c.status==='paid';
   const reached={received:1};hist.forEach(x=>{reached[x.status]=1});reached[c.status]=1;
