@@ -1284,7 +1284,7 @@ html[data-theme="light"] .kpi .l,html[data-theme="light"] .kpi .s{color:#526a82!
    <div class="nav-group"><div class="nav-group-title">👁 المتابعة اليومية</div>
     <button class="btn" id="legalNavB" type="button" style="display:none" onclick="toggleNavDrawer(false);openLegal()">⚖️ شئون قانونية</button>
     <button class="btn" id="hiringNavB" type="button" style="display:none" onclick="toggleNavDrawer(false);openHiring()">⬆ رفع الاستعلام</button>
-    <button class="btn" id="shcB" type="button" style="display:none" onclick="toggleNavDrawer(false);shcOpen()">⚡ أمر شيفت من الموقع</button>
+    <button class="btn" id="shcB" type="button" style="display:none" onclick="toggleNavDrawer(false);shcOpen()">⚡ أمر مد وفك بريك</button>
     <button class="btn" id="chatB" type="button" style="display:none" onclick="openChat()">💬 شات <span id="chatBadge" style="display:none;background:#ef4444;color:#fff;border-radius:999px;padding:2px 9px;font-size:12px;font-weight:900;margin-inline-start:6px"></span></button>
     <button class="btn" id="riderDetailsB" type="button" aria-expanded="false">📋 تفاصيل الطيارين</button>
     <button class="btn" id="riderMapB" type="button" aria-expanded="false" aria-controls="riderMapPanel" style="display:none">🗺️ خريطة المناديب</button>
@@ -1425,7 +1425,7 @@ header{box-shadow:0 8px 24px rgba(2,8,23,.5)}
  </div>
 <div id="shcModal" style="display:none;position:fixed;inset:0;background:#000c;z-index:75;overflow:auto;padding:12px" onclick="if(event.target===this)this.style.display='none'">
   <div class="card" style="max-width:560px;margin:auto">
-   <div class="row"><h3 style="margin:0">⚡ أمر شيفت من الموقع</h3><button class="btn" style="margin-inline-start:auto" onclick="$('shcModal').style.display='none'">✕</button></div>
+   <div class="row"><h3 style="margin:0">⚡ أمر مد وفك بريك</h3><button class="btn" style="margin-inline-start:auto" onclick="$('shcModal').style.display='none'">✕</button></div>
    <p class="sub" id="shcAgentLine" style="margin:6px 0"></p>
    <label for="shcAction">الإجراء</label>
    <select id="shcAction" onchange="shcSync()"><option value="extend">⏫ مد الشيفت</option><option value="break">☕ فك البريك</option><option value="open">🔓 فتح شيفت</option></select>
@@ -7560,7 +7560,7 @@ async function lgOpen(id){
    +'<input id="lgNSettle" placeholder="مبلغ التسوية/المحامي (جنيه)" inputmode="numeric" value="'+esc(c.settle_amount||'')+'"'+(closed?' disabled':'')+'>'
    +'<input id="lgNJStatus" placeholder="حالة الحكم" value="'+esc(c.judgment_status||'')+'"'+((closed||paid)?' disabled':'')+'>'
    +'<input id="lgNJAmount" placeholder="مبلغ الحكم (جنيه)" inputmode="numeric" value="'+esc(c.judgment_amount||'')+'"'+((closed||paid)?' disabled':'')+'>'
-   +'<input id="lgNNote" placeholder="ملاحظة (اختياري)"'+(closed?' disabled':'')+'></div>'
+   +'<input id="lgNNote" placeholder="ملاحظة (اختياري)"'+((closed||paid)?' disabled':'')+'></div>'
    +'<div class="fm" style="grid-template-columns:1fr"><input id="lgNJDetail" placeholder="تفاصيل الحكم" value="'+esc(c.judgment_detail||'')+'"'+((closed||paid)?' disabled':'')+'></div>'
    +(closed?'<div class="sub" style="margin:8px 0">🔒 الحالة اتقفلت — للعرض فقط</div><div class="row">':'<div class="row"><button class="btn pr" type="button" onclick="lgSaveStatus()">💾 حفظ الحالة</button>')
    +(CUR.r==='admin'||CUR.r==='legal'?'<button class="btn" type="button" onclick="lgDelete()" style="color:#f87171">🗑 مسح الحالة</button>':'')+'</div>'
