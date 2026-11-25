@@ -7104,10 +7104,10 @@ async function refreshChatBadge(){
   if($('chatModal').style.display!=='none'&&$('chatListWrap').style.display!=='none')chatList(true);
 }
 function openChat(){toggleNavDrawer(false);$('chatModal').style.display='';chatList()}
-function closeChat(){if(window.VR_REC&&VR_REC)stopVoiceRec(true);$('chatModal').style.display='none';CHAT_PEER=null;if(CHAT_TIMER){clearInterval(CHAT_TIMER);CHAT_TIMER=null}refreshChatBadge()}
+function closeChat(){if(typeof VR_REC!=='undefined'&&VR_REC)stopVoiceRec(true);$('chatModal').style.display='none';CHAT_PEER=null;if(CHAT_TIMER){clearInterval(CHAT_TIMER);CHAT_TIMER=null}refreshChatBadge()}
 function chatHideAll(){$('chatListWrap').style.display='none';$('chatThreadWrap').style.display='none';$('chatMonitorWrap').style.display='none'}
 async function chatList(silent){
-  if(window.VR_REC&&VR_REC)stopVoiceRec(true);
+  if(typeof VR_REC!=='undefined'&&VR_REC)stopVoiceRec(true);
   CHAT_PEER=null;if(CHAT_TIMER){clearInterval(CHAT_TIMER);CHAT_TIMER=null}
   $('chatBack').style.display='none';$('chatTitle').textContent='💬 شات';chatHideAll();$('chatListWrap').style.display='';
   $('chatMonitorB').style.display=CUR&&CUR.r==='admin'?'':'none';
@@ -7148,7 +7148,7 @@ function renderChatList(){
   }).join('')||'<div class="sub">مفيش حد متاح للشات حاليًا</div>';
 }
 async function openThread(u){
-  if(window.VR_REC&&VR_REC)stopVoiceRec(true);
+  if(typeof VR_REC!=='undefined'&&VR_REC)stopVoiceRec(true);
   CHAT_PEER=u;CHAT_LAST_ID=0;
   $('chatBack').style.display='';chatHideAll();$('chatThreadWrap').style.display='flex';
   $('chatMsgs').innerHTML='<div class="sub">جاري التحميل…</div>';
@@ -7181,7 +7181,7 @@ function chatBubble(m){
     dur.textContent=dm?fmtDur(+dm[1]*1000):'🎤';
     const au=new Audio();au.preload='metadata';au.src=m.body;
     au.onloadedmetadata=()=>{if(isFinite(au.duration)&&au.duration>0)dur.textContent=fmtDur(au.duration*1000)};
-    au.ontimeupdate=()=>{if(isFinite(au.duration)&&au.duration>0)fill.style.width=Math.min(100,au.currentTime/au.duration*100)+'%'};
+    au.ontimeupdate=()=>{const tot=isFinite(au.duration)&&au.duration>0?au.duration:(dm?+dm[1]:0);if(tot>0)fill.style.width=Math.min(100,au.currentTime/tot*100)+'%'};
     au.onended=()=>{pb.textContent='▶';fill.style.width='0%'};
     au.onpause=()=>{pb.textContent='▶'};
     pb.onclick=()=>{if(au.paused){au.play().then(()=>{pb.textContent='⏸'}).catch(()=>{})}else au.pause()};
