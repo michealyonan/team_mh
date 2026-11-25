@@ -6987,15 +6987,17 @@ async function refreshChatBadge(){
   if(!CUR||!['admin','manager','sup'].includes(CUR.r))return;
   try{api('/api/chat/ping',{method:'POST'}).catch(()=>{})}catch(e){}
   try{const d=await api('/api/chat/inbox');const b=$('chatBadge');if(d&&d.totalUnread>0){b.style.display='';b.textContent=NF(d.totalUnread)}else b.style.display='none'}catch(e){}
+  // newly added supervisors/managers appear on their own while the list is open (Micheal 16444174)
+  if($('chatModal').style.display!=='none'&&$('chatListWrap').style.display!=='none')chatList(true);
 }
 function openChat(){toggleNavDrawer(false);$('chatModal').style.display='';chatList()}
 function closeChat(){$('chatModal').style.display='none';CHAT_PEER=null;if(CHAT_TIMER){clearInterval(CHAT_TIMER);CHAT_TIMER=null}refreshChatBadge()}
 function chatHideAll(){$('chatListWrap').style.display='none';$('chatThreadWrap').style.display='none';$('chatMonitorWrap').style.display='none'}
-async function chatList(){
+async function chatList(silent){
   CHAT_PEER=null;if(CHAT_TIMER){clearInterval(CHAT_TIMER);CHAT_TIMER=null}
   $('chatBack').style.display='none';$('chatTitle').textContent='💬 شات';chatHideAll();$('chatListWrap').style.display='';
   $('chatMonitorB').style.display=CUR&&CUR.r==='admin'?'':'none';
-  const w=$('chatListRows');w.innerHTML='<div class="sub">جاري التحميل…</div>';
+  const w=$('chatListRows');if(!silent)w.innerHTML='<div class="sub">جاري التحميل…</div>';
   try{
     const [inbox,contacts]=await Promise.all([api('/api/chat/inbox'),api('/api/chat/contacts')]);
     CHAT_CONVS=inbox.conversations||[];CHAT_CONTACTS=contacts.contacts||[];
