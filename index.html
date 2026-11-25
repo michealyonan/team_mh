@@ -7117,14 +7117,14 @@ function renderHiringList(){
  const q=($('hSearch')&&$('hSearch').value||'').trim();
  const items=q?HIRING_LIST.filter(x=>{const p=x.payload||{};return String(p.rider_nid||'').includes(q)||String(p.rider_name||'').includes(q)}):HIRING_LIST;
  w.innerHTML=items.map(x=>{
-  const p=x.payload||{};let err='';
-  if(x.status==='failed'&&x.result){try{err=JSON.parse(x.result).error||''}catch(e){}}
+  const p=x.payload||{};let err='',errD='';
+  if(x.status==='failed'&&x.result){try{const rr=JSON.parse(x.result);err=rr.error||'';errD=String(rr.detail||'').split('|')[0].trim().slice(0,140);const mm=errD.match(/chip "(.+?)" never appeared/);if(mm)errD='الصورة '+mm[1]+' ما اترفعتش - الرفع وقف في النص';}catch(e){}}
   const adminBar=isAdmin&&x.status==='pending'
    ?`<div class="row" style="margin:8px 0 0;align-items:center;gap:6px"><select id="hApt_${x.id}" style="flex:1;min-width:0">${HIRING_CFG.hireTypes.map(t=>`<option${t===p.hire_type?' selected':''}>${esc(t)}</option>`).join('')}</select><button class="btn pr" type="button" onclick="hApprove(${x.id})">✅ موافقة على التعيين</button><button class="btn" type="button" onclick="hReject(${x.id})">❌ رفض</button></div>`:'';
   const retryBar=isAdmin&&x.status==='failed'?`<div class="row" style="margin:8px 0 0"><button class="btn pr" type="button" onclick="hRetry(${x.id})">🔁 إعادة الرفع</button></div>`:'';
   return `<div class="card" style="margin:8px 0;padding:10px">
    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><b>${esc(p.rider_name||'—')}</b><span class="sub" dir="ltr" style="margin:0">${esc(p.rider_nid||'')}</span><span class="sub" style="margin-inline-start:auto;margin:0">${H_STATUS[x.status]||x.status}</span></div>
-   <div class="sub" style="margin:4px 0 0">بواسطة: ${esc(hName(x.u))} · ${esc(p.lecture_office||'')} · ${esc(p.vehicle||'')}${err?' · <span style="color:#f87171">'+esc(err)+'</span>':''}</div>
+   <div class="sub" style="margin:4px 0 0">بواسطة: ${esc(hName(x.u))} · ${esc(p.lecture_office||'')} · ${esc(p.vehicle||'')}${err?' · <span style="color:#f87171">'+esc(err)+'</span>':''}</div>${errD?'<div class="sub" style="margin:2px 0 0;color:#f87171;font-size:11px">'+esc(errD)+'</div>':''}
    <div class="row" style="margin:6px 0 0;gap:6px"><button class="btn" type="button" style="font-size:12px;padding:6px 12px" onclick="hImgs(${x.id})">🖼 الصور</button><button class="btn" type="button" style="font-size:12px;padding:6px 12px" onclick="hData(${x.id})">📄 البيانات</button><button class="btn" type="button" style="font-size:12px;padding:6px 12px" onclick="hDl(${x.id},this)">⬇ تنزيل</button>${isAdmin?`<button class="btn" type="button" style="font-size:12px;padding:6px 12px;color:#f87171" onclick="hDelete(${x.id})">🗑 مسح الطلب</button>`:''}</div><div id="hImgBox_${x.id}" style="display:none"></div><div id="hDataBox_${x.id}" style="display:none"></div>
    ${adminBar}${retryBar}</div>`;
  }).join('')||'<div class="sub">مفيش طلبات لسه</div>';

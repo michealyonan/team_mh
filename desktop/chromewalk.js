@@ -455,6 +455,35 @@ async function uploadProof(page, filePath, job) {
     await browserSession.send('Target.setDiscoverTargets', { discover: true }).catch(() => {});
     await attachAll();
 
+    // v0.3.29: retry the WHOLE picker round (open > hand-off > chip) up to 3
+    // times. 25/26 Nov real runs: the FIRST slot uploads fine, later pickers
+    // open but the handed file never starts uploading - a stall inside
+    // Google's picker. Fully closing the dialog and re-opening resets it.
+    async function forcePickerClosed() {
+      for (let k = 0; k < 8; k++) {
+        if (await pickerGone()) return;
+        const clicked = await page.evaluate(() => {
+          const bs = document.querySelectorAll('button,[role=button],[aria-label]');
+          for (const b of bs) {
+            const t = (b.textContent || '').trim(); const al = b.getAttribute('aria-label') || '';
+            if (t === '\u2715' || t === '\u00d7' || /\u0625\u063a\u0644\u0627\u0642|close/i.test(al)) { const r = b.getBoundingClientRect(); if (r.width > 5 && r.width < 90 && r.height > 5 && r.height < 90) { b.click(); return true; } }
+          }
+          return false;
+        }).catch(() => false);
+        if (!clicked) {
+          for (const f of page.frames()) { if (f === page.mainFrame()) continue; try { await f.evaluate(() => { const bs = document.querySelectorAll('button,[role=button]'); for (const b of bs) { const t = (b.textContent || '').trim(); if (t === '\u2715' || t === '\u00d7') { b.click(); break; } } }); } catch (e) {} }
+        }
+        await sleep(800);
+      }
+    }
+    for (let round = 0; round < 3; round++) {
+    if (round > 0) {
+      chooserAnswered = false;
+      diag.layers.push('slot retry round ' + (round + 1));
+      await forcePickerClosed();
+      await sleep(3000);
+    }
+
     // Address the upload QUESTION, never the Nth remaining button: a button
     // turns into a file chip after its upload, so indexing the remaining
     // buttons shifts whenever an earlier image is absent (25 Nov Micheal: the
@@ -544,7 +573,7 @@ async function uploadProof(page, filePath, job) {
     }
     if (chooserAnswered) {
       diag.layers.push('file handed via chooser');
-      if (await waitChip(60000)) { diag.layers.push('chip after chooser'); await ensurePickerClosed(); return; }
+      if (await waitChip(25000)) { diag.layers.push('chip after chooser'); await ensurePickerClosed(); return; }
       diag.layers.push('chooser answered but no chip - continuing');
     }
 
@@ -679,10 +708,12 @@ async function uploadProof(page, filePath, job) {
   }
 
     // Final verification: the chip (file name) must be back on the form.
-    if (await waitChip(chooserAnswered ? 60000 : 20000)) {
+    if (await waitChip(chooserAnswered ? 25000 : 15000)) {
       await ensurePickerClosed();
       return;
     }
+    diag.layers.push('round ' + (round + 1) + ' ended with no chip');
+    } // end retry round
     const e = new Error('upload_not_confirmed');
     e.detail = 'chip "' + fileName + '" never appeared | layers: ' + diag.layers.join(' > ').slice(0, 200) + ' | targets: ' + diag.targets.slice(0, 8).join(' ; ').slice(0, 220);
     e.diag = { file: fileName, layers: diag.layers, targets: diag.targets, chooserAnswered: chooserAnswered };
