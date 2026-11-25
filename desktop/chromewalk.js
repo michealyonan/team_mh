@@ -93,17 +93,23 @@ async function typeIn(page, el, text) {
 // Pick a form OPTION by text: strictly prefer role-scoped matches (radio/option)
 // so a section header carrying the same words can never swallow the click.
 async function pickOption(page, text, timeoutMs) {
-  // Live DOM (24 Nov): the option label span sits in a div[role=radiogroup], the
-  // clickable div[role=radio] is its sibling - click the radio in the group whose
-  // label matches, so a section header carrying the same words can't swallow it.
-  const scoped = "//div[@role='radiogroup'][.//span[contains(text(), '" + text + "')]]//div[@role='radio'] | //div[@role='option'][.//span[contains(text(), '" + text + "')]]";
+  // 25 Nov Alex فك بريك bug: the old group-scoped first query clicked the FIRST
+  // radio of any group whose labels contain the text - on the Alex action page
+  // (تزويدات first, البريكات second) a فك بريك run silently picked مد. Precise
+  // matches first now; the loose group query is gone.
+  // 1) The radio/option whose own aria-label matches (live Alex + Delta DOM).
   try {
-    await clickX(page, scoped, Math.min(timeoutMs || 12000, 9000));
+    await clickX(page, "//div[@role='radio'][contains(@aria-label, '" + text + "')] | //div[@role='option'][contains(@aria-label, '" + text + "')]", Math.min(timeoutMs || 12000, 9000));
     return;
   } catch (e) {}
-  // Delta DOM variant: the radio itself carries the label in aria-label.
+  // 2) The radio/option whose own subtree carries the label text.
   try {
-    await clickX(page, "//div[@role='radio'][contains(@aria-label, '" + text + "')] | //div[@role='option'][contains(@aria-label, '" + text + "')]", 5000);
+    await clickX(page, "//div[@role='radio'][.//span[contains(text(), '" + text + "')]] | //div[@role='option'][.//span[contains(text(), '" + text + "')]]", 5000);
+    return;
+  } catch (e) {}
+  // 3) Label-sibling variant: the row that contains the label span owns the radio.
+  try {
+    await clickX(page, "//div[@role='radiogroup']//span[contains(text(), '" + text + "')]/ancestor::div[.//div[@role='radio']][1]//div[@role='radio']", 5000);
     return;
   } catch (e) {}
   // Last resort: the visible label element itself (Google rows select on label click).
@@ -899,6 +905,16 @@ async function runFormWalkInner(page, job) {
     } catch (e) { fail(e); }
 
     if (isBreak) {
+      // 25 Nov guard: if the action pick still lands on the تزويد (مد) page,
+      // stop loudly instead of filling ما لا ينبغي and blocking on submit.
+      try {
+        const wrongBranch = await page.evaluate(() => /مد الشيفت لحد الساعه/.test((document.body && document.body.innerText) || ''));
+        if (wrongBranch) {
+          const e = new Error('wrong_branch_extend_page');
+          e.code = 'wrong_branch';
+          fail(e);
+        }
+      } catch (e) { if (e && e.code === 'wrong_branch') throw e; }
       try { await pickOption(page, 'فك بريك', 9000); mark('page2:break-option'); } catch (e) {}
       if (job.reason) {
         // السبب: paragraph/text field on the فك بريك page; fill if present and empty.
