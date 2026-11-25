@@ -82,6 +82,7 @@ async function ensureSchema(env) {
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS legal_reminders(case_id INTEGER PRIMARY KEY, by_u TEXT NOT NULL, by_name TEXT NOT NULL DEFAULT '', ts INTEGER NOT NULL, seen INTEGER NOT NULL DEFAULT 0)`),
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS settings(k TEXT PRIMARY KEY, v TEXT NOT NULL DEFAULT '')`),
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS push_tokens(u TEXT NOT NULL, token TEXT NOT NULL, ts INTEGER NOT NULL, PRIMARY KEY(u, token))`),
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS push_log(u TEXT NOT NULL, token_tail TEXT NOT NULL, status INTEGER NOT NULL, resp TEXT NOT NULL, ts INTEGER NOT NULL)`),
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS viewer_access(
       viewer_u TEXT NOT NULL, sup_name TEXT NOT NULL, PRIMARY KEY(viewer_u, sup_name))`),
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS login_fails(
@@ -265,7 +266,7 @@ async function enforceDeviceLimit(env, u, maxSessions) {
 
 async function issueSession(env, u, remember) {
   const token = randHex(32);
-  const ttl = remember ? 7 * 24 * 60 * 60 * 1000 : 12 * 60 * 60 * 1000;
+  const ttl = 24 * 60 * 60 * 1000; // Micheal 26 Nov: كل جلسة 24 ساعة، من غير خانة تذكرني
   await env.DB.prepare('INSERT INTO sessions(token,u,expires,created) VALUES(?,?,?,?)').bind(token, u, Date.now() + ttl, Date.now()).run();
   return token;
 }
@@ -296,25 +297,36 @@ async function fcmAccessToken(env) {
 }
 async function sendFcmToUser(env, u, title, body, riderId) {
   if (!env.FCM_SA_JSON) return;
+  const log = async (status, resp) => {
+    try { await env.DB.prepare('INSERT INTO push_log(u,token_tail,status,resp,ts) VALUES(?,?,?,?,?)').bind(u, '', status, String(resp || '').slice(0, 500), Date.now()).run(); } catch (e) {}
+  };
   try {
     const rows = await env.DB.prepare('SELECT token FROM push_tokens WHERE u=?').bind(u).all();
     const tokens = (rows.results || []).map(r => r.token);
-    if (!tokens.length) return;
+    if (!tokens.length) { await log(-1, 'no_tokens'); return; }
     const at = await fcmAccessToken(env);
     const proj = env.FCM_PROJECT_ID || 'pilot-dashboard-d0983';
     for (const t of tokens.slice(0, 20)) {
-      const r = await fetch(`https://fcm.googleapis.com/v1/projects/${proj}/messages:send`, {
-        method: 'POST', headers: { 'Authorization': 'Bearer ' + at, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: {
-          token: t,
-          notification: { title: String(title || ''), body: String(body || '') },
-          android: { priority: 'HIGH', notification: { sound: 'default', channel_id: 'teammh_alerts' } },
-          data: { rider_id: String(riderId || ''), title: String(title || ''), body: String(body || '') },
-        } }),
-      });
-      if (r.status === 404) await env.DB.prepare('DELETE FROM push_tokens WHERE token=?').bind(t).run();
+      const tail = String(t).slice(-8);
+      try {
+        const r = await fetch(`https://fcm.googleapis.com/v1/projects/${proj}/messages:send`, {
+          method: 'POST', headers: { 'Authorization': 'Bearer ' + at, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: {
+            token: t,
+            notification: { title: String(title || ''), body: String(body || '') },
+            android: { priority: 'HIGH', notification: { sound: 'default', channel_id: 'teammh_alerts' } },
+            data: { rider_id: String(riderId || ''), title: String(title || ''), body: String(body || '') },
+          } }),
+        });
+        let respTxt = '';
+        try { respTxt = await r.text(); } catch (e) { respTxt = 'read_error'; }
+        try { await env.DB.prepare('INSERT INTO push_log(u,token_tail,status,resp,ts) VALUES(?,?,?,?,?)').bind(u, tail, r.status, respTxt.slice(0, 500), Date.now()).run(); } catch (e) {}
+        if (r.status === 404) await env.DB.prepare('DELETE FROM push_tokens WHERE token=?').bind(t).run();
+      } catch (e) {
+        try { await env.DB.prepare('INSERT INTO push_log(u,token_tail,status,resp,ts) VALUES(?,?,?,?,?)').bind(u, tail, -2, String(e).slice(0, 300), Date.now()).run(); } catch (e2) {}
+      }
     }
-  } catch (e) {}
+  } catch (e) { await log(-3, String(e)); }
 }
 
 async function sendMail(env, to, subject, text, attachment) {
@@ -2247,7 +2259,8 @@ export default {
         if (!user) return json({ error: 'unauthorized' }, 401);
         const rows = await env.DB.prepare('SELECT token,ts FROM push_tokens WHERE u=? ORDER BY ts DESC').bind(user.u).all();
         const list = rows.results || [];
-        return json({ registered: list.length > 0, devices: list.length, last_ts: list.length ? list[0].ts : 0 });
+        const logs = await env.DB.prepare('SELECT token_tail,status,resp,ts FROM push_log WHERE u=? ORDER BY ts DESC LIMIT 5').bind(user.u).all().catch(() => ({ results: [] }));
+        return json({ registered: list.length > 0, devices: list.length, last_ts: list.length ? list[0].ts : 0, last_sends: logs.results || [] });
       } catch (e) { return serverErr(e); }
     }
 
