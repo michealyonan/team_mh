@@ -3679,7 +3679,7 @@ function sc(){
   // with no riders today still shows), and free text covers brand-new names.
   let list=uniq(k,zone?ALL.filter(x=>x.z===zone):ALL);
   const role=k==='m'?'manager':'sup';
-  for(const u of getU())if(u.r===role&&u.n&&!list.includes(u.n))list.push(u.n);
+  for(const u of getU())if(u.r===role&&u.n&&!list.includes(u.n)&&(!zone||zOf(k,u.n).includes(zone)))list.push(u.n);
   list.sort((a,b)=>a.localeCompare(b,'ar'));
   const ph=r==='manager'?'ابحث أو اكتب اسم مدير المنطقة':'ابحث أو اكتب اسم المشرف';
   comboSet('ns',list.map(x=>({v:x,l:x})),ph);
@@ -3710,7 +3710,7 @@ function aprSc(){
   const prev=comboGet('aprS'),zone=comboGet('aprZ');
   let list=uniq(k,zone?ALL.filter(x=>x.z===zone):ALL);
   const role=k==='m'?'manager':'sup';
-  for(const u of getU())if(u.r===role&&u.n&&!list.includes(u.n))list.push(u.n);
+  for(const u of getU())if(u.r===role&&u.n&&!list.includes(u.n)&&(!zone||zOf(k,u.n).includes(zone)))list.push(u.n);
   list.sort((a,b)=>a.localeCompare(b,'ar'));
   const ph=r==='manager'?'ابحث أو اكتب اسم مدير المنطقة':'ابحث أو اكتب اسم المشرف';
   comboSet('aprS',list.map(x=>({v:x,l:x})),ph);
@@ -3727,7 +3727,7 @@ $('aprGo').onclick=async()=>{if(!APR_U)return;const u2=APR_U,r=$('aprR').value,s
   try{await api('/api/auth/admin/registrations/approve',{method:'POST',body:{u:u2,r,s}});$('aprModal').style.display='none';APR_U=null;alert('اتفعّل الحساب ✅');await renderRegs();await refreshUsers();ru();
     if(r==='viewer'){const vi=getU().findIndex(y=>y.u.toLowerCase()===u2);if(vi>=0)vwA(vi)}
   }catch(e){alert('تعذّرت الموافقة: '+authErr(e))}finally{b.disabled=false}};
-$('usrB').onclick=async()=>{if(!CUR||CUR.r!=='admin')return;$('um').style.display='block';sc();await refreshUsers();ru();renderRecoveries();renderRegs()};
+$('usrB').onclick=async()=>{if(!CUR||CUR.r!=='admin')return;$('um').style.display='block';await refreshUsers();sc();ru();renderRecoveries();renderRegs()};
 $('nr').onchange=()=>{comboSetValue('nz','');comboSetValue('ns','');sc()};comboOnChange('nz',sc);$('us').oninput=ru;
 let EDITING_USER=null;
 $('na').onclick=async()=>{if(!CUR||CUR.r!=='admin')return;const u=$('nu').value.trim().toLowerCase(),p0=$('np').value,r=$('nr').value,s=['admin','monitor','viewer'].includes(r)?'':$('ns').value,n=$('nn').value.trim()||u;
