@@ -1123,43 +1123,79 @@ async function runFormWalkInner(page, job) {
 // stops before إرسال; real runs are only ever for requests Micheal approved on
 // the site.
 
-// Open the dropdown at page-order INDEX and pick the option by its text. The
-// commit check is a POSITIVE match on that same listbox: the placeholder
-// 'اختيار' can stay in textContent after a real selection (24 Nov), so only the
-// chosen value proves the commit. One retry on a missed commit.
+// 25 Nov root cause (id=2, lecture_office empty at submit): a collapsed
+// listbox keeps EVERY option in the DOM (zero-height when closed), and its
+// textContent ALWAYS contains all option texts - so the old textContent
+// commit check was a permanent false positive, and an XPath option click
+// could land on the hidden zero-height node. Verified live: the only honest
+// commit signal is aria-selected on the option (placeholder carries it until
+// a real pick; a committed pick moves it and closes the popup).
+// Now: open (prove aria-expanded), click the matching option at its LIVE
+// center coordinates (hidden options have h=0 and are never clicked), verify
+// via aria-selected, retry, and throw loudly.
+async function listboxState(page, index) {
+  try {
+    return await page.evaluate((i) => {
+      const lbs = document.querySelectorAll("div[role='listbox']");
+      const lb = lbs[i];
+      if (!lb) return null;
+      const opts = Array.from(lb.querySelectorAll("div[role='option']"));
+      const sel = opts.find((o) => o.getAttribute('aria-selected') === 'true');
+      return {
+        expanded: lb.getAttribute('aria-expanded') === 'true',
+        selected: sel ? String(sel.textContent || '').replace(/\s+/g, ' ').trim() : ''
+      };
+    }, index);
+  } catch (e) { return null; }
+}
+
 async function pickFromListbox(page, index, text, timeoutMs) {
-  const open = async () => {
-    const t0 = Date.now();
-    while (Date.now() - t0 < (timeoutMs || 12000)) {
-      const lbs = await xpAll(page, "//div[@role='listbox']");
-      if (lbs[index]) {
-        try { await clickEl(page, lbs[index]); return; } catch (e) {}
+  const want = String(text || '').replace(/\s+/g, ' ').trim();
+  const committed = async () => {
+    const st = await listboxState(page, index);
+    return !!(st && !st.expanded && st.selected && st.selected.indexOf(want) >= 0);
+  };
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (await committed()) return;
+    // Open the dropdown; prove it with aria-expanded before touching options.
+    let opened = false;
+    {
+      const t0 = Date.now();
+      let lastClick = 0;
+      while (Date.now() - t0 < (timeoutMs || 15000) && !opened) {
+        const lbs = await xpAll(page, "//div[@role='listbox']");
+        if (!lbs[index]) { await sleep(250); continue; }
+        if (Date.now() - lastClick > 1500) {
+          try { await clickEl(page, lbs[index]); } catch (e) {}
+          lastClick = Date.now();
+        }
+        await sleep(300);
+        const st = await listboxState(page, index);
+        if (st && st.expanded) opened = true;
       }
-      await sleep(200);
     }
-    throw new Error('listbox ' + index + ' not found');
-  };
-  const shown = async () => {
-    try {
-      return await page.evaluate((i) => {
-        const ls = document.querySelectorAll("div[role='listbox']");
-        const lb = ls[i];
-        return lb ? String(lb.textContent || '') : '';
-      }, index);
-    } catch (e) { return ''; }
-  };
-  await open();
-  await sleep(400); // let the option overlay render
-  await pickOption(page, text, timeoutMs || 12000);
-  if ((await shown()).indexOf(text) >= 0) return;
-  await open();
-  await sleep(400);
-  await pickOption(page, text, 8000);
-  if ((await shown()).indexOf(text) < 0) {
-    const e = new Error('dropdown_commit_failed: ' + text);
-    e.detail = 'listbox ' + index + ' never showed "' + text + '"';
-    throw e;
+    if (!opened) continue;
+    // Click the matching option at its live center. Zero-height (hidden)
+    // options return null and are never clicked.
+    const pt = await page.evaluate((i, t) => {
+      const lbs = document.querySelectorAll("div[role='listbox']");
+      const lb = lbs[i];
+      if (!lb) return null;
+      const opts = Array.from(lb.querySelectorAll("div[role='option']"));
+      const o = opts.find((o2) => String(o2.textContent || '').replace(/\s+/g, ' ').trim().indexOf(t) >= 0);
+      if (!o) return null;
+      const r = o.getBoundingClientRect();
+      return (r.width > 5 && r.height > 5) ? { x: r.x + r.width / 2, y: r.y + r.height / 2 } : null;
+    }, index, want).catch(() => null);
+    if (pt) { try { await page.mouse.click(pt.x, pt.y); } catch (e) {} }
+    await sleep(700);
+    if (await committed()) return;
+    try { await page.keyboard.press('Escape'); } catch (e) {}
+    await sleep(300);
   }
+  const e = new Error('dropdown_commit_failed: ' + text);
+  e.detail = 'listbox ' + index + ' never committed "' + text + '"';
+  throw e;
 }
 
 async function runHiringWalk(page, job) {
@@ -1239,10 +1275,43 @@ async function runHiringWalk(page, job) {
       job.payload.rider_nid, job.payload.license_no || '', job.payload.rider_addr];
     const tins = await xpAll(page, "//input[@type='text']");
     if (tins.length < 6) throw new Error('expected 6 text inputs, found ' + tins.length);
-    for (let i = 0; i < texts.length; i++) { if (texts[i]) await typeIn(page, tins[i], texts[i]); }
+    for (let i = 0; i < texts.length; i++) {
+      if (!texts[i]) continue;
+      await typeIn(page, tins[i], texts[i]);
+      // Verify the field actually holds the value (25 Nov: verify each field).
+      let got = '';
+      try { got = await tins[i].evaluate((n) => String(n.value || '')); } catch (e) {}
+      if (got.trim() !== String(texts[i]).trim()) {
+        await typeIn(page, tins[i], texts[i]);
+        try { got = await tins[i].evaluate((n) => String(n.value || '')); } catch (e) {}
+        if (got.trim() !== String(texts[i]).trim()) {
+          const e = new Error('حقل نصي مااتكتبش صح');
+          e.detail = 'text field ' + i + ' readback mismatch: got "' + got.slice(0, 40) + '"';
+          throw e;
+        }
+      }
+    }
     mark('texts:6');
 
     await pickFromListbox(page, 3, job.payload.vehicle, 15000); mark('dd:vehicle');
+
+    // Fail loudly BEFORE the uploads if any required dropdown is still empty -
+    // an empty dropdown means Google bounces the submit minutes later.
+    if (!job.dry) {
+      const dds = [[0, 'office', job.payload.office], [1, 'hire_type', job.payload.hire_type],
+        [2, 'lecture_office', job.payload.lecture_office], [3, 'vehicle', job.payload.vehicle]];
+      for (const [di, key, val] of dds) {
+        if (!val) continue;
+        const want2 = String(val).replace(/\s+/g, ' ').trim();
+        const st = await listboxState(page, di);
+        if (!st || !st.selected || st.selected.indexOf(want2) < 0) {
+          const e = new Error('قائمة مطلوبة فاضية قبل الرفع: ' + key);
+          e.detail = 'dropdown empty before uploads: ' + key + ' (selected="' + (st ? st.selected : '?') + '")';
+          throw e;
+        }
+      }
+      mark('verify:dropdowns');
+    }
 
     // Upload questions are addressed by their TITLE WORDS, never by button
     // index (25 Nov Micheal: an uploaded question's إضافة ملف button becomes a
@@ -1301,8 +1370,14 @@ async function runHiringWalk(page, job) {
       // its إضافة ملف button is gone. A page-wide chip proves nothing - the
       // same file in two questions is exactly the bug being fixed.
       const fname = path.basename(fp).replace(/\s+/g, '');
+      // The chip can take a few seconds to render after the picker closes
+      // (25 Nov run B false-failed on the first slot); poll before failing.
       let vs = { hasBtn: true, text: '' };
-      try { vs = await chipState(container); } catch (e) {}
+      for (let vc = 0; vc < 5; vc++) {
+        try { vs = await chipState(container); } catch (e) {}
+        if (!vs.hasBtn || vs.text.includes(fname)) break;
+        await sleep(1500);
+      }
       if (vs.hasBtn && !vs.text.includes(fname)) {
         const e = new Error('الصورة لم تدخل سؤالها الصحيح: ' + slot.key);
         e.detail = 'verify failed ' + slot.key + ' file ' + fname;
