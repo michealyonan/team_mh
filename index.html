@@ -1342,7 +1342,8 @@ html[data-theme="light"] .kpi .l,html[data-theme="light"] .kpi .s{color:#526a82!
    </div>
    <div id="chatThreadWrap" style="display:none;flex:1;flex-direction:column;margin-top:10px">
     <div id="chatMsgs" style="flex:1;min-height:300px;max-height:55vh;overflow:auto;display:flex;flex-direction:column;gap:6px;padding:8px;background:rgba(255,255,255,.04);border-radius:10px"></div>
-    <div style="display:flex;gap:6px;margin-top:8px"><button class="btn" id="chatImgB" type="button" title="إرسال صورة" aria-label="إرسال صورة">📷</button><input id="chatIn" placeholder="اكتب رسالة…" style="flex:1" maxlength="1000"><button class="btn pr" id="chatSendBtn" type="button">إرسال ⬅</button></div>
+    <div id="chatComposer" style="display:flex;gap:6px;margin-top:8px"><button class="btn" id="chatImgB" type="button" title="إرسال صورة" aria-label="إرسال صورة">📷</button><button class="btn" id="chatMicB" type="button" title="إرسال فويس" aria-label="إرسال فويس">🎤</button><input id="chatIn" placeholder="اكتب رسالة…" style="flex:1" maxlength="1000"><button class="btn pr" id="chatSendBtn" type="button">إرسال ⬅</button></div>
+    <div id="chatRecBar" style="display:none;align-items:center;gap:8px;margin-top:8px"><button class="btn" id="chatRecCancel" type="button" style="background:#7f1d1d" title="إلغاء">✖ إلغاء</button><span id="chatRecTimer" style="flex:1;text-align:center;font-weight:900;color:#ef4444">🔴 0:00</span><button class="btn pr" id="chatRecSend" type="button" title="إرسال الفويس">✔ إرسال</button></div>
     <input type="file" id="chatImgFile" accept="image/*" style="display:none">
    </div>
   </div>
@@ -7103,9 +7104,10 @@ async function refreshChatBadge(){
   if($('chatModal').style.display!=='none'&&$('chatListWrap').style.display!=='none')chatList(true);
 }
 function openChat(){toggleNavDrawer(false);$('chatModal').style.display='';chatList()}
-function closeChat(){$('chatModal').style.display='none';CHAT_PEER=null;if(CHAT_TIMER){clearInterval(CHAT_TIMER);CHAT_TIMER=null}refreshChatBadge()}
+function closeChat(){if(window.VR_REC&&VR_REC)stopVoiceRec(true);$('chatModal').style.display='none';CHAT_PEER=null;if(CHAT_TIMER){clearInterval(CHAT_TIMER);CHAT_TIMER=null}refreshChatBadge()}
 function chatHideAll(){$('chatListWrap').style.display='none';$('chatThreadWrap').style.display='none';$('chatMonitorWrap').style.display='none'}
 async function chatList(silent){
+  if(window.VR_REC&&VR_REC)stopVoiceRec(true);
   CHAT_PEER=null;if(CHAT_TIMER){clearInterval(CHAT_TIMER);CHAT_TIMER=null}
   $('chatBack').style.display='none';$('chatTitle').textContent='💬 شات';chatHideAll();$('chatListWrap').style.display='';
   $('chatMonitorB').style.display=CUR&&CUR.r==='admin'?'':'none';
@@ -7146,6 +7148,7 @@ function renderChatList(){
   }).join('')||'<div class="sub">مفيش حد متاح للشات حاليًا</div>';
 }
 async function openThread(u){
+  if(window.VR_REC&&VR_REC)stopVoiceRec(true);
   CHAT_PEER=u;CHAT_LAST_ID=0;
   $('chatBack').style.display='';chatHideAll();$('chatThreadWrap').style.display='flex';
   $('chatMsgs').innerHTML='<div class="sub">جاري التحميل…</div>';
@@ -7164,6 +7167,26 @@ function chatBubble(m){
     img.src=m.body;img.alt='صورة';img.style.cssText='max-width:100%;border-radius:8px;display:block;cursor:pointer';
     img.onclick=()=>{const w=window.open('','_blank');if(w){w.document.write('<img src="'+m.body+'" style="max-width:100%">')}};
     div.appendChild(img);
+  }else if(m.kind==='voice'){
+    // Voice note bubble (Micheal 25 Nov): play/pause + progress + duration, both sides.
+    const dm=String(m.body).match(/^data:audio\/[\w+-]+(?:;[\w=.+-]+)*?;dur=(\d+)/)||String(m.body).match(/;dur=(\d+);base64,/);
+    const row=document.createElement('div');
+    row.style.cssText='display:flex;align-items:center;gap:8px;min-width:190px;direction:ltr';
+    const pb=document.createElement('button');pb.type='button';pb.className='btn';
+    pb.style.cssText='padding:5px 11px;font-size:14px;border-radius:999px';pb.textContent='▶';
+    const track=document.createElement('div');track.style.cssText='flex:1;height:4px;border-radius:99px;background:rgba(255,255,255,.25);overflow:hidden';
+    const fill=document.createElement('div');fill.style.cssText='height:100%;width:0%;background:currentColor;transition:width .2s';
+    track.appendChild(fill);
+    const dur=document.createElement('span');dur.style.cssText='font-size:11px;opacity:.85;white-space:nowrap';
+    dur.textContent=dm?fmtDur(+dm[1]*1000):'🎤';
+    const au=new Audio();au.preload='metadata';au.src=m.body;
+    au.onloadedmetadata=()=>{if(isFinite(au.duration)&&au.duration>0)dur.textContent=fmtDur(au.duration*1000)};
+    au.ontimeupdate=()=>{if(isFinite(au.duration)&&au.duration>0)fill.style.width=Math.min(100,au.currentTime/au.duration*100)+'%'};
+    au.onended=()=>{pb.textContent='▶';fill.style.width='0%'};
+    au.onpause=()=>{pb.textContent='▶'};
+    pb.onclick=()=>{if(au.paused){au.play().then(()=>{pb.textContent='⏸'}).catch(()=>{})}else au.pause()};
+    row.appendChild(pb);row.appendChild(track);row.appendChild(dur);
+    div.style.whiteSpace='normal';div.appendChild(row);
   }else div.textContent=m.body;
   const t=document.createElement('div');
   t.style.cssText='font-size:10px;opacity:.65;margin-top:2px';
@@ -7200,6 +7223,70 @@ async function sendChatImage(data){
   try{await api('/api/chat/send',{method:'POST',body:{to:CHAT_PEER,body:data,kind:'image'}})}catch(e){}
   pollThread(false);
 }
+// Voice notes (Micheal 25 Nov): MediaRecorder -> small audio data-URL in D1, same as images.
+// Tap 🎤 to start (shows timer), ✔ to send, ✖ to discard. Auto-stops at 60s. Format picked
+// per browser: iPhone Safari records audio/mp4, Chrome/Android webm/opus - both accepted server-side.
+function fmtDur(ms){const s=Math.max(0,Math.round(ms/1000));return Math.floor(s/60)+':'+String(s%60).padStart(2,'0')}
+let VR_REC=null,VR_STREAM=null,VR_CHUNKS=[],VR_TIMER=null,VR_START=0,VR_MIME='';
+const VR_MAX_MS=60000;
+function vrPickMime(){
+  if(!window.MediaRecorder||!MediaRecorder.isTypeSupported)return '';
+  const list=['audio/webm;codecs=opus','audio/webm','audio/mp4','audio/ogg;codecs=opus','audio/ogg'];
+  for(const m of list){try{if(MediaRecorder.isTypeSupported(m))return m}catch(e){}}
+  return '';
+}
+async function startVoiceRec(){
+  if(!CHAT_PEER||VR_REC)return;
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia||!window.MediaRecorder){alert('المتصفح ده مش بيدعم تسجيل فويس');return}
+  let stream;
+  try{stream=await navigator.mediaDevices.getUserMedia({audio:true})}
+  catch(e){alert('محتاج إذن المايك عشان تسجّل فويس. فعّله من إعدادات المتصفح وجرّب تاني.');return}
+  VR_MIME=vrPickMime();
+  let rec=null;
+  try{rec=VR_MIME?new MediaRecorder(stream,{mimeType:VR_MIME,audioBitsPerSecond:24000}):new MediaRecorder(stream)}
+  catch(e){try{rec=new MediaRecorder(stream)}catch(e2){rec=null}}
+  if(!rec){stream.getTracks().forEach(t=>t.stop());alert('المتصفح ده مش بيدعم تسجيل فويس');return}
+  VR_STREAM=stream;VR_REC=rec;VR_CHUNKS=[];VR_START=Date.now();
+  rec.ondataavailable=e=>{if(e.data&&e.data.size)VR_CHUNKS.push(e.data)};
+  try{rec.start(250)}catch(e){stream.getTracks().forEach(t=>t.stop());VR_REC=null;VR_STREAM=null;return}
+  $('chatComposer').style.display='none';$('chatRecBar').style.display='flex';
+  const tick=()=>{
+    const el=Date.now()-VR_START;
+    $('chatRecTimer').textContent='🔴 '+fmtDur(el)+' / '+fmtDur(VR_MAX_MS);
+    if(el>=VR_MAX_MS)stopVoiceRec(false);
+  };
+  tick();VR_TIMER=setInterval(tick,250);
+}
+function vrCleanup(){
+  if(VR_TIMER){clearInterval(VR_TIMER);VR_TIMER=null}
+  if(VR_STREAM){VR_STREAM.getTracks().forEach(t=>t.stop());VR_STREAM=null}
+  VR_REC=null;
+  if($('chatComposer'))$('chatComposer').style.display='flex';
+  if($('chatRecBar'))$('chatRecBar').style.display='none';
+}
+function stopVoiceRec(cancel){
+  const rec=VR_REC,chunks=VR_CHUNKS.slice(),mime=VR_MIME,durSec=Math.min(VR_MAX_MS,Date.now()-VR_START)/1000;
+  vrCleanup();
+  if(!rec)return;
+  if(cancel){try{rec.stop()}catch(e){}return}
+  rec.onstop=async()=>{
+    try{
+      const type=(mime||'audio/webm').split(';')[0];
+      const blob=new Blob(chunks,{type});
+      if(!blob.size)return;
+      let dataUrl=await new Promise((res,rej)=>{const fr=new FileReader();fr.onload=()=>res(fr.result);fr.onerror=rej;fr.readAsDataURL(blob)});
+      // carry the duration inside the data-URL media params so any device can show it
+      if(typeof dataUrl==='string')dataUrl=dataUrl.replace(';base64,',';dur='+Math.round(durSec)+';base64,');
+      if(typeof dataUrl!=='string'||!/^data:audio\//.test(dataUrl)||dataUrl.length>700000){alert('الفويس طلع كبير أوي - جرّب تسجّل أقل من دقيقة');return}
+      await api('/api/chat/send',{method:'POST',body:{to:CHAT_PEER,body:dataUrl,kind:'voice'}});
+      pollThread(false);
+    }catch(e){}
+  };
+  try{rec.stop()}catch(e){}
+}
+$('chatMicB').onclick=startVoiceRec;
+$('chatRecCancel').onclick=()=>stopVoiceRec(true);
+$('chatRecSend').onclick=()=>stopVoiceRec(false);
 // Admin monitor mode: auto-lists every conversation, tap to open (Micheal 25 Nov).
 let CHAT_MON_A='',CHAT_MON_B='',CHAT_MON_LIST=[];
 function chatMonitorOpen(){

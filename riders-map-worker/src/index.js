@@ -406,7 +406,7 @@ async function handleChat(request, env, json, url) {
       const peer = m.from_u === user.u ? m.to_u : m.from_u;
       let e = peers.get(peer);
       if (!e) { e = { u: peer, last: null, unread: 0 }; peers.set(peer, e); }
-      if (!e.last) e.last = { body: m.kind === 'image' ? '📷 صورة' : m.body, ts: m.ts, mine: m.from_u === user.u };
+      if (!e.last) e.last = { body: m.kind === 'image' ? '📷 صورة' : m.kind === 'voice' ? '🎤 فويس' : m.body, ts: m.ts, mine: m.from_u === user.u };
       if (m.to_u === user.u && !m.read_at) e.unread++;
     }
     const list = [...peers.values()];
@@ -429,7 +429,7 @@ async function handleChat(request, env, json, url) {
       const a = m.from_u < m.to_u ? m.from_u : m.to_u;
       const b = m.from_u < m.to_u ? m.to_u : m.from_u;
       const k = a + '|' + b;
-      if (!pairs.has(k)) pairs.set(k, { a, b, last: { body: m.kind === 'image' ? '📷 صورة' : String(m.body || '').slice(0, 80), ts: m.ts } });
+      if (!pairs.has(k)) pairs.set(k, { a, b, last: { body: m.kind === 'image' ? '📷 صورة' : m.kind === 'voice' ? '🎤 فويس' : String(m.body || '').slice(0, 80), ts: m.ts } });
     }
     const list = [...pairs.values()].sort((x, y) => y.last.ts - x.last.ts);
     const names = await env.DB.prepare('SELECT u,n FROM users').all();
@@ -478,11 +478,16 @@ async function handleChat(request, env, json, url) {
     let body = null;
     try { body = await request.json(); } catch (e) {}
     const peer = String(body && body.to || '').toLowerCase().slice(0, 60);
-    const kind = body && body.kind === 'image' ? 'image' : 'text';
+    const kind = body && (body.kind === 'image' || body.kind === 'voice') ? body.kind : 'text';
     const text = String(body && body.body || '').trim();
     if (kind === 'image') {
       // Images are small data-URLs compressed client-side, stored in D1 (free tier).
       if (!/^data:image\/(jpeg|png|webp);base64,/.test(text) || text.length > 500000) return json({ error: 'bad_image' }, 400);
+    } else if (kind === 'voice') {
+      // Voice notes (Micheal 25 Nov): short audio data-URLs (<=60s, compressed client-side),
+      // stored in D1 like images. Optional ;dur=SECONDS media param carries the duration for display.
+      // Cap stays far under D1's 2MB row limit; audio is never auto-deleted, same rule as images.
+      if (!/^data:audio\/(webm|mp4|ogg|mpeg|aac|x-m4a)(;[\w=.+-]+)*;base64,/.test(text) || text.length > 700000) return json({ error: 'bad_voice' }, 400);
     } else if (!text || text.length > 1000) return json({ error: 'bad_message' }, 400);
     if (!peer || peer === user.u) return json({ error: 'bad_message' }, 400);
     const prow = await env.DB.prepare("SELECT u FROM users WHERE u=? AND status='active' AND r IN ('admin','manager','sup')").bind(peer).first();
@@ -490,7 +495,7 @@ async function handleChat(request, env, json, url) {
     const ts = Date.now();
     const r = await env.DB.prepare('INSERT INTO chat_messages(from_u,to_u,body,kind,ts) VALUES(?,?,?,?,?)').bind(user.u, peer, text, kind, ts).run();
     // APK push notification for the recipient (Micheal 24 Nov); never fail the send on it.
-    try { await sendFcmToUser(env, peer, '💬 ' + user.n, kind === 'image' ? '📷 صورة' : text.slice(0, 100), ''); } catch (e) {}
+    try { await sendFcmToUser(env, peer, '💬 ' + user.n, kind === 'image' ? '📷 صورة' : kind === 'voice' ? '🎤 فويس' : text.slice(0, 100), ''); } catch (e) {}
     return json({ ok: true, id: r.meta && r.meta.last_row_id, ts });
   }
 
@@ -1801,11 +1806,15 @@ export default {
       'Permissions-Policy': 'camera=(), microphone=(), payment=()',
     };
     // 25 Nov: docs.google.com added to script-src - the supervisor-login audit panel loads its gviz JSONP <script> from there (was CSP-blocked on mobile/desktop, showing فشل الاتصال بجدول البيانات).
-    const CSP = "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com https://docs.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https: wss:; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'";
+    const CSP = "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com https://docs.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https: wss:; media-src 'self' data: blob:; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'";
     const withSec = (resp, isHtml) => {
       const h = new Headers(resp.headers);
       for (const [k, v] of Object.entries(SEC_HEADERS)) h.set(k, v);
-      if (isHtml) { h.set('Content-Security-Policy', CSP); h.set('Cache-Control', 'no-store'); }
+      if (isHtml) {
+        h.set('Content-Security-Policy', CSP); h.set('Cache-Control', 'no-store');
+        // 25 Nov: chat voice notes need mic access on the dashboard page (recording is opt-in per note).
+        h.set('Permissions-Policy', 'camera=(), microphone=(self), payment=()');
+      }
       return new Response(resp.body, { status: resp.status, headers: h });
     };
     const hub = env.RIDER_MAP_HUB.get(env.RIDER_MAP_HUB.idFromName('riders-global'));
