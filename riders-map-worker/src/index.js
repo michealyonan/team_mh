@@ -2239,6 +2239,18 @@ export default {
       } catch (e) { return serverErr(e); }
     }
 
+    // 26 Nov: let a signed-in user check their own registered FCM devices (test-push diagnostics).
+    if (url.pathname === '/api/push/status' && request.method === 'GET') {
+      try {
+        await ensureSchema(env);
+        const user = await getSessionUser(env, request);
+        if (!user) return json({ error: 'unauthorized' }, 401);
+        const rows = await env.DB.prepare('SELECT token,ts FROM push_tokens WHERE u=? ORDER BY ts DESC').bind(user.u).all();
+        const list = rows.results || [];
+        return json({ registered: list.length > 0, devices: list.length, last_ts: list.length ? list[0].ts : 0 });
+      } catch (e) { return serverErr(e); }
+    }
+
     // تقارير المشرفين (Micheal 25 Nov): أدمن بس — يبعت Excel لكل مشرف على إيميله
     // فيه مناديبه بس (التقييد سيرفر-سايد)، أو يحمّل معاينة لملف مشرف واحد من غير إرسال.
     if ((url.pathname === '/api/reports/send' || url.pathname === '/api/reports/preview') && request.method === 'POST') {
