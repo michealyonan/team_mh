@@ -3524,7 +3524,9 @@ function applyTabOrder(){
   if(!TAB_ORDER.length)return;
   const links=document.querySelector('#navDrawer .nav-drawer-links');if(!links)return;
   const ref=links.firstChild; // constant anchor: sequential inserts keep order, landing as a block at the top
-  for(const tab of TAB_ORDER){const d=TAB_DEFS.find(x=>x[0]===tab);if(!d)continue;for(const id of d[1]){const b=$(id);if(b&&b.closest('#navDrawer'))links.insertBefore(b,ref)}}
+  // tabs missing from the saved order are NEW (added after Micheal last dragged) — surface them first so they never hide below the fold
+  const seq=TAB_DEFS.map(x=>x[0]).filter(t=>!TAB_ORDER.includes(t)).concat(TAB_ORDER);
+  for(const tab of seq){const d=TAB_DEFS.find(x=>x[0]===tab);if(!d)continue;for(const id of d[1]){const b=$(id);if(b&&b.closest('#navDrawer'))links.insertBefore(b,ref)}}
 }
 function setupTabDrag(){
   const links=document.querySelector('#navDrawer .nav-drawer-links');if(!links||links.dataset.dragInit)return;links.dataset.dragInit='1';
