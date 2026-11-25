@@ -31,8 +31,6 @@ import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.TextView;
 
-import androidx.biometric.BiometricManager;
-import androidx.biometric.BiometricPrompt;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
@@ -70,7 +68,6 @@ public class MainActivity extends FragmentActivity {
 
     // ---- v3 additions (Micheal 26 Nov: اعتماد الكل) ----
     private boolean unlocked = false;
-    private FrameLayout lockView;
     private ValueCallback<Uri[]> fileCallback;
     private Uri cameraUri;
     private PermissionRequest pendingMicRequest;
@@ -285,7 +282,7 @@ public class MainActivity extends FragmentActivity {
 
         // v3: biometric gate before the dashboard loads (skipped when the device
         // has no enrolled biometric/credential - never locks anyone out).
-        if (needsLock()) showLock(); else unlock();
+        unlock();
 
         // Phone agent loop: only does anything when this device is logged in as admin
         // (the worker enforces that) and Google is signed in inside the app.
@@ -319,7 +316,7 @@ public class MainActivity extends FragmentActivity {
     private void gateEntry() {
         if (!missingRequiredPerms().isEmpty()) { showPermGate(); return; }
         if (permView != null) { permView.setVisibility(View.GONE); permView = null; }
-        if (needsLock()) showLock(); else unlock();
+        unlock();
     }
 
     private void showPermGate() {
@@ -405,71 +402,9 @@ public class MainActivity extends FragmentActivity {
 
     // ---------------- biometric lock ----------------
 
-    private boolean needsLock() {
-        BiometricManager bm = BiometricManager.from(this);
-        int can = bm.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG
-                | BiometricManager.Authenticators.DEVICE_CREDENTIAL);
-        return can == BiometricManager.BIOMETRIC_SUCCESS;
-    }
-
-    private void showLock() {
-        lockView = new FrameLayout(this);
-        lockView.setBackgroundColor(Color.parseColor("#0f172a"));
-        TextView t = new TextView(this);
-        t.setText("🔒 Team MH");
-        t.setTextColor(Color.WHITE);
-        t.setTextSize(24);
-        t.setGravity(Gravity.CENTER);
-        FrameLayout.LayoutParams tp = new FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT);
-        tp.gravity = Gravity.CENTER;
-        tp.bottomMargin = 220;
-        Button b = new Button(this);
-        b.setText("فتح بالبصمة");
-        b.setTextSize(18);
-        FrameLayout.LayoutParams bp = new FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT);
-        bp.gravity = Gravity.CENTER;
-        bp.topMargin = 120;
-        lockView.addView(t, tp);
-        lockView.addView(b, bp);
-        b.setOnClickListener(v -> promptBiometric());
-        addContentView(lockView, new FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
-        promptBiometric();
-    }
-
-    private void promptBiometric() {
-        try {
-            BiometricPrompt prompt = new BiometricPrompt(this,
-                    ContextCompat.getMainExecutor(this),
-                    new BiometricPrompt.AuthenticationCallback() {
-                        @Override public void onAuthenticationSucceeded(BiometricPrompt.AuthenticationResult result) {
-                            unlock();
-                        }
-                        @Override public void onAuthenticationError(int code, CharSequence err) {
-                            // stays locked; the button retries
-                        }
-                    });
-            BiometricPrompt.PromptInfo info = new BiometricPrompt.PromptInfo.Builder()
-                    .setTitle("Team MH")
-                    .setSubtitle("افتح التطبيق بالبصمة أو رمز القفل")
-                    .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG
-                            | BiometricManager.Authenticators.DEVICE_CREDENTIAL)
-                    .build();
-            prompt.authenticate(info);
-        } catch (Exception e) {
-            unlock(); // never trap the user behind a broken prompt
-        }
-    }
-
     private void unlock() {
         if (unlocked) return;
         unlocked = true;
-        if (lockView != null) {
-            lockView.setVisibility(View.GONE);
-            lockView = null;
-        }
         webView.loadUrl(HOME_URL);
     }
 
