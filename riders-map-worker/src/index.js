@@ -106,6 +106,13 @@ async function ensureSchema(env) {
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS legal_cases(id INTEGER PRIMARY KEY AUTOINCREMENT,rider_id TEXT NOT NULL,rider_name TEXT NOT NULL,national_id TEXT NOT NULL,amount TEXT NOT NULL,phone TEXT NOT NULL,phone2 TEXT NOT NULL DEFAULT '',city TEXT NOT NULL DEFAULT '',u TEXT NOT NULL,u_name TEXT NOT NULL DEFAULT '',status TEXT NOT NULL DEFAULT 'received',case_number TEXT NOT NULL DEFAULT '',settle_amount TEXT NOT NULL DEFAULT '',judgment_status TEXT NOT NULL DEFAULT '',judgment_detail TEXT NOT NULL DEFAULT '',judgment_amount TEXT NOT NULL DEFAULT '',created INTEGER NOT NULL,updated INTEGER NOT NULL)`),
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS legal_case_images(case_id INTEGER NOT NULL,k TEXT NOT NULL,data TEXT NOT NULL,PRIMARY KEY(case_id,k))`),
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS legal_case_history(id INTEGER PRIMARY KEY AUTOINCREMENT,case_id INTEGER NOT NULL,status TEXT NOT NULL,note TEXT NOT NULL DEFAULT '',by_u TEXT NOT NULL,by_name TEXT NOT NULL,ts INTEGER NOT NULL)`),
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS rider_stops(
+      rider_id TEXT PRIMARY KEY,
+      lat REAL NOT NULL DEFAULT 0,
+      lng REAL NOT NULL DEFAULT 0,
+      since INTEGER NOT NULL DEFAULT 0,
+      alerted INTEGER NOT NULL DEFAULT 0,
+      seen_at INTEGER NOT NULL DEFAULT 0)`),
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS legal_case_deletes(id INTEGER PRIMARY KEY AUTOINCREMENT,case_id INTEGER NOT NULL,snapshot TEXT NOT NULL DEFAULT '',by_u TEXT NOT NULL,by_name TEXT NOT NULL,ts INTEGER NOT NULL)`),
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS shift_commands(id INTEGER PRIMARY KEY AUTOINCREMENT,u TEXT NOT NULL,payload TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'pending',result TEXT NOT NULL DEFAULT '',ts INTEGER NOT NULL,updated INTEGER NOT NULL)`),
     // Scheduled shift commands (Micheal 26 Nov: اعتماد الكل) — admin sets action/time/repeat,
@@ -1770,6 +1777,53 @@ async function runScheduleCron(env) {
   }
 }
 
+// 26 Nov: stopped-rider watchdog (Micheal 18742196). Every 2 min, compare the live map snapshot
+// positions with the last known spot; a rider holding an order who has not moved ~40m for 30+
+// minutes pushes one alert to the admins. Clock only ticks while the rider has an order and is
+// not on break; moving, going offline, or finishing the order resets the episode.
+const STOPPED_RIDER_MS = 30 * 60 * 1000;
+const STOPPED_RIDER_MOVED_DEG = 0.0004; // ~40m
+async function runStoppedRiderCron(env) {
+  await ensureSchema(env);
+  const hub = env.RIDER_MAP_HUB.get(env.RIDER_MAP_HUB.idFromName('riders-global'));
+  const resp = await hub.fetch('https://rider-map.internal/snapshot');
+  if (!resp.ok) return;
+  const snap = await resp.json().catch(() => null);
+  const riders = snap && Array.isArray(snap.riders) ? snap.riders : [];
+  const now = Date.now();
+  for (const r of riders) {
+    try {
+      const id = String(r.id || '').trim();
+      const lat = Number(r.latitude), lng = Number(r.longitude);
+      if (!id || !Number.isFinite(lat) || !Number.isFinite(lng)) continue;
+      const orders = Number.isFinite(Number(r.ongoing_orders)) ? Number(r.ongoing_orders)
+        : (Array.isArray(r.active_orders) ? r.active_orders.length : (Array.isArray(r.active_delivery_ids) ? r.active_delivery_ids.length : 0));
+      const onBreak = /break|بريك/i.test(String(r.state || ''));
+      const prev = await env.DB.prepare('SELECT lat,lng,since,alerted FROM rider_stops WHERE rider_id=?').bind(id).first();
+      const moved = !prev || Math.abs(Number(prev.lat) - lat) > STOPPED_RIDER_MOVED_DEG || Math.abs(Number(prev.lng) - lng) > STOPPED_RIDER_MOVED_DEG;
+      if (moved || orders <= 0 || onBreak) {
+        // reposition / idle: (re)start the clock, clear any fired alert
+        await env.DB.prepare('INSERT INTO rider_stops(rider_id,lat,lng,since,alerted,seen_at) VALUES(?,?,?,?,0,?) ON CONFLICT(rider_id) DO UPDATE SET lat=excluded.lat,lng=excluded.lng,since=excluded.since,alerted=0,seen_at=excluded.seen_at')
+          .bind(id, lat, lng, now, now).run();
+        continue;
+      }
+      await env.DB.prepare('UPDATE rider_stops SET seen_at=? WHERE rider_id=?').bind(now, id).run();
+      if (prev.alerted || now - Number(prev.since) < STOPPED_RIDER_MS) continue;
+      await env.DB.prepare('UPDATE rider_stops SET alerted=1 WHERE rider_id=?').bind(id).run();
+      const mins = Math.round((now - Number(prev.since)) / 60000);
+      const name = String(r.name || id).slice(0, 60);
+      const admins = await env.DB.prepare("SELECT u FROM users WHERE r='admin' AND status='active'").all();
+      for (const a of (admins.results || [])) {
+        await insertNotification(env, a.u, '🛑 طيار واقف مكانه', name + ' (' + id + ') واقف مكانه من ' + mins + ' دقيقة ومعاه ' + orders + ' أوردر', id);
+      }
+    } catch (e) { /* one bad rider never blocks the rest */ }
+  }
+  // drop trackers for riders who went offline (next appearance restarts the clock)
+  if (riders.length) {
+    await env.DB.prepare('DELETE FROM rider_stops WHERE seen_at<?').bind(now - 15 * 60 * 1000).run();
+  }
+}
+
 // team_mh flag: form actions (مد/فك البريك/إجراء يدوي) restricted to admin until Micheal asks to expose them (flip with index.html const)
 const FORM_ACTIONS_ADMIN_ONLY = true;
 
@@ -2713,6 +2767,7 @@ export default {
     bumpUsage(env, ctx);
     ctx.waitUntil(runStatusCron(env).catch(() => {}));
     ctx.waitUntil(runScheduleCron(env).catch(() => {}));
+    ctx.waitUntil(runStoppedRiderCron(env).catch(() => {}));
   },
 };
 

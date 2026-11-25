@@ -6757,19 +6757,34 @@ function riderMapTextPopup(rider){
   return box;
 }
 function riderMapDraw(rows){
-  for(const item of riderMapMarkers)item.marker.remove();riderMapMarkers=[];
+  // 26 Nov: incremental markers - reuse by rider id instead of a full redraw each snapshot,
+  // so open popups survive and the map stops flickering on every live update.
   $('riderMapCanvas').classList.toggle('hide-rider-names',RIDER_MAP_NAMES_HIDDEN);$('riderMapCanvas').classList.toggle('hide-rider-orders',RIDER_MAP_ORDERS_HIDDEN);
+  const byId=new Map(riderMapMarkers.map(item=>[String(item.rider.id),item])),seen=new Set();
   for(const rider of rows){
     const latitude=Number(rider.latitude),longitude=Number(rider.longitude);if(!Number.isFinite(latitude)||!Number.isFinite(longitude))continue;
-    const element=document.createElement('div');element.className='rider-live-marker'+(riderMapOrdersCount(rider)>0?' has-order':'');element.setAttribute('role','button');element.setAttribute('aria-label',String(rider.name||rider.id||'مندوب'));
+    const key=String(rider.id),orders=riderMapOrdersCount(rider),existing=byId.get(key);seen.add(key);
+    if(existing){
+      if(existing.coords[0]!==longitude||existing.coords[1]!==latitude)existing.marker.setLngLat([longitude,latitude]);
+      existing.coords=[longitude,latitude];existing.rider=rider;
+      const el=existing.marker.getElement();el.classList.toggle('has-order',orders>0);
+      const nameEl=el.querySelector('.rider-map-label'),ordEl=el.querySelector('.rider-map-orders'),nm=riderMapOrderName(rider),ot=orders>0?`معاه أوردر (${orders})`:'مفيش أوردر';
+      if(nameEl&&nameEl.textContent!==nm)nameEl.textContent=nm;if(ordEl&&ordEl.textContent!==ot)ordEl.textContent=ot;
+      if(existing.popup)existing.popup.setDOMContent(riderMapTextPopup(rider));
+      continue;
+    }
+    const element=document.createElement('div');element.className='rider-live-marker'+(orders>0?' has-order':'');element.setAttribute('role','button');element.setAttribute('aria-label',String(rider.name||rider.id||'مندوب'));
     const avatar=document.createElement('span');avatar.className='rider-live-avatar';avatar.textContent=String(rider.name||rider.id||'؟').split(/\s+/).slice(0,2).map(part=>part[0]||'').join('').slice(0,2);
     const label=document.createElement('span');label.className='rider-map-label';label.textContent=riderMapOrderName(rider);
-    const orderLabel=document.createElement('span');orderLabel.className='rider-map-orders';orderLabel.textContent=riderMapOrdersCount(rider)>0?`معاه أوردر (${riderMapOrdersCount(rider)})`:'مفيش أوردر';
+    const orderLabel=document.createElement('span');orderLabel.className='rider-map-orders';orderLabel.textContent=orders>0?`معاه أوردر (${orders})`:'مفيش أوردر';
     element.append(avatar,label,orderLabel);
-    const marker=new maplibregl.Marker({element,anchor:'bottom'}).setLngLat([longitude,latitude]).setPopup(new maplibregl.Popup({offset:22}).setDOMContent(riderMapTextPopup(rider))).addTo(riderMapInstance);
-    element.addEventListener('click',()=>{RIDER_MAP_SELECTED=rider});
-    riderMapMarkers.push({marker,rider,coords:[longitude,latitude]});
+    const popup=new maplibregl.Popup({offset:22}).setDOMContent(riderMapTextPopup(rider));
+    const marker=new maplibregl.Marker({element,anchor:'bottom'}).setLngLat([longitude,latitude]).setPopup(popup).addTo(riderMapInstance);
+    const item={marker,rider,coords:[longitude,latitude],popup};
+    element.addEventListener('click',()=>{RIDER_MAP_SELECTED=item.rider});
+    riderMapMarkers.push(item);
   }
+  riderMapMarkers=riderMapMarkers.filter(item=>{if(seen.has(String(item.rider.id)))return true;item.marker.remove();return false});
 }
 function riderMapUpdateStats(){
   const total=RIDER_MAP_DATA.length,withOrders=RIDER_MAP_DATA.filter(r=>riderMapOrdersCount(r)>0).length,withoutOrders=total-withOrders,states=new Map;
