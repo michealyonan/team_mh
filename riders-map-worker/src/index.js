@@ -1800,7 +1800,8 @@ export default {
       'Referrer-Policy': 'strict-origin-when-cross-origin',
       'Permissions-Policy': 'camera=(), microphone=(), payment=()',
     };
-    const CSP = "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https: wss:; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'";
+    // 25 Nov: docs.google.com added to script-src - the supervisor-login audit panel loads its gviz JSONP <script> from there (was CSP-blocked on mobile/desktop, showing فشل الاتصال بجدول البيانات).
+    const CSP = "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com https://docs.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https: wss:; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'";
     const withSec = (resp, isHtml) => {
       const h = new Headers(resp.headers);
       for (const [k, v] of Object.entries(SEC_HEADERS)) h.set(k, v);

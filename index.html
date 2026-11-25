@@ -443,6 +443,11 @@ html{-webkit-text-size-adjust:100%}body{overflow-x:hidden}
  #filterToggle,#filterClear{min-height:40px}
  #al .card>div:first-child{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
  #al .card>div:first-child .chip{min-height:36px}
+ /* Micheal 25 Nov: date-filter block fits phone width - chips wrap instead of clipping, from/to fields share the row */
+ #periodControls .chips{flex-wrap:wrap;overflow-x:visible;padding-bottom:0}
+ #periodControls>.row{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:6px;align-items:center}
+ #periodControls>.row input[type=date]{width:100%;min-width:0;font-size:14px;padding-inline:6px}
+ #periodControls>.row #cnt{grid-column:1/-1;margin-inline-start:0!important}
 }
 
 :focus-visible{outline:2px solid var(--pr);outline-offset:2px}
