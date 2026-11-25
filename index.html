@@ -7107,7 +7107,7 @@ function renderHiringList(){
   return `<div class="card" style="margin:8px 0;padding:10px">
    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><b>${esc(p.rider_name||'—')}</b><span class="sub" dir="ltr" style="margin:0">${esc(p.rider_nid||'')}</span><span class="sub" style="margin-inline-start:auto;margin:0">${H_STATUS[x.status]||x.status}</span></div>
    <div class="sub" style="margin:4px 0 0">بواسطة: ${esc(hName(x.u))} · ${esc(p.lecture_office||'')} · ${esc(p.vehicle||'')}${err?' · <span style="color:#f87171">'+esc(err)+'</span>':''}</div>
-   <div class="row" style="margin:6px 0 0;gap:6px"><button class="btn" type="button" style="font-size:12px;padding:6px 12px" onclick="hImgs(${x.id})">🖼 الصور</button>${isAdmin?`<button class="btn" type="button" style="font-size:12px;padding:6px 12px;color:#f87171" onclick="hDelete(${x.id})">🗑 مسح الطلب</button>`:''}</div><div id="hImgBox_${x.id}" style="display:none"></div>
+   <div class="row" style="margin:6px 0 0;gap:6px"><button class="btn" type="button" style="font-size:12px;padding:6px 12px" onclick="hImgs(${x.id})">🖼 الصور</button><button class="btn" type="button" style="font-size:12px;padding:6px 12px" onclick="hData(${x.id})">📄 البيانات</button><button class="btn" type="button" style="font-size:12px;padding:6px 12px" onclick="hDl(${x.id},this)">⬇ تنزيل</button>${isAdmin?`<button class="btn" type="button" style="font-size:12px;padding:6px 12px;color:#f87171" onclick="hDelete(${x.id})">🗑 مسح الطلب</button>`:''}</div><div id="hImgBox_${x.id}" style="display:none"></div><div id="hDataBox_${x.id}" style="display:none"></div>
    ${adminBar}${retryBar}</div>`;
  }).join('')||'<div class="sub">مفيش طلبات لسه</div>';
 }
@@ -7132,6 +7132,53 @@ async function hDelete(id){
  const x=HIRING_LIST.find(y=>y.id===id);const nm=(x&&x.payload&&x.payload.rider_name)||('#'+id);
  if(!confirm('مسح طلب "'+nm+'" نهائي؟ مش هيعود تاني، حتى لو في طابور الرفع.'))return;
  try{await api('/api/hiring/delete',{method:'POST',body:{id}});loadHiringList()}catch(e){alert('تعذّر المسح: '+authErr(e))}
+}
+/* Micheal 25 Nov: per-request view-data + download buttons (zip of images + data.txt). */
+const H_FIELDS=[['office','المكتب'],['hire_type','نوع التعيين'],['sup_name','اسم المشرف'],['lecture_office','مكتب المحاضرة'],['rider_name','اسم الطيار'],['rider_phone','موبايل الطيار'],['rider_nid','الرقم القومي'],['license_no','رقم الرخصة'],['rider_addr','العنوان'],['vehicle','نوع المركبة']];
+function hData(id){
+ const box=$('hDataBox_'+id);if(!box)return;
+ if(box.style.display!=='none'){box.style.display='none';return}
+ const x=HIRING_LIST.find(y=>y.id===id);if(!x)return;
+ const p=x.payload||{};
+ const rows=H_FIELDS.map(([k,l])=>`<div class="row" style="margin:2px 0;gap:6px;align-items:baseline"><span class="sub" style="min-width:110px;margin:0">${l}:</span><b style="font-weight:600">${esc(String(p[k]||'—'))}</b></div>`).join('');
+ box.innerHTML=`<div style="margin-top:8px;padding:8px;border:1px solid var(--bd);border-radius:10px">${rows}<div class="row" style="margin:2px 0;gap:6px;align-items:baseline"><span class="sub" style="min-width:110px;margin:0">تاريخ الطلب:</span><b style="font-weight:600">${new Date(x.ts).toLocaleString('ar-EG')}</b></div></div>`;
+ box.style.display='';
+}
+/* Store-only ZIP (no compression) built in-page - no library needed. */
+const H_CRC_T=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let v=n;for(let k=0;k<8;k++)v=v&1?0xEDB88320^(v>>>1):v>>>1;t[n]=v>>>0}return t})();
+function hCrc(b){let v=0xFFFFFFFF;for(let i=0;i<b.length;i++)v=H_CRC_T[(v^b[i])&255]^(v>>>8);return (v^0xFFFFFFFF)>>>0}
+function hZip(files){
+ const enc=new TextEncoder(),out=[],central=[];let off=0;
+ const u16=v=>[v&255,(v>>8)&255],u32=v=>[v&255,(v>>8)&255,(v>>16)&255,(v>>24)&255];
+ for(const f of files){
+  const nm=enc.encode(f.name),crc=hCrc(f.data),sz=f.data.length;
+  out.push(new Uint8Array([...u32(0x04034b50),...u16(20),...u16(0x0800),...u16(0),...u16(0),...u16(0),...u32(crc),...u32(sz),...u32(sz),...u16(nm.length),...u16(0)]),nm,f.data);
+  central.push({nm,crc,sz,off});off+=30+nm.length+sz;
+ }
+ const cdStart=off;
+ for(const e of central){
+  out.push(new Uint8Array([...u32(0x02014b50),...u16(20),...u16(20),...u16(0x0800),...u16(0),...u16(0),...u16(0),...u32(e.crc),...u32(e.sz),...u32(e.sz),...u16(e.nm.length),...u16(0),...u16(0),...u16(0),...u16(0),...u32(0),...u32(e.off)]),e.nm);
+  off+=46+e.nm.length;
+ }
+ out.push(new Uint8Array([...u32(0x06054b50),...u16(0),...u16(0),...u16(central.length),...u16(central.length),...u32(off-cdStart),...u32(cdStart),...u16(0)]));
+ return new Blob(out,{type:'application/zip'});
+}
+function hDataURLBytes(d){const b=atob(d.slice(d.indexOf(',')+1));const u=new Uint8Array(b.length);for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i);return u}
+async function hDl(id,btn){
+ const x=HIRING_LIST.find(y=>y.id===id);if(!x)return;
+ const p=x.payload||{};const old=btn.textContent;btn.disabled=true;btn.textContent='⏳';
+ try{
+  const d=await api('/api/hiring/item?id='+id);
+  const enc=new TextEncoder();
+  const lines=H_FIELDS.map(([k,l])=>l+': '+(p[k]||''));
+  lines.push('الحالة: '+(H_STATUS[x.status]||x.status));
+  const files=[{name:'data.txt',data:enc.encode('\uFEFF'+lines.join('\r\n'))}];
+  const imgs=d.images||{};
+  for(const im of HIRING_CFG.imgs)if(imgs[im.k])files.push({name:im.k+'.jpg',data:hDataURLBytes(imgs[im.k])});
+  const a=document.createElement('a');a.href=URL.createObjectURL(hZip(files));a.download='request-'+id+'-'+(p.rider_nid||'x')+'.zip';document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),10000);
+ }catch(e){alert('تعذّر التنزيل: '+authErr(e))}
+ finally{btn.disabled=false;btn.textContent=old}
 }
 $('hiringB').onclick=openHiring;
 </script>
