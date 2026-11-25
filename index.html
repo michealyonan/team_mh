@@ -7093,7 +7093,7 @@ async function waSend(){if(waBusy)return;const to=$('waTo').value.replace(/\D/g,
 // 💬 شات (Micheal 24 Nov): WhatsApp-style chat between admin, managers and
 // supervisors. D1-backed, polled while the thread is open. v2: search,
 // name-only rows, unread-first, admin monitor mode, image messages, presence.
-let CHAT_PEER=null,CHAT_LAST_ID=0,CHAT_TIMER=null,CHAT_BADGE_TIMER=null;
+let CHAT_PEER=null,CHAT_LAST_ID=0,CHAT_TIMER=null,CHAT_BADGE_TIMER=null,CHAT_SEEN=new Set(),CHAT_POLL_BUSY=false,CHAT_POLL_AGAIN=false;
 let CHAT_CONTACTS=[],CHAT_CONVS=[];
 addEventListener('pagehide',()=>{try{if(CUR&&['admin','manager','sup'].includes(CUR.r))navigator.sendBeacon('/api/chat/offline')}catch(e){}});
 async function refreshChatBadge(){
@@ -7149,7 +7149,7 @@ function renderChatList(){
 }
 async function openThread(u){
   if(typeof VR_REC!=='undefined'&&VR_REC)stopVoiceRec(true);
-  CHAT_PEER=u;CHAT_LAST_ID=0;
+  CHAT_PEER=u;CHAT_LAST_ID=0;CHAT_SEEN=new Set();
   $('chatBack').style.display='';chatHideAll();$('chatThreadWrap').style.display='flex';
   $('chatMsgs').innerHTML='<div class="sub">جاري التحميل…</div>';
   $('chatIn').focus();
@@ -7196,6 +7196,10 @@ function chatBubble(m){
 }
 async function pollThread(first){
   if(!CHAT_PEER)return;
+  if(CHAT_POLL_BUSY){CHAT_POLL_AGAIN=true;return}
+  // 25 Nov: a voice/image send polls right after posting - without this guard that poll can
+  // overlap the 4s interval poll and the same message gets appended twice (Micheal: "بعت فويس اتبعت مرتين").
+  CHAT_POLL_BUSY=true;
   try{
     const d=await api('/api/chat/thread?with='+encodeURIComponent(CHAT_PEER)+'&after='+CHAT_LAST_ID);
     if(!CHAT_PEER)return;
@@ -7203,12 +7207,15 @@ async function pollThread(first){
     const box=$('chatMsgs');
     if(first)box.innerHTML='';
     for(const m of (d.messages||[])){
+      if(CHAT_SEEN.has(m.id)){CHAT_LAST_ID=Math.max(CHAT_LAST_ID,m.id);continue}
+      CHAT_SEEN.add(m.id);
       CHAT_LAST_ID=Math.max(CHAT_LAST_ID,m.id);
       box.appendChild(chatBubble(m));
     }
     if(first&&!(d.messages||[]).length)box.innerHTML='<div class="sub" style="text-align:center;margin-top:20px">ابدأ المحادثة 👋</div>';
     if((d.messages||[]).length)box.scrollTop=box.scrollHeight;
   }catch(e){}
+  finally{CHAT_POLL_BUSY=false;if(CHAT_POLL_AGAIN){CHAT_POLL_AGAIN=false;pollThread(false)}}
 }
 async function sendChat(){
   const inp=$('chatIn'),text=inp.value.trim();
