@@ -1411,8 +1411,8 @@ function repVehicle(name) {
 const HC_GID = '2127591673'; // شيت الهيدكاونت: صف واحد لكل مندوب (محفظة + عقد + حالة + مشرف) — مصدر المحافظ والعقود
 // أداء يوم واحد بس: فلترة عند جوجل نفسها (بدل ما نسحب الشيت كله ~40MB ونتجاوز حد CPU المجاني).
 // ملحوظة: gviz out:csv بيطبّق where لكن بيرجّع كل الأعمدة بترتيبها الأصلي — القراءة بالأعمدة الأصلية.
-async function repFetchPerfDay(day) {
-  const q = encodeURIComponent("select * where F = date '" + day + "'");
+async function repFetchPerfRange(d1, d2) {
+  const q = encodeURIComponent("select * where F >= date '" + d1 + "' and F <= date '" + d2 + "'");
   const url = 'https://docs.google.com/spreadsheets/d/' + PERF_SHEET_ID + '/gviz/tq?tqx=out:csv&gid=0&headers=1&tq=' + q + '&_=' + Date.now();
   const res = await fetch(url);
   if (!res.ok) throw new Error('sheet_fetch_failed');
@@ -1495,22 +1495,27 @@ function repU8ToB64(u8) { let s = ''; const CH = 0x8000; for (let i = 0; i < u8.
 
 /* تجميع التقرير: يرجع لكل مشرف (بالاسم الظاهر في الشيت) ملفاته وعدّاداته.
    perf = صفوف اليوم المختار بس · wallets/contracts = آخر صف لكل مندوب لحد اليوم المختار */
-async function repAssemble(env, types, day) {
-  const bySup = new Map(); // nameKey -> { name, perf: [], hc: [] }
+async function repAssemble(env, types, d1, d2) {
+  const bySup = new Map(); // nameKey -> { name, perf: Map(id->agg), hc: [] }
   const group = (name) => {
     const k = repNameKey(name);
     let g = bySup.get(k);
-    if (!g) { g = { name: String(name || '').trim(), perf: [], hc: [] }; bySup.set(k, g); }
+    if (!g) { g = { name: String(name || '').trim(), perf: new Map(), hc: [] }; bySup.set(k, g); }
     return g;
   };
   let latestDay = '', perfRowCount = 0;
   const jobs = [];
   if (types.includes('perf')) jobs.push((async () => {
-    for (const r of await repFetchPerfDay(day)) {
+    for (const r of await repFetchPerfRange(d1, d2)) {
       const id = String(r[0] || '').trim(), s = String(r[6] || '').trim();
       if (!id || !s) continue;
       perfRowCount++;
-      group(s).perf.push({ id, p: +r[1] || 0, a: +r[2] || 0, b: +r[3] || 0, o: parseInt(r[4]) || 0, n: String(r[8] || '').trim(), z: String(r[10] || '').trim(), bt: String(r[13] || '').trim() });
+      const g = group(s);
+      let x = g.perf.get(id);
+      if (!x) { x = { id, o: 0, a: 0, p: 0, b: 0, n: '', z: '', bt: '', lt: '' }; g.perf.set(id, x); }
+      x.o += parseInt(r[4]) || 0; x.a += +r[2] || 0; x.p += +r[1] || 0; x.b += +r[3] || 0;
+      const rd = repNormDay(r[5]);
+      if (rd >= x.lt) { x.lt = rd; x.n = String(r[8] || '').trim() || x.n; x.z = String(r[10] || '').trim() || x.z; x.bt = String(r[13] || '').trim() || x.bt; }
     }
   })());
   if (types.includes('wallets') || types.includes('contracts')) jobs.push((async () => {
@@ -1522,12 +1527,12 @@ async function repAssemble(env, types, day) {
   })());
   jobs.push((async () => { latestDay = await repLatestDay(); })());
   await Promise.all(jobs);
-  const dayMs = Date.parse(day + 'T00:00:00Z');
+  const dayMs = Date.parse(d2 + 'T00:00:00Z'); // المحافظ/العقود "حالتهم الحالية" لحد نهاية الفترة
   const files = new Map(); // nameKey -> { name, riders, sheets: [{name,headers,rows}] }
   for (const [k, g] of bySup) {
     const sheets = [];
     if (types.includes('perf')) {
-      const list = g.perf.slice().sort((x, y) => y.o - x.o);
+      const list = [...g.perf.values()].sort((x, y) => y.o - x.o);
       sheets.push({
         name: REPORT_TYPES.perf,
         headers: ['الكود', 'الاسم', 'المنطقة', 'الباتش', 'المركبة', 'الطلبات', 'الساعات الفعلية', 'الساعات المخططة', 'نسبة الالتزام %', 'طلب/ساعة', 'الراحة'],
@@ -1554,7 +1559,7 @@ async function repAssemble(env, types, day) {
       });
     }
     const ids = new Set();
-    for (const x of g.perf) ids.add(x.id);
+    for (const x of g.perf.values()) ids.add(x.id);
     for (const x of g.hc) ids.add(x.id);
     files.set(k, { name: g.name, riders: ids.size, sheets });
   }
@@ -2051,9 +2056,15 @@ export default {
         if (user.r !== 'admin') return json({ error: 'forbidden' }, 403);
         const body = await request.json().catch(() => null);
         const types = Array.isArray(body && body.types) ? body.types.filter(t => REPORT_TYPES[t]) : [];
-        const day = String(body && body.day || '').trim();
+        // يوم واحد (day) أو فترة (d1 إلى d2) — الفترة بتأثر على تقرير الأداء بس؛ المحافظ/العقود حالة حالية لحد d2
+        let d1 = String(body && (body.d1 || body.day) || '').trim();
+        let d2 = String(body && (body.d2 || body.day) || '').trim();
         if (!types.length) return json({ error: 'no_types' }, 400);
-        if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || day > cairoDay() || day < '2024-01-01') return json({ error: 'bad_day' }, 400);
+        const okDay = d => /^\d{4}-\d{2}-\d{2}$/.test(d) && d <= cairoDay() && d >= '2024-01-01';
+        if (!okDay(d1) || !okDay(d2)) return json({ error: 'bad_day' }, 400);
+        if (d1 > d2) { const t = d1; d1 = d2; d2 = t; }
+        if ((Date.parse(d2) - Date.parse(d1)) / 86400000 > 62) return json({ error: 'range_too_long' }, 400);
+        const dayLabel = d1 === d2 ? d1 : (d1 + ' إلى ' + d2);
         const isPreview = url.pathname === '/api/reports/preview';
         if (!isPreview) {
           const dayKey = cairoDay() + ':' + user.u;
@@ -2062,8 +2073,9 @@ export default {
           _repUse.set(dayKey, used + 1);
           if (_repUse.size > 500) { for (const k of _repUse.keys()) if (!k.startsWith(cairoDay())) _repUse.delete(k); }
         }
-        const assembled = await repAssemble(env, types, day);
+        const assembled = await repAssemble(env, types, d1, d2);
         const files = assembled.files;
+        const attName = 'team_mh_report_' + (d1 === d2 ? d1 : d1 + '_to_' + d2) + '.xlsx';
         if (isPreview) {
           const supName = repNameKey(body && body.sup);
           const f = files.get(supName);
@@ -2071,33 +2083,36 @@ export default {
           const bytes = repBuildXlsx(f.sheets);
           return new Response(bytes, { headers: {
             'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            'Content-Disposition': 'attachment; filename="team_mh_report_' + day + '.xlsx"',
+            'Content-Disposition': 'attachment; filename="' + attName + '"',
           } });
         }
         const { matched, noAccount, ambiguous } = await repMatchUsers(env, files);
-        // اختياري: الإرسال لمشرف واحد بس (إعادة إرسال أو تجربة) — body.sup باسم المشرف زي الشيت
-        const onlyKey = repNameKey(body && body.sup);
+        // اختياري: الإرسال لمشرف أو أكتر بأسمائهم (body.sups أو body.sup باسم المشرف زي الشيت)
+        const onlySet = new Set();
+        if (body && body.sup) onlySet.add(repNameKey(body.sup));
+        if (body && Array.isArray(body.sups)) for (const nm of body.sups) onlySet.add(repNameKey(nm));
+        const onlyKey = onlySet.size === 1 ? [...onlySet][0] : '';
         const sent = [], failed = [], noEmail = [];
         for (const [, m] of matched) if (!String(m.user.email || '').trim()) noEmail.push({ sup: m.file.name, u: m.user.u });
         if (!body.dryRun) {
           for (const [mk, m] of matched) {
-            if (onlyKey && mk !== onlyKey) continue;
+            if (onlySet.size && !onlySet.has(mk)) continue;
             const email = String(m.user.email || '').trim();
             if (!email) continue;
             const bytes = repBuildXlsx(m.file.sheets);
             const sections = types.map(t => '• ' + REPORT_TYPES[t]).join('\n');
-            const text = 'أهلًا ' + m.user.n + ' 👋\n\nده تقرير TEAM MH عن يوم ' + day + ' — البيانات اللي فيه خاصة بمناديبك بس.\n\nالأقسام الموجودة في ملف الإكسل المرفق:\n' + sections + '\n\nالتقرير اتولّد أوتوماتيك من لوحة المتابعة. لو فيه رقم مش مظبوط كلم الإدارة.';
-            const mail = await sendMail(env, email, 'تقرير TEAM MH — ' + day, text, { name: 'team_mh_report_' + day + '.xlsx', content: repU8ToB64(bytes) });
+            const text = 'أهلًا ' + m.user.n + ' 👋\n\nده تقرير TEAM MH عن ' + (d1 === d2 ? 'يوم ' + d1 : 'الفترة من ' + d1 + ' إلى ' + d2) + ' — البيانات اللي فيه خاصة بمناديبك بس.\n\nالأقسام الموجودة في ملف الإكسل المرفق:\n' + sections + '\n\nالتقرير اتولّد أوتوماتيك من لوحة المتابعة. لو فيه رقم مش مظبوط كلم الإدارة.';
+            const mail = await sendMail(env, email, 'تقرير TEAM MH — ' + dayLabel, text, { name: attName, content: repU8ToB64(bytes) });
             if (mail.ok) sent.push({ sup: m.file.name, u: m.user.u, email, riders: m.file.riders });
             else failed.push({ sup: m.file.name, u: m.user.u, email, error: mail.error || ('HTTP ' + mail.status) });
           }
           try {
             await env.DB.prepare('INSERT INTO report_logs(admin_u,day,types,sent,failed,ts) VALUES(?,?,?,?,?,?)')
-              .bind(user.u, day, types.join(','), sent.length, failed.length, Date.now()).run();
+              .bind(user.u, dayLabel, types.join(','), sent.length, failed.length, Date.now()).run();
           } catch (e) {}
         }
         return json({
-          ok: true, day, types, dryRun: !!body.dryRun, latestDay: assembled.latestDay, only: onlyKey || undefined, perfRows: assembled.perfRowCount,
+          ok: true, day: d2, d1, d2, types, dryRun: !!body.dryRun, latestDay: assembled.latestDay, only: onlyKey || undefined, perfRows: assembled.perfRowCount,
           ready: [...matched.values()].map(m => ({ sup: m.file.name, u: m.user.u, email: String(m.user.email || ''), riders: m.file.riders })),
           sent, failed, noEmail, noAccount, ambiguous,
           supCount: files.size,
