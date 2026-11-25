@@ -416,6 +416,10 @@ ipcMain.handle('tmh-sheet-status', (_e, group) => fetchSheetRows(String(group)))
 
 ipcMain.on('tmh-google-signin', (_e, which) => { openGoogleSignin(String(which)); });
 ipcMain.handle('tmh-google-state', () => readState());
+// tmh-kick: the site window (inside the app) just queued a job — claim it now
+// instead of waiting for the next 5s poll tick. The server queue stays the
+// source of truth; this only short-circuits the wait for the in-app flow.
+ipcMain.on('tmh-kick', () => { agentTick().catch(() => {}); });
 ipcMain.handle('tmh-get-settings', () => readSettings());
 ipcMain.handle('tmh-version', () => VERSION);
 ipcMain.handle('tmh-set-spacing', (_e, sec) => {
@@ -822,6 +826,7 @@ async function runShiftCmdJob(job) {
 
 let agentTimer = null;
 let agentBusy = false;
+let jobRunning = false; // a claimed job is executing (busy flag covers the walk itself)
 async function agentTick() {
   if (agentBusy) return;
   agentBusy = true;
@@ -830,11 +835,17 @@ async function agentTick() {
     if (!tok) return;
     let d;
     // busy=1 while a run is active: heartbeat only, no claim, so the site's
-    // "متصل" indicator stays honest during long walks.
-    try { d = await api('/api/agent/poll?v=' + encodeURIComponent(VERSION) + (busy ? '&busy=1' : '')); } catch (e) { return; }
-    if (!d || !d.job || busy) return;
-    if (d.job.kind === 'shift') await runShiftCmdJob(d.job);
-    else if (d.job.kind === 'hiring') await runHiringJob(d.job);
+    // "متصل" indicator stays honest during long walks. The job runs detached
+    // (jobRunning) so this tick stays free to heartbeat every 5s mid-run.
+    const hbOnly = busy || jobRunning;
+    try { d = await api('/api/agent/poll?v=' + encodeURIComponent(VERSION) + (hbOnly ? '&busy=1' : '')); } catch (e) { return; }
+    if (!d || !d.job || hbOnly) return;
+    jobRunning = true;
+    const job = d.job;
+    const run = job.kind === 'shift' ? runShiftCmdJob(job)
+      : job.kind === 'hiring' ? runHiringJob(job) : null;
+    if (run) run.catch(() => {}).finally(() => { jobRunning = false; });
+    else jobRunning = false;
   } finally { agentBusy = false; }
 }
 function startAgentPoll() {

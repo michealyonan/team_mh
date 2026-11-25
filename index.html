@@ -7208,9 +7208,12 @@ async function hImgs(id){
  }catch(e){box.innerHTML='<div class="sub">فشل تحميل الصور</div>'}
 }
 function hZoom(src){$('hZoomImg').src=src;$('hZoom').style.display='flex'}
-async function hApprove(id){const sel=$('hApt_'+id);try{await api('/api/hiring/approve',{method:'POST',body:{id,hire_type:sel?sel.value:undefined}});alert('اتوافق ✅ الطلب في طابور الرفع على فورم الشركة — هيترفع تلقائي أول ما التطبيق على اللابتوب يكون مفتوح.');loadHiringList()}catch(e){alert('تعذّرت الموافقة: '+authErr(e))}}
+/* If this site window is the one INSIDE the desktop app, kick the desktop to
+   claim the just-queued job immediately (no poll wait). No-op elsewhere. */
+function tmhKickDesktop(){try{if(window.tmhDesktop&&typeof window.tmhDesktop.kick==='function')window.tmhDesktop.kick()}catch(e){}}
+async function hApprove(id){const sel=$('hApt_'+id);try{await api('/api/hiring/approve',{method:'POST',body:{id,hire_type:sel?sel.value:undefined}});tmhKickDesktop();alert('اتوافق ✅ الطلب في طابور الرفع على فورم الشركة — هيترفع تلقائي أول ما التطبيق على اللابتوب يكون مفتوح.');loadHiringList()}catch(e){alert('تعذّرت الموافقة: '+authErr(e))}}
 async function hReject(id){if(!confirm('رفض الطلب ده؟'))return;try{await api('/api/hiring/reject',{method:'POST',body:{id}});loadHiringList()}catch(e){alert('تعذّر الرفض: '+authErr(e))}}
-async function hRetry(id){try{await api('/api/hiring/report',{method:'POST',body:{id,retry:true}});alert('اتعاد للطابور ✅');loadHiringList()}catch(e){alert('تعذّر: '+authErr(e))}}
+async function hRetry(id){try{await api('/api/hiring/report',{method:'POST',body:{id,retry:true}});tmhKickDesktop();alert('اتعاد للطابور ✅');loadHiringList()}catch(e){alert('تعذّر: '+authErr(e))}}
 async function hDelete(id){
  const x=HIRING_LIST.find(y=>y.id===id);const nm=(x&&x.payload&&x.payload.rider_name)||('#'+id);
  if(!confirm('مسح طلب "'+nm+'" نهائي؟ مش هيعود تاني، حتى لو في طابور الرفع.'))return;
@@ -7270,7 +7273,8 @@ async function shcSend(){
  $('shcSend').disabled=true;m.textContent='بيتبعت…';
  try{
   const r=await api('/api/shiftcmd/submit',{method:'POST',body:{payload:{action,rider_id,city,duration24,reason,vehicle}}});
-  m.textContent='✅ الأمر اتسجّل (# '+r.id+'). التطبيق هيلقطه خلال ~30 ثانية. بتابع النتيجة…';
+  tmhKickDesktop();
+  m.textContent='✅ الأمر اتسجّل (# '+r.id+'). '+(window.tmhDesktop?'التطبيق هيبدأ دلوقتي حالًا.':'التطبيق هيلقطه خلال ثواني.')+' بتابع النتيجة…';
   shcRefresh();
   shcWatch(r.id);
  }catch(e){m.textContent='تعذّر الإرسال: '+authErr(e)}

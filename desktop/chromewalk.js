@@ -1314,12 +1314,17 @@ async function runHiringWalk(page, job) {
       await sleep(2500);
     }
     // Pre-submit guard: every REQUIRED upload question must hold a chip.
+    // 25 Nov id=2: the real form KEEPS an إضافة ملف span in the question after
+    // a successful upload (hidden), so hasBtn alone false-fails here; accept
+    // the same chip-with-filename evidence the per-slot verify accepts.
     if (!job.dry) {
       for (const slot of UPLOAD_SLOTS) {
         if (!slot.required) continue;
+        const fp2 = job.files && job.files[slot.key];
+        const fname2 = fp2 ? path.basename(fp2).replace(/\s+/g, '') : '';
         const c2 = await findSlot(slot);
         let okc = false;
-        if (c2) { try { const s2 = await chipState(c2); okc = !s2.hasBtn; } catch (e) {} }
+        if (c2) { try { const s2 = await chipState(c2); okc = !s2.hasBtn || (!!fname2 && s2.text.includes(fname2)); } catch (e) {} }
         if (!okc) { const e = new Error('خانة مطلوبة فاضية قبل الإرسال: ' + slot.key); e.detail = 'required slot empty before submit ' + slot.key; throw e; }
       }
       mark('verify:required-uploads');

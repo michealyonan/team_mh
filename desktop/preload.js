@@ -7,6 +7,8 @@ contextBridge.exposeInMainWorld('tmhDesktop', {
   signin: (which) => ipcRenderer.send('tmh-google-signin', which),
   getState: () => ipcRenderer.invoke('tmh-google-state'),
   openCommands: () => ipcRenderer.send('tmh-open-commands'),
+  // Ask the desktop to claim the just-queued relay job NOW (no poll wait).
+  kick: () => { try { ipcRenderer.send('tmh-kick'); } catch (e) {} },
   runLocal: (payload) => ipcRenderer.invoke('tmh-run-local', payload),
   stopRun: () => ipcRenderer.invoke('tmh-stop-run'),
   copyLog: () => ipcRenderer.invoke('tmh-copy-log'),
