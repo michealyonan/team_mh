@@ -206,7 +206,7 @@ const { execFile } = require('child_process');
 async function uploadProof(page, filePath, job) {
   const fileName = path.basename(filePath || '') || 'proof.png';
   const browser = page.browser();
-  const diag = { targets: [], layers: [] };
+  const diag = { targets: [], layers: [], net: [] };
   const aborted = () => { if (job && job.isAborted && job.isAborted()) { const ab = new Error('aborted'); ab.aborted = true; throw ab; } };
 
   let chooserAnswered = false;
@@ -348,6 +348,44 @@ async function uploadProof(page, filePath, job) {
     return null;
   }
 
+  // Picker iframe lifecycle (26 Nov). A closed dialog leaves its (hidden)
+  // picker iframe in the DOM and the NEXT slot reuses it - and a reused picker
+  // is the stall state (slot 1 = fresh picker uploads fine, every reused one
+  // swallows the handed file). After a dialog closes, wait for natural
+  // removal, then remove leftovers so the next slot gets a FRESH picker
+  // document - the same condition as slot 1.
+  async function pickerIframes() {
+    try {
+      return await page.evaluate(() => {
+        const out = [];
+        for (const f of Array.from(document.querySelectorAll('iframe'))) {
+          const r = f.getBoundingClientRect();
+          const st = getComputedStyle(f);
+          const big = r.width > 200 && r.height > 200;
+          const picker = /picker/i.test(f.src || '');
+          if (big || picker) out.push({ picker, vis: st.display !== 'none' && st.visibility !== 'hidden' && r.width > 50 });
+        }
+        return out;
+      });
+    } catch (e) { return []; }
+  }
+  async function purgePickerIframes() {
+    const t0 = Date.now();
+    while (Date.now() - t0 < 3500) {
+      const l = await pickerIframes();
+      if (!l.some((x) => x.picker)) { diag.layers.push('picker iframe gone'); return; }
+      await sleep(500);
+    }
+    const removed = await page.evaluate(() => {
+      let n = 0;
+      for (const f of Array.from(document.querySelectorAll('iframe'))) {
+        if (/picker/i.test(f.src || '')) { f.remove(); n++; }
+      }
+      return n;
+    }).catch(() => 0);
+    diag.layers.push('picker iframe removed x' + removed);
+  }
+
   async function chipVisible() {
     try { return await page.evaluate((fn) => ((document.body && document.body.innerText) || '').indexOf(fn) >= 0, fileName); } catch (e) { return false; }
   }
@@ -450,9 +488,32 @@ async function uploadProof(page, filePath, job) {
       });
     });
   }
+  let pageSession = null;
+  const reqUrls = new Map();
+  const netPush = (s) => { if (diag.net.length < 16) diag.net.push(s); };
   try {
     browserSession = await browser.target().createCDPSession();
     await browserSession.send('Target.setDiscoverTargets', { discover: true }).catch(() => {});
+    // One page session for the whole upload: chooser interception on the page
+    // target (this picker is an in-process iframe) + a network trace, so a
+    // stalled slot tells us whether the picker even POSTed the file (26 Nov).
+    try {
+      pageSession = await page.createCDPSession();
+      await armSession(pageSession, 'page');
+      await pageSession.send('Network.enable').catch(() => {});
+      pageSession.on('Network.requestWillBeSent', (ev) => {
+        const u = (ev.request && ev.request.url) || '';
+        if (/upload|picker|drive\.google|googleapis/i.test(u)) { reqUrls.set(ev.requestId, u); netPush((ev.request.method || 'REQ') + ' ' + u.slice(0, 100)); }
+      });
+      pageSession.on('Network.responseReceived', (ev) => {
+        const u = (ev.response && ev.response.url) || reqUrls.get(ev.requestId) || '';
+        if (/upload|picker|drive\.google|googleapis/i.test(u)) netPush('resp ' + ev.response.status + ' ' + u.slice(0, 80));
+      });
+      pageSession.on('Network.loadingFailed', (ev) => {
+        const u = reqUrls.get(ev.requestId) || '';
+        if (u) netPush('FAIL ' + String(ev.errorText || '').slice(0, 50) + ' ' + u.slice(0, 60));
+      });
+    } catch (e) {}
     await attachAll();
 
     // v0.3.29: retry the WHOLE picker round (open > hand-off > chip) up to 3
@@ -489,6 +550,7 @@ async function uploadProof(page, filePath, job) {
         }
         await sleep(800);
       }
+      await purgePickerIframes();
     }
     for (let round = 0; round < 3; round++) {
     if (round > 0) {
@@ -523,11 +585,11 @@ async function uploadProof(page, filePath, job) {
       diag.layers.push('picker opened (remaining-index ' + upIdx + ')');
     }
 
-    // Arm the MAIN page session too: this picker is an in-process iframe
-    // (page.frames sees it), so its file chooser fires on the page target -
-    // arming only OOPIF sessions is why the chooser path never answered (25 Nov).
-    try { const mcs = await page.createCDPSession(); await armSession(mcs, 'page'); } catch (e) {}
+    // Re-arm interception on the single page session (it is disarmed after
+    // every answer; arming a fresh session per round stacked listeners).
+    if (pageSession) { try { await pageSession.send('Page.setInterceptFileChooserDialog', { enabled: true }); } catch (e) {} }
     await attachAll();
+    { const il = await pickerIframes(); diag.layers.push('iframes r' + (round + 1) + ': ' + (il.map((x) => (x.picker ? 'P' : 'x') + (x.vis ? 'v' : 'h')).join(',') || 'none')); }
 
     // Only a picker frame whose iframe element is CURRENTLY visible: closed
     // dialogs keep their iframe in the DOM, and handing a file to a stale
@@ -556,6 +618,26 @@ async function uploadProof(page, filePath, job) {
     {
       const tP = Date.now();
       while (Date.now() - tP < 10000 && !(await visiblePickerFrame())) { aborted(); await sleep(400); }
+    }
+
+    // Attempt 0 (26 Nov): TRUSTED click on تصفّح. page.mouse dispatches real
+    // Input.dispatchMouseEvent events; the in-frame el.click() below is an
+    // untrusted JS gesture, and a gesture-gated uploader would explain why
+    // the handed file never starts uploading on later dialogs.
+    if (!chooserAnswered) {
+      const pt0 = await pickerButtonPoint();
+      if (pt0) {
+        try { await page.mouse.click(pt0.x, pt0.y); diag.layers.push('browse trusted-click ok'); } catch (e) { diag.layers.push('browse trusted-click failed'); }
+      } else { diag.layers.push('browse trusted-click no-point'); }
+      const t0c = Date.now();
+      while (Date.now() - t0c < 8000 && !chooserAnswered) { aborted(); await sleep(250); }
+      if (chooserAnswered) {
+        diag.layers.push('file handed via chooser');
+        if (await waitChip(25000)) { diag.layers.push('chip after chooser'); await ensurePickerClosed(); await purgePickerIframes(); return; }
+        diag.layers.push('chooser answered but no chip - continuing');
+        chooserAnswered = false; // let the JS-click attempts below re-arm
+        if (pageSession) { try { await pageSession.send('Page.setInterceptFileChooserDialog', { enabled: true }); } catch (e) {} }
+      }
     }
 
     // Attempt 1 (the proven mechanism): click تصفّح inside the picker and let
@@ -587,7 +669,7 @@ async function uploadProof(page, filePath, job) {
     }
     if (chooserAnswered) {
       diag.layers.push('file handed via chooser');
-      if (await waitChip(25000)) { diag.layers.push('chip after chooser'); await ensurePickerClosed(); return; }
+      if (await waitChip(25000)) { diag.layers.push('chip after chooser'); await ensurePickerClosed(); await purgePickerIframes(); return; }
       diag.layers.push('chooser answered but no chip - continuing');
     }
 
@@ -600,7 +682,7 @@ async function uploadProof(page, filePath, job) {
           if (input) { await input.uploadFile(filePath); diag.layers.push('file set on visible picker frame'); }
         } catch (e) {}
       }
-      if (await waitChip(8000)) { diag.layers.push('chip after visible-frame set'); await ensurePickerClosed(); return; }
+      if (await waitChip(8000)) { diag.layers.push('chip after visible-frame set'); await ensurePickerClosed(); await purgePickerIframes(); return; }
       diag.layers.push('visible-frame set claimed but no chip - continuing');
     }
 
@@ -614,12 +696,12 @@ async function uploadProof(page, filePath, job) {
         set3 = await setViaSessions();
         if (!set3) await sleep(600);
       }
-      if (set3 && await waitChip(8000)) { diag.layers.push('chip after session set'); await ensurePickerClosed(); return; }
+      if (set3 && await waitChip(8000)) { diag.layers.push('chip after session set'); await ensurePickerClosed(); await purgePickerIframes(); return; }
       if (set3) diag.layers.push('session set claimed but no chip - continuing');
     }
 
     // Attempt 4 (Windows): OS-level real click + native dialog fill via PowerShell.
-    if (!(await chipVisible()) && process.platform === 'win32') {
+    if (!(await chipVisible()) && process.platform === 'win32' && round === 2) { // OS-level native-dialog path: last round only
       // Disarm interception so the NATIVE dialog actually opens this time.
       for (const cs of childSessions) { if (typeof cs.send === 'function') { try { await cs.send('Page.setInterceptFileChooserDialog', { enabled: false }); } catch (e) {} } }
       try { await page.createCDPSession().then((c) => c.send('Page.setInterceptFileChooserDialog', { enabled: false })); } catch (e) {}
@@ -724,16 +806,18 @@ async function uploadProof(page, filePath, job) {
     // Final verification: the chip (file name) must be back on the form.
     if (await waitChip(chooserAnswered ? 25000 : 15000)) {
       await ensurePickerClosed();
+      await purgePickerIframes();
       return;
     }
     diag.layers.push('round ' + (round + 1) + ' ended with no chip');
     } // end retry round
     const e = new Error('upload_not_confirmed');
-    e.detail = 'chip "' + fileName + '" never appeared | layers: ' + diag.layers.join(' > ').slice(0, 200) + ' | targets: ' + diag.targets.slice(0, 8).join(' ; ').slice(0, 220);
+    e.detail = 'chip "' + fileName + '" never appeared | layers: ' + diag.layers.join(' > ').slice(0, 1400) + ' | targets: ' + diag.targets.slice(0, 8).join(' ; ').slice(0, 300) + ' | net: ' + (diag.net.join(' ; ').slice(0, 900) || 'none');
     e.diag = { file: fileName, layers: diag.layers, targets: diag.targets, chooserAnswered: chooserAnswered };
     throw e;
   } finally {
     for (const cs of childSessions) { if (typeof cs.send === 'function') { try { await cs.send('Page.setInterceptFileChooserDialog', { enabled: false }); } catch (e) {} try { await cs.detach(); } catch (e) {} } }
+    try { if (pageSession) { try { await pageSession.send('Page.setInterceptFileChooserDialog', { enabled: false }); } catch (e2) {} try { await pageSession.detach(); } catch (e2) {} } } catch (e) {}
     try { if (browserSession) await browserSession.detach(); } catch (e) {}
   }
 }

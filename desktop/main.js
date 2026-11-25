@@ -13,7 +13,7 @@ try { ({ autoUpdater } = require('electron-updater')); } catch (e) { console.log
 const { getBrowser, firstPage, peekBrowser, launchPlain, launchPlainForSignin, adoptBrowser, dropBrowser } = require('./chromeproc');
 const { runFormWalk, runHiringWalk, clickX, pageMarker, confirmState } = require('./chromewalk');
 
-const VERSION = '0.3.29';
+const VERSION = '0.3.30';
 // Proof image for فتح شيفت uploads: Micheal's OWN fixed image when present
 // (userData/proof.*, seeded from a bundled proof.* on first run), else the
 // app-generated black PNG fallback (24 Nov).
@@ -653,7 +653,7 @@ ipcMain.handle('tmh-run-local', async (_e, payload) => {
       } catch (e) {
         res = currentRun && currentRun.aborted
           ? { ok: false, error: 'aborted', submitted: false }
-          : { ok: false, error: (e && e.aborted) ? 'aborted' : 'walk_exception', detail: String(e && (e.detail || e.message) || '').slice(0, 700), submitted: false, diag: (e && e.diag) || null };
+          : { ok: false, error: (e && e.aborted) ? 'aborted' : 'walk_exception', detail: String(e && (e.detail || e.message) || '').slice(0, 3000), submitted: false, diag: (e && e.diag) || null };
       }
       // Full run log: local file (نسخ/حفظ اللوج buttons) + diag rides the worker post.
       try {
@@ -790,7 +790,7 @@ async function hiringTick() {
         }
       }
     } catch (e) {
-      res = { ok: false, error: (e && e.aborted) ? 'aborted' : 'walk_exception', detail: String(e && (e.detail || e.message) || '').slice(0, 700), submitted: false };
+      res = { ok: false, error: (e && e.aborted) ? 'aborted' : 'walk_exception', detail: String(e && (e.detail || e.message) || '').slice(0, 3000), submitted: false };
     } finally {
       busy = false; currentRun = null;
       try { fs.rmSync(tmp, { recursive: true, force: true }); } catch (e) {}
@@ -799,7 +799,7 @@ async function hiringTick() {
     const ok = !!(res && res.ok);
     try {
       const repErr = ((res && res.error) || '') + (ok ? '' : ' (v' + VERSION + ')');
-      await api('/api/hiring/report', { method: 'POST', body: { id: job.id, ok, error: repErr, detail: (((res && res.detail) || '') + ' | app v' + VERSION).slice(0, 900) } });
+      await api('/api/hiring/report', { method: 'POST', body: { id: job.id, ok, error: repErr, detail: (((res && res.detail) || '') + ' | app v' + VERSION).slice(0, 3200) } });
     } catch (e) {}
     notify(ok ? 'team_mh ✅' : 'team_mh ❌', (ok ? 'تم رفع الاستعلام: ' : 'فشل رفع الاستعلام: ') + String(job.payload.rider_name || '') + ' (v' + VERSION + ')');
   } catch (e) {

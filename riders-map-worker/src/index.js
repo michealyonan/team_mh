@@ -575,7 +575,7 @@ async function handleHiring(request, env, json, url) {
     if (!r) return json({ error: 'not_found' }, 404);
     const retry = body && body.retry === true;
     const status = retry ? 'approved' : ((body && body.ok) ? 'submitted' : 'failed');
-    const result = JSON.stringify({ error: String((body && body.error) || '').slice(0, 400), detail: String((body && body.detail) || '').slice(0, 900) });
+    const result = JSON.stringify({ error: String((body && body.error) || '').slice(0, 400), detail: String((body && body.detail) || '').slice(0, 3500) });
     await env.DB.prepare('UPDATE hiring_requests SET status=?,result=?,updated=? WHERE id=?').bind(status, result, Date.now(), id).run();
     return json({ ok: true });
   }
