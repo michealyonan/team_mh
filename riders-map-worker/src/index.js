@@ -1389,21 +1389,13 @@ export default {
       const dlHeaders = { ...SEC_HEADERS, 'Content-Type': 'application/zip', 'Content-Disposition': 'attachment; filename="team-mh-desktop-win-x64.zip"', 'Content-Length': String(total), 'Cache-Control': 'public, max-age=300' };
       if (request.method === 'HEAD') return new Response(null, { headers: dlHeaders });
       // pull-based stream: one chunk read per backpressure pull, no side promise
-      let idx = 0, reader = null;
+      let idx = 0;
       const readable = new ReadableStream({
         async pull(controller) {
-          for (;;) {
-            if (!reader) {
-              if (idx >= chunks.length) { controller.close(); return; }
-              const r = await env.ASSETS.fetch(new URL('/dl-chunks/' + chunks[idx++], url));
-              if (!r.ok || !r.body) { controller.error(new Error('chunk_missing')); return; }
-              reader = r.body.getReader();
-            }
-            const read = await reader.read();
-            if (read.done) { reader = null; continue; }
-            controller.enqueue(read.value);
-            return;
-          }
+          if (idx >= chunks.length) { controller.close(); return; }
+          const r = await env.ASSETS.fetch(new URL('/dl-chunks/' + chunks[idx++], url));
+          if (!r.ok) { controller.error(new Error('chunk_missing')); return; }
+          controller.enqueue(await r.arrayBuffer());
         },
       });
       return new Response(readable, { headers: dlHeaders });
