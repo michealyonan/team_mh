@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Team MH</string>
+    <!-- Firebase config (replaces the google-services plugin): values of the
+         registered Android app "TeamMH" in project pilot-dashboard-d0983. -->
+    <string name="google_app_id" translatable="false">1:756207675539:android:445187d4e175cd29e94566</string>
+    <string name="gcm_defaultSenderId" translatable="false">756207675539</string>
+    <string name="google_api_key" translatable="false">AIzaSyCozeOsjJ04Vjaq5UPkXSL445bFmlc8fOI</string>
+    <string name="project_id" translatable="false">pilot-dashboard-d0983</string>
+    <string name="google_storage_bucket" translatable="false">pilot-dashboard-d0983.firebasestorage.app</string>
+</resources>

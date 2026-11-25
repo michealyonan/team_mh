@@ -1,0 +1,67 @@
+plugins {
+    id 'com.android.application'
+}
+
+// Signing config comes from keystore.properties (LOCAL ONLY, never committed):
+//   storeFile=/abs/path/team-mh-v2.keystore
+//   storePassword=...
+//   keyAlias=team-mh-key
+//   keyPassword=...
+def ksProps = new Properties()
+def ksFile = rootProject.file('keystore.properties')
+if (ksFile.exists()) {
+    ksProps.load(new FileInputStream(ksFile))
+}
+
+android {
+    namespace 'com.michealyonan.teammh'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.michealyonan.teammh"
+        minSdk 24
+        targetSdk 34
+        versionCode 9
+        versionName "3.0"
+    }
+
+    signingConfigs {
+        release {
+            if (ksProps['storeFile']) {
+                storeFile file(ksProps['storeFile'])
+                storePassword ksProps['storePassword']
+                keyAlias ksProps['keyAlias'] ?: 'team-mh-key'
+                keyPassword ksProps['keyPassword']
+            }
+        }
+    }
+
+    buildFeatures {
+        buildConfig true
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            shrinkResources false
+            if (ksProps['storeFile']) signingConfig signingConfigs.release
+        }
+        debug {
+            // v2 key is the ONLY key existing installs accept; debug builds are
+            // just for local compile checks, so leave them unsigned-by-default.
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    // Firebase BoM pins firebase-messaging + its transitive deps.
+    implementation platform('com.google.firebase:firebase-bom:33.5.1')
+    implementation 'com.google.firebase:firebase-messaging'
+    // Biometric lock (fingerprint / device credential) on app open.
+    implementation 'androidx.biometric:biometric:1.1.0'
+    implementation 'androidx.fragment:fragment:1.8.5'
+}
