@@ -108,6 +108,8 @@ async function ensureSchema(env) {
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS legal_case_history(id INTEGER PRIMARY KEY AUTOINCREMENT,case_id INTEGER NOT NULL,status TEXT NOT NULL,note TEXT NOT NULL DEFAULT '',by_u TEXT NOT NULL,by_name TEXT NOT NULL,ts INTEGER NOT NULL)`),
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS legal_case_deletes(id INTEGER PRIMARY KEY AUTOINCREMENT,case_id INTEGER NOT NULL,snapshot TEXT NOT NULL DEFAULT '',by_u TEXT NOT NULL,by_name TEXT NOT NULL,ts INTEGER NOT NULL)`),
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS shift_commands(id INTEGER PRIMARY KEY AUTOINCREMENT,u TEXT NOT NULL,payload TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'pending',result TEXT NOT NULL DEFAULT '',ts INTEGER NOT NULL,updated INTEGER NOT NULL)`),
+    // تقارير المشرفين: سجل إرسالات التقارير بالإيميل (Micheal 25 Nov) — مين بعت وإمتى وكم واحد وصل
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS report_logs(id INTEGER PRIMARY KEY AUTOINCREMENT,admin_u TEXT NOT NULL,day TEXT NOT NULL,types TEXT NOT NULL,sent INTEGER NOT NULL,failed INTEGER NOT NULL,ts INTEGER NOT NULL)`),
   ]);
   try { await env.DB.prepare("ALTER TABLE users ADD COLUMN photo TEXT NOT NULL DEFAULT ''").run(); } catch {}
   schemaReady = true;
@@ -303,16 +305,19 @@ async function sendFcmToUser(env, u, title, body, riderId) {
   } catch (e) {}
 }
 
-async function sendMail(env, to, subject, text) {
+async function sendMail(env, to, subject, text, attachment) {
   if (!env.BREVO_API_KEY) return { ok: false, error: 'mail_not_configured' };
   try {
+    const payload = {
+      sender: { email: env.MAIL_FROM || 'michealuonanayad@gmail.com', name: 'لوحة أداء الطيارين' },
+      to: [{ email: to }], subject, textContent: text,
+    };
+    // attachment: { name, content } where content is base64 (Brevo inline-attachment API)
+    if (attachment && attachment.content) payload.attachment = [{ content: attachment.content, name: attachment.name || 'attachment.xlsx' }];
     const r = await fetch('https://api.brevo.com/v3/smtp/email', {
       method: 'POST',
       headers: { 'api-key': env.BREVO_API_KEY, 'Content-Type': 'application/json', 'Accept': 'application/json' },
-      body: JSON.stringify({
-        sender: { email: env.MAIL_FROM || 'michealuonanayad@gmail.com', name: 'لوحة أداء الطيارين' },
-        to: [{ email: to }], subject, textContent: text,
-      }),
+      body: JSON.stringify(payload),
     });
     return { ok: r.ok, status: r.status };
   } catch (e) {
@@ -1364,6 +1369,216 @@ function parseCsv(text) {
   return rows;
 }
 
+
+/* ---------------- تقارير المشرفين بالإيميل (Micheal 25 Nov) ----------------
+   الأدمن يختار نوع التقرير واليوم، والسيرفر يسحب نفس شيت الأداء، يفلتر كل
+   مشرف على مناديبه بس، يبني ملف Excel ويبعته على إيميله. التقييد بيتم
+   هنا على السيرفر — ملف كل مشرف فيه مناديبه بس (مفيش طريقة من الكلاينت
+   توصل لبيانات مشرف تاني). المطابقة اسم-لحساب بالتطبيع الكامل بس (مفيش
+   تخمين جزئي: التقرير فيه بيانات، والغلط هنا = تسريب لمشرف تاني). */
+const PERF_SHEET_ID = '1_80LVAdt68HgKKvODqDZeIo29zVTxNb2fzJh6xmUfD8';
+const REPORT_TYPES = { perf: 'أداء المناديب', wallets: 'المحافظ', contracts: 'انتهاء العقود' };
+const _repUse = new Map(); // day:username -> count (in-memory rate limit, كفاية لزرار يدوي)
+
+function repNameKey(value) {
+  return String(value || '').normalize('NFKC')
+    .replace(/[ً-ٰٟـ]/g, '')
+    .replace(/[أإآٱ]/g, 'ا').replace(/ى/g, 'ي')
+    .replace(/[‎‏‪-‮]/g, '')
+    .replace(/\s+/g, ' ').trim().toLocaleLowerCase('ar');
+}
+
+// نفس منطق pd() في index.html: تواريخ الشيت جاية نص m/d/y أو d-m-y أو y-m-d
+function repNormDay(s) {
+  if (!s) return '';
+  s = String(s).trim().split(' ')[0];
+  let d, m, y, p;
+  if (s.includes('/')) { p = s.split('/'); if (p.length < 3) return ''; m = +p[0]; d = +p[1]; y = +p[2]; if (m > 12 && d <= 12) { const t = m; m = d; d = t; } }
+  else if (s.includes('-')) { p = s.split('-'); if (p.length < 3) return ''; if (p[0].length === 4) { y = +p[0]; m = +p[1]; d = +p[2]; } else { d = +p[0]; m = +p[1]; y = +p[2]; } }
+  else return '';
+  if (!y || !m || !d || m > 12 || d > 31) return '';
+  if (y < 100) y += 2000;
+  return y + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+}
+
+function repVehicle(name) {
+  const n = String(name || '').trim();
+  if (/(?:^|[^A-Z0-9])WLK(?:$|[^A-Z0-9])/i.test(n)) return 'WLK';
+  if (/(?:^|[^A-Z0-9])BC(?:$|[^A-Z0-9])/i.test(n)) return 'عجلة';
+  return 'مكنة';
+}
+
+// نفس ترتيب أعمدة شيت الأداء اللي index.html بيقراه (ingest)
+function repPerfRow(r) {
+  return {
+    id: String(r[0] || '').trim(),
+    p: +r[1] || 0, a: +r[2] || 0, b: +r[3] || 0,
+    o: parseInt(r[4]) || 0,
+    day: repNormDay(r[5]),
+    s: String(r[6] || '').trim(),
+    n: String(r[8] || '').trim(),
+    z: String(r[10] || '').trim(),
+    w: parseFloat(String(r[12] || '0').replace(/,/g, '')) || 0,
+    bt: String(r[13] || '').trim(),
+    e: repNormDay(r[14]),
+  };
+}
+
+async function repFetchRows() {
+  const urls = [
+    'https://docs.google.com/spreadsheets/d/' + PERF_SHEET_ID + '/gviz/tq?tqx=out:csv&gid=0&headers=1&_=' + Date.now(),
+    'https://docs.google.com/spreadsheets/d/' + PERF_SHEET_ID + '/gviz/tq?tqx=out:csv&sheet=' + encodeURIComponent('الاداء') + '&headers=1&_=' + Date.now(),
+  ];
+  for (const u of urls) {
+    try {
+      const res = await fetch(u);
+      if (res.ok) { const rows = parseCsv(await res.text()); if (rows.length > 1) return rows.slice(1); }
+    } catch (e) {}
+  }
+  throw new Error('sheet_fetch_failed');
+}
+
+/* ---- مولّد Excel بسيط: ZIP تخزين مباشر (من غير ضغط) + XML جداول ----
+   مفيش npm جوّه الـ Worker، فالملف بيتبني يدوي — صيغة xlsx قياسية بـ inline strings */
+const REP_CRC_TABLE = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+function repCrc32(u8) { let c = 0xFFFFFFFF; for (let i = 0; i < u8.length; i++) c = REP_CRC_TABLE[(c ^ u8[i]) & 0xFF] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+function repZip(files) {
+  const enc = new TextEncoder(), parts = [], central = []; let offset = 0;
+  for (const f of files) {
+    const name = enc.encode(f.name), data = f.data, crc = repCrc32(data);
+    const lh = new DataView(new ArrayBuffer(30));
+    lh.setUint32(0, 0x04034b50, true); lh.setUint16(4, 20, true); lh.setUint16(6, 0x0800, true);
+    lh.setUint32(14, crc, true); lh.setUint32(18, data.length, true); lh.setUint32(22, data.length, true);
+    lh.setUint16(26, name.length, true);
+    parts.push(new Uint8Array(lh.buffer), name, data);
+    const ch = new DataView(new ArrayBuffer(46));
+    ch.setUint32(0, 0x02014b50, true); ch.setUint16(4, 20, true); ch.setUint16(6, 20, true); ch.setUint16(8, 0x0800, true);
+    ch.setUint32(16, crc, true); ch.setUint32(20, data.length, true); ch.setUint32(24, data.length, true);
+    ch.setUint16(28, name.length, true); ch.setUint32(42, offset, true);
+    central.push(new Uint8Array(ch.buffer), name);
+    offset += 30 + name.length + data.length;
+  }
+  let cdSize = 0; for (const c of central) cdSize += c.length;
+  const eocd = new DataView(new ArrayBuffer(22));
+  eocd.setUint32(0, 0x06054b50, true); eocd.setUint16(8, files.length, true); eocd.setUint16(10, files.length, true);
+  eocd.setUint32(12, cdSize, true); eocd.setUint32(16, offset, true);
+  const out = new Uint8Array(offset + cdSize + 22); let pos = 0;
+  for (const pt of parts) { out.set(pt, pos); pos += pt.length; }
+  for (const c of central) { out.set(c, pos); pos += c.length; }
+  out.set(new Uint8Array(eocd.buffer), pos);
+  return out;
+}
+function repXesc(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' }[c])); }
+function repColName(i) { let s = ''; i++; while (i > 0) { const m = (i - 1) % 26; s = String.fromCharCode(65 + m) + s; i = Math.floor((i - 1) / 26); } return s; }
+function repSheetXml(headers, rows) {
+  const cell = (v, r, c) => {
+    const ref = repColName(c) + r;
+    if (typeof v === 'number' && isFinite(v)) return '<c r="' + ref + '"><v>' + Math.round(v * 100) / 100 + '</v></c>';
+    return '<c r="' + ref + '" t="inlineStr"><is><t xml:space="preserve">' + repXesc(v == null ? '' : v) + '</t></is></c>';
+  };
+  let xml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>';
+  xml += '<row r="1">' + headers.map((h, c) => cell(h, 1, c)).join('') + '</row>';
+  rows.forEach((row, i) => { xml += '<row r="' + (i + 2) + '">' + row.map((v, c) => cell(v, i + 2, c)).join('') + '</row>'; });
+  return xml + '</sheetData></worksheet>';
+}
+function repBuildXlsx(sheets) {
+  const enc = new TextEncoder(), files = [];
+  let types = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>';
+  sheets.forEach((s, i) => { types += '<Override PartName="/xl/worksheets/sheet' + (i + 1) + '.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'; });
+  files.push({ name: '[Content_Types].xml', data: enc.encode(types + '</Types>') });
+  files.push({ name: '_rels/.rels', data: enc.encode('<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>') });
+  let wb = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>';
+  sheets.forEach((s, i) => { wb += '<sheet name="' + repXesc(String(s.name).slice(0, 31)) + '" sheetId="' + (i + 1) + '" r:id="rId' + (i + 1) + '"/>'; });
+  files.push({ name: 'xl/workbook.xml', data: enc.encode(wb + '</sheets></workbook>') });
+  let rels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">';
+  sheets.forEach((s, i) => { rels += '<Relationship Id="rId' + (i + 1) + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet' + (i + 1) + '.xml"/>'; });
+  files.push({ name: 'xl/_rels/workbook.xml.rels', data: enc.encode(rels + '</Relationships>') });
+  sheets.forEach((s, i) => { files.push({ name: 'xl/worksheets/sheet' + (i + 1) + '.xml', data: enc.encode(repSheetXml(s.headers, s.rows)) }); });
+  return repZip(files);
+}
+function repU8ToB64(u8) { let s = ''; const CH = 0x8000; for (let i = 0; i < u8.length; i += CH) s += String.fromCharCode.apply(null, u8.subarray(i, i + CH)); return btoa(s); }
+
+/* تجميع التقرير: يرجع لكل مشرف (بالاسم الظاهر في الشيت) ملفاته وعدّاداته.
+   perf = صفوف اليوم المختار بس · wallets/contracts = آخر صف لكل مندوب لحد اليوم المختار */
+async function repAssemble(env, types, day) {
+  const raw = await repFetchRows();
+  const rows = raw.map(repPerfRow).filter(r => r.id && r.s);
+  let latestDay = '';
+  for (const r of rows) if (r.day && r.day > latestDay) latestDay = r.day;
+  const bySup = new Map(); // nameKey -> { name, perf: Map(id->agg), latest: Map(id->row) }
+  for (const r of rows) {
+    const k = repNameKey(r.s);
+    let g = bySup.get(k);
+    if (!g) { g = { name: r.s, perf: new Map(), latest: new Map() }; bySup.set(k, g); }
+    if (r.day === day) {
+      let x = g.perf.get(r.id);
+      if (!x) { x = { id: r.id, n: r.n, z: r.z, bt: r.bt, o: 0, a: 0, p: 0, b: 0 }; g.perf.set(r.id, x); }
+      x.o += r.o; x.a += r.a; x.p += r.p; x.b += r.b;
+      if (r.n) x.n = r.n; if (r.z) x.z = r.z; if (r.bt) x.bt = r.bt;
+    }
+    if (r.day && r.day <= day) {
+      const prev = g.latest.get(r.id);
+      if (!prev || r.day >= prev.day) g.latest.set(r.id, r);
+    }
+  }
+  const dayMs = Date.parse(day + 'T00:00:00Z');
+  const files = new Map(); // nameKey -> { name, riders, sheets:[{name,headers,rows}] }
+  for (const [k, g] of bySup) {
+    const sheets = [];
+    if (types.includes('perf')) {
+      const list = [...g.perf.values()].sort((x, y) => y.o - x.o);
+      sheets.push({
+        name: REPORT_TYPES.perf,
+        headers: ['الكود', 'الاسم', 'المنطقة', 'الباتش', 'المركبة', 'الطلبات', 'الساعات الفعلية', 'الساعات المخططة', 'نسبة الالتزام %', 'طلب/ساعة', 'الراحة'],
+        rows: list.map(x => [x.id, x.n, x.z, x.bt, repVehicle(x.n), x.o, x.a, x.p, x.p ? x.a / x.p * 100 : 0, x.a ? x.o / x.a : 0, x.b]),
+      });
+    }
+    if (types.includes('wallets')) {
+      const list = [...g.latest.values()].sort((x, y) => x.w - y.w);
+      sheets.push({
+        name: REPORT_TYPES.wallets,
+        headers: ['الكود', 'الاسم', 'المنطقة', 'الباتش', 'المحفظة'],
+        rows: list.map(x => [x.id, x.n, x.z, x.bt, Math.round(x.w * 100) / 100]),
+      });
+    }
+    if (types.includes('contracts')) {
+      const list = [...g.latest.values()].filter(x => x.e).map(x => {
+        const left = Math.ceil((Date.parse(x.e + 'T00:00:00Z') - dayMs) / 86400000);
+        return { x, left };
+      }).sort((a, b) => a.left - b.left);
+      sheets.push({
+        name: REPORT_TYPES.contracts,
+        headers: ['الكود', 'الاسم', 'المنطقة', 'نهاية العقد', 'الأيام المتبقية'],
+        rows: list.map(({ x, left }) => [x.id, x.n, x.z, x.e, left]),
+      });
+    }
+    files.set(k, { name: g.name, riders: g.latest.size || g.perf.size, sheets });
+  }
+  return { files, latestDay };
+}
+
+// مطابقة مشرف الشيت بحسابه: تطبيع كامل بس على الاسم الظاهر أو اسم المستخدم.
+// لو أكتر من حساب طابق نفس الاسم → متبعتش (غموض = خطر تسريب) وبنرجّعها ambiguous.
+async function repMatchUsers(env, files) {
+  const rows = await env.DB.prepare("SELECT u,n,email FROM users WHERE r='sup' AND status='active'").all();
+  const users = rows.results || [];
+  const byN = new Map(), byU = new Map();
+  for (const usr of users) {
+    const kn = repNameKey(usr.n), ku = repNameKey(usr.u);
+    if (kn) { if (!byN.has(kn)) byN.set(kn, []); byN.get(kn).push(usr); }
+    if (ku) { if (!byU.has(ku)) byU.set(ku, []); byU.get(ku).push(usr); }
+  }
+  const matched = new Map(), noAccount = [], ambiguous = [];
+  for (const [k, f] of files) {
+    let cands = byN.get(k) || [];
+    if (!cands.length) cands = byU.get(k) || [];
+    if (cands.length > 1) { ambiguous.push(f.name); continue; }
+    if (!cands.length) { noAccount.push(f.name); continue; }
+    matched.set(k, { user: cands[0], file: f });
+  }
+  return { matched, noAccount, ambiguous };
+}
+
 async function runStatusCron(env) {
   await ensureSchema(env);
   const res = await fetch(`https://docs.google.com/spreadsheets/d/${LIVE_SHEET_ID}/gviz/tq?tqx=out:csv&gid=${LIVE_GID}&headers=1&_=${Date.now()}`);
@@ -1820,6 +2035,69 @@ export default {
         await env.DB.prepare('INSERT INTO push_tokens(u,token,ts) VALUES(?,?,?) ON CONFLICT(u,token) DO UPDATE SET ts=excluded.ts').bind(user.u, token, Date.now()).run();
         return json({ ok: true });
       } catch (e) { return serverErr(e); }
+    }
+
+    // تقارير المشرفين (Micheal 25 Nov): أدمن بس — يبعت Excel لكل مشرف على إيميله
+    // فيه مناديبه بس (التقييد سيرفر-سايد)، أو يحمّل معاينة لملف مشرف واحد من غير إرسال.
+    if ((url.pathname === '/api/reports/send' || url.pathname === '/api/reports/preview') && request.method === 'POST') {
+      try {
+        await ensureSchema(env);
+        const user = await getSessionUser(env, request);
+        if (!user) return json({ error: 'unauthorized' }, 401);
+        if (user.r !== 'admin') return json({ error: 'forbidden' }, 403);
+        const body = await request.json().catch(() => null);
+        const types = Array.isArray(body && body.types) ? body.types.filter(t => REPORT_TYPES[t]) : [];
+        const day = String(body && body.day || '').trim();
+        if (!types.length) return json({ error: 'no_types' }, 400);
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || day > cairoDay() || day < '2024-01-01') return json({ error: 'bad_day' }, 400);
+        const isPreview = url.pathname === '/api/reports/preview';
+        if (!isPreview) {
+          const dayKey = cairoDay() + ':' + user.u;
+          const used = _repUse.get(dayKey) || 0;
+          if (used >= 20) return json({ error: 'daily_limit', wait: 3600 }, 429);
+          _repUse.set(dayKey, used + 1);
+          if (_repUse.size > 500) { for (const k of _repUse.keys()) if (!k.startsWith(cairoDay())) _repUse.delete(k); }
+        }
+        const assembled = await repAssemble(env, types, day);
+        const files = assembled.files;
+        if (isPreview) {
+          const supName = repNameKey(body && body.sup);
+          const f = files.get(supName);
+          if (!f) return json({ error: 'sup_not_found' }, 404);
+          const bytes = repBuildXlsx(f.sheets);
+          return new Response(bytes, { headers: {
+            'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Disposition': 'attachment; filename="team_mh_report_' + day + '.xlsx"',
+          } });
+        }
+        const { matched, noAccount, ambiguous } = await repMatchUsers(env, files);
+        const sent = [], failed = [], noEmail = [];
+        if (!body.dryRun) {
+          for (const [, m] of matched) {
+            const email = String(m.user.email || '').trim();
+            if (!email) { noEmail.push({ sup: m.file.name, u: m.user.u }); continue; }
+            const bytes = repBuildXlsx(m.file.sheets);
+            const sections = types.map(t => '• ' + REPORT_TYPES[t]).join('\n');
+            const text = 'أهلًا ' + m.user.n + ' 👋\n\nده تقرير TEAM MH عن يوم ' + day + ' — البيانات اللي فيه خاصة بمناديبك بس.\n\nالأقسام الموجودة في ملف الإكسل المرفق:\n' + sections + '\n\nالتقرير اتولّد أوتوماتيك من لوحة المتابعة. لو فيه رقم مش مظبوط كلم الإدارة.';
+            const mail = await sendMail(env, email, 'تقرير TEAM MH — ' + day, text, { name: 'team_mh_report_' + day + '.xlsx', content: repU8ToB64(bytes) });
+            if (mail.ok) sent.push({ sup: m.file.name, u: m.user.u, email, riders: m.file.riders });
+            else failed.push({ sup: m.file.name, u: m.user.u, email, error: mail.error || ('HTTP ' + mail.status) });
+          }
+          try {
+            await env.DB.prepare('INSERT INTO report_logs(admin_u,day,types,sent,failed,ts) VALUES(?,?,?,?,?,?)')
+              .bind(user.u, day, types.join(','), sent.length, failed.length, Date.now()).run();
+          } catch (e) {}
+        }
+        return json({
+          ok: true, day, types, dryRun: !!body.dryRun, latestDay: assembled.latestDay,
+          ready: [...matched.values()].map(m => ({ sup: m.file.name, u: m.user.u, email: String(m.user.email || ''), riders: m.file.riders })),
+          sent, failed, noEmail, noAccount, ambiguous,
+          supCount: files.size,
+        });
+      } catch (e) {
+        if (String(e && e.message) === 'sheet_fetch_failed') return json({ error: 'sheet_fetch_failed' }, 502);
+        return serverErr(e);
+      }
     }
 
     if (url.pathname === '/api/assistant' && request.method === 'POST') {
