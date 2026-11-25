@@ -25,6 +25,7 @@
         '<div id="quotaBar" style="height:100%;width:0%;background:linear-gradient(90deg,#22c55e,#f59e0b,#ef4444);transition:width .5s"></div></div>' +
         '<div class="sub" id="quotaUsed" style="text-align:center"></div>' +
         '<div class="sub" id="quotaReset" style="text-align:center;margin-top:8px"></div>' +
+        '<div id="quotaStorage" style="margin-top:12px;padding:10px;border:1px solid var(--bd,#33415c);border-radius:10px"></div>' +
         '<div class="sub" id="quotaNote" style="margin-top:10px;line-height:1.8"></div>' +
       '</div>';
     document.body.appendChild(wrap);
@@ -45,6 +46,21 @@
     const hh = Math.floor(ms / 3600000), mm = Math.ceil((ms % 3600000) / 60000);
     const resetCairo = resetAt.toLocaleTimeString('ar-EG', { timeZone: 'Africa/Cairo', hour: 'numeric', minute: '2-digit' });
     el('quotaReset').textContent = 'العداد بيتصفّر الساعة ' + resetCairo + ' بالقاهرة (١٢ منتصف الليل UTC) — فاضل ' + fmt(hh) + ' ساعة و ' + fmt(mm) + ' دقيقة';
+    // D1 storage footprint (Micheal 25 Nov): hiring images + auto-delete note.
+    const st = el('quotaStorage');
+    if (st) {
+      if (data.hiring) {
+        const mb = (Number(data.hiring.image_bytes || 0) / 1048576);
+        const limitMb = Number(data.hiring.d1_db_limit_bytes || 0) / 1048576;
+        const pct = limitMb ? Math.min(100, (mb / limitMb) * 100) : 0;
+        st.innerHTML = '<div style="font-weight:700;margin-bottom:4px">🗄️ تخزين قاعدة البيانات (D1)</div>' +
+          '<div class="sub">صور رفع الاستعلام المحفوظة دلوقتي: ' + fmt(data.hiring.images) + ' صورة (' + fmt(data.hiring.requests) + ' طلب إجمالي) ≈ ' + mb.toFixed(1) + ' ميجا من ' + fmt(limitMb) + ' ميجا (' + pct.toFixed(1) + '٪)</div>' +
+          '<div style="height:8px;border-radius:999px;background:var(--bg,#0f1626);border:1px solid var(--bd,#33415c);overflow:hidden;margin:6px 0"><div style="height:100%;width:' + pct.toFixed(2) + '%;background:#22c55e"></div></div>' +
+          '<div class="sub" style="color:#4ade80">♻️ صور أي طلب بتتمسح تلقائي أول ما يترفع على فورم الشركة بنجاح — البيانات والحالة بتفضل موجودة.</div>';
+      } else {
+        st.textContent = '';
+      }
+    }
     if (data.source === 'cloudflare') {
       el('quotaSource').innerHTML = '<span style="color:#4ade80;font-weight:700">✅ رقم حقيقي من Cloudflare لكل الحساب</span>';
       el('quotaNote').textContent = 'الرقم ده جاي مباشرة من كلاودفلير وبيشمل كل الطلبات على الحساب كله النهارده.';

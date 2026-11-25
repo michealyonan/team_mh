@@ -558,6 +558,10 @@ async function handleHiring(request, env, json, url) {
     const status = retry ? 'approved' : ((body && body.ok) ? 'submitted' : 'failed');
     const result = JSON.stringify({ error: String((body && body.error) || '').slice(0, 400), detail: String((body && body.detail) || '').slice(0, 900) });
     await env.DB.prepare('UPDATE hiring_requests SET status=?,result=?,updated=? WHERE id=?').bind(status, result, Date.now(), id).run();
+    // Micheal 25 Nov quota fix: images are only needed until the desktop app
+    // uploads them; once submitted they are the single biggest D1 consumer
+    // (~0.5MB base64 per request), so drop them and keep data/status/result.
+    if (status === 'submitted') await env.DB.prepare('DELETE FROM hiring_images WHERE request_id=?').bind(id).run();
     return json({ ok: true });
   }
 
@@ -1732,17 +1736,24 @@ export default {
         if (user.r !== 'admin') return json({ error: 'forbidden' }, 403);
         const reset = nextUtcMidnight();
         const day = utcDay();
+        // Hiring storage footprint (Micheal 25 Nov): images are the heavy rows.
+        let hiring = null;
+        try {
+          const img = await env.DB.prepare('SELECT COUNT(*) c, COALESCE(SUM(LENGTH(data)),0) b FROM hiring_images').first();
+          const req = await env.DB.prepare('SELECT COUNT(*) c FROM hiring_requests').first();
+          hiring = { requests: (req && req.c) || 0, images: (img && img.c) || 0, image_bytes: (img && img.b) || 0, d1_db_limit_bytes: 500 * 1024 * 1024 };
+        } catch (e) {}
         if (env.CF_API_TOKEN && env.CF_ACCOUNT_ID) {
           try {
             const used = await usageFromCloudflare(env);
-            return json({ ok: true, source: 'cloudflare', scope: 'account', limit: QUOTA_DAILY_LIMIT, used, remaining: Math.max(0, QUOTA_DAILY_LIMIT - used), day, reset_at: reset.toISOString() });
+            return json({ ok: true, source: 'cloudflare', scope: 'account', limit: QUOTA_DAILY_LIMIT, used, remaining: Math.max(0, QUOTA_DAILY_LIMIT - used), day, hiring, reset_at: reset.toISOString() });
           } catch (e) {
             const used = await usageEstimate(env);
-            return json({ ok: true, source: 'estimate', scope: 'worker', cloudflare_error: String(e && e.message || e).slice(0, 200), limit: QUOTA_DAILY_LIMIT, used, remaining: Math.max(0, QUOTA_DAILY_LIMIT - used), day, reset_at: reset.toISOString() });
+            return json({ ok: true, source: 'estimate', scope: 'worker', cloudflare_error: String(e && e.message || e).slice(0, 200), limit: QUOTA_DAILY_LIMIT, used, remaining: Math.max(0, QUOTA_DAILY_LIMIT - used), day, hiring, reset_at: reset.toISOString() });
           }
         }
         const used = await usageEstimate(env);
-        return json({ ok: true, source: 'estimate', scope: 'worker', limit: QUOTA_DAILY_LIMIT, used, remaining: Math.max(0, QUOTA_DAILY_LIMIT - used), day, reset_at: reset.toISOString() });
+        return json({ ok: true, source: 'estimate', scope: 'worker', limit: QUOTA_DAILY_LIMIT, used, remaining: Math.max(0, QUOTA_DAILY_LIMIT - used), day, hiring, reset_at: reset.toISOString() });
       } catch (e) {
         return serverErr(e);
       }
