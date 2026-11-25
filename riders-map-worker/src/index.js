@@ -102,6 +102,9 @@ async function ensureSchema(env) {
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS form_phone_jobs(id INTEGER PRIMARY KEY AUTOINCREMENT,u TEXT NOT NULL,job TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'pending',result TEXT NOT NULL DEFAULT '',ts INTEGER NOT NULL,updated INTEGER NOT NULL)`),
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS hiring_requests(id INTEGER PRIMARY KEY AUTOINCREMENT,u TEXT NOT NULL,payload TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'pending',result TEXT NOT NULL DEFAULT '',ts INTEGER NOT NULL,updated INTEGER NOT NULL)`),
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS hiring_images(request_id INTEGER NOT NULL,k TEXT NOT NULL,data TEXT NOT NULL,PRIMARY KEY(request_id,k))`),
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS legal_cases(id INTEGER PRIMARY KEY AUTOINCREMENT,rider_id TEXT NOT NULL,rider_name TEXT NOT NULL,national_id TEXT NOT NULL,amount TEXT NOT NULL,phone TEXT NOT NULL,phone2 TEXT NOT NULL DEFAULT '',city TEXT NOT NULL DEFAULT '',u TEXT NOT NULL,u_name TEXT NOT NULL DEFAULT '',status TEXT NOT NULL DEFAULT 'received',case_number TEXT NOT NULL DEFAULT '',settle_amount TEXT NOT NULL DEFAULT '',judgment_status TEXT NOT NULL DEFAULT '',judgment_detail TEXT NOT NULL DEFAULT '',judgment_amount TEXT NOT NULL DEFAULT '',created INTEGER NOT NULL,updated INTEGER NOT NULL)`),
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS legal_case_images(case_id INTEGER NOT NULL,k TEXT NOT NULL,data TEXT NOT NULL,PRIMARY KEY(case_id,k))`),
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS legal_case_history(id INTEGER PRIMARY KEY AUTOINCREMENT,case_id INTEGER NOT NULL,status TEXT NOT NULL,note TEXT NOT NULL DEFAULT '',by_u TEXT NOT NULL,by_name TEXT NOT NULL,ts INTEGER NOT NULL)`),
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS shift_commands(id INTEGER PRIMARY KEY AUTOINCREMENT,u TEXT NOT NULL,payload TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'pending',result TEXT NOT NULL DEFAULT '',ts INTEGER NOT NULL,updated INTEGER NOT NULL)`),
   ]);
   try { await env.DB.prepare("ALTER TABLE users ADD COLUMN photo TEXT NOT NULL DEFAULT ''").run(); } catch {}
@@ -767,6 +770,106 @@ async function handleAgentPoll(request, env, json, url) {
   return json({ job: { kind: 'hiring', id: r.id, u: r.u, payload: JSON.parse(r.payload), images } });
 }
 
+async function legalHistory(env, caseId, status, note, user) {
+  await env.DB.prepare('INSERT INTO legal_case_history(case_id,status,note,by_u,by_name,ts) VALUES(?,?,?,?,?,?)').bind(caseId, status, String(note || ''), user.u, user.n, Date.now()).run();
+}
+
+// شئون قانونية (Micheal 25 Nov): supervisors submit rider cases with a receipt photo;
+// the legal officer moves statuses; supervisors can only mark their own case as paid.
+// Receipt images live in D1 and are served owner-or-legal-or-admin only (never public).
+async function handleLegal(request, env, json, url) {
+  const p = url.pathname;
+  const user = await getSessionUser(env, request);
+  if (!user) return json({ error: 'unauthorized' }, 401);
+  if (tabBlockedFor(await getHiddenTabs(env), 'legal', user)) return json({ error: 'tab_hidden' }, 403);
+  const isLegal = user.r === 'legal' || user.r === 'admin';
+  const isSupSide = ['admin', 'manager', 'sup'].includes(user.r);
+  const now = Date.now();
+  const LIST_COLS = 'id,rider_id,rider_name,national_id,amount,phone,phone2,city,u,u_name,status,case_number,settle_amount,judgment_status,judgment_detail,judgment_amount,created,updated';
+
+  if (p === '/api/legal/submit' && request.method === 'POST') {
+    if (!isSupSide) return json({ error: 'forbidden' }, 403);
+    const wait = await rateLimit(env, 'legal:' + user.u, 10, 60 * 60 * 1000, 60 * 1000);
+    if (wait) return json({ error: 'locked', wait }, 429);
+    const body = await request.json().catch(() => null);
+    if (!body) return json({ error: 'missing_fields' }, 400);
+    const t = (v, n) => String(v || '').trim().slice(0, n);
+    const digits = (v, n) => String(v || '').replace(/[٠-٩]/g, (c) => '٠١٢٣٤٥٦٧٨٩'.indexOf(c)).replace(/\D/g, '').slice(0, n);
+    const riderId = digits(body.rider_id, 12);
+    const name = t(body.rider_name, 160);
+    const nid = digits(body.national_id, 14);
+    const amount = digits(body.amount, 9);
+    const phone = cleanContact.phone(body.phone || '');
+    const phone2 = cleanContact.phone(body.phone2 || '');
+    const city = t(body.city, 80);
+    if (!riderId || !name || nid.length !== 14 || !amount || !phone) return json({ error: 'missing_fields' }, 400);
+    const img = typeof body.receipt === 'string' ? body.receipt : '';
+    if (!/^data:image\/(jpeg|png|webp);base64,/.test(img) || img.length > 500000) return json({ error: 'bad_image' }, 400);
+    const ins = await env.DB.prepare("INSERT INTO legal_cases(rider_id,rider_name,national_id,amount,phone,phone2,city,u,u_name,status,created,updated) VALUES(?,?,?,?,?,?,?,?,?,'received',?,?)").bind(riderId, name, nid, amount, phone, phone2, city, user.u, user.n, now, now).run();
+    const cid = ins.meta.last_row_id;
+    await env.DB.prepare('INSERT INTO legal_case_images(case_id,k,data) VALUES(?,?,?)').bind(cid, 'receipt', img).run();
+    await legalHistory(env, cid, 'received', '', user);
+    return json({ ok: true, id: cid });
+  }
+
+  if (p === '/api/legal/list' && request.method === 'GET') {
+    let rows;
+    if (isLegal) rows = (await env.DB.prepare('SELECT ' + LIST_COLS + ' FROM legal_cases ORDER BY id DESC LIMIT 300').all()).results || [];
+    else if (isSupSide) rows = (await env.DB.prepare('SELECT ' + LIST_COLS + ' FROM legal_cases WHERE u=? ORDER BY id DESC LIMIT 300').bind(user.u).all()).results || [];
+    else return json({ error: 'forbidden' }, 403);
+    const st = String(url.searchParams.get('status') || '');
+    const q = String(url.searchParams.get('q') || '').replace(/\D/g, '').slice(0, 14);
+    if (st) rows = rows.filter((r) => r.status === st);
+    if (q) rows = rows.filter((r) => String(r.national_id).includes(q) || String(r.rider_id).includes(q));
+    return json({ cases: rows });
+  }
+
+  if (p === '/api/legal/item' && request.method === 'GET') {
+    const id = Number(url.searchParams.get('id') || 0);
+    const r = await env.DB.prepare('SELECT * FROM legal_cases WHERE id=?').bind(id).first();
+    if (!r) return json({ error: 'not_found' }, 404);
+    if (!isLegal && r.u !== user.u) return json({ error: 'forbidden' }, 403);
+    const imgs = await env.DB.prepare('SELECT k,data FROM legal_case_images WHERE case_id=?').bind(id).all();
+    const images = {};
+    for (const x of imgs.results || []) images[x.k] = x.data;
+    const hist = await env.DB.prepare('SELECT status,note,by_name,ts FROM legal_case_history WHERE case_id=? ORDER BY id').bind(id).all();
+    return json({ item: r, images, history: hist.results || [] });
+  }
+
+  if (p === '/api/legal/status' && request.method === 'POST') {
+    const body = await request.json().catch(() => null);
+    const id = Number((body && body.id) || 0);
+    const r = await env.DB.prepare('SELECT * FROM legal_cases WHERE id=?').bind(id).first();
+    if (!r) return json({ error: 'not_found' }, 404);
+    const st = String((body && body.status) || '');
+    if (!['received', 'paid', 'filed', 'judgment'].includes(st)) return json({ error: 'bad_status' }, 400);
+    if (isLegal) { /* the legal officer (or admin) moves any status */ }
+    else if (isSupSide && r.u === user.u && st === 'paid') { /* supervisor reports their own rider paid */ }
+    else return json({ error: 'forbidden' }, 403);
+    const tn = (v, n) => String(v || '').trim().slice(0, n);
+    const settle = isLegal && body.settle_amount !== undefined
+      ? String(body.settle_amount || '').replace(/[٠-٩]/g, (c) => '٠١٢٣٤٥٦٧٨٩'.indexOf(c)).replace(/\D/g, '').slice(0, 9)
+      : r.settle_amount;
+    await env.DB.prepare('UPDATE legal_cases SET status=?,case_number=?,settle_amount=?,judgment_status=?,judgment_detail=?,judgment_amount=?,updated=? WHERE id=?')
+      .bind(st, st === 'filed' ? tn(body.case_number, 60) : r.case_number, settle, st === 'judgment' ? tn(body.judgment_status, 120) : r.judgment_status,
+        st === 'judgment' ? tn(body.judgment_detail, 500) : r.judgment_detail, st === 'judgment' ? tn(body.judgment_amount, 30) : r.judgment_amount, Date.now(), id).run();
+    await legalHistory(env, id, st, tn(body && body.note, 300), user);
+    return json({ ok: true });
+  }
+
+  if (p === '/api/legal/delete' && request.method === 'POST') {
+    if (user.r !== 'admin') return json({ error: 'forbidden' }, 403);
+    const body = await request.json().catch(() => null);
+    const id = Number((body && body.id) || 0);
+    await env.DB.prepare('DELETE FROM legal_cases WHERE id=?').bind(id).run();
+    await env.DB.prepare('DELETE FROM legal_case_images WHERE case_id=?').bind(id).run();
+    await env.DB.prepare('DELETE FROM legal_case_history WHERE case_id=?').bind(id).run();
+    return json({ ok: true });
+  }
+
+  return null;
+}
+
 async function handleAuth(request, env, json, url) {
   const p = url.pathname;
   let body = request.method === 'POST' ? await request.json().catch(() => null) : null;
@@ -1029,7 +1132,7 @@ async function handleAuth(request, env, json, url) {
     if (p === '/api/auth/admin/users' && request.method === 'POST') {
       if (!body || !body.u || !body.r) return json({ error: 'missing_fields' }, 400);
       const u = String(body.u).toLowerCase().replace(/[^a-z0-9._-]/g, '').slice(0, 60);
-      const r = ['admin', 'manager', 'sup', 'monitor', 'viewer'].includes(body.r) ? body.r : 'sup';
+      const r = ['admin', 'manager', 'sup', 'monitor', 'viewer', 'legal'].includes(body.r) ? body.r : 'sup';
       const s = ['admin', 'monitor'].includes(r) ? '' : String(body.s || '').slice(0, 120);
       const n = String(body.n || u).slice(0, 120);
       if (!u) return json({ error: 'invalid_username' }, 400);
@@ -1112,7 +1215,7 @@ async function handleAuth(request, env, json, url) {
       const u = String(body.u).toLowerCase().slice(0, 60);
       const user = await env.DB.prepare("SELECT * FROM users WHERE u=? AND status='pending'").bind(u).first();
       if (!user) return json({ error: 'not_found' }, 404);
-      const r = ['admin', 'manager', 'sup', 'monitor', 'viewer'].includes(body.r) ? body.r : 'sup';
+      const r = ['admin', 'manager', 'sup', 'monitor', 'viewer', 'legal'].includes(body.r) ? body.r : 'sup';
       const s = ['admin', 'monitor', 'viewer'].includes(r) ? '' : String(body.s || '').slice(0, 120);
       if (!['admin', 'monitor', 'viewer'].includes(r) && !s) return json({ error: 'missing_fields' }, 400);
       await env.DB.prepare("UPDATE users SET r=?, s=?, status='active', updated_at=? WHERE u=?").bind(r, s, Date.now(), u).run();
@@ -1470,6 +1573,17 @@ export default {
       try {
         await ensureSchema(env);
         const handled = await handleHiring(request, env, json, url);
+        if (handled) return handled;
+      } catch (e) {
+        return serverErr(e);
+      }
+      return json({ error: 'not_found' }, 404);
+    }
+
+    if (url.pathname.startsWith('/api/legal/')) {
+      try {
+        await ensureSchema(env);
+        const handled = await handleLegal(request, env, json, url);
         if (handled) return handled;
       } catch (e) {
         return serverErr(e);
