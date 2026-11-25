@@ -1381,6 +1381,35 @@ export default {
     };
     const hub = env.RIDER_MAP_HUB.get(env.RIDER_MAP_HUB.idFromName('riders-global'));
 
+    // 25 Nov: desktop download hosted here (replaces public GitHub release links before repo goes private).
+    // The 126MB zip is chunked in /dl-chunks/ (assets limit is 25MiB/file) and streamed in order.
+    if (url.pathname === '/dl/desktop' && (request.method === 'GET' || request.method === 'HEAD')) {
+      const chunks = ['desktop-00.bin', 'desktop-01.bin', 'desktop-02.bin', 'desktop-03.bin', 'desktop-04.bin', 'desktop-05.bin', 'desktop-06.bin'];
+      const total = 126042999;
+      const dlHeaders = { ...SEC_HEADERS, 'Content-Type': 'application/zip', 'Content-Disposition': 'attachment; filename="team-mh-desktop-win-x64.zip"', 'Content-Length': String(total), 'Cache-Control': 'public, max-age=300' };
+      if (request.method === 'HEAD') return new Response(null, { headers: dlHeaders });
+      const { readable, writable } = new TransformStream();
+      const pump = (async () => {
+        const w = writable.getWriter();
+        try {
+          for (const c of chunks) {
+            const r = await env.ASSETS.fetch(new URL('/dl-chunks/' + c, url));
+            if (!r.ok || !r.body) throw new Error('chunk_missing:' + c);
+            const reader = r.body.getReader();
+            for (;;) { const read = await reader.read(); if (read.done) break; await w.write(read.value); }
+          }
+          await w.close();
+        } catch (e) { try { await w.abort(e); } catch (e2) {} }
+      })();
+      ctx.waitUntil(pump);
+      return new Response(readable, { headers: dlHeaders });
+    }
+
+    // convenience: the current APK already lives at /app.apk
+    if (url.pathname === '/dl/apk' && request.method === 'GET') {
+      return Response.redirect(new URL('/app.apk', url).toString(), 302);
+    }
+
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
 
     if (url.pathname.startsWith('/api/auth/')) {
