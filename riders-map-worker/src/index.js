@@ -165,6 +165,20 @@ async function rateLimit(env, key, max, windowMs, lockMs) {
   return 0;
 }
 
+// Admin-controlled per-tab visibility (Micheal 25 Nov): settings.hidden_tabs is
+// a JSON array of tab ids hidden from every non-admin role. The UI hides the
+// tab; this blocks the tab's own API namespaces too (chat, hiring). Tabs whose
+// data rides on the shared dashboard endpoints can't be blocked per-tab without
+// breaking the dashboard itself, so their enforcement is the UI gate.
+async function getHiddenTabs(env) {
+  try {
+    const row = await env.DB.prepare("SELECT v FROM settings WHERE k='hidden_tabs'").first();
+    const a = JSON.parse((row && row.v) || '[]');
+    return Array.isArray(a) ? a.map(String) : [];
+  } catch (e) { return []; }
+}
+function tabBlockedFor(hidden, tab, user) { return user && user.r !== 'admin' && hidden.indexOf(tab) >= 0; }
+
 async function getSessionUser(env, request) {
   const h = request.headers.get('Authorization') || '';
   const m = h.match(/^Bearer\s+([0-9a-f]{64})$/i);
@@ -316,6 +330,7 @@ async function handleChat(request, env, json, url) {
   const user = await getSessionUser(env, request);
   if (!user) return json({ error: 'unauthorized' }, 401);
   if (!CHAT_ROLES.includes(user.r)) return json({ error: 'forbidden' }, 403);
+  if (tabBlockedFor(await getHiddenTabs(env), 'chat', user)) return json({ error: 'tab_hidden' }, 403);
 
   if (p === '/api/chat/contacts' && request.method === 'GET') {
     const rows = await env.DB.prepare("SELECT u,n,r,s FROM users WHERE status='active' AND r IN ('admin','manager','sup') AND u<>? ORDER BY n").bind(user.u).all();
@@ -448,6 +463,7 @@ async function handleHiring(request, env, json, url) {
   const user = await getSessionUser(env, request);
   if (!user) return json({ error: 'unauthorized' }, 401);
   const isAdmin = user.r === 'admin';
+  if (tabBlockedFor(await getHiddenTabs(env), 'hiring', user)) return json({ error: 'tab_hidden' }, 403);
 
   if (p === '/api/hiring/submit' && request.method === 'POST') {
     if (!['admin', 'manager', 'sup'].includes(user.r)) return json({ error: 'forbidden' }, 403);
@@ -1360,6 +1376,25 @@ export default {
         return serverErr(e);
       }
       return json({ error: 'not_found' }, 404);
+    }
+
+    if (url.pathname === '/api/ui/tabs') {
+      try {
+        await ensureSchema(env);
+        const user = await getSessionUser(env, request);
+        if (!user) return json({ error: 'unauthorized' }, 401);
+        if (request.method === 'GET') return json({ hidden: await getHiddenTabs(env) });
+        if (request.method === 'POST') {
+          if (user.r !== 'admin') return json({ error: 'forbidden' }, 403);
+          const body = await request.json().catch(() => null);
+          const list = Array.isArray(body && body.hidden) ? body.hidden.map(x => String(x).slice(0, 40)).slice(0, 60) : [];
+          await env.DB.prepare("INSERT INTO settings(k,v) VALUES('hidden_tabs',?) ON CONFLICT(k) DO UPDATE SET v=excluded.v").bind(JSON.stringify(list)).run();
+          return json({ ok: true, hidden: list });
+        }
+        return json({ error: 'method_not_allowed' }, 405);
+      } catch (e) {
+        return serverErr(e);
+      }
     }
 
     if (url.pathname === '/api/notifications/test-seed' && request.method === 'POST') {

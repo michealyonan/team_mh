@@ -1206,6 +1206,9 @@ html[data-theme="light"] body{background:radial-gradient(ellipse at 8% 0%,#d6f4f
 
 <style id="responsive-control-polish">
 button,.btn,.chip,[role="button"]{-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.tab-eye{margin-inline-start:auto;cursor:pointer;font-size:13px;padding:2px 4px;border-radius:8px;flex:none}
+.tab-eye:hover{background:#ffffff22}
+.tab-hidden-admin{opacity:.5}
 .btn,.chip{transition:background-color .12s ease,border-color .12s ease,box-shadow .12s ease;position:relative}
 .btn:active:not(:disabled),.chip:active:not(:disabled),.tap-feedback:not(:disabled){background-color:#254967!important;border-color:#67c9f1!important;box-shadow:inset 0 0 0 1px #67c9f155}
 .btn:disabled,.chip:disabled{cursor:not-allowed}
@@ -3480,6 +3483,39 @@ function saveU(a){gstat()}
 function gstat(){const e=$('gst');if(e)e.textContent='✅ كل التعديلات بتتحفظ على السيرفر مباشرة وتتطبق على كل الأجهزة فورًا'}
 function scope(rows){if(!CUR||CUR.r==='admin')return rows;if(CUR.r==='monitor')return[];const k=CUR.r==='manager'?'m':'s',userName=nameMatchKey(CUR.s);return rows.filter(r=>nameMatchKey(r[k])===userName)}
 
+/* 👁 إخفاء الأقسام عن المشرفين ومديري المناطق (Micheal 25 Nov): كل قسم فيه
+   علامة عين للأدمن بس — ضغطة تخفي/تظهر القسم عن كل الأدوار غير الأدمن.
+   القايمة متخزنة على السيرفر (settings.hidden_tabs) والسيرفر نفسه بيرفض
+   طلبات API بتاعة الأقسام المخفية (الشات + رفع الاستعلام) لغير الأدمن. */
+const TAB_DEFS=[['hiring',['hiringNavB','hiringB']],['shiftcmd',['shcB']],['chat',['chatB']],['riderDetails',['riderDetailsB']],['riderMap',['riderMapB']],['live',['liveB']],['booking',['bookingDashboardB']],['extend',['extB']],['manualAction',['manualActionB']],['brk',['brkB']],['reports',['reportsB']],['prices',['prB']],['pay',['payB']],['target',['tgB']],['headcount',['hcB']],['company',['dedB']],['queries',['queriesB']],['whatsapp',['waB']],['users',['usrB']],['loginAudit',['loginAuditB']],['quota',['quotaB']],['theme',['themeB']]];
+let HIDDEN_TABS=[];
+async function loadHiddenTabs(){try{const d=await api('/api/ui/tabs');HIDDEN_TABS=Array.isArray(d.hidden)?d.hidden:[]}catch(e){HIDDEN_TABS=[]}}
+function applyHiddenTabs(){
+  const adm=!!CUR&&CUR.r==='admin';
+  for(const [tab,ids] of TAB_DEFS){
+    const hidden=HIDDEN_TABS.includes(tab);
+    for(const id of ids){
+      const b=$(id);if(!b)continue;
+      if(!adm&&hidden)b.style.display='none';
+      b.classList.toggle('tab-hidden-admin',adm&&hidden);
+      let eye=b.querySelector('.tab-eye');
+      if(adm&&!eye){
+        eye=document.createElement('span');eye.className='tab-eye';eye.textContent='👁';
+        eye.title='إخفاء/إظهار القسم للمشرفين ومديري المناطق';
+        eye.onclick=(ev)=>{ev.stopPropagation();toggleTabHidden(tab)};
+        b.appendChild(eye);
+      }else if(!adm&&eye){eye.remove();eye=null}
+      if(eye)eye.style.opacity=hidden?'.35':'1';
+    }
+  }
+}
+async function toggleTabHidden(tab){
+  const i=HIDDEN_TABS.indexOf(tab);
+  if(i>=0)HIDDEN_TABS.splice(i,1);else HIDDEN_TABS.push(tab);
+  applyHiddenTabs();
+  try{await api('/api/ui/tabs',{method:'POST',body:{hidden:HIDDEN_TABS}})}catch(e){alert('تعذّر حفظ الإخفاء: '+authErr(e));await loadHiddenTabs();applyHiddenTabs()}
+}
+
 const REMEMBER_LOGIN_KEY='pd_remember_login',REMEMBER_LOGIN_MS=7*24*60*60*1000;async function enter(x,remember){CUR=x;updateLiveRoleControls(x);const monitor=x.r==='monitor';document.querySelector('main').style.display=monitor?'none':'';$('navMenuToggle').style.display=monitor?'none':'';document.querySelectorAll('.nav-drawer-links>button').forEach(button=>button.style.display=monitor?'none':'');if(monitor){$('liveB').style.display='';$('liveClose').style.display='none';openLivePanel()}else $('liveClose').style.display='';try{if(remember===true)localStorage.setItem(REMEMBER_LOGIN_KEY,JSON.stringify({t:x.token||'',expires:Date.now()+REMEMBER_LOGIN_MS}));else if(remember===false)localStorage.removeItem(REMEMBER_LOGIN_KEY);sessionStorage.setItem('pd_token',x.token||'')}catch(e){}idleReset();startNotifLoop(monitor);initAndroidBridge();mkSetup(x);if(!monitor){captureGeo();if(!x.has_email||!x.has_phone){const nk='pd_contact_nudged_'+(x.u||'');let seen=false;try{seen=!!localStorage.getItem(nk)}catch(e){}if(!seen){try{localStorage.setItem(nk,'1')}catch(e){}openProfile();setTimeout(()=>{const e=$("pfErr");if(e){e.style.color="#fbbf24";e.textContent="📇 كمّل الجيميل ورقم الواتساب من هنا - مرة واحدة، وأي تعديل بعد كده من الملف الشخصي"}},400)}}}logDashboardOpen(x);
   const canViewSupervisorCharts=['admin','manager'].includes(x.r);
   $('supervisorPerformanceCard').style.display=canViewSupervisorCharts?'':'none';
@@ -3488,7 +3524,7 @@ const REMEMBER_LOGIN_KEY='pd_remember_login',REMEMBER_LOGIN_MS=7*24*60*60*1000;a
   $('riderRatingsCard').style.display=x.r==='sup'?'none':'';
   $('dailyHistoryCard').style.display=x.r==='sup'?'none':'';
   $('vehicleChartCard').style.display=x.r==='sup'?'none':'';
-  $('lg').style.display='none';$('who').textContent='👤 '+x.n+' · '+ROLE[x.r]+(x.r==='admin'&&!LOGIN_AUDIT_ENDPOINT?' · ⚠️ سجل الدخول المركزي غير مفعّل':'');$('usrB').style.display=x.r==='admin'?'':'none';$('loginAuditB').style.display=x.r==='admin'?'':'none';$('chatB').style.display=['admin','manager','sup'].includes(x.r)?'':'none';if(['admin','manager','sup'].includes(x.r)){if(!CHAT_BADGE_TIMER)CHAT_BADGE_TIMER=setInterval(refreshChatBadge,30000);setTimeout(refreshChatBadge,3000)}$('quotaB').style.display=x.r==='admin'?'':'none';$('themeB').style.display=x.r==='admin'?'':'none';$('tgB').style.display=x.r==='admin'?'':'none';$('supCaptureAll').style.display=x.r==='admin'?'':'none';$('zoneCaptureAll').style.display=['admin','manager'].includes(x.r)?'':'none';$('zoneCaptureAll').textContent=x.r==='manager'?'🗺️📸 تنزيل صور مناطقي':'🗺️📸 تنزيل صور كل المناطق';$('hcB').style.display=hcCanAccess(x)?'':'none';$('dedB').style.display=['admin','manager','sup'].includes(x.r)?'':'none';$('bookingDashboardB').style.display=bookingCanAccessDashboard(x)?'':'none';$('extB').style.display=(SITE_FORM_ACTIONS&&(FORM_ACTIONS_ADMIN_ONLY?x.r==='admin':['admin','manager','sup'].includes(x.r)))?'':'none';$('brkB').style.display=$('extB').style.display;$('manualActionB').style.display=$('extB').style.display;bookingApplyRoleAccess(x);$('payB').style.display=['admin','manager','sup'].includes(x.r)?'':'none';$('payB').classList.toggle('pay-access',['admin','manager','sup'].includes(x.r));$('prB').style.display=monitor?'none':'';$('profileB').style.display=monitor?'none':'';$('waB').style.display=['admin','manager','sup'].includes(x.r)?'':'none';$('queriesB').style.display=monitor?'none':'';$('hiringB').style.display=(!monitor&&['admin','manager','sup'].includes(x.r))?'':'none';$('hiringNavB').style.display=$('hiringB').style.display;$('shcB').style.display=x.r==='admin'?'':'none';$('reportsB').style.display=monitor?'none':'';$('riderDetailsB').style.display=monitor?'none':'';$('riderMapB').style.display=['admin','sup'].includes(x.r)?'':'none';if(x.r==='viewer'){syncNavGroups();await initViewer(x)}else syncNavGroups();load()}
+  $('lg').style.display='none';$('who').textContent='👤 '+x.n+' · '+ROLE[x.r]+(x.r==='admin'&&!LOGIN_AUDIT_ENDPOINT?' · ⚠️ سجل الدخول المركزي غير مفعّل':'');$('usrB').style.display=x.r==='admin'?'':'none';$('loginAuditB').style.display=x.r==='admin'?'':'none';$('chatB').style.display=['admin','manager','sup'].includes(x.r)?'':'none';if(['admin','manager','sup'].includes(x.r)){if(!CHAT_BADGE_TIMER)CHAT_BADGE_TIMER=setInterval(refreshChatBadge,30000);setTimeout(refreshChatBadge,3000)}$('quotaB').style.display=x.r==='admin'?'':'none';$('themeB').style.display=x.r==='admin'?'':'none';$('tgB').style.display=x.r==='admin'?'':'none';$('supCaptureAll').style.display=x.r==='admin'?'':'none';$('zoneCaptureAll').style.display=['admin','manager'].includes(x.r)?'':'none';$('zoneCaptureAll').textContent=x.r==='manager'?'🗺️📸 تنزيل صور مناطقي':'🗺️📸 تنزيل صور كل المناطق';$('hcB').style.display=hcCanAccess(x)?'':'none';$('dedB').style.display=['admin','manager','sup'].includes(x.r)?'':'none';$('bookingDashboardB').style.display=bookingCanAccessDashboard(x)?'':'none';$('extB').style.display=(SITE_FORM_ACTIONS&&(FORM_ACTIONS_ADMIN_ONLY?x.r==='admin':['admin','manager','sup'].includes(x.r)))?'':'none';$('brkB').style.display=$('extB').style.display;$('manualActionB').style.display=$('extB').style.display;bookingApplyRoleAccess(x);$('payB').style.display=['admin','manager','sup'].includes(x.r)?'':'none';$('payB').classList.toggle('pay-access',['admin','manager','sup'].includes(x.r));$('prB').style.display=monitor?'none':'';$('profileB').style.display=monitor?'none':'';$('waB').style.display=['admin','manager','sup'].includes(x.r)?'':'none';$('queriesB').style.display=monitor?'none':'';$('hiringB').style.display=(!monitor&&['admin','manager','sup'].includes(x.r))?'':'none';$('hiringNavB').style.display=$('hiringB').style.display;$('shcB').style.display=x.r==='admin'?'':'none';$('reportsB').style.display=monitor?'none':'';$('riderDetailsB').style.display=monitor?'none':'';$('riderMapB').style.display=['admin','sup'].includes(x.r)?'':'none';if(x.r==='viewer'){syncNavGroups();await initViewer(x)}else syncNavGroups();await loadHiddenTabs();applyHiddenTabs();load()}
 let USERS=USERS_EMBED.concat(MONITOR_USERS_EMBED),DRAFT=null,VAULT=PW_EMBED;
 async function loadUsers(){}
 const LOGIN_THEMES=[
