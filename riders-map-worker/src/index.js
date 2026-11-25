@@ -1133,7 +1133,7 @@ async function handleAuth(request, env, json, url) {
       if (!body || !body.u || !body.r) return json({ error: 'missing_fields' }, 400);
       const u = String(body.u).toLowerCase().replace(/[^a-z0-9._-]/g, '').slice(0, 60);
       const r = ['admin', 'manager', 'sup', 'monitor', 'viewer', 'legal'].includes(body.r) ? body.r : 'sup';
-      const s = ['admin', 'monitor'].includes(r) ? '' : String(body.s || '').slice(0, 120);
+      const s = ['admin', 'monitor', 'legal'].includes(r) ? '' : String(body.s || '').slice(0, 120);
       const n = String(body.n || u).slice(0, 120);
       if (!u) return json({ error: 'invalid_username' }, 400);
       const rename = body.rename ? String(body.rename).toLowerCase() : null;
@@ -1216,8 +1216,8 @@ async function handleAuth(request, env, json, url) {
       const user = await env.DB.prepare("SELECT * FROM users WHERE u=? AND status='pending'").bind(u).first();
       if (!user) return json({ error: 'not_found' }, 404);
       const r = ['admin', 'manager', 'sup', 'monitor', 'viewer', 'legal'].includes(body.r) ? body.r : 'sup';
-      const s = ['admin', 'monitor', 'viewer'].includes(r) ? '' : String(body.s || '').slice(0, 120);
-      if (!['admin', 'monitor', 'viewer'].includes(r) && !s) return json({ error: 'missing_fields' }, 400);
+      const s = ['admin', 'monitor', 'viewer', 'legal'].includes(r) ? '' : String(body.s || '').slice(0, 120);
+      if (!['admin', 'monitor', 'viewer', 'legal'].includes(r) && !s) return json({ error: 'missing_fields' }, 400);
       await env.DB.prepare("UPDATE users SET r=?, s=?, status='active', updated_at=? WHERE u=?").bind(r, s, Date.now(), u).run();
       if (user.email) {
         await sendMail(env, user.email, 'تمت الموافقة على حسابك ✅',

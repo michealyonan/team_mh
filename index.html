@@ -3751,7 +3751,7 @@ function comboOnChange(id,fn){const st=COMBO[id];if(st)st.onchange=fn}
 function zOf(k,nm){return [...new Set(ALL.filter(r=>r[k]===nm).map(r=>r.z).filter(Boolean))]}
 function sc(){
   comboify('nz','كل المناطق');comboify('ns','اختر المشرف');comboOnChange('nz',sc);
-  const r=$('nr').value,k=r==='manager'?'m':'s',na=['admin','monitor','viewer'].includes(r),zs=uniq('z',ALL);
+  const r=$('nr').value,k=r==='manager'?'m':'s',na=['admin','monitor','viewer','legal'].includes(r),zs=uniq('z',ALL);
   $('nz_wrap').style.display=na?'none':'';$('ns_wrap').style.display=na?'none':'';
   comboSet('nz',[{v:'',l:'كل المناطق'}].concat(zs.map(x=>({v:x,l:x}))),'كل المناطق');
   const prev=comboGet('ns'),zone=comboGet('nz');
@@ -3784,7 +3784,7 @@ async function regReject(u){const x=regFind(u);if(!confirm('رفض وحذف طل
 let APR_U=null;
 function aprSc(){
   comboify('aprZ','كل المناطق');comboify('aprS','اختر المشرف');comboOnChange('aprZ',aprSc);
-  const r=$('aprR').value,k=r==='manager'?'m':'s',na=['admin','monitor','viewer'].includes(r),zs=uniq('z',ALL);
+  const r=$('aprR').value,k=r==='manager'?'m':'s',na=['admin','monitor','viewer','legal'].includes(r),zs=uniq('z',ALL);
   $('aprZ_wrap').style.display=na?'none':'';$('aprS_wrap').style.display=na?'none':'';
   comboSet('aprZ',[{v:'',l:'كل المناطق'}].concat(zs.map(x=>({v:x,l:x}))),'كل المناطق');
   const prev=comboGet('aprS'),zone=comboGet('aprZ');
@@ -3801,8 +3801,8 @@ function aprOpen(u){if(!CUR||CUR.r!=='admin')return;const x=regFind(u);APR_U=u;
   $('aprR').value='sup';$('aprZ').value='';aprSc();
   $('aprModal').style.display='block'}
 $('aprR').onchange=()=>{comboSetValue('aprZ','');comboSetValue('aprS','');aprSc()};comboOnChange('aprZ',aprSc);
-$('aprGo').onclick=async()=>{if(!APR_U)return;const u2=APR_U,r=$('aprR').value,s=['admin','monitor','viewer'].includes(r)?'':$('aprS').value;
-  if(!['admin','monitor','viewer'].includes(r)&&!s)return alert(r==='manager'?'اختار مدير المنطقة من القايمة الأول':'اختار المشرف من القايمة الأول');
+$('aprGo').onclick=async()=>{if(!APR_U)return;const u2=APR_U,r=$('aprR').value,s=['admin','monitor','viewer','legal'].includes(r)?'':$('aprS').value;
+  if(!['admin','monitor','viewer','legal'].includes(r)&&!s)return alert(r==='manager'?'اختار مدير المنطقة من القايمة الأول':'اختار المشرف من القايمة الأول');
   const b=$('aprGo');b.disabled=true;
   try{await api('/api/auth/admin/registrations/approve',{method:'POST',body:{u:u2,r,s}});$('aprModal').style.display='none';APR_U=null;alert('اتفعّل الحساب ✅');await renderRegs();await refreshUsers();ru();
     if(r==='viewer'){const vi=getU().findIndex(y=>y.u.toLowerCase()===u2);if(vi>=0)vwA(vi)}
@@ -3810,9 +3810,9 @@ $('aprGo').onclick=async()=>{if(!APR_U)return;const u2=APR_U,r=$('aprR').value,s
 $('usrB').onclick=async()=>{if(!CUR||CUR.r!=='admin')return;$('um').style.display='block';await refreshUsers();sc();ru();renderRecoveries();renderRegs()};
 $('nr').onchange=()=>{comboSetValue('nz','');comboSetValue('ns','');sc()};comboOnChange('nz',sc);$('us').oninput=ru;
 let EDITING_USER=null;
-$('na').onclick=async()=>{if(!CUR||CUR.r!=='admin')return;const u=$('nu').value.trim().toLowerCase(),p0=$('np').value,r=$('nr').value,s=['admin','monitor','viewer'].includes(r)?'':$('ns').value,n=$('nn').value.trim()||u;
+$('na').onclick=async()=>{if(!CUR||CUR.r!=='admin')return;const u=$('nu').value.trim().toLowerCase(),p0=$('np').value,r=$('nr').value,s=['admin','monitor','viewer','legal'].includes(r)?'':$('ns').value,n=$('nn').value.trim()||u;
   if(!u)return alert('اكتب اسم المستخدم');
-  if(!['admin','monitor','viewer'].includes(r)&&!s)return alert(r==='manager'?'اختار مدير المنطقة من القايمة الأول':'اختار المشرف من القايمة الأول');
+  if(!['admin','monitor','viewer','legal'].includes(r)&&!s)return alert(r==='manager'?'اختار مدير المنطقة من القايمة الأول':'اختار المشرف من القايمة الأول');
   const a=getU(),i=EDITING_USER?a.findIndex(y=>y.u.toLowerCase()===EDITING_USER):a.findIndex(y=>y.u.toLowerCase()===u);
   if(EDITING_USER&&i<0)return alert('الحساب الجاري تعديله لم يعد موجودًا. حدّث القائمة وحاول مرة أخرى.');
   if(a.some((y,j)=>j!==i&&y.u.toLowerCase()===u))return alert('اسم المستخدم مستخدم بالفعل.');
