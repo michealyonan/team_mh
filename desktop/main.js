@@ -13,7 +13,7 @@ try { ({ autoUpdater } = require('electron-updater')); } catch (e) { console.log
 const { getBrowser, firstPage, peekBrowser, launchPlain, launchPlainForSignin, adoptBrowser, dropBrowser } = require('./chromeproc');
 const { runFormWalk, runHiringWalk, clickX, pageMarker, confirmState } = require('./chromewalk');
 
-const VERSION = '0.3.24';
+const VERSION = '0.3.25';
 // Proof image for فتح شيفت uploads: Micheal's OWN fixed image when present
 // (userData/proof.*, seeded from a bundled proof.* on first run), else the
 // app-generated black PNG fallback (24 Nov).
@@ -708,7 +708,7 @@ async function hiringTick() {
     const tok = await getToken();
     if (!tok) return;
     let d;
-    try { d = await api('/api/hiring/poll'); } catch (e) { return; }
+    try { d = await api('/api/hiring/poll?v=' + encodeURIComponent(VERSION)); } catch (e) { return; }
     if (!d || !d.job) return;
     const job = d.job; jobId = job.id;
     const cfg = FORMS.hiring;

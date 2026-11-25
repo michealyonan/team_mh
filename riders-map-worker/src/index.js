@@ -474,10 +474,15 @@ async function handleHiring(request, env, json, url) {
   }
 
   if (p === '/api/hiring/list' && request.method === 'GET') {
+    // Desktop heartbeat for the list header (Micheal 25 Nov): "app last seen
+    // X ago, version Y" so a queued request is explainable at a glance.
+    const agentRow = await env.DB.prepare("SELECT v FROM settings WHERE k='hiring_agent'").first();
+    let agent = null;
+    try { agent = agentRow ? JSON.parse(agentRow.v) : null; } catch (e) {}
     const rows = isAdmin
       ? await env.DB.prepare('SELECT id,u,payload,status,result,ts,updated FROM hiring_requests ORDER BY id DESC LIMIT 200').all()
       : await env.DB.prepare('SELECT id,u,payload,status,result,ts,updated FROM hiring_requests WHERE u=? ORDER BY id DESC LIMIT 100').bind(user.u).all();
-    return json({ items: (rows.results || []).map((r) => ({ id: r.id, u: r.u, payload: JSON.parse(r.payload), status: r.status, result: r.result, ts: r.ts, updated: r.updated })) });
+    return json({ agent, items: (rows.results || []).map((r) => ({ id: r.id, u: r.u, payload: JSON.parse(r.payload), status: r.status, result: r.result, ts: r.ts, updated: r.updated })) });
   }
 
   if (p === '/api/hiring/item' && request.method === 'GET') {
@@ -516,7 +521,12 @@ async function handleHiring(request, env, json, url) {
   if (p === '/api/hiring/poll' && request.method === 'GET') {
     if (!isAdmin) return json({ error: 'forbidden' }, 403);
     const now = Date.now();
-    await env.DB.prepare("UPDATE hiring_requests SET status='approved',updated=? WHERE status='claimed' AND updated<?").bind(now, now - 10 * 60 * 1000).run();
+    // Heartbeat: the desktop reports its version on every poll.
+    const pv = (url.searchParams.get('v') || '').slice(0, 20);
+    await env.DB.prepare("INSERT INTO settings(k,v) VALUES('hiring_agent',?) ON CONFLICT(k) DO UPDATE SET v=excluded.v").bind(JSON.stringify({ ts: now, v: pv })).run();
+    // A claim lease expires after 6 minutes: the walk watchdog kills any run at
+    // 5, so a claim older than 6 min belongs to a crashed/closed app (was 10).
+    await env.DB.prepare("UPDATE hiring_requests SET status='approved',updated=? WHERE status='claimed' AND updated<?").bind(now, now - 6 * 60 * 1000).run();
     const r = await env.DB.prepare("SELECT * FROM hiring_requests WHERE status='approved' ORDER BY id LIMIT 1").first();
     if (!r) return json({ job: null });
     await env.DB.prepare("UPDATE hiring_requests SET status='claimed',updated=? WHERE id=? AND status='approved'").bind(now, r.id).run();

@@ -1831,7 +1831,7 @@ header{box-shadow:0 8px 24px rgba(2,8,23,.5)}
 <div id="hErr" role="alert" style="color:#f87171;font-size:13px;margin-top:6px"></div>
 <button class="btn pr" id="hSubmit" style="width:100%;min-height:46px;margin-top:8px">⬆ رفع الطلب</button>
 </div>
-<div id="hListWrap" style="display:none"><input id="hSearch" placeholder="🔍 بحث بالرقم القومي أو اسم الطيار" inputmode="search" style="width:100%;margin:4px 0 8px" oninput="renderHiringList()"><div id="hList"><div class="sub">جاري التحميل…</div></div></div>
+<div id="hListWrap" style="display:none"><div id="hAgentState" class="sub" style="margin:2px 0 6px"></div><input id="hSearch" placeholder="🔍 بحث بالرقم القومي أو اسم الطيار" inputmode="search" style="width:100%;margin:4px 0 8px" oninput="renderHiringList()"><div id="hList"><div class="sub">جاري التحميل…</div></div></div>
 <input type="file" id="hfFile" accept="image/*" style="display:none">
 <div id="hZoom" style="display:none;position:fixed;inset:0;background:#000e;z-index:90;align-items:center;justify-content:center;cursor:zoom-out" onclick="this.style.display='none'"><img id="hZoomImg" alt="" style="max-width:96vw;max-height:92vh;border-radius:10px"></div>
 </div></div>
@@ -7076,11 +7076,20 @@ $('hSubmit').onclick=async()=>{
 };
 async function loadHiringList(silent){
  if(!CUR)return;
- try{const d=await api('/api/hiring/list');HIRING_LIST=d.items||[]}catch(e){HIRING_LIST=[]}
+ try{const d=await api('/api/hiring/list');HIRING_LIST=d.items||[];hAgentState(d.agent)}catch(e){HIRING_LIST=[]}
  const pend=HIRING_LIST.filter(x=>x.status==='pending').length;
  $('hPendCount').textContent=(CUR.r==='admin'&&pend)?('('+NF(pend)+' ⏳)'):'';
  if(silent&&$('hListWrap').style.display==='none')return;
  renderHiringList();
+}
+function hAgentState(a){
+ const el=$('hAgentState');if(!el)return;
+ if(!a||!a.ts){el.textContent='🖥 تطبيق اللابتوب: مفيش اتصال لسه';el.style.color='#f87171';return}
+ const s=Math.max(0,Math.round((Date.now()-a.ts)/1000));
+ const ago=s<90?('منذ '+NF(s)+' ثانية'):('منذ '+NF(Math.round(s/60))+' دقيقة');
+ const on=s<90;
+ el.textContent=on?('🖥 تطبيق اللابتوب: متصل ('+ago+(a.v?(' · v'+a.v):'')+')'):('🖥 تطبيق اللابتوب: غير متصل ('+ago+(a.v?(' · آخر نسخة v'+a.v):'')+')');
+ el.style.color=on?'#22c55e':'#f87171';
 }
 function hName(u){const x=(USERS||[]).find(y=>y.u===u);return x?x.n:u}
 function renderHiringList(){
