@@ -12,6 +12,30 @@ async function sha256hex(s) {
 }
 // legacy password hash scheme (kept so existing passwords keep working)
 const hp = (u, p) => sha256hex(String(u).toLowerCase() + ':' + p + ':pd1');
+// 25 Nov security pass: PBKDF2 password hashing. New/reset passwords get pb2$ format;
+// legacy pd1 hashes still verify and upgrade to pb2 on successful login (no lockouts).
+const PB_ITER = 100000;
+const bytesToHex = (b) => [...new Uint8Array(b)].map((x) => x.toString(16).padStart(2, '0')).join('');
+const hexToBytes = (h) => new Uint8Array((String(h).match(/../g) || []).map((x) => parseInt(x, 16)));
+async function pbkdf(u, p, salt, iter) {
+  const key = await crypto.subtle.importKey('raw', te.encode(String(u).toLowerCase() + ':' + p), 'PBKDF2', false, ['deriveBits']);
+  const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt, iterations: iter }, key, 256);
+  return bytesToHex(bits);
+}
+const hp2new = async (u, p) => {
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  return 'pb2$' + PB_ITER + '$' + bytesToHex(salt) + '$' + (await pbkdf(u, p, salt, PB_ITER));
+};
+async function verifyUserPassword(env, u, stored, p) {
+  const s = String(stored || '');
+  if (s.startsWith('pb2$')) {
+    const parts = s.split('$');
+    return safeEqual(parts[3] || '', await pbkdf(u, p, hexToBytes(parts[2] || ''), Number(parts[1]) || PB_ITER));
+  }
+  if (!safeEqual(s, await hp(u, p))) return false;
+  try { await env.DB.prepare('UPDATE users SET h=? WHERE u=?').bind(await hp2new(u, p), u).run(); } catch (e) {}
+  return true;
+}
 const randHex = (n) => [...crypto.getRandomValues(new Uint8Array(n))].map((x) => x.toString(16).padStart(2, '0')).join('');
 const randCode = (digits) => {
   let s = '';
@@ -736,11 +760,15 @@ async function handleAuth(request, env, json, url) {
     const u = String(body.u).toLowerCase().slice(0, 60);
     const wait = await rateLimit(env, 'login:' + u, 8, 10 * 60 * 1000, 60 * 1000);
     if (wait) return json({ error: 'locked', wait }, 429);
+    // 25 Nov security pass: per-IP cap slows password spraying across many usernames.
+    const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+    const waitIp = await rateLimit(env, 'loginip:' + ip, 30, 10 * 60 * 1000, 60 * 1000);
+    if (waitIp) return json({ error: 'locked', wait: waitIp }, 429);
     const user = await env.DB.prepare('SELECT * FROM users WHERE u=?').bind(u).first();
     if (!user || user.status === 'disabled') return json({ error: 'invalid_credentials' }, 401);
     if (user.status === 'pending') return json({ error: 'pending_approval' }, 403);
     if (user.status === 'suspended') return json({ error: 'suspended' }, 403);
-    if (!safeEqual(user.h, await hp(u, String(body.p)))) {
+    if (!await verifyUserPassword(env, u, user.h, String(body.p))) {
       await env.DB.prepare('INSERT INTO login_fails(u,n) VALUES(?,1) ON CONFLICT(u) DO UPDATE SET n=n+1').bind(u).run();
       const f = await env.DB.prepare('SELECT n FROM login_fails WHERE u=?').bind(u).first();
       if (f && f.n >= 5) {
@@ -777,7 +805,7 @@ async function handleAuth(request, env, json, url) {
     const existing = await env.DB.prepare('SELECT u, status FROM users WHERE u=?').bind(u).first();
     if (existing) return json({ error: existing.status === 'pending' ? 'already_pending' : 'username_taken' }, 409);
     await env.DB.prepare("INSERT INTO users(u,n,r,s,h,email,phone,channel,status,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,'pending',?,?)")
-      .bind(u, n, 'sup', '', await hp(u, pw), email, phone, channel, Date.now(), Date.now()).run();
+      .bind(u, n, 'sup', '', await hp2new(u, pw), email, phone, channel, Date.now(), Date.now()).run();
     return json({ ok: true });
   }
 
@@ -873,7 +901,7 @@ async function handleAuth(request, env, json, url) {
     if (p2.length < 4) return json({ error: 'weak_password' }, 400);
     const chk = await verifyCode(env, u, 'reset', body.code);
     if (chk !== 'ok') return json({ error: chk === 'expired' ? 'code_expired' : 'invalid_code' }, 401);
-    await env.DB.prepare('UPDATE users SET h=?, updated_at=? WHERE u=?').bind(await hp(u, p2), Date.now(), u).run();
+    await env.DB.prepare('UPDATE users SET h=?, updated_at=? WHERE u=?').bind(await hp2new(u, p2), Date.now(), u).run();
     await env.DB.prepare('DELETE FROM sessions WHERE u=?').bind(u).run();
     return json({ ok: true });
   }
@@ -990,23 +1018,23 @@ async function handleAuth(request, env, json, url) {
           if (!body.p) return json({ error: 'password_required_for_rename' }, 400);
           if (existing) return json({ error: 'username_taken' }, 409);
           await env.DB.prepare('UPDATE users SET u=?, n=?, r=?, s=?, h=?, updated_at=? WHERE u=?')
-            .bind(u, n, r, s, await hp(u, String(body.p)), Date.now(), rename).run();
+            .bind(u, n, r, s, await hp2new(u, String(body.p)), Date.now(), rename).run();
           await env.DB.prepare('UPDATE sessions SET u=? WHERE u=?').bind(u, rename).run();
           return json({ ok: true });
         }
         if (!existing) return json({ error: 'not_found' }, 404);
-        if (body.p) await env.DB.prepare('UPDATE users SET n=?, r=?, s=?, h=?, updated_at=? WHERE u=?').bind(n, r, s, await hp(u, String(body.p)), Date.now(), u).run();
+        if (body.p) await env.DB.prepare('UPDATE users SET n=?, r=?, s=?, h=?, updated_at=? WHERE u=?').bind(n, r, s, await hp2new(u, String(body.p)), Date.now(), u).run();
         else await env.DB.prepare('UPDATE users SET n=?, r=?, s=?, updated_at=? WHERE u=?').bind(n, r, s, Date.now(), u).run();
         return json({ ok: true });
       }
       if (existing) {
-        if (body.p) await env.DB.prepare('UPDATE users SET n=?, r=?, s=?, h=?, updated_at=? WHERE u=?').bind(n, r, s, await hp(u, String(body.p)), Date.now(), u).run();
+        if (body.p) await env.DB.prepare('UPDATE users SET n=?, r=?, s=?, h=?, updated_at=? WHERE u=?').bind(n, r, s, await hp2new(u, String(body.p)), Date.now(), u).run();
         else await env.DB.prepare('UPDATE users SET n=?, r=?, s=?, updated_at=? WHERE u=?').bind(n, r, s, Date.now(), u).run();
         return json({ ok: true });
       }
       const p2 = body.p ? String(body.p) : randPassword();
       await env.DB.prepare('INSERT INTO users(u,n,r,s,h,status,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)')
-        .bind(u, n, r, s, await hp(u, p2), 'active', Date.now(), Date.now()).run();
+        .bind(u, n, r, s, await hp2new(u, p2), 'active', Date.now(), Date.now()).run();
       return json({ ok: true, password: body.p ? undefined : p2 });
     }
 
@@ -1325,9 +1353,29 @@ export default {
     const serverErr = (e) => { const m = String(e && e.message || e); return /daily|quota|exceed|storage limit/i.test(m) ? json({ error: 'writes_paused' }, 503) : json({ error: 'server_error', detail: m }, 500); };
     const json = (data, status = 200) => new Response(JSON.stringify(data), {
       status,
-      headers: { ...cors, 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' },
+      headers: { ...cors, ...SEC_HEADERS, 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' },
     });
     const url = new URL(request.url);
+    // 25 Nov security pass: the assets binding serves the whole repo directory, so block
+    // source/config/secret-shaped paths before anything else (worker runs first, see wrangler.toml).
+    const pth = url.pathname.toLowerCase();
+    if (pth.includes('/.') || /^\/(riders-map-worker|wa-gateway|relay|android|docs|desktop)(\/|$)/.test(pth)
+        || /\.(toml|cjs|gs|md|sh|lock|zip|tar|gz|keystore|properties|json|yaml|yml|sql|env)$/.test(pth)) {
+      return new Response('Not found', { status: 404 });
+    }
+    const SEC_HEADERS = {
+      'X-Content-Type-Options': 'nosniff',
+      'X-Frame-Options': 'DENY',
+      'Referrer-Policy': 'strict-origin-when-cross-origin',
+      'Permissions-Policy': 'camera=(), microphone=(), payment=()',
+    };
+    const CSP = "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https: wss:; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'";
+    const withSec = (resp, isHtml) => {
+      const h = new Headers(resp.headers);
+      for (const [k, v] of Object.entries(SEC_HEADERS)) h.set(k, v);
+      if (isHtml) h.set('Content-Security-Policy', CSP);
+      return new Response(resp.body, { status: resp.status, headers: h });
+    };
     const hub = env.RIDER_MAP_HUB.get(env.RIDER_MAP_HUB.idFromName('riders-global'));
 
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
@@ -1960,7 +2008,14 @@ export default {
       }
     }
 
-    // static assets are served automatically by the assets binding before this
+    // static assets: worker runs first (run_worker_first), so fetch from the assets binding
+    if (request.method === 'GET' || request.method === 'HEAD') {
+      const assetResp = await env.ASSETS.fetch(request);
+      if (assetResp.status !== 404) {
+        const ct = assetResp.headers.get('Content-Type') || '';
+        return withSec(assetResp, /text\/html/.test(ct));
+      }
+    }
     return json({ error: 'not_found' }, 404);
   },
 
