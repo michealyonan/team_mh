@@ -2071,9 +2071,12 @@ export default {
           } });
         }
         const { matched, noAccount, ambiguous } = await repMatchUsers(env, files);
+        // اختياري: الإرسال لمشرف واحد بس (إعادة إرسال أو تجربة) — body.sup باسم المشرف زي الشيت
+        const onlyKey = repNameKey(body && body.sup);
         const sent = [], failed = [], noEmail = [];
         if (!body.dryRun) {
-          for (const [, m] of matched) {
+          for (const [mk, m] of matched) {
+            if (onlyKey && mk !== onlyKey) continue;
             const email = String(m.user.email || '').trim();
             if (!email) { noEmail.push({ sup: m.file.name, u: m.user.u }); continue; }
             const bytes = repBuildXlsx(m.file.sheets);
@@ -2089,7 +2092,7 @@ export default {
           } catch (e) {}
         }
         return json({
-          ok: true, day, types, dryRun: !!body.dryRun, latestDay: assembled.latestDay,
+          ok: true, day, types, dryRun: !!body.dryRun, latestDay: assembled.latestDay, only: onlyKey || undefined,
           ready: [...matched.values()].map(m => ({ sup: m.file.name, u: m.user.u, email: String(m.user.email || ''), riders: m.file.riders })),
           sent, failed, noEmail, noAccount, ambiguous,
           supCount: files.size,
