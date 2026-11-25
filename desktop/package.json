@@ -1,6 +1,6 @@
 {
   "name": "team-mh-desktop",
-  "version": "0.3.38",
+  "version": "0.4.0",
   "description": "team_mh desktop app (Windows)",
   "main": "main.js",
   "author": "team_mh",
@@ -30,14 +30,18 @@
     ],
     "win": {
       "target": [
-        "nsis"
+        "nsis",
+        "zip"
       ],
-      "icon": "icon.png"
+      "icon": "icon.png",
+      "signAndEditExecutable": false
     },
     "nsis": {
       "oneClick": true,
       "perMachine": false,
-      "shortcutName": "team_mh"
+      "shortcutName": "team_mh",
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
     },
     "publish": [
       {
@@ -46,6 +50,7 @@
         "repo": "team_mh",
         "releaseType": "release"
       }
-    ]
+    ],
+    "compression": "store"
   }
 }

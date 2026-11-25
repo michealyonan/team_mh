@@ -1,9 +1,9 @@
-// team_mh Desktop v0.3.0 - Electron main process.
+// team_mh Desktop v0.4.0 - Electron main process.
 // The window loads the team_mh site. مد الشيفت / فك البريك run DIRECTLY on this
 // machine: a button tap drives the installed Chrome (persistent per-group profile,
 // like Micheal's Python tool) - no server queue, no polling. Result shows as a local
 // notification + in the dialog; a best-effort log line is posted to the site.
-const { app, BrowserWindow, shell, Notification, ipcMain, clipboard } = require('electron');
+const { app, BrowserWindow, shell, Notification, ipcMain, clipboard, Tray, Menu, dialog } = require('electron');
 const fs = require('fs');
 const path = require('path');
 // electron-updater is optional: a zip without node_modules must degrade to
@@ -65,6 +65,45 @@ const SHEETS = {
 let mainWin = null;
 let cmdWin = null;
 let busy = false;
+// v0.4.0 (Micheal 26 Nov: اعتماد الكل): the app lives in the system tray next to the
+// clock - closing the window hides it, the agent poll keeps running, and the only
+// way out is the tray menu's إنهاء. Plus start-with-Windows (toggle in tray).
+let tray = null;
+let isQuitting = false;
+// One running copy only: a second launch just shows the existing window.
+const gotLock = app.requestSingleInstanceLock();
+if (!gotLock) { app.quit(); }
+app.on('second-instance', () => {
+  if (mainWin && !mainWin.isDestroyed()) { try { mainWin.show(); mainWin.focus(); } catch (e) {} }
+});
+function autostartPath() { return path.join(app.getPath('userData'), 'tmh-autostart.json'); }
+function readAutostart() {
+  try { const r = JSON.parse(fs.readFileSync(autostartPath(), 'utf8')); return r.on !== false; } catch (e) { return true; } // default ON (Micheal 26 Nov)
+}
+function applyAutostart(on) {
+  try { fs.writeFileSync(autostartPath(), JSON.stringify({ on })); } catch (e) {}
+  if (!app.isPackaged) return;
+  try { app.setLoginItemSettings({ openAtLogin: !!on, path: process.execPath }); } catch (e) {}
+}
+function createTray() {
+  if (tray) return;
+  try {
+    tray = new Tray(path.join(__dirname, 'icon.png'));
+    tray.setToolTip('team_mh v' + VERSION + ' - شغال في الخلفية');
+    tray.on('click', () => { if (mainWin && !mainWin.isDestroyed()) { mainWin.show(); mainWin.focus(); } });
+    refreshTrayMenu();
+  } catch (e) { console.log('tray failed:', e && e.message); }
+}
+function refreshTrayMenu() {
+  if (!tray) return;
+  const menu = Menu.buildFromTemplate([
+    { label: '⚡ فتح team_mh', click: () => { if (mainWin && !mainWin.isDestroyed()) { mainWin.show(); mainWin.focus(); } } },
+    { label: 'تشغيل مع الويندوز', type: 'checkbox', checked: readAutostart(), click: (item) => { applyAutostart(item.checked); refreshTrayMenu(); notify('team_mh', item.checked ? 'هيفتح مع الويندوز لوحده' : 'مش هيفتح مع الويندوز'); } },
+    { type: 'separator' },
+    { label: 'إنهاء البرنامج', click: () => { isQuitting = true; app.quit(); } }
+  ]);
+  tray.setContextMenu(menu);
+}
 // The run currently in progress, for the ⛔ إيقاف button (24 Nov): abort()
 // resolves the walk race immediately; the walk itself throws at its next
 // checkpoint and can never reach إرسال after an abort.
@@ -158,6 +197,14 @@ function createWindow() {
     webPreferences: { contextIsolation: true, sandbox: true, preload: __dirname + '/preload.js' }
   });
   mainWin.loadURL(SITE);
+  // Close button hides to the tray instead of quitting (v0.4.0): مد/فك الأوامر
+  // والجدولة تفضل شغالة. إنهاء حقيقي من قائمة السلة فقط.
+  mainWin.on('close', (e) => {
+    if (isQuitting) return;
+    e.preventDefault();
+    try { mainWin.hide(); } catch (err) {}
+    notify('team_mh', 'البرنامج لسه شغال جنب الساعة - لو عايز تقفله خالص: كليك يمين على الأيقونة واختار إنهاء');
+  });
   mainWin.webContents.setWindowOpenHandler(({ url }) => {
     shell.openExternal(url);
     return { action: 'deny' };
@@ -814,6 +861,13 @@ async function runShiftCmdJob(job) {
   // no cold load, no poll gaps - each with its own verify + report. Spacing between
   // runs stays enforced by runShiftLocal (Micheal's anti-burst setting).
   const items = Array.isArray(job.jobs) && job.jobs.length ? job.jobs : [{ id: job.id, payload: job.payload }];
+  // v0.4.0: on-screen note the moment a queued command lands (success/fail notes
+  // already fire per run inside runShiftLocal).
+  try {
+    const p0 = items[0] && items[0].payload || {};
+    const act0 = p0.action === 'extend' ? 'مد الشيفت' : p0.action === 'break' ? 'فك البريك' : p0.action === 'open' ? 'فتح شيفت' : 'أمر مناوبة';
+    notify('team_mh ⚡', 'بدأ تنفيذ: ' + act0 + (items.length > 1 ? ' (' + items.length + ' طلب)' : ''));
+  } catch (e) {}
   for (const item of items) {
     try {
       let res;
@@ -863,14 +917,43 @@ function startAgentPoll() {
 
 app.whenReady().then(() => {
   createWindow();
+  createTray();
+  applyAutostart(readAutostart());
   startAgentPoll();
   seedBundledProof();
-  if (app.isPackaged && autoUpdater) {
-    try {
-      autoUpdater.on('error', () => {}); // no update feed until CI publishing lands
-      autoUpdater.checkForUpdatesAndNotify().catch(() => {});
-    } catch (e) {}
-  }
+  setupAutoUpdate();
 });
 
-app.on('window-all-closed', () => { app.quit(); });
+// Auto-update (v0.4.0): NSIS build + latest.yml on GitHub Releases. Checks on start
+// and every 6h; downloads in background; Arabic prompt when ready (restart now/later).
+let updateTimer = null;
+function setupAutoUpdate() {
+  if (!app.isPackaged || !autoUpdater) return;
+  try {
+    autoUpdater.autoDownload = true;
+    autoUpdater.autoInstallOnAppQuit = true;
+    autoUpdater.on('error', () => {});
+    autoUpdater.on('update-available', (info) => notify('team_mh ⬇️', 'في نسخة جديدة (' + (info && info.version || '') + ') بتتحمّل في الخلفية'));
+    autoUpdater.on('update-downloaded', async (info) => {
+      notify('team_mh ✅', 'النسخة الجديدة (' + (info && info.version || '') + ') جاهزة - هتتركب أول ما البرنامج يتقفل');
+      try {
+        const win = mainWin && !mainWin.isDestroyed() ? mainWin : null;
+        const r = await dialog.showMessageBox(win, {
+          type: 'info', title: 'تحديث team_mh', buttons: ['إعادة التشغيل دلوقتي', 'بعدين'], defaultId: 0, cancelId: 1,
+          message: 'النسخة الجديدة ' + (info && info.version || '') + ' نزلت وجاهزة.',
+          detail: 'إعادة التشغيل بتاخد ثواني والبرنامج بيرجع لوحده. لو اخترت بعدين، التحديث هيتركب أول ما تقفل البرنامج.'
+        });
+        if (r.response === 0) { isQuitting = true; autoUpdater.quitAndInstall(); }
+      } catch (e) {}
+    });
+    autoUpdater.checkForUpdates().catch(() => {});
+    updateTimer = setInterval(() => { try { autoUpdater.checkForUpdates().catch(() => {}); } catch (e) {} }, 6 * 60 * 60 * 1000);
+  } catch (e) {}
+}
+
+// The app keeps running in the tray after every window closes; quitting only via tray.
+app.on('window-all-closed', () => { /* stay in tray (v0.4.0) */ });
+app.on('before-quit', () => { isQuitting = true; });
+app.on('activate', () => {
+  if (BrowserWindow.getAllWindows().length === 0) createWindow();
+});
