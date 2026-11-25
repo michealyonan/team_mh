@@ -7190,7 +7190,7 @@ function renderHiringList(){
   return `<div class="card" style="margin:8px 0;padding:10px">
    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><b>${esc(p.rider_name||'—')}</b><span class="sub" dir="ltr" style="margin:0">${esc(p.rider_nid||'')}</span><span class="sub" style="margin-inline-start:auto;margin:0">${H_STATUS[x.status]||x.status}</span></div>
    <div class="sub" style="margin:4px 0 0">بواسطة: ${esc(hName(x.u))} · ${esc(p.lecture_office||'')} · ${esc(p.vehicle||'')}${err?' · <span style="color:#f87171">'+esc(err)+'</span>':''}</div>${errD?'<div class="sub" style="margin:2px 0 0;color:#f87171;font-size:11px">'+esc(errD)+'</div>':''}
-   <div class="row" style="margin:6px 0 0;gap:6px"><button class="btn" type="button" style="font-size:12px;padding:6px 12px" onclick="hImgs(${x.id})">🖼 الصور</button><button class="btn" type="button" style="font-size:12px;padding:6px 12px" onclick="hData(${x.id})">📄 البيانات</button><button class="btn" type="button" style="font-size:12px;padding:6px 12px" onclick="hDl(${x.id},this)">⬇ تنزيل</button>${isAdmin?`<button class="btn" type="button" style="font-size:12px;padding:6px 12px" onclick="window.open(HIRING_FORM_URL,'_blank')">🔗 فورم الشركة</button><button class="btn" type="button" style="font-size:12px;padding:6px 12px;color:#f87171" onclick="hDelete(${x.id})">🗑 مسح الطلب</button>`:''}</div><div id="hImgBox_${x.id}" style="display:none"></div><div id="hDataBox_${x.id}" style="display:none"></div>
+   <div class="row" style="margin:6px 0 0;gap:6px"><button class="btn" type="button" style="font-size:12px;padding:6px 12px" onclick="hImgs(${x.id})">🖼 الصور</button><button class="btn" type="button" style="font-size:12px;padding:6px 12px" onclick="hData(${x.id})">📄 البيانات</button><button class="btn" type="button" style="font-size:12px;padding:6px 12px" onclick="hDl(${x.id},this)">⬇ تنزيل</button>${isAdmin?`<a class="btn" href="https://docs.google.com/forms/d/e/1FAIpQLSeOLPp1wR7MPqwORaW6mZLmOYL46gi6J7PWOn6c2Ch6B_1KbQ/viewform" target="_blank" rel="noopener" style="font-size:12px;padding:6px 12px;text-decoration:none">🔗 فورم الشركة</a><button class="btn" type="button" style="font-size:12px;padding:6px 12px;color:#f87171" onclick="hDelete(${x.id})">🗑 مسح الطلب</button>`:''}</div><div id="hImgBox_${x.id}" style="display:none"></div><div id="hDataBox_${x.id}" style="display:none"></div>
    ${adminBar}${retryBar}</div>`;
  }).join('')||'<div class="sub">مفيش طلبات لسه</div>';
 }
@@ -7291,7 +7291,6 @@ async function shcWatch(id){
 }
 
 /* Micheal 25 Nov: per-request view-data + download buttons (zip of images + data.txt). */
-const HIRING_FORM_URL='https://docs.google.com/forms/d/e/1FAIpQLSeOLPp1wR7MPqwORaW6mZLmOYL46gi6J7PWOn6c2Ch6B_1KbQ/viewform';
 const H_FIELDS=[['office','المكتب'],['hire_type','نوع التعيين'],['sup_name','اسم المشرف'],['lecture_office','مكتب المحاضرة'],['rider_name','اسم الطيار'],['rider_phone','موبايل الطيار'],['rider_nid','الرقم القومي'],['license_no','رقم الرخصة'],['rider_addr','العنوان'],['vehicle','نوع المركبة']];
 /* Micheal 26 Nov: tap any value in البيانات to copy it (+ نسخ الكل). */
 function hCopyText(text){
