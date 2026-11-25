@@ -198,11 +198,19 @@ async function rateLimit(env, key, max, windowMs, lockMs) {
 // tab; this blocks the tab's own API namespaces too (chat, hiring). Tabs whose
 // data rides on the shared dashboard endpoints can't be blocked per-tab without
 // breaking the dashboard itself, so their enforcement is the UI gate.
+// Tabs in DEFAULT_HIDDEN start hidden for non-admins even with no stored setting
+// (Micheal 16458387: أمر مد وفك بريك stays eye-off until the admin opens it).
+const DEFAULT_HIDDEN_TABS = ['shiftcmd'];
 async function getHiddenTabs(env) {
   try {
     const row = await env.DB.prepare("SELECT v FROM settings WHERE k='hidden_tabs'").first();
     const a = JSON.parse((row && row.v) || '[]');
-    return Array.isArray(a) ? a.map(String) : [];
+    const list = Array.isArray(a) ? a.map(String) : [];
+    const srow = await env.DB.prepare("SELECT v FROM settings WHERE k='shown_tabs'").first();
+    const sh = JSON.parse((srow && srow.v) || '[]');
+    const shown = new Set(Array.isArray(sh) ? sh.map(String) : []);
+    for (const t of DEFAULT_HIDDEN_TABS) if (!shown.has(t) && !list.includes(t)) list.push(t);
+    return list;
   } catch (e) { return []; }
 }
 async function getTabOrder(env) {
@@ -644,17 +652,27 @@ async function handleShiftCmd(request, env, json, url) {
   const user = await getSessionUser(env, request);
   if (!user) return json({ error: 'unauthorized' }, 401);
   const isAdmin = user.r === 'admin';
+  // sup/manager use it only while the admin leaves the eye on (Micheal 16458387);
+  // everything else (delete/poll/report) stays admin-only
+  const isShiftSide = isAdmin || user.r === 'sup' || user.r === 'manager';
+  const shiftBlocked = !isAdmin && tabBlockedFor(await getHiddenTabs(env), 'shiftcmd', user);
   const now = Date.now();
 
   if (p === '/api/shiftcmd/submit' && request.method === 'POST') {
-    if (!isAdmin) return json({ error: 'forbidden' }, 403);
+    if (!isShiftSide) return json({ error: 'forbidden' }, 403);
+    if (shiftBlocked) return json({ error: 'tab_hidden' }, 403);
     const body = await request.json().catch(() => null);
     const f = body && body.payload;
     if (!f || typeof f !== 'object') return json({ error: 'missing_fields' }, 400);
     const action = String(f.action || '');
     if (!['extend', 'break', 'open'].includes(action)) return json({ error: 'bad_action' }, 400);
     const riderId = String(f.rider_id || '').replace(/[^0-9]/g, '');
-    const city = String(f.city || '').trim();
+    let city = String(f.city || '').trim();
+    if (!isAdmin) {
+      // a supervisor/zone manager can only command riders inside his own zone
+      if (!user.s) return json({ error: 'forbidden' }, 403);
+      city = user.s;
+    }
     if (!riderId || !city) return json({ error: 'missing_fields' }, 400);
     const payload = {
       action, rider_id: riderId, city,
@@ -672,19 +690,28 @@ async function handleShiftCmd(request, env, json, url) {
   }
 
   if (p === '/api/shiftcmd/list' && request.method === 'GET') {
-    if (!isAdmin) return json({ error: 'forbidden' }, 403);
-    const agentRow = await env.DB.prepare("SELECT v FROM settings WHERE k='shift_agent'").first();
+    if (!isShiftSide) return json({ error: 'forbidden' }, 403);
+    if (shiftBlocked) return json({ error: 'tab_hidden' }, 403);
     let agent = null;
-    try { agent = agentRow ? JSON.parse(agentRow.v) : null; } catch (e) {}
-    const rows = await env.DB.prepare('SELECT id,u,payload,status,result,ts,updated FROM shift_commands ORDER BY id DESC LIMIT 50').all();
+    if (isAdmin) {
+      const agentRow = await env.DB.prepare("SELECT v FROM settings WHERE k='shift_agent'").first();
+      try { agent = agentRow ? JSON.parse(agentRow.v) : null; } catch (e) {}
+    }
+    // non-admin sees only his own commands and commands targeting his zone
+    const rows = isAdmin
+      ? await env.DB.prepare('SELECT id,u,payload,status,result,ts,updated FROM shift_commands ORDER BY id DESC LIMIT 50').all()
+      : await env.DB.prepare('SELECT id,u,payload,status,result,ts,updated FROM shift_commands WHERE u=? OR payload LIKE ? ORDER BY id DESC LIMIT 50')
+          .bind(user.u, '%"city":"' + String(user.s || '') + '"%').all();
     return json({ commands: rows.results || [], agent });
   }
 
   if (p === '/api/shiftcmd/item' && request.method === 'GET') {
-    if (!isAdmin) return json({ error: 'forbidden' }, 403);
+    if (!isShiftSide) return json({ error: 'forbidden' }, 403);
+    if (shiftBlocked) return json({ error: 'tab_hidden' }, 403);
     const id = Number(url.searchParams.get('id') || 0);
-    const r = await env.DB.prepare('SELECT id,payload,status,result,ts,updated FROM shift_commands WHERE id=?').bind(id).first();
+    const r = await env.DB.prepare('SELECT id,u,payload,status,result,ts,updated FROM shift_commands WHERE id=?').bind(id).first();
     if (!r) return json({ error: 'not_found' }, 404);
+    if (!isAdmin && r.u !== user.u && !String(r.payload || '').includes('"city":"' + String(user.s || '') + '"')) return json({ error: 'forbidden' }, 403);
     return json({ item: r });
   }
 
@@ -1619,6 +1646,9 @@ export default {
           if (Array.isArray(body.hidden)) {
             const list = body.hidden.map(x => String(x).slice(0, 40)).slice(0, 60);
             await env.DB.prepare("INSERT INTO settings(k,v) VALUES('hidden_tabs',?) ON CONFLICT(k) DO UPDATE SET v=excluded.v").bind(JSON.stringify(list)).run();
+            // remember which default-hidden tabs the admin explicitly opened, so they stay open
+            const shown = DEFAULT_HIDDEN_TABS.filter(t => !list.includes(t));
+            await env.DB.prepare("INSERT INTO settings(k,v) VALUES('shown_tabs',?) ON CONFLICT(k) DO UPDATE SET v=excluded.v").bind(JSON.stringify(shown)).run();
           }
           if (Array.isArray(body.order)) {
             const list = body.order.map(x => String(x).slice(0, 40)).slice(0, 60);
