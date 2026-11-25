@@ -741,8 +741,22 @@ async function handleAgentPoll(request, env, json, url) {
   if (url.searchParams.get('busy')) return json({ job: null });
   const s = await env.DB.prepare("SELECT * FROM shift_commands WHERE status='pending' ORDER BY id LIMIT 1").first();
   if (s) {
-    await env.DB.prepare("UPDATE shift_commands SET status='claimed',updated=? WHERE id=? AND status='pending'").bind(now, s.id).run();
-    return json({ job: { kind: 'shift', id: s.id, payload: JSON.parse(s.payload) } });
+    // Batch claim (Micheal 25 Nov): same action + same form group, one run, per-command results.
+    // Only for desktops >= 0.3.37 (older ones get the single-job shape they understand).
+    const ge = (v, a) => { const p = String(v || '').split('.').map(Number), q = a.split('.').map(Number); for (let i = 0; i < 3; i++) { if ((p[i] || 0) > (q[i] || 0)) return true; if ((p[i] || 0) < (q[i] || 0)) return false; } return true; };
+    let jobs = [{ id: s.id, payload: JSON.parse(s.payload) }];
+    if (ge(pv, '0.3.37')) {
+      const grp = (p) => (p.city === '\u0627\u0644\u0625\u0633\u0643\u0646\u062f\u0631\u064a\u0629' && p.action !== 'open') ? 'alex' : 'delta';
+      const a0 = jobs[0].payload.action, g0 = grp(jobs[0].payload);
+      const rows = await env.DB.prepare("SELECT * FROM shift_commands WHERE status='pending' ORDER BY id LIMIT 12").all();
+      jobs = [];
+      for (const r of rows.results || []) {
+        let p; try { p = JSON.parse(r.payload); } catch (e) { continue; }
+        if (p.action === a0 && grp(p) === g0 && jobs.length < 8) jobs.push({ id: r.id, payload: p });
+      }
+    }
+    for (const b of jobs) await env.DB.prepare("UPDATE shift_commands SET status='claimed',updated=? WHERE id=? AND status='pending'").bind(now, b.id).run();
+    return json({ job: { kind: 'shift', id: jobs[0].id, payload: jobs[0].payload, jobs } });
   }
   const r = await env.DB.prepare("SELECT * FROM hiring_requests WHERE status='approved' ORDER BY id LIMIT 1").first();
   if (!r) return json({ job: null });

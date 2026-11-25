@@ -809,20 +809,26 @@ async function runHiringJob(job) {
 }
 
 async function runShiftCmdJob(job) {
-  let jobId = job.id;
-  try {
-    let res;
+  // Batch (Micheal 25 Nov): the worker hands all pending same-action/same-form commands
+  // in one claim. They run sequentially on the SAME warm browser/tab - no relaunch,
+  // no cold load, no poll gaps - each with its own verify + report. Spacing between
+  // runs stays enforced by runShiftLocal (Micheal's anti-burst setting).
+  const items = Array.isArray(job.jobs) && job.jobs.length ? job.jobs : [{ id: job.id, payload: job.payload }];
+  for (const item of items) {
     try {
-      res = await runShiftLocal(job.payload);
+      let res;
+      try {
+        res = await runShiftLocal(item.payload);
+      } catch (e) {
+        res = { ok: false, error: 'walk_exception', detail: String(e && (e.detail || e.message) || '').slice(0, 1200) };
+      }
+      const ok = !!(res && res.ok);
+      try {
+        await api('/api/shiftcmd/report', { method: 'POST', body: { id: item.id, ok, error: (res && res.error) || '', detail: (((res && res.detail) || '') + ' | app v' + VERSION).slice(0, 1400) } });
+      } catch (e) {}
     } catch (e) {
-      res = { ok: false, error: 'walk_exception', detail: String(e && (e.detail || e.message) || '').slice(0, 1200) };
+      try { await api('/api/shiftcmd/report', { method: 'POST', body: { id: item.id, ok: false, error: 'poll_exception', detail: String(e && e.message || e).slice(0, 300) } }); } catch (e2) {}
     }
-    const ok = !!(res && res.ok);
-    try {
-      await api('/api/shiftcmd/report', { method: 'POST', body: { id: job.id, ok, error: (res && res.error) || '', detail: (((res && res.detail) || '') + ' | app v' + VERSION).slice(0, 1400) } });
-    } catch (e) {}
-  } catch (e) {
-    if (jobId) { try { await api('/api/shiftcmd/report', { method: 'POST', body: { id: jobId, ok: false, error: 'poll_exception', detail: String(e && e.message || e).slice(0, 300) } }); } catch (e2) {} }
   }
 }
 
