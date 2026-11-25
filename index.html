@@ -3710,6 +3710,7 @@ setTimeout(hideBootSplash,9000);
       const a=document.createElement('a');a.href=url;a.textContent=btn;a.style.cssText='background:#2dc19f;color:#06231b;padding:14px 28px;border-radius:10px;font-size:17px;font-weight:700;text-decoration:none';
       o.append(h,m,a);document.body.appendChild(o);
     };
+    if(window.TeamMH){const dl=document.getElementById('downloadAppBtn');if(dl)dl.style.display='none'}
     if(isOldAndroidApp){
       wall('لازم تحدّث التطبيق ⬇️','النسخة اللي عندك قديمة ومش هتشتغل صح. نزّل آخر نسخة وثبّتها مكانها - حسابك وبياناتك زي ما هي.','/app.apk','تحميل آخر نسخة');
       return;
@@ -7035,8 +7036,25 @@ boot();
 }
 @media(max-width:380px){
  main{padding-inline:8px}
- #lf .login-highlights{grid-template-columns:1fr}
- #lf .login-highlight{padding:6px;font-size:12px}
+ #lf .login-highlights{grid-template-columns:repeat(3,minmax(0,1fr));gap:4px}
+ #lf .login-highlight{padding:5px 2px;font-size:9px}
+ #lf .login-highlight span{font-size:12px}
+}
+/* 26 Nov: compact login for phones (Micheal video) - fits without scrolling */
+@media(max-width:699px){
+ #lg .lb{gap:6px;padding:10px 14px}
+ #lf .login-brand{gap:2px}
+ #lf .login-logo{width:34px;height:34px;font-size:17px;border-radius:10px;animation:none}
+ #lf .login-brand h2{font-size:16px!important}
+ #lf .login-brand .sub{font-size:11px}
+ #lg .lb label{margin:0;font-size:11px}
+ #lf input{min-height:36px}
+ #lgB{min-height:40px!important}
+ #lf .row .btn{min-height:34px;font-size:11px;padding:4px 6px}
+ #downloadAppBtn{min-height:40px!important}
+ #themeLogin{min-height:32px;font-size:11px;padding:3px 8px}
+ #lf .login-signature{font-size:13px}
+ #lf .login-signature-phone{font-size:10px;margin-top:-2px}
 }
 </style><div id="waModal" style="display:none;position:fixed;inset:0;background:#000c;z-index:85;overflow:auto;padding:12px"><div class="card" style="max-width:540px;margin:20px auto"><div class="row"><h3>واتساب حسابي</h3><button class="btn" style="margin-inline-start:auto" onclick="$('waModal').style.display='none'">✕</button></div><p>اربط رقمك أنت فقط. رمز الربط والجلسة خاصين بحساب دخولك، ولا يظهران لمشرف آخر.</p><p class="sub">نسخة تجريبية مجانية: جلستان نشطتان كحد أقصى، وفصل بعد 10 دقائق بدون استخدام. قد تتوقف الخدمة عند نفاد الرصيد. اتصال غير رسمي وقد يعرّض رقمك للتقييد. لا ترسل رسائل غير مرغوبة.</p><div class="row"><button class="btn pr" onclick="waConnect()">ربط / تشغيل جلستي</button><button class="btn" onclick="waRefresh()">تحديث الرمز والحالة</button></div><p id="waState" role="status">اضغط ربط لبدء جلستك.</p><img id="waQR" hidden alt="رمز ربط واتساب الخاص بحسابك" style="width:330px;max-width:100%;margin:12px auto;border:8px solid white;border-radius:8px"><p>واتساب ← الإعدادات ← الأجهزة المرتبطة ← ربط جهاز. اعرض الرمز على شاشة ثانية، ثم امسحه فورًا. لا تشاركه مع أي شخص.</p><div class="row"><button class="btn" onclick="waDisconnect(false)">إيقاف الاتصال</button><button class="btn" onclick="waDisconnect(true)">إلغاء ربط رقمي</button></div><hr><h4>إرسال رسالة من رقمي</h4><label for="waTo">رقم المستلم بكود الدولة</label><input id="waTo" inputmode="tel" placeholder="201xxxxxxxxx" dir="ltr"><label for="waText">نص الرسالة</label><textarea id="waText" maxlength="1000" rows="4" style="width:100%;box-sizing:border-box"></textarea><button id="waReview" class="btn pr" onclick="waSend()">مراجعة وتأكيد الإرسال</button><p id="waReceipt" role="status"></p></div></div>
 <script>
