@@ -7198,13 +7198,38 @@ async function hDelete(id){
 }
 /* Micheal 25 Nov: per-request view-data + download buttons (zip of images + data.txt). */
 const H_FIELDS=[['office','المكتب'],['hire_type','نوع التعيين'],['sup_name','اسم المشرف'],['lecture_office','مكتب المحاضرة'],['rider_name','اسم الطيار'],['rider_phone','موبايل الطيار'],['rider_nid','الرقم القومي'],['license_no','رقم الرخصة'],['rider_addr','العنوان'],['vehicle','نوع المركبة']];
+/* Micheal 26 Nov: tap any value in البيانات to copy it (+ نسخ الكل). */
+function hCopyText(text){
+ const done=()=>hToast('تم النسخ ✅');
+ if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(text).then(done,()=>hCopyFb(text,done))}else hCopyFb(text,done);
+}
+function hCopyFb(text,done){
+ const ta=document.createElement('textarea');ta.value=text;ta.style.cssText='position:fixed;top:0;left:0;opacity:0';document.body.appendChild(ta);ta.focus();ta.select();
+ try{document.execCommand('copy');done()}catch(e){hToast('تعذّر النسخ')}
+ ta.remove();
+}
+function hToast(msg){
+ let el=$('hCopyToast');
+ if(!el){el=document.createElement('div');el.id='hCopyToast';el.style.cssText='position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#16a34a;color:#fff;padding:8px 18px;border-radius:20px;font-size:13px;z-index:9999;display:none;box-shadow:0 4px 14px #0007';document.body.appendChild(el)}
+ el.textContent=msg;el.style.display='block';clearTimeout(el._h);el._h=setTimeout(()=>{el.style.display='none'},1500);
+}
+function hCopyAll(id){
+ const x=HIRING_LIST.find(y=>y.id===id);if(!x)return;
+ const p=x.payload||{};
+ const lines=H_FIELDS.map(([k,l])=>l+': '+String(p[k]||'—'));
+ lines.push('تاريخ الطلب: '+new Date(x.ts).toLocaleString('ar-EG'));
+ hCopyText(lines.join('\n'));
+}
 function hData(id){
  const box=$('hDataBox_'+id);if(!box)return;
  if(box.style.display!=='none'){box.style.display='none';return}
  const x=HIRING_LIST.find(y=>y.id===id);if(!x)return;
  const p=x.payload||{};
- const rows=H_FIELDS.map(([k,l])=>`<div class="row" style="margin:2px 0;gap:6px;align-items:baseline"><span class="sub" style="min-width:110px;margin:0">${l}:</span><b style="font-weight:600">${esc(String(p[k]||'—'))}</b></div>`).join('');
- box.innerHTML=`<div style="margin-top:8px;padding:8px;border:1px solid var(--bd);border-radius:10px">${rows}<div class="row" style="margin:2px 0;gap:6px;align-items:baseline"><span class="sub" style="min-width:110px;margin:0">تاريخ الطلب:</span><b style="font-weight:600">${new Date(x.ts).toLocaleString('ar-EG')}</b></div></div>`;
+ const cell=v=>`<b class="hCopyV" data-v="${esc(v)}" style="font-weight:600;cursor:pointer" title="دوس للنسخ">${esc(v)}</b>`;
+ const rows=H_FIELDS.map(([k,l])=>`<div class="row" style="margin:2px 0;gap:6px;align-items:baseline"><span class="sub" style="min-width:110px;margin:0">${l}:</span>${cell(String(p[k]||'—'))}</div>`).join('');
+ const dt=new Date(x.ts).toLocaleString('ar-EG');
+ box.innerHTML=`<div style="margin-top:8px;padding:8px;border:1px solid var(--bd);border-radius:10px"><div class="row" style="margin:0 0 6px;gap:8px;align-items:center"><button class="btn" type="button" style="font-size:12px;padding:4px 12px" onclick="hCopyAll(${id})">📋 نسخ الكل</button><span class="sub" style="margin:0;font-size:11px">دوس على أي قيمة تتنسخ لوحدها</span></div>${rows}<div class="row" style="margin:2px 0;gap:6px;align-items:baseline"><span class="sub" style="min-width:110px;margin:0">تاريخ الطلب:</span>${cell(dt)}</div></div>`;
+ box.onclick=e=>{const b=e.target.closest('.hCopyV');if(b)hCopyText(b.dataset.v)};
  box.style.display='';
 }
 /* Store-only ZIP (no compression) built in-page - no library needed. */
