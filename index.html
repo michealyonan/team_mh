@@ -7463,10 +7463,14 @@ $('hiringB').onclick=openHiring;
   <input id="lgPhone2" placeholder="رقم تليفون تاني (اختياري)" inputmode="tel">
   <input id="lgCity" placeholder="المدينة / المنطقة">
   <button class="btn" id="lgImgB" type="button">📷 ارفع صورة الإيصال</button>
+  <button class="btn" id="lgNidImgB" type="button">🪪 ارفع صورة البطاقة (وش)</button>
  </div>
  <input type="file" id="lgFile" accept="image/jpeg,image/png,image/webp" hidden>
+ <input type="file" id="lgNidFile" accept="image/jpeg,image/png,image/webp" hidden>
  <div class="sub" id="lgImgSt" style="margin:4px 0">صورة الإيصال مطلوبة</div>
  <div id="lgImgPrev" style="display:none;margin:4px 0"></div>
+ <div class="sub" id="lgNidImgSt" style="margin:4px 0">صورة البطاقة (وش) اختيارية</div>
+ <div id="lgNidImgPrev" style="display:none;margin:4px 0"></div>
  <div class="row"><button class="btn pr" id="lgSend" type="button">📤 إرسال للشئون القانونية</button></div>
  <div class="sub" id="lgMsg" style="margin-top:6px"></div>
 </div>
@@ -7483,7 +7487,7 @@ $('hiringB').onclick=openHiring;
 <div id="lgDetail" style="display:none;position:fixed;inset:0;background:#000d;z-index:76;overflow:auto;padding:12px" onclick="if(event.target===this)this.style.display='none'"><div class="card" style="max-width:560px;margin:auto" id="lgDetailCard"></div></div>
 <script>
 const LG_ST={received:'📨 الشئون القانونية استلمت الطلب',contacted:'📞 تم الاتصال بالمندوب',paid:'✅ تم السداد',filed:'⚖️ تم رفع قضية',judgment:'📜 صدر حكم',closed:'🔒 اتقفلت بنجاح'};
-let LG_IMG='',LG_CAN_SUBMIT=false,LG_IS_LEGAL=false,LG_CUR=null;
+let LG_IMG='',LG_NID_IMG='',LG_CAN_SUBMIT=false,LG_IS_LEGAL=false,LG_CUR=null;
 function openLegal(){
  LG_CAN_SUBMIT=!!CUR&&['admin','manager','sup'].includes(CUR.r);
  LG_IS_LEGAL=!!CUR&&['admin','legal'].includes(CUR.r);
@@ -7516,9 +7520,30 @@ $('lgFile').onchange=e=>{
 };
 function lgClearImg(){LG_IMG='';$('lgImgSt').textContent='صورة الإيصال مطلوبة';$('lgImgB').textContent='📷 ارفع صورة الإيصال';const p=$('lgImgPrev');if(p){p.style.display='none';p.innerHTML=''}}
 window.lgClearImg=lgClearImg;
+// National-ID-front picker (Micheal 25 Nov): same compress+preview flow as the receipt, optional field.
+$('lgNidImgB').onclick=()=>$('lgNidFile').click();
+$('lgNidFile').onchange=e=>{
+ const f=e.target.files[0];e.target.value='';if(!f)return;
+ const url=URL.createObjectURL(f),img=new Image();
+ img.onload=()=>{
+  const max=900;let w=img.width,hh=img.height;
+  if(Math.max(w,hh)>max){const kk=max/Math.max(w,hh);w=Math.round(w*kk);hh=Math.round(hh*kk)}
+  const cv=document.createElement('canvas');cv.width=w;cv.height=hh;
+  cv.getContext('2d').drawImage(img,0,0,w,hh);URL.revokeObjectURL(url);
+  let q=0.72,data=cv.toDataURL('image/jpeg',q);
+  while(data.length>450000&&q>0.3){q-=0.15;data=cv.toDataURL('image/jpeg',q)}
+  if(data.length>500000){$('lgNidImgSt').textContent='❌ الصورة كبيرة جدًا';return}
+  LG_NID_IMG=data;$('lgNidImgSt').textContent='✅ تم رفع صورة البطاقة';$('lgNidImgB').textContent='🪪 تغيير صورة البطاقة';
+  $('lgNidImgPrev').style.display='';$('lgNidImgPrev').innerHTML='<img src="'+data+'" style="max-height:90px;border-radius:8px;vertical-align:middle;margin-inline-end:8px"><span class="sub">'+esc(f.name)+'</span> <button class="btn" type="button" style="padding:4px 10px;margin-inline-start:8px" onclick="lgClearNidImg()">✕ مسح الصورة</button>';
+ };
+ img.onerror=()=>{URL.revokeObjectURL(url);$('lgNidImgSt').textContent='❌ الملف مش صورة'};
+ img.src=url;
+};
+function lgClearNidImg(){LG_NID_IMG='';$('lgNidImgSt').textContent='صورة البطاقة (وش) اختيارية';$('lgNidImgB').textContent='🪪 ارفع صورة البطاقة (وش)';const p=$('lgNidImgPrev');if(p){p.style.display='none';p.innerHTML=''}}
+window.lgClearNidImg=lgClearNidImg;
 $('lgSend').onclick=async()=>{
  const m=$('lgMsg');m.textContent='';
- const body={rider_id:$('lgRiderId').value.trim(),rider_name:$('lgName').value.trim(),national_id:$('lgNid').value.trim(),amount:$('lgAmount').value.trim(),phone:$('lgPhone').value.trim(),phone2:$('lgPhone2').value.trim(),city:$('lgCity').value.trim(),receipt:LG_IMG};
+ const body={rider_id:$('lgRiderId').value.trim(),rider_name:$('lgName').value.trim(),national_id:$('lgNid').value.trim(),amount:$('lgAmount').value.trim(),phone:$('lgPhone').value.trim(),phone2:$('lgPhone2').value.trim(),city:$('lgCity').value.trim(),receipt:LG_IMG,nid_front:LG_NID_IMG};
  if(!body.rider_id||!body.rider_name||!body.national_id||!body.amount||!body.phone){m.textContent='❌ كمّل كل الحقول المطلوبة';return}
  if(body.national_id.replace(/\D/g,'').length!==14){m.textContent='❌ الرقم القومي لازم ١٤ رقم';return}
  if(!LG_IMG){m.textContent='❌ ارفق صورة الإيصال';return}
@@ -7527,7 +7552,7 @@ $('lgSend').onclick=async()=>{
   await api('/api/legal/submit',{method:'POST',body});
   m.textContent='✅ اتبعت — الشئون القانونية استلمت الطلب';
   ['lgRiderId','lgName','lgNid','lgAmount','lgPhone','lgPhone2','lgCity'].forEach(i=>$(i).value='');
-  lgClearImg();
+  lgClearImg();lgClearNidImg();
  }catch(e){m.textContent='❌ '+authErr(e)}
 };
 async function lgRefresh(){
@@ -7552,6 +7577,7 @@ async function lgOpen(id){
   +F('حالة الحكم',c.judgment_status)+F('تفاصيل الحكم',c.judgment_detail)+F('مبلغ الحكم',c.judgment_amount?c.judgment_amount+' ج':'');
  if(c.case_number)html+='<div style="background:#7f1d1d;color:#fecaca;padding:8px 12px;border-radius:10px;margin:8px 0;font-weight:800">⚖️ المندوب ده عليه قضية رقم '+esc(c.case_number)+'</div>';
  if(d.images&&d.images.receipt)html+='<button class="btn" type="button" onclick="const i=$(\'lgRecImg\');i.style.display=i.style.display===\'none\'?\'\':\'none\'">📷 عرض/إخفاء الإيصال</button><img id="lgRecImg" src="'+d.images.receipt+'" style="display:none;max-width:100%;border-radius:10px;margin-top:6px">';
+ if(d.images&&d.images.nid_front)html+=' <button class="btn" type="button" onclick="const i=$(\'lgNidImgV\');i.style.display=i.style.display===\'none\'?\'\':\'none\'">🪪 عرض/إخفاء صورة البطاقة</button><img id="lgNidImgV" src="'+d.images.nid_front+'" style="display:none;max-width:100%;border-radius:10px;margin-top:6px">';
  if(!CUR||CUR.r!=='legal')html+='<h4 style="margin:10px 0 4px">📜 سجل الحالة</h4>'+hist.map(x=>'<div class="sub" style="margin:2px 0">• '+(LG_ST[x.status]||esc(x.status))+' — '+esc(x.by_name)+' — '+new Date(x.ts).toLocaleString('ar-EG')+(x.note?'<br>📝 '+esc(x.note):'')+'</div>').join('');
  if(LG_IS_LEGAL){
   const closed=c.status==='closed',paid=c.status==='paid';

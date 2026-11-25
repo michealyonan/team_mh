@@ -837,6 +837,12 @@ async function handleLegal(request, env, json, url) {
     const ins = await env.DB.prepare("INSERT INTO legal_cases(rider_id,rider_name,national_id,amount,phone,phone2,city,u,u_name,status,created,updated) VALUES(?,?,?,?,?,?,?,?,?,'received',?,?)").bind(riderId, name, nid, amount, phone, phone2, city, user.u, user.n, now, now).run();
     const cid = ins.meta.last_row_id;
     await env.DB.prepare('INSERT INTO legal_case_images(case_id,k,data) VALUES(?,?,?)').bind(cid, 'receipt', img).run();
+    // National-ID front (Micheal 25 Nov, msg 16641143): optional second upload, same validation.
+    const nidImg = typeof body.nid_front === 'string' ? body.nid_front : '';
+    if (nidImg) {
+      if (!/^data:image\/(jpeg|png|webp);base64,/.test(nidImg) || nidImg.length > 500000) return json({ error: 'bad_image' }, 400);
+      await env.DB.prepare('INSERT INTO legal_case_images(case_id,k,data) VALUES(?,?,?)').bind(cid, 'nid_front', nidImg).run();
+    }
     await legalHistory(env, cid, 'received', '', user);
     return json({ ok: true, id: cid });
   }
