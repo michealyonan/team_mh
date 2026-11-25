@@ -460,8 +460,22 @@ async function uploadProof(page, filePath, job) {
     // open but the handed file never starts uploading - a stall inside
     // Google's picker. Fully closing the dialog and re-opening resets it.
     async function forcePickerClosed() {
+      // Inlined pickerGone: the named helper is scoped inside the retry loop
+      // (caught by the stub harness - calling it here would throw on round 2+).
+      const gone = async () => {
+        try {
+          return await page.evaluate(() => {
+            for (const f of Array.from(document.querySelectorAll('iframe'))) {
+              const r = f.getBoundingClientRect();
+              const st = getComputedStyle(f);
+              if (r.width > 250 && r.height > 250 && st.display !== 'none' && st.visibility !== 'hidden') return false;
+            }
+            return true;
+          });
+        } catch (e) { return true; }
+      };
       for (let k = 0; k < 8; k++) {
-        if (await pickerGone()) return;
+        if (await gone()) return;
         const clicked = await page.evaluate(() => {
           const bs = document.querySelectorAll('button,[role=button],[aria-label]');
           for (const b of bs) {
