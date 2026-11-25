@@ -354,6 +354,25 @@ async function handleChat(request, env, json, url) {
     return json({ conversations: list, totalUnread: list.reduce((t, e) => t + e.unread, 0) });
   }
 
+  if (p === '/api/chat/conversations' && request.method === 'GET') {
+    // Admin (Micheal 25 Nov): auto-list every existing conversation pair with
+    // its last message + time, so monitoring starts from a list, not two dropdowns.
+    if (user.r !== 'admin') return json({ error: 'forbidden' }, 403);
+    const msgs = await env.DB.prepare('SELECT from_u,to_u,body,kind,ts FROM chat_messages ORDER BY id DESC LIMIT 5000').all();
+    const pairs = new Map();
+    for (const m of (msgs.results || [])) {
+      const a = m.from_u < m.to_u ? m.from_u : m.to_u;
+      const b = m.from_u < m.to_u ? m.to_u : m.from_u;
+      const k = a + '|' + b;
+      if (!pairs.has(k)) pairs.set(k, { a, b, last: { body: m.kind === 'image' ? '📷 صورة' : String(m.body || '').slice(0, 80), ts: m.ts } });
+    }
+    const list = [...pairs.values()].sort((x, y) => y.last.ts - x.last.ts);
+    const names = await env.DB.prepare('SELECT u,n FROM users').all();
+    const byU = new Map((names.results || []).map(x => [x.u, x.n]));
+    for (const e of list) { e.an = byU.get(e.a) || e.a; e.bn = byU.get(e.b) || e.b; }
+    return json({ conversations: list });
+  }
+
   if (p === '/api/chat/peek' && request.method === 'GET') {
     // Admin-only read of any pair's conversation (Micheal 24 Nov). Read-only:
     // never marks messages read.
@@ -558,10 +577,6 @@ async function handleHiring(request, env, json, url) {
     const status = retry ? 'approved' : ((body && body.ok) ? 'submitted' : 'failed');
     const result = JSON.stringify({ error: String((body && body.error) || '').slice(0, 400), detail: String((body && body.detail) || '').slice(0, 900) });
     await env.DB.prepare('UPDATE hiring_requests SET status=?,result=?,updated=? WHERE id=?').bind(status, result, Date.now(), id).run();
-    // Micheal 25 Nov quota fix: images are only needed until the desktop app
-    // uploads them; once submitted they are the single biggest D1 consumer
-    // (~0.5MB base64 per request), so drop them and keep data/status/result.
-    if (status === 'submitted') await env.DB.prepare('DELETE FROM hiring_images WHERE request_id=?').bind(id).run();
     return json({ ok: true });
   }
 

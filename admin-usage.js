@@ -56,7 +56,7 @@
         st.innerHTML = '<div style="font-weight:700;margin-bottom:4px">🗄️ تخزين قاعدة البيانات (D1)</div>' +
           '<div class="sub">صور رفع الاستعلام المحفوظة دلوقتي: ' + fmt(data.hiring.images) + ' صورة (' + fmt(data.hiring.requests) + ' طلب إجمالي) ≈ ' + mb.toFixed(1) + ' ميجا من ' + fmt(limitMb) + ' ميجا (' + pct.toFixed(1) + '٪)</div>' +
           '<div style="height:8px;border-radius:999px;background:var(--bg,#0f1626);border:1px solid var(--bd,#33415c);overflow:hidden;margin:6px 0"><div style="height:100%;width:' + pct.toFixed(2) + '%;background:#22c55e"></div></div>' +
-          '<div class="sub" style="color:#4ade80">♻️ صور أي طلب بتتمسح تلقائي أول ما يترفع على فورم الشركة بنجاح — البيانات والحالة بتفضل موجودة.</div>';
+          '<div class="sub" style="color:#4ade80">📦 الصور بتفضل محفوظة مع كل طلب (≈0.5 ميجا للطلب — حوالي 1000 طلب يكفّوا الـ500 ميجا)، ومش بتتمسح غير لما تمسح الطلب بنفسك.</div>';
       } else {
         st.textContent = '';
       }

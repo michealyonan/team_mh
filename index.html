@@ -1314,7 +1314,7 @@ html[data-theme="light"] .kpi .l,html[data-theme="light"] .kpi .s{color:#526a82!
     <div id="chatListRows"></div>
    </div>
    <div id="chatMonitorWrap" style="display:none;flex:1;flex-direction:column;margin-top:10px">
-    <div style="display:flex;gap:6px;margin-bottom:8px"><select id="chatMonA" style="flex:1"></select><select id="chatMonB" style="flex:1"></select><button class="btn pr" type="button" onclick="chatMonitorShow()">عرض</button><button class="btn" type="button" style="background:#7f1d1d" onclick="chatMonitorDelete()">🗑 مسح الشات</button></div>
+    <div id="chatMonPairBar" style="display:none;gap:6px;margin-bottom:8px;align-items:center"><button class="btn" type="button" onclick="chatMonitorList()">→ رجوع</button><b id="chatMonPair" style="flex:1;font-size:13px"></b><button class="btn" type="button" style="background:#7f1d1d" onclick="chatMonitorDelete()">🗑 مسح الشات</button></div>
     <div id="chatMonMsgs" style="flex:1;min-height:300px;max-height:55vh;overflow:auto;display:flex;flex-direction:column;gap:6px;padding:8px;background:rgba(255,255,255,.04);border-radius:10px"></div>
    </div>
    <div id="chatThreadWrap" style="display:none;flex:1;flex-direction:column;margin-top:10px">
@@ -6948,35 +6948,53 @@ async function sendChatImage(data){
   try{await api('/api/chat/send',{method:'POST',body:{to:CHAT_PEER,body:data,kind:'image'}})}catch(e){}
   pollThread(false);
 }
-// Admin monitor mode (Micheal 24 Nov): read-only view of any pair's chat.
+// Admin monitor mode: auto-lists every conversation, tap to open (Micheal 25 Nov).
+let CHAT_MON_A='',CHAT_MON_B='',CHAT_MON_LIST=[];
 function chatMonitorOpen(){
   CHAT_PEER=null;if(CHAT_TIMER){clearInterval(CHAT_TIMER);CHAT_TIMER=null}
-  $('chatBack').style.display='';$('chatTitle').textContent='👁 مراقبة محادثة';chatHideAll();$('chatMonitorWrap').style.display='flex';
-  const opts=CHAT_CONTACTS.map(c=>`<option value="${esc(c.u)}">${esc(c.n||c.u)}</option>`).join('');
-  $('chatMonA').innerHTML='<option value="">الأول…</option>'+opts;
-  $('chatMonB').innerHTML='<option value="">التاني…</option>'+opts;
-  $('chatMonMsgs').innerHTML='<div class="sub" style="text-align:center;margin-top:20px">اختار الشخصين واضغط عرض</div>';
+  $('chatBack').style.display='';$('chatTitle').textContent='👁 مراقبة المحادثات';chatHideAll();$('chatMonitorWrap').style.display='flex';
+  chatMonitorList();
 }
-async function chatMonitorShow(){
-  const a=$('chatMonA').value,b=$('chatMonB').value;
-  if(!a||!b||a===b)return;
-  const box=$('chatMonMsgs');box.innerHTML='<div class="sub">جاري التحميل…</div>';
+async function chatMonitorList(){
+  CHAT_MON_A=CHAT_MON_B='';$('chatMonPairBar').style.display='none';
+  const box=$('chatMonMsgs');box.innerHTML='<div class="sub" style="text-align:center;margin-top:20px">جاري التحميل…</div>';
   try{
-    const d=await api('/api/chat/peek?a='+encodeURIComponent(a)+'&b='+encodeURIComponent(b));
+    const d=await api('/api/chat/conversations');
+    CHAT_MON_LIST=d.conversations||[];
+    box.innerHTML=CHAT_MON_LIST.map((cv,i)=>{
+      const t=new Date(cv.last.ts);
+      const when=t.toLocaleDateString('ar-EG',{day:'numeric',month:'numeric'})+' '+t.toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'});
+      return `<div class="card" style="margin:0 0 8px;padding:10px;cursor:pointer" onclick="chatMonitorOpenPair(${i})">
+       <div style="display:flex;align-items:center;gap:6px"><b style="flex:1;font-size:13px">بين ${esc(cv.an)} و ${esc(cv.bn)}</b><button class="btn" type="button" style="background:#7f1d1d;font-size:11px;padding:4px 10px" onclick="event.stopPropagation();chatMonitorDelete(${i})">🗑 مسح الشات</button></div>
+       <div class="sub" style="margin:4px 0 0;font-size:12px">${esc(cv.last.body)}</div>
+       <div class="sub" style="margin:2px 0 0;font-size:11px;opacity:.7">${when}</div></div>`;
+    }).join('')||'<div class="sub" style="text-align:center;margin-top:20px">مفيش محادثات لسه</div>';
+  }catch(e){box.innerHTML='<div class="sub">فشل التحميل</div>'}
+}
+async function chatMonitorOpenPair(i){
+  const cv=CHAT_MON_LIST[i];if(!cv)return;
+  CHAT_MON_A=cv.a;CHAT_MON_B=cv.b;
+  $('chatMonPair').textContent='بين '+cv.an+' و '+cv.bn;
+  $('chatMonPairBar').style.display='flex';
+  const box=$('chatMonMsgs');box.innerHTML='<div class="sub" style="text-align:center;margin-top:20px">جاري التحميل…</div>';
+  try{
+    const d=await api('/api/chat/peek?a='+encodeURIComponent(cv.a)+'&b='+encodeURIComponent(cv.b));
     box.innerHTML='';
     for(const m of (d.messages||[]))box.appendChild(chatBubble(m));
     if(!(d.messages||[]).length)box.innerHTML='<div class="sub" style="text-align:center;margin-top:20px">مفيش رسايل بينهم</div>';
     box.scrollTop=box.scrollHeight;
   }catch(e){box.innerHTML='<div class="sub">فشل التحميل</div>'}
 }
-// Admin deletes the monitored conversation (Micheal 25 Nov).
-async function chatMonitorDelete(){
-  const a=$('chatMonA').value,b=$('chatMonB').value;
+// Admin deletes a conversation, from the list row or the open pair (Micheal 25 Nov).
+async function chatMonitorDelete(i){
+  let a=CHAT_MON_A,b=CHAT_MON_B;
+  if(typeof i==='number'){const cv=CHAT_MON_LIST[i];if(!cv)return;a=cv.a;b=cv.b}
   if(!a||!b||a===b)return;
   if(!confirm('متأكد إنك عايز تمسح كل الرسايل بين الشخصين دول؟ مفيش رجوع.'))return;
   try{
     const d=await api('/api/chat/delete',{method:'POST',body:{a,b}});
-    $('chatMonMsgs').innerHTML='<div class="sub" style="text-align:center;margin-top:20px">اتمسح الشات ✅ ('+NF(d.deleted||0)+' رسالة)</div>';
+    if(typeof i==='number'){chatMonitorList()}
+    else $('chatMonMsgs').innerHTML='<div class="sub" style="text-align:center;margin-top:20px">اتمسح الشات ✅ ('+NF(d.deleted||0)+' رسالة)</div>';
   }catch(e){$('chatMonMsgs').innerHTML='<div class="sub">فشل المسح</div>'}
 }
 $('chatSendBtn').onclick=sendChat;
