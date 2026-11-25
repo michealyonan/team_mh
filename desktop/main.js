@@ -13,7 +13,9 @@ try { ({ autoUpdater } = require('electron-updater')); } catch (e) { console.log
 const { getBrowser, firstPage, peekBrowser, launchPlain, launchPlainForSignin, adoptBrowser, dropBrowser } = require('./chromeproc');
 const { runFormWalk, runHiringWalk, clickX, pageMarker, confirmState } = require('./chromewalk');
 
-const VERSION = '0.3.33';
+// Version must track package.json (25 Nov: hardcoded 0.3.33 made newer builds
+// report the old version - a 0.3.35 run showed v0.3.33 on the site badge).
+const VERSION = (() => { try { return require('./package.json').version; } catch (e) { return '0.0.0'; } })();
 // Proof image for فتح شيفت uploads: Micheal's OWN fixed image when present
 // (userData/proof.*, seeded from a bundled proof.* on first run), else the
 // app-generated black PNG fallback (24 Nov).
