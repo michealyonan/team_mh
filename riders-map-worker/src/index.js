@@ -1211,6 +1211,12 @@ async function handleAuth(request, env, json, url) {
       const s = ['admin', 'monitor', 'legal'].includes(r) ? '' : String(body.s || '').slice(0, 120);
       const n = String(body.n || u).slice(0, 120);
       if (!u) return json({ error: 'invalid_username' }, 400);
+      let emailUpd = null;
+      if (body.email !== undefined) {
+        const em = String(body.email || '').trim();
+        emailUpd = em ? cleanContact.email(em) : '';
+        if (em && !emailUpd) return json({ error: 'invalid_email' }, 400);
+      }
       const rename = body.rename ? String(body.rename).toLowerCase() : null;
       const existing = await env.DB.prepare('SELECT u FROM users WHERE u=?').bind(u).first();
       if (rename) {
@@ -1228,13 +1234,14 @@ async function handleAuth(request, env, json, url) {
         return json({ ok: true });
       }
       if (existing) {
+        if (emailUpd !== null) await env.DB.prepare('UPDATE users SET email=?, updated_at=? WHERE u=?').bind(emailUpd, Date.now(), u).run();
         if (body.p) await env.DB.prepare('UPDATE users SET n=?, r=?, s=?, h=?, updated_at=? WHERE u=?').bind(n, r, s, await hp2new(u, String(body.p)), Date.now(), u).run();
         else await env.DB.prepare('UPDATE users SET n=?, r=?, s=?, updated_at=? WHERE u=?').bind(n, r, s, Date.now(), u).run();
         return json({ ok: true });
       }
       const p2 = body.p ? String(body.p) : randPassword();
-      await env.DB.prepare('INSERT INTO users(u,n,r,s,h,status,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)')
-        .bind(u, n, r, s, await hp2new(u, p2), 'active', Date.now(), Date.now()).run();
+      await env.DB.prepare('INSERT INTO users(u,n,r,s,h,email,status,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?)')
+        .bind(u, n, r, s, await hp2new(u, p2), emailUpd || '', 'active', Date.now(), Date.now()).run();
       return json({ ok: true, password: body.p ? undefined : p2 });
     }
 
@@ -1532,7 +1539,7 @@ async function repAssemble(env, types, d1, d2) {
   })());
   jobs.push((async () => { latestDay = await repLatestDay(); })());
   await Promise.all(jobs);
-  const dayMs = Date.parse(d2 + 'T00:00:00Z'); // المحافظ/العقود "حالتهم الحالية" لحد نهاية الفترة
+  const dayMs = Date.parse(cairoDay() + 'T00:00:00Z'); // المحافظ/العقود حالة حالية — مش مرتبطة بفترة الأداء
   const files = new Map(); // nameKey -> { name, riders, sheets: [{name,headers,rows}] }
   for (const [k, g] of bySup) {
     const sheets = [];
@@ -2065,11 +2072,14 @@ export default {
         let d1 = String(body && (body.d1 || body.day) || '').trim();
         let d2 = String(body && (body.d2 || body.day) || '').trim();
         if (!types.length) return json({ error: 'no_types' }, 400);
-        const okDay = d => /^\d{4}-\d{2}-\d{2}$/.test(d) && d <= cairoDay() && d >= '2024-01-01';
-        if (!okDay(d1) || !okDay(d2)) return json({ error: 'bad_day' }, 400);
-        if (d1 > d2) { const t = d1; d1 = d2; d2 = t; }
-        if ((Date.parse(d2) - Date.parse(d1)) / 86400000 > 62) return json({ error: 'range_too_long' }, 400);
-        const dayLabel = d1 === d2 ? d1 : (d1 + ' إلى ' + d2);
+        // الفترة للأداء بس — المحافظ/العقود حالة حالية ومش مرتبطة بتاريخ (توضيح Micheal 25 Nov)
+        if (types.includes('perf')) {
+          const okDay = d => /^\d{4}-\d{2}-\d{2}$/.test(d) && d <= cairoDay() && d >= '2024-01-01';
+          if (!okDay(d1) || !okDay(d2)) return json({ error: 'bad_day' }, 400);
+          if (d1 > d2) { const t = d1; d1 = d2; d2 = t; }
+          if ((Date.parse(d2) - Date.parse(d1)) / 86400000 > 62) return json({ error: 'range_too_long' }, 400);
+        } else { d1 = d2 = cairoDay(); }
+        const dayLabel = types.includes('perf') ? (d1 === d2 ? d1 : (d1 + ' إلى ' + d2)) : cairoDay();
         const isPreview = url.pathname === '/api/reports/preview';
         if (!isPreview) {
           const dayKey = cairoDay() + ':' + user.u;

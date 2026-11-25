@@ -1569,14 +1569,15 @@ header{box-shadow:0 8px 24px rgba(2,8,23,.5)}
  </section>
 </div>
 <div id="um" style="display:none;position:fixed;inset:0;background:#000c;z-index:70;overflow:auto;padding:12px" onclick="if(event.target===this)this.style.display='none'"><div class="card" style="max-width:820px;margin:auto"><div class="row"><h3 style="margin:0">👥 إدارة المستخدمين</h3><button class="btn" style="margin-inline-start:auto" onclick="$('um').style.display='none'">✕</button></div>
-<div class="fm"><input id="nu" placeholder="اسم المستخدم" autocapitalize="off"><input id="nn" placeholder="الاسم الظاهر"><select id="nr"><option value="legal">شئون قانونية</option><option value="sup">مشرف</option><option value="manager">مدير منطقة</option><option value="monitor">مشرف متابعة</option><option value="viewer">مشاهد (عدة مشرفين)</option><option value="admin">أدمن</option></select><select id="nz" title="فلتر بالمنطقة"></select><select id="ns"></select><input id="np" type="text" placeholder="كلمة المرور (فاضية = تفضل زي ما هي)"><button class="btn pr" id="na">➕ إضافة / تحديث</button></div>
+<div class="fm"><input id="nu" placeholder="اسم المستخدم" autocapitalize="off"><input id="nn" placeholder="الاسم الظاهر"><select id="nr"><option value="legal">شئون قانونية</option><option value="sup">مشرف</option><option value="manager">مدير منطقة</option><option value="monitor">مشرف متابعة</option><option value="viewer">مشاهد (عدة مشرفين)</option><option value="admin">أدمن</option></select><select id="nz" title="فلتر بالمنطقة"></select><select id="ns"></select><input id="np" type="text" placeholder="كلمة المرور (فاضية = تفضل زي ما هي)"><input id="ne" type="text" placeholder="الإيميل (لتقارير المشرفين — فاضي = من غير)" autocapitalize="off"><button class="btn pr" id="na">➕ إضافة / تحديث</button></div>
 <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button class="btn pr" type="button" onclick="openContacts()">📇 دليل الاتصالات</button><button class="btn" type="button" onclick="copyContacts()">📋 نسخ كل الأرقام والإيميلات</button><button class="btn" type="button" id="recB" onclick="toggleRec()">🆘 طلبات استرجاع كلمة المرور</button></div><input id="us" placeholder="🔍 ابحث بالمشرف أو الاسم أو المستخدم أو المنطقة..." style="width:100%;margin:10px 0"><div class="tw rt3" style="max-height:45vh"><table style="min-width:600px"><thead><tr><th>الاسم</th><th>المستخدم</th><th>الدور</th><th>مرتبط بـ</th><th>كلمة المرور</th><th></th></tr></thead><tbody id="ut"></tbody></table></div>
 <div id="regWrap" style="margin:12px 0;display:none"><h4 style="margin:6px 0">🆕 طلبات تفعيل الحسابات</h4><div id="regList" class="sub">مفيش طلبات معلّقة</div></div><div id="recWrap" style="margin:12px 0;display:none"><h4 style="margin:6px 0">🆘 طلبات استرجاع كلمة المرور</h4><div id="recList" class="sub">مفيش طلبات معلّقة</div></div><div class="sub" id="gst" style="margin:10px 0 4px;font-weight:700"></div><button class="btn pr" id="downloadUpdated">⬇️ تحميل نسخة احتياطية من المستخدمين</button> <button class="btn" id="nx">📥 تحميل ملف اليوزرات والباسوردات</button> <button class="btn" id="exportSupervisors">⬇️ تحميل أسماء المشرفين</button></div></div>
 <div id="supRepModal" style="display:none;position:fixed;inset:0;background:#000c;z-index:70;overflow:auto;padding:12px" onclick="if(event.target===this)this.style.display='none'"><div class="card" style="max-width:640px;margin:auto"><div class="row"><h3 style="margin:0">📊 تقارير المشرفين</h3><button class="btn" style="margin-inline-start:auto" onclick="$('supRepModal').style.display='none'">✕</button></div>
 <div class="sub" style="margin:6px 0">اختار نوع التقرير واليوم، والموقع هيبعت لكل مشرف إيميل فيه ملف إكسل ببيانات <b>مناديبه بس</b>. المطابقة بتتم باسم المشرف زي ما هو مكتوب في الشيت — اللي ملهوش حساب بنفس الاسم أو ملهوش إيميل مسجّل هيظهر في القوايم تحت.</div>
 <div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0"><label class="btn" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="srPerf" checked> 📈 أداء المناديب</label><label class="btn" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="srWallets"> 💰 المحافظ</label><label class="btn" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="srContracts"> 📄 انتهاء العقود</label></div>
-<div class="row" style="gap:8px;flex-wrap:wrap;align-items:center"><span class="sub">من</span><input type="date" id="srD1" style="flex:1;min-width:135px"><span class="sub">إلى</span><input type="date" id="srD2" style="flex:1;min-width:135px"><button class="btn" id="srDry" type="button">👁 معاينة من غير إرسال</button><button class="btn pr" id="srSend" type="button">📤 إرسال التقارير</button></div>
-<div class="sub" style="margin-top:4px">الفترة بتأثر على "أداء المناديب" بس (المحافظ والعقود حالتهم الحالية لحد آخر يوم في الفترة). بعد المعاينة تقدر تحدد مشرفين معينين بالعلامات ✓ قبل الإرسال.</div>
+<div class="row" id="srDatesWrap" style="gap:8px;flex-wrap:wrap;align-items:center"><span class="sub">من</span><input type="date" id="srD1" style="flex:1;min-width:135px"><span class="sub">إلى</span><input type="date" id="srD2" style="flex:1;min-width:135px"></div>
+<div class="row" style="gap:8px;flex-wrap:wrap;margin-top:6px"><button class="btn" id="srDry" type="button">👁 معاينة من غير إرسال</button><button class="btn pr" id="srSend" type="button">📤 إرسال التقارير</button></div>
+<div class="sub" style="margin-top:4px">الفترة (من - إلى) بتأثر على "أداء المناديب" بس — المحافظ وانتهاء العقود حالتهم الحالية ومش مرتبطة بتاريخ. بعد المعاينة تقدر تحدد مشرفين معينين بالعلامات ✓ قبل الإرسال.</div>
 <div id="srStatus" class="sub" style="margin:8px 0"></div><div id="srResult" style="max-height:45vh;overflow:auto"></div></div></div>
 <div id="aprModal" style="display:none;position:fixed;inset:0;background:#000c;z-index:76;overflow:auto;padding:12px" onclick="if(event.target===this)this.style.display='none'"><div class="card" style="max-width:520px;margin:auto"><div class="row"><h3 id="aprTitle" style="margin:0">✅ موافقة على حساب</h3><button class="btn" style="margin-inline-start:auto" onclick="$('aprModal').style.display='none'">✕</button></div><div class="sub" id="aprInfo" style="margin:6px 0"></div><div class="fm" style="grid-template-columns:1fr"><select id="aprR"><option value="legal">شئون قانونية</option><option value="sup">مشرف</option><option value="manager">مدير منطقة</option><option value="monitor">مشرف متابعة</option><option value="viewer">مشاهد (عدة مشرفين)</option><option value="admin">أدمن</option></select><select id="aprZ" title="فلتر بالمنطقة"></select><select id="aprS"></select></div><div class="row" style="margin-top:10px"><button class="btn pr" id="aprGo" type="button">✅ موافقة وتفعيل</button></div></div></div>
 <div id="vwModal" style="display:none;position:fixed;inset:0;background:#000c;z-index:75;overflow:auto;padding:12px" onclick="if(event.target===this)this.style.display='none'"><div class="card" style="max-width:520px;margin:auto"><div class="row"><h3 id="vwTitle" style="margin:0">👁 اختار المشرفين</h3><button class="btn" style="margin-inline-start:auto" onclick="$('vwModal').style.display='none'">✕</button></div><input id="vwSearch" type="search" placeholder="🔎 ابحث باسم المشرف" style="width:100%;margin:8px 0" oninput="vwRender()"><div id="vwList" style="max-height:50vh;overflow:auto;display:flex;flex-direction:column;gap:6px"></div><div class="row" style="margin-top:10px;align-items:center"><button class="btn pr" id="vwSave" type="button">💾 حفظ</button><span class="sub" id="vwCount" style="margin:0"></span></div></div></div>
@@ -3830,7 +3831,9 @@ $('usrB').onclick=async()=>{if(!CUR||CUR.r!=='admin')return;$('um').style.displa
 let SUPREP_LAST=[],SUPREP_SEL=new Set();
 function supRepTypes(){const t=[];if($('srPerf').checked)t.push('perf');if($('srWallets').checked)t.push('wallets');if($('srContracts').checked)t.push('contracts');return t}
 function supRepDates(){return{d1:$('srD1').value,d2:$('srD2').value}}
-$('supRepB').onclick=()=>{if(!CUR||CUR.r!=='admin')return;$('supRepModal').style.display='block';if(!$('srD2').value){const d=new Date();d.setDate(d.getDate()-1);$('srD2').value=d.toISOString().slice(0,10)}if(!$('srD1').value)$('srD1').value=$('srD2').value};
+function supRepSyncDates(){const on=$('srPerf').checked;$('srDatesWrap').style.display=on?'':'none';$('srD1').disabled=$('srD2').disabled=!on}
+['srPerf','srWallets','srContracts'].forEach(id=>$(id).onchange=supRepSyncDates);
+$('supRepB').onclick=()=>{if(!CUR||CUR.r!=='admin')return;$('supRepModal').style.display='block';if(!$('srD2').value){const d=new Date();d.setDate(d.getDate()-1);$('srD2').value=d.toISOString().slice(0,10)}if(!$('srD1').value)$('srD1').value=$('srD2').value;supRepSyncDates()};
 function supRepToggle(sup,on){if(on)SUPREP_SEL.add(sup);else SUPREP_SEL.delete(sup)}
 function supRepToggleAll(on){SUPREP_SEL=new Set(on?SUPREP_LAST.map(x=>x.sup):[]);document.querySelectorAll('#srResult input[data-sup-chk]').forEach(c=>c.checked=on)}
 async function supRepDownload(sup){
@@ -3852,16 +3855,17 @@ async function supRepRun(dry){
   if(!CUR||CUR.r!=='admin')return;
   const types=supRepTypes(),{d1,d2}=supRepDates();
   if(!types.length){$('srStatus').textContent='اختار نوع تقرير واحد على الأقل ❌';return}
-  if(!d1||!d2){$('srStatus').textContent='اختار الفترة (من - إلى) ❌';return}
+  if(types.includes('perf')&&(!d1||!d2)){$('srStatus').textContent='اختار الفترة (من - إلى) ❌';return}
   const picked=[...SUPREP_SEL];
-  if(!dry&&SUPREP_LAST.length&&picked.length<SUPREP_LAST.length){
+  const usePick=!dry&&SUPREP_LAST.length>0&&picked.length<SUPREP_LAST.length;
+  if(usePick){
     if(!picked.length){$('srStatus').textContent='مفيش مشرفين متحددين — علّم ✓ على اللي عايز تبعتلهم ❌';return}
     if(!confirm('هيتبعت إيميل لـ '+picked.length+' مشرف بس (اللي علّمت عليهم)، مرفق فيه ملف إكسل ببيانات مناديب كل واحد بس. متأكد؟'))return;
   }else if(!dry&&!confirm('هيتبعت دلوقتي إيميل لكل مشرف على الإيميل المسجل في حسابه، مرفق فيه ملف إكسل ببيانات مناديبه بس. متأكد؟'))return;
   $('srStatus').textContent='⏳ جاري '+(dry?'تجهيز المعاينة':'إرسال التقارير')+'...';$('srResult').innerHTML='';SUPREP_LAST=[];
   try{
     const body={types,d1,d2,dryRun:dry};
-    if(!dry&&SUPREP_LAST.length&&picked.length<SUPREP_LAST.length)body.sups=picked;
+    if(usePick)body.sups=picked;
     const d=await api('/api/reports/send',{method:'POST',body});
     SUPREP_LAST=(dry?d.ready:d.sent)||[];
     if(dry)SUPREP_SEL=new Set(SUPREP_LAST.map(x=>x.sup));
@@ -3893,11 +3897,11 @@ $('na').onclick=async()=>{if(!CUR||CUR.r!=='admin')return;const u=$('nu').value.
   if(a.some((y,j)=>j!==i&&y.u.toLowerCase()===u))return alert('اسم المستخدم مستخدم بالفعل.');
   if(EDITING_USER&&a[i].u.toLowerCase()!==u&&!p0)return alert('اكتب كلمة مرور جديدة عند تغيير اسم المستخدم.');
   try{
-    const d=await api('/api/auth/admin/users',{method:'POST',body:{u,n,r,s,p:p0||undefined,rename:EDITING_USER||undefined}});
+    const d=await api('/api/auth/admin/users',{method:'POST',body:{u,n,r,s,p:p0||undefined,email:$('ne').value.trim(),rename:EDITING_USER||undefined}});
     if(d.password){setPW(u,d.password);alert('اتضاف الحساب. كلمة المرور: '+d.password)}
     else{if(p0)setPW(u,p0);alert(p0?'اتحدّث الحساب وكلمة المرور اتغيرت.':'اتحدّث الحساب. كلمة المرور زي ما هي (متغيرتش).')}
     if(EDITING_USER&&EDITING_USER!==u)setPW(EDITING_USER,null);
-    EDITING_USER=null;$('na').textContent='➕ إضافة / تحديث';['nu','nn','np'].forEach(k=>$(k).value='');await refreshUsers();ru();
+    EDITING_USER=null;$('na').textContent='➕ إضافة / تحديث';['nu','nn','np','ne'].forEach(k=>$(k).value='');await refreshUsers();ru();
     if(r==='viewer'){const vi=getU().findIndex(y=>y.u.toLowerCase()===u);if(vi>=0)vwA(vi)}
   }catch(e){alert('تعذّر الحفظ: '+authErr(e))}};
 async function usersPayload(){
@@ -3927,7 +3931,7 @@ $('exportSupervisors').onclick=()=>{if(!CUR||CUR.r!=='admin')return;
   const rows=[...unique.values()];
   if(!rows.length)return alert('مفيش مشرفين للتصدير.');
   dlCSV(rows,'أسماء_المشرفين.csv')};
-function eu(i){const x=getU()[i];EDITING_USER=x.u.toLowerCase();$('nu').value=x.u;$('nn').value=x.n;$('nr').value=x.r;$('nz').value='';sc();if(x.s)$('ns').value=x.s;$('np').value='';$('na').textContent='💾 حفظ تعديل';$('np').focus()}
+function eu(i){const x=getU()[i];EDITING_USER=x.u.toLowerCase();$('nu').value=x.u;$('nn').value=x.n;$('nr').value=x.r;$('nz').value='';sc();if(x.s)$('ns').value=x.s;$('np').value='';$('ne').value=x.email||'';$('na').textContent='💾 حفظ تعديل';$('np').focus()}
 const PW='abcdefghjkmnpqrstuvwxyz23456789',rp=()=>Array.from(crypto.getRandomValues(new Uint8Array(6)),b=>PW[b%PW.length]).join('');
 let IT;function idleReset(){clearTimeout(IT);if(CUR){let delay=30*60*1000;try{const saved=JSON.parse(localStorage.getItem(REMEMBER_LOGIN_KEY)||'null');if(saved&&saved.expires>Date.now())delay=saved.expires-Date.now()}catch(e){}IT=setTimeout(()=>$('out').click(),delay)}}
 ['click','keydown','touchstart'].forEach(e=>addEventListener(e,idleReset,{passive:true}));
