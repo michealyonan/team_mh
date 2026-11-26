@@ -2440,7 +2440,7 @@ export default {
         if (!q) return json({ error: 'missing_fields' }, 400);
         let ctxStr = '{}';
         try { ctxStr = JSON.stringify((body && body.ctx) || {}).slice(0, 9000); } catch (e) {}
-        const sys = 'إنت "TEAM MH"، مساعد لوحة تحكم Team MH لمتابعة أداء المناديب (الطيارين). بتجاوب دايمًا بالعامية المصرية، باختصار ووضوح. بتشوف أسئلة المستخدم السابقة وردودك عليها في المحادثة، فلو سأل سؤال مكمل أو رجع لموضوع قديم، استخدم السياق ده. أنواع الأسئلة: (1) سؤال عن بيانات اللوحة: جاوب من البيانات المبعوتة في رسالة المستخدم بس، متخترعش أرقام، ولو البيانات مش كفاية قول ده بصراحة. (2) طلب ترجمة: لو طلب ترجمة من العربي للإنجليزي أو العكس، ترجم النص بدقة وبس من غير زيادات، وحافظ على الأرقام والأسماء، ولو النص شغل (طلبات/شيفتات/مناديب) فهمّه المصطلحات صح. (3) سؤال عن معادلات Excel أو Google Sheets: افهم المعادلة واشرحها بالعربي خطوة خطوة، أو اكتبله المعادلة اللي يحتاجها بصيغة صحيحة شغالة في الاتنين، مع مثال قصير. (4) سؤال عام مش له علاقة بالبيانات: جاوب عادي من معرفتك وساعده برضه، وخلّي إجابتك قصيرة ومفيدة، ومتقولش إن ده من بيانات اللوحة. نسّق الإجابة في سطور قصيرة، ولو فيها قائمة خلي كل بند في سطر.';
+        const sys = 'إنت "TEAM MH"، مساعد لوحة تحكم Team MH لمتابعة أداء المناديب (الطيارين). بتجاوب دايمًا بالعامية المصرية، باختصار ووضوح. بتشوف أسئلة المستخدم السابقة وردودك عليها في المحادثة، فلو سأل سؤال مكمل أو رجع لموضوع قديم، استخدم السياق ده. مهم: لو السؤال مكمل لموضوع سابق مش محتاج بيانات اللوحة (زي معادلة أو ترجمة أو شرح)، كمّل عادي من سياق المحادثة حتى لو بيانات اللوحة فاضية، ومتقولش "مفيش بيانات". أنواع الأسئلة: (1) سؤال عن بيانات اللوحة: جاوب من البيانات المبعوتة في رسالة المستخدم بس، متخترعش أرقام، ولو البيانات مش كفاية قول ده بصراحة. (2) طلب ترجمة: لو طلب ترجمة من العربي للإنجليزي أو العكس، ترجم النص بدقة وبس من غير زيادات، وحافظ على الأرقام والأسماء، ولو النص شغل (طلبات/شيفتات/مناديب) فهمّه المصطلحات صح. (3) سؤال عن معادلات Excel أو Google Sheets: افهم المعادلة واشرحها بالعربي خطوة خطوة، أو اكتبله المعادلة اللي يحتاجها بصيغة صحيحة شغالة في الاتنين، مع مثال قصير. (4) سؤال عام مش له علاقة بالبيانات: جاوب عادي من معرفتك وساعده برضه، وخلّي إجابتك قصيرة ومفيدة، ومتقولش إن ده من بيانات اللوحة. نسّق الإجابة في سطور قصيرة، ولو فيها قائمة خلي كل بند في سطر.';
         // 26 Nov (19271108 upgrade 2): remember each user's past Q&A in D1 and feed the last 6
         // exchanges into the prompt so follow-up questions have context.
         const histRows = await env.DB.prepare('SELECT q,a FROM assistant_history WHERE u=? ORDER BY ts DESC LIMIT 6').bind(user.u).all().catch(() => null);
@@ -2473,7 +2473,7 @@ export default {
       } catch (e) { return serverErr(e); }
     }
 
-    if (url.pathname === '/api/notifications' || url.pathname === '/api/notifications/read' || url.pathname === '/api/notifications/purge-state-flips' || url.pathname === '/api/notifications/test') {
+    if (url.pathname === '/api/notifications' || url.pathname === '/api/notifications/read' || url.pathname === '/api/notifications/purge-state-flips' || url.pathname === '/api/notifications/clear-all' || url.pathname === '/api/notifications/test') {
       try {
         await ensureSchema(env);
         const user = await getSessionUser(env, request);
@@ -2496,6 +2496,12 @@ export default {
         if (url.pathname === '/api/notifications/purge-state-flips' && request.method === 'POST') {
           if (user.r !== 'admin') return json({ error: 'forbidden' }, 403);
           const r = await env.DB.prepare(`DELETE FROM notifications WHERE title='تغيير حالة مندوب' AND day=? AND body LIKE '%من "_" إلى "%"'`).bind(cairoDay()).run();
+          return json({ ok: true, deleted: (r.meta && r.meta.changes) || 0 });
+        }
+        // 26 Nov (Micheal 19282208): admin-only "clear notifications for everyone" button.
+        if (url.pathname === '/api/notifications/clear-all' && request.method === 'POST') {
+          if (user.r !== 'admin') return json({ error: 'forbidden' }, 403);
+          const r = await env.DB.prepare('DELETE FROM notifications').run();
           return json({ ok: true, deleted: (r.meta && r.meta.changes) || 0 });
         }
         if (url.pathname === '/api/notifications/test' && request.method === 'POST') {
