@@ -1214,8 +1214,11 @@ html[data-theme="light"] body{background:radial-gradient(ellipse at 8% 0%,#d6f4f
 
 <style id="responsive-control-polish">
 button,.btn,.chip,[role="button"]{-webkit-tap-highlight-color:transparent;touch-action:manipulation}
-.tab-eye{margin-inline-start:auto;cursor:pointer;font-size:13px;padding:2px 4px;border-radius:8px;flex:none}
+/* العين تتثبّت في عمود واحد على طرف الزر (Micheal 19182711): الزر block مش flex، فـ margin-auto مكانش بيحركها */
+.tab-eye{position:absolute;inset-inline-end:9px;top:50%;transform:translateY(-50%);cursor:pointer;font-size:13px;padding:2px 4px;border-radius:8px;line-height:1}
 .tab-eye:hover{background:#ffffff22}
+.nav-drawer-links .btn:has(.tab-eye){padding-inline-end:36px}
+.nav-drawer.collapsed .tab-eye{display:none}
 /* legal role home: the legal tab IS the page, not a popup (Micheal 16330636); profile+logout live in the top bar */
 body.legal-mode #legalModal{position:static!important;inset:auto!important;background:none!important;padding:12px!important;overflow:visible!important}
 body.legal-mode #legalModal>.card{max-width:960px;margin:0 auto}
