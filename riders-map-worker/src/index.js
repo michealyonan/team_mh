@@ -159,6 +159,16 @@ function bumpUsage(env, ctx) {
   }
 }
 
+/* Cron slot claim: first worker to write the slot owns it; the other skips. Fixed-width numeric
+   prefix keeps the text comparison valid. Fail-open: if the lock write itself errors, run anyway. */
+async function claimCronSlot(env, key, slot) {
+  try {
+    const v = String(slot).padStart(12, '0');
+    const r = await env.DB.prepare("INSERT INTO status_meta(k,v) VALUES(?,?) ON CONFLICT(k) DO UPDATE SET v=excluded.v WHERE status_meta.v < excluded.v").bind(key, v).run();
+    return !!(r && r.meta && r.meta.changes > 0);
+  } catch (e) { return true; }
+}
+
 async function isMapPaused(env) {
   try { const r = await env.DB.prepare("SELECT v FROM status_meta WHERE k='map_paused'").first(); return !!(r && r.v === '1'); } catch (e) { return false; }
 }
@@ -3091,6 +3101,12 @@ export default {
         if (user.r !== 'admin') return json({ error: 'forbidden' }, 403);
         const reset = nextUtcMidnight();
         const day = utcDay();
+        let cron = null;
+        try {
+          const lm = await env.DB.prepare("SELECT v FROM status_meta WHERE k='cron_lock_min'").first();
+          const ld = await env.DB.prepare("SELECT v FROM status_meta WHERE k='cron_lock_morning'").first();
+          cron = { minute_lock: lm && lm.v ? Number(lm.v) : null, minute_now: Math.floor(Date.now() / 60000), morning_lock: ld && ld.v ? ld.v : null };
+        } catch {}
         // Hiring storage footprint (Micheal 25 Nov): images are the heavy rows.
         let hiring = null;
         try {
@@ -3101,14 +3117,14 @@ export default {
         if (env.CF_API_TOKEN && env.CF_ACCOUNT_ID) {
           try {
             const used = await usageFromCloudflare(env);
-            return json({ ok: true, source: 'cloudflare', scope: 'account', limit: QUOTA_DAILY_LIMIT, used, remaining: Math.max(0, QUOTA_DAILY_LIMIT - used), day, hiring, reset_at: reset.toISOString() });
+            return json({ ok: true, source: 'cloudflare', scope: 'account', limit: QUOTA_DAILY_LIMIT, used, remaining: Math.max(0, QUOTA_DAILY_LIMIT - used), day, hiring, cron, reset_at: reset.toISOString() });
           } catch (e) {
             const used = await usageEstimate(env);
-            return json({ ok: true, source: 'estimate', scope: 'worker', cloudflare_error: String(e && e.message || e).slice(0, 200), limit: QUOTA_DAILY_LIMIT, used, remaining: Math.max(0, QUOTA_DAILY_LIMIT - used), day, hiring, reset_at: reset.toISOString() });
+            return json({ ok: true, source: 'estimate', scope: 'worker', cloudflare_error: String(e && e.message || e).slice(0, 200), limit: QUOTA_DAILY_LIMIT, used, remaining: Math.max(0, QUOTA_DAILY_LIMIT - used), day, hiring, cron, reset_at: reset.toISOString() });
           }
         }
         const used = await usageEstimate(env);
-        return json({ ok: true, source: 'estimate', scope: 'worker', limit: QUOTA_DAILY_LIMIT, used, remaining: Math.max(0, QUOTA_DAILY_LIMIT - used), day, hiring, reset_at: reset.toISOString() });
+        return json({ ok: true, source: 'estimate', scope: 'worker', limit: QUOTA_DAILY_LIMIT, used, remaining: Math.max(0, QUOTA_DAILY_LIMIT - used), day, hiring, cron, reset_at: reset.toISOString() });
       } catch (e) {
         return serverErr(e);
       }
@@ -3127,10 +3143,16 @@ export default {
 
   async scheduled(event, env, ctx) {
     bumpUsage(env, ctx);
-    ctx.waitUntil(runStatusCron(env).catch(() => {}));
-    ctx.waitUntil(runScheduleCron(env).catch(() => {}));
-    ctx.waitUntil(runStoppedRiderCron(env).catch(() => {}));
-    if (event.cron === '0 7 * * *') ctx.waitUntil(runMorningSummary(env, false).catch(() => {}));
+    // 26 Nov cron dedup (Micheal 22473910): same code runs at two addresses (team-mh + riders-map-relay)
+    // on ONE D1, so every cron fired twice. Claim the slot first; only the claimer works. 1 write/min total.
+    const jobs = [];
+    if (event.cron !== '0 7 * * *' && await claimCronSlot(env, 'cron_lock_min', Math.floor(Date.now() / 60000))) {
+      jobs.push(runStatusCron(env).catch(() => {}));
+      jobs.push(runScheduleCron(env).catch(() => {}));
+      jobs.push(runStoppedRiderCron(env).catch(() => {}));
+    }
+    if (event.cron === '0 7 * * *' && await claimCronSlot(env, 'cron_lock_morning', utcDay())) jobs.push(runMorningSummary(env, false).catch(() => {}));
+    ctx.waitUntil(Promise.all(jobs));
   },
 };
 
