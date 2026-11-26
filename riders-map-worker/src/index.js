@@ -1595,7 +1595,7 @@ function parseCsv(text) {
    توصل لبيانات مشرف تاني). المطابقة اسم-لحساب بالتطبيع الكامل بس (مفيش
    تخمين جزئي: التقرير فيه بيانات، والغلط هنا = تسريب لمشرف تاني). */
 const PERF_SHEET_ID = '1_80LVAdt68HgKKvODqDZeIo29zVTxNb2fzJh6xmUfD8';
-const REPORT_TYPES = { perf: 'أداء المناديب', wallets: 'المحافظ', contracts: 'انتهاء العقود' };
+const REPORT_TYPES = { perf: 'أداء المناديب', wallets: 'المحافظ', contracts: 'انتهاء العقود', deductions: 'الاستقطاعات' };
 const _repUse = new Map(); // day:username -> count (in-memory rate limit, كفاية لزرار يدوي)
 
 function repNameKey(value) {
@@ -1654,6 +1654,56 @@ async function repLatestDay() {
     const rows = await repFetchCsv('https://docs.google.com/spreadsheets/d/' + PERF_SHEET_ID + '/gviz/tq?tqx=out:csv&gid=0&headers=1&tq=' + encodeURIComponent('select max(F)'), 'max التاريخ');
     return repNormDay(rows[0] && rows[0][0]);
   } catch (e) { return ''; }
+}
+
+/* الاستقطاعات في تقارير المشرفين (Micheal 26 Nov): نفس مصدر جدول «استقطاعات المشرفين» في اللوحة —
+   تابة «نتائج السحب» في شيت القبض (عمود AG)، آخر (سنة،شهر) مجموع استقطاعاته مش صفر، والمشرف من هيدكاونت شيت القبض.
+   القراءة بالهيدر مش بأرقام الأعمدة عشان إدخال عمود جديد في الشيت مايكسرش التقرير. */
+const REP_PAY_SHEET_ID = '1qF6mEtqiDqejBupRYfK3zyODlRWYuNdBoDzrqB977O8';
+const REP_SAHB_GID = '1803561038', REP_PAY_HC_GID = '1378991698';
+function repHeaderKey(s) {
+  return String(s || '').normalize('NFKC')
+    .replace(/[ً-ٰٟـ]/g, '')
+    .replace(/[أإآٱ]/g, 'ا').replace(/ى/g, 'ي')
+    .replace(/[‎‏‪-‮]/g, '')
+    .replace(/\s+/g, '').trim().toLocaleLowerCase('ar');
+}
+async function repFetchDedLatest() {
+  // آخر (سنة،شهر) فيه استقطاعات فعلية — نفس منطق اللوحة عشان التقرير يطابق اللي المدير شايفه
+  const monthRows = await repFetchCsv('https://docs.google.com/spreadsheets/d/' + REP_PAY_SHEET_ID + '/gviz/tq?tqx=out:csv&gid=' + REP_SAHB_GID + '&headers=1&tq=' + encodeURIComponent('select AY, AZ, sum(AG) group by AY, AZ'), 'Month');
+  let pick = null;
+  for (const r of monthRows) {
+    const mo = +String(r[0] || '').replace(/,/g, ''), y = +String(r[1] || '').replace(/,/g, ''), s = Math.abs(parseFloat(String(r[2] || '0').replace(/,/g, '')) || 0);
+    if (!mo || !y || !s) continue;
+    if (!pick || y * 100 + mo > pick.y * 100 + pick.mo) pick = { y, mo };
+  }
+  const hcRows = await repFetchCsv('https://docs.google.com/spreadsheets/d/' + REP_PAY_SHEET_ID + '/gviz/tq?tqx=out:csv&gid=' + REP_PAY_HC_GID + '&headers=1', 'ID');
+  const hcSup = new Map(); // كود المندوب -> اسم المشرف (هيدكاونت شيت القبض، نفس مصدر جدول اللوحة)
+  for (const r of hcRows) {
+    const id = String(r[0] || '').trim();
+    if (id && !hcSup.has(id)) hcSup.set(id, String(r[2] || '').trim());
+  }
+  const byId = new Map(), weeks = new Map();
+  if (pick) {
+    const q = 'select * where AY = ' + pick.mo + ' and AZ = ' + pick.y;
+    const rows = await repFetchCsv('https://docs.google.com/spreadsheets/d/' + REP_PAY_SHEET_ID + '/gviz/tq?tqx=out:csv&gid=' + REP_SAHB_GID + '&headers=1&tq=' + encodeURIComponent(q), 'كود الطيار');
+    // أول صف في النتيجة هو الهيدر — repFetchCsv شاله، فبنستنتج الأعمدة من مواقعها الثابتة في نتائج السحب
+    for (const r of rows) {
+      const id = String(r[0] || '').trim();
+      if (!id) continue;
+      const amt = Math.abs(parseFloat(String(r[32] || '0').replace(/,/g, '')) || 0);
+      if (!amt) continue;
+      const wRaw = String(r[49] || '').trim();
+      const wm = wRaw.match(/(\d+)/), wOrder = /last/i.test(wRaw) ? 99 : (wm ? +wm[1] : 50);
+      if (!weeks.has(wOrder)) weeks.set(wOrder, wRaw || ('Week ' + wOrder));
+      let x = byId.get(id);
+      if (!x) { x = { id, name: String(r[1] || '').trim(), weeks: new Map(), total: 0 }; byId.set(id, x); }
+      x.weeks.set(wOrder, (x.weeks.get(wOrder) || 0) + amt);
+      x.total += amt;
+    }
+  }
+  const weekList = [...weeks.keys()].sort((a, b) => a - b).map(k => ({ key: k, label: weeks.get(k) }));
+  return { byId, weekList, hcSup, month: pick };
 }
 
 /* ---- مولّد Excel بسيط: ZIP تخزين مباشر (من غير ضغط) + XML جداول ----
@@ -1723,7 +1773,7 @@ async function repAssemble(env, types, d1, d2) {
   const group = (name) => {
     const k = repNameKey(name);
     let g = bySup.get(k);
-    if (!g) { g = { name: String(name || '').trim(), perf: new Map(), hc: [] }; bySup.set(k, g); }
+    if (!g) { g = { name: String(name || '').trim(), perf: new Map(), hc: [], ded: [] }; bySup.set(k, g); }
     return g;
   };
   let latestDay = '', perfRowCount = 0;
@@ -1749,6 +1799,15 @@ async function repAssemble(env, types, d1, d2) {
     }
   })());
   jobs.push((async () => { latestDay = await repLatestDay(); })());
+  let dedData = null;
+  if (types.includes('deductions')) jobs.push((async () => {
+    dedData = await repFetchDedLatest();
+    for (const d of dedData.byId.values()) {
+      const supName = dedData.hcSup.get(d.id) || '';
+      if (!supName) continue; // مندوب مش في الهيدكاونت — مينفعش نخمّن مشرفه في تقرير بيتبعت إيميل
+      group(supName).ded.push(d);
+    }
+  })());
   await Promise.all(jobs);
   const dayMs = Date.parse(cairoDay() + 'T00:00:00Z'); // المحافظ/العقود حالة حالية — مش مرتبطة بفترة الأداء
   const files = new Map(); // nameKey -> { name, riders, sheets: [{name,headers,rows}] }
@@ -1781,9 +1840,24 @@ async function repAssemble(env, types, d1, d2) {
         rows: list.map(({ x, left }) => [x.id, x.n, x.st, x.e, left]),
       });
     }
+    if (types.includes('deductions') && dedData) {
+      const wks = dedData.weekList;
+      const list = g.ded.slice().sort((x, y) => y.total - x.total);
+      const body = list.map(x => [x.id, x.name, ...wks.map(w => { const v = x.weeks.get(w.key); return v ? Math.round(v * 100) / 100 : ''; }), Math.round(x.total * 100) / 100]);
+      if (list.length) {
+        const weekSums = wks.map(w => Math.round(list.reduce((s, x) => s + (x.weeks.get(w.key) || 0), 0) * 100) / 100);
+        body.push(['', 'الإجمالي', ...weekSums, Math.round(list.reduce((s, x) => s + x.total, 0) * 100) / 100]);
+      }
+      sheets.push({
+        name: REPORT_TYPES.deductions,
+        headers: ['الكود', 'الاسم', ...wks.map(w => w.label), 'الإجمالي'],
+        rows: body,
+      });
+    }
     const ids = new Set();
     for (const x of g.perf.values()) ids.add(x.id);
     for (const x of g.hc) ids.add(x.id);
+    for (const x of g.ded) ids.add(x.id);
     files.set(k, { name: g.name, riders: ids.size, sheets });
   }
   return { files, latestDay, perfRowCount };
