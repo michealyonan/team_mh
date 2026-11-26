@@ -441,7 +441,6 @@ async function handleSheetProxy(request, env, json, url, ctx) {
   // measured live: the 38MB roster CSV crossed uncompressed). Gzip once at store time; hits just
   // pipe the stored bytes. If compression ever throws (CPU limits), the plain path still works.
   const gzipBuf = async (text) => await new Response(new Blob([text]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer();
-  const gunzipBuf = async (buf) => await new Response(new Blob([buf]).stream().pipeThrough(new DecompressionStream('gzip'))).text();
   const wantsGzip = /(?:^|[,\s])gzip(?:[,\s;]|$)/i.test(request.headers.get('Accept-Encoding') || '');
   const serve = (text, how) => new Response(text, {
     status: 200,
@@ -458,26 +457,25 @@ async function handleSheetProxy(request, env, json, url, ctx) {
     if (text.trimStart().startsWith('<')) throw new Error('upstream_html');
     return text;
   };
-  // 38MB of gzip blew the free worker CPU budget on a miss (live 503, 26 Nov) —
-  // only compress small sheets (live poll 512KB, targets 13KB); the big roster
-  // CSV is stored/served plain. The shared cache still removes Google's 7-8s.
-  const GZIP_MAX_CHARS = 4000000;
+  // Cache stores PLAIN text only. The 26 Nov gzip-at-store design double-compressed
+  // in production: the Cache API round-trip returns the stored bytes re-gzipped, so
+  // clients got gzip(gzip(csv)) with one Content-Encoding header (live-verified).
+  // Gzip is now done ON THE FLY at serve time, only for bodies small enough to fit
+  // the free 10ms CPU budget (~1M chars ≈ a few ms; 2.8MB ded sheet stays plain;
+  // 38MB roster blew the budget before - live 503 - so it stays plain too).
+  const GZIP_MAX_CHARS = 1000000;
   const store = async (text) => {
-    if (text.length > GZIP_MAX_CHARS) {
-      await cache.put(cacheKey, new Response(text, { headers: { 'Cache-Control': 'public, max-age=600', 'x-cached-at': String(Date.now()) } }));
-      return;
+    await cache.put(cacheKey, new Response(text, { headers: { 'Cache-Control': 'public, max-age=600', 'x-cached-at': String(Date.now()) } }));
+  };
+  const serveText = async (text, how) => {
+    if (wantsGzip && text.length <= GZIP_MAX_CHARS) {
+      try { return serveGz(await gzipBuf(text), how); } catch (e) {}
     }
-    let gz;
-    try { gz = await gzipBuf(text); } catch (e) { return; }
-    await cache.put(cacheKey, new Response(gz, { headers: { 'Cache-Control': 'public, max-age=600', 'x-cached-at': String(Date.now()), 'x-enc': 'gzip' } }));
+    return serve(text, how);
   };
   const serveHit = async (hit, how) => {
     const buf = await hit.arrayBuffer();
-    if (hit.headers.get('x-enc') === 'gzip') {
-      if (wantsGzip) return serveGz(buf, how);
-      try { return serve(await gunzipBuf(buf), how); } catch (e) { return serve(await new Response(new Blob([buf]).stream().pipeThrough(new DecompressionStream('gzip'))).text(), how); }
-    }
-    return serve(new TextDecoder().decode(buf), how);
+    return serveText(new TextDecoder().decode(buf), how);
   };
   try {
     const hit = await cache.match(cacheKey);
@@ -490,19 +488,9 @@ async function handleSheetProxy(request, env, json, url, ctx) {
       }
     }
     const text = await fetchGoogle();
-    let gz = null;
-    if (text.length <= GZIP_MAX_CHARS) { try { gz = await gzipBuf(text); } catch (e) {} }
-    if (gz) {
-      const storeResp = new Response(gz.slice(0), { headers: { 'Cache-Control': 'public, max-age=600', 'x-cached-at': String(Date.now()), 'x-enc': 'gzip' } });
-      if (ctx && ctx.waitUntil) ctx.waitUntil(cache.put(cacheKey, storeResp).catch(() => {})); else await cache.put(cacheKey, storeResp).catch(() => {});
-      if (wantsGzip) return serveGz(gz, 'miss');
-      return serve(text, 'miss');
-    }
-    if (text.length > GZIP_MAX_CHARS) {
-      const storeResp = new Response(text, { headers: { 'Cache-Control': 'public, max-age=600', 'x-cached-at': String(Date.now()) } });
-      if (ctx && ctx.waitUntil) ctx.waitUntil(cache.put(cacheKey, storeResp).catch(() => {})); else await cache.put(cacheKey, storeResp).catch(() => {});
-    }
-    return serve(text, 'miss-nocache');
+    const storeResp = new Response(text, { headers: { 'Cache-Control': 'public, max-age=600', 'x-cached-at': String(Date.now()) } });
+    if (ctx && ctx.waitUntil) ctx.waitUntil(cache.put(cacheKey, storeResp).catch(() => {})); else await cache.put(cacheKey, storeResp).catch(() => {});
+    return serveText(text, 'miss');
   } catch (e) {
     return json({ error: 'upstream_failed', detail: String(e && e.message || e).slice(0, 80) }, 502);
   }
