@@ -5892,31 +5892,30 @@ function payRender(){
 }
 function payCloseDeductionDetails(){$('payDeductionDetails').style.display='none'}
 /* ===== استقطاعات المشرفين (ردود فورم الاستقطاعات) — قراءة فقط، بدون أي كتابة D1 ===== */
-const SUP_DED_SHEET_ID='1_80LVAdt68HgKKvODqDZeIo29zVTxNb2fzJh6xmUfD8',SUP_DED_GID='475252173',SUP_DED_MONTHS=['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+// مصدر الاستقطاعات: تابة «نتائج السحب» في شيت القبض (عمود AG) — Micheal 21910622، بديل تابة فورم المشرفين (كانت بيانات مشتركة قديمة لكل المشرفين)
+const SUP_DED_SHEET_ID=PAY_SHEET_ID,SUP_DED_GID=PAY_GID,SUP_DED_MONTHS=['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
 let SUP_DED_LOADING=false,SUP_DED_DATA=null,SUP_DED_ALL=false;
 function payCloseSupDed(){$('paySupDedOverlay').style.display='none'}
-function supDedParseTs(text){const m=String(text||'').trim().match(/(\d{1,2}):(\d{2}):(\d{2})\s*([صم])\s*(\d{4})\/(\d{1,2})\/(\d{1,2})/);if(!m)return null;let h=+m[1];if(m[4]==='م'&&h!==12)h+=12;if(m[4]==='ص'&&h===12)h=0;const d=new Date(+m[5],+m[6]-1,+m[7],h,+m[2],+m[3]);return isNaN(d)?null:d}
-function supDedWeekOf(date){const d=new Date(date.getFullYear(),date.getMonth(),date.getDate()),dow=(d.getDay()+6)%7,start=new Date(d);start.setDate(d.getDate()-dow);const end=new Date(start);end.setDate(start.getDate()+6);const y=' '+String(end.getFullYear()).slice(2),label=start.getMonth()===end.getMonth()?start.getDate()+'–'+end.getDate()+' '+SUP_DED_MONTHS[start.getMonth()]+y:start.getDate()+' '+SUP_DED_MONTHS[start.getMonth()]+' – '+end.getDate()+' '+SUP_DED_MONTHS[end.getMonth()]+y;return{start,end,label}}
+function supDedWeekKey(year,month,weekText){const y=+String(year||'').replace(/[^0-9]/g,'')||0,mo=+String(month||'').replace(/[^0-9]/g,'')||0,w=String(weekText||'').trim(),m=w.match(/(\d+)/),last=/last/i.test(w),order=last?99:(m?+m[1]:50);if(!y||!mo)return null;const label=SUP_DED_MONTHS[mo-1]+' '+String(y).slice(2)+' · '+(last?'الأسبوع الأخير':'الأسبوع '+(m?(+m[1]).toLocaleString('ar-EG'):w));return{key:y*10000+mo*100+order,label}}
 async function supDedFetchCsv(){const t=authToken();if(t){try{const r=await fetch(`${API_BASE}/api/sheet/csv?id=${SUP_DED_SHEET_ID}&gid=${SUP_DED_GID}&ttl=300`,{cache:'no-store',headers:{Authorization:'Bearer '+t}});if(r.ok)return await r.text()}catch(e){}}const urls=[`https://docs.google.com/spreadsheets/d/${SUP_DED_SHEET_ID}/gviz/tq?tqx=out:csv&gid=${SUP_DED_GID}&_=${Date.now()}`,`https://docs.google.com/spreadsheets/d/${SUP_DED_SHEET_ID}/export?format=csv&gid=${SUP_DED_GID}&_=${Date.now()}`];let lastErr;for(const url of urls){const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),20000);try{const r=await fetch(url,{cache:'no-store',signal:controller.signal});if(!r.ok)throw new Error('HTTP '+r.status);const text=await r.text();if(text.trimStart().startsWith('<'))throw new Error('التابة غير متاحة للقراءة');return text}catch(e){lastErr=e}finally{clearTimeout(timer)}}throw lastErr||new Error('تعذّر الاتصال بالشيت')}
 async function payShowSupDed(){
  const overlay=$('paySupDedOverlay'),message=$('paySupDedMessage');overlay.style.display='flex';
  if(SUP_DED_DATA){supDedRender();return}
- if(SUP_DED_LOADING)return;SUP_DED_LOADING=true;message.textContent='جارٍ تحميل استقطاعات المشرفين من الشيت…';
+ if(SUP_DED_LOADING)return;SUP_DED_LOADING=true;message.textContent='جارٍ تحميل الاستقطاعات من تابة نتائج السحب…';
  try{
   const data=payParseCsv(await supDedFetchCsv()),keys=data.headers.map(payHeaderKey);
-  const tsI=keys.findIndex(k=>/^(timestamp|التوقيت|التاريخ|date)$/.test(k)),idI=keys.findIndex(k=>/^(riderid|id|كودالطيار|كودالمندوب|كودالسائق)$/.test(k)),amountI=keys.findIndex(k=>/(قيمةالخصم|قيمةالاستقطاع|المبلغ|amount)/.test(k)),nameI=keys.findIndex(k=>/^(اسمالمندوب|اسمالطيار|اسم|ridername|name)$/.test(k));
-  if(tsI<0||idI<0||amountI<0)throw new Error('أعمدة تابة الاستقطاعات غير متوقعة');
+  const idI=keys.findIndex(k=>/^(riderid|id|كودالطيار|كودالمندوب|كودالسائق)$/.test(k)),amountI=keys.findIndex(k=>/^الاستقطاعات$/.test(k)),weekI=keys.findIndex(k=>/^week$/.test(k)),monthI=keys.findIndex(k=>/^month$/.test(k)),yearI=keys.findIndex(k=>/^year$/.test(k)),nameI=keys.findIndex(k=>/^(اسمالمندوب|اسمالطيار|اسم|ridername|name)$/.test(k));
+  if(idI<0||amountI<0||weekI<0||monthI<0||yearI<0)throw new Error('أعمدة تابة الاستقطاعات غير متوقعة');
   const riders=new Map,weeks=new Map;
   for(const row of data.rows){
-   const date=supDedParseTs(row[tsI]);if(!date)continue;
    const amount=Math.abs(payMetricNumber(row[amountI]));if(!amount)continue;
    const id=deductionsIdKey(row[idI]);if(!id)continue;
    const name=String(row[nameI<0?idI:nameI]||'').replace(/\s*_TEAM\s*MH\s*$/i,'').trim();
-   const wk=supDedWeekOf(date),wkKey=wk.start.getTime();
-   if(!weeks.has(wkKey))weeks.set(wkKey,wk);
+   const wk=supDedWeekKey(row[yearI],row[monthI],row[weekI]);if(!wk)continue;
+   if(!weeks.has(wk.key))weeks.set(wk.key,wk);
    let r=riders.get(id);if(!r){r={id,name,weeks:new Map};riders.set(id,r)}
    if(!r.name&&name)r.name=name;
-   let arr=r.weeks.get(wkKey);if(!arr){arr=[];r.weeks.set(wkKey,arr)}
+   let arr=r.weeks.get(wk.key);if(!arr){arr=[];r.weeks.set(wk.key,arr)}
    arr.push(amount);
   }
   SUP_DED_DATA={riders:[...riders.values()],weeks,weekKeys:[...weeks.keys()].sort((a,b)=>a-b)};
@@ -5932,7 +5931,7 @@ function supDedRender(){
  let grand=0,count=0;const rows=riders.map(r=>{let total=0,n=0;for(const k of visible){const arr=r.weeks.get(k);if(arr){for(const a of arr){total+=a;n++}}}return{r,total,n}}).filter(x=>x.n>0);
  for(const x of rows){grand+=x.total;count+=x.n}
  rows.sort((a,b)=>b.total-a.total);
- message.textContent=rows.length?`الإجمالي ${payDeductionMoney(grand)} · ${rows.length.toLocaleString('ar-EG')} مندوب · ${count.toLocaleString('ar-EG')} استقطاع${SUP_DED_ALL?'':' · آخر ٨ أسابيع'}`:'لا توجد استقطاعات مسجلة.';
+ message.textContent=rows.length?`الإجمالي ${payDeductionMoney(grand)} · ${rows.length.toLocaleString('ar-EG')} مندوب · ${count.toLocaleString('ar-EG')} استقطاع · ${visible.length.toLocaleString('ar-EG')} أسابيع`:'لا توجد استقطاعات مسجلة.';
  head.innerHTML='<tr><th>ID المندوب</th><th>اسم المندوب</th>'+visible.map(k=>`<th>${esc(weeks.get(k).label)}</th>`).join('')+'<th>الإجمالي</th></tr>';
  body.innerHTML=rows.map(({r,total})=>'<tr class="rider-row"><td data-label="ID المندوب">'+esc(r.id)+'</td><td data-label="اسم المندوب">'+esc(r.name||'—')+'</td>'+visible.map(k=>{const arr=r.weeks.get(k);return `<td data-label="${esc(weeks.get(k).label)}">${arr?arr.map(a=>esc(payDeductionMoney(a))).join(' + '):''}</td>`}).join('')+`<td data-label="الإجمالي"><b>${esc(payDeductionMoney(total))}</b></td></tr>`).join('');
 }
