@@ -2414,7 +2414,7 @@ export default {
       } catch (e) { return serverErr(e); }
     }
 
-    if (url.pathname === '/api/notifications' || url.pathname === '/api/notifications/test') {
+    if (url.pathname === '/api/notifications' || url.pathname === '/api/notifications/read' || url.pathname === '/api/notifications/purge-state-flips' || url.pathname === '/api/notifications/test') {
       try {
         await ensureSchema(env);
         const user = await getSessionUser(env, request);
