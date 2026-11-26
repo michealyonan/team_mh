@@ -2199,14 +2199,16 @@ function liveJsonp(){
   });
 }
 async function liveFetchRows(){
-  const base=`https://docs.google.com/spreadsheets/d/${LIVE_SHEET_ID}/`,urls=[
+  const base=`https://docs.google.com/spreadsheets/d/${LIVE_SHEET_ID}/`,tkLive=authToken(),urls=[
+    ...(tkLive?[`${API_BASE}/api/sheet/csv?id=${LIVE_SHEET_ID}&gid=${LIVE_GID}&ttl=45`]:[]),
     `${base}gviz/tq?tqx=out:csv&gid=${LIVE_GID}&_=${Date.now()}`,
     `${base}export?format=csv&gid=${LIVE_GID}&_=${Date.now()}`
   ],errors=[];
   for(const url of urls){
     const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),20000);
     try{
-      const response=await fetch(url,{signal:controller.signal,cache:'no-store'});
+      const isProxy=url.indexOf('/api/sheet/')>=0;
+      const response=await fetch(url,isProxy?{signal:controller.signal,cache:'no-store',headers:{Authorization:'Bearer '+tkLive}}:{signal:controller.signal,cache:'no-store'});
       if(!response.ok)throw new Error('HTTP '+response.status);
       const text=await response.text();
       if(text.trimStart().startsWith('<'))throw new Error('الشيت غير متاح للعرض');
@@ -2611,10 +2613,14 @@ async function loadDashboardData(){
   const hadData=ROWS.length>0;
   if(!hadData)$('load').style.display='flex';else setSyncStatus('refreshing','البيانات الحالية ظاهرة أثناء التحديث');
   const errs=[];
-  for(const u of URLS){
+  // 26 Nov speed pass (21644370): try the worker's cached sheet proxy first (~0.2s on a shared
+  // cache hit vs 7-8s direct from Google); the direct URLs stay as fallbacks.
+  const t0=authToken(),sheetList=(t0?[`${API_BASE}/api/sheet/csv?id=${SID}&gid=0&ttl=300`]:[]).concat(URLS);
+  for(const u of sheetList){
     const ac=new AbortController(),tm=setTimeout(()=>ac.abort(),180000);
     try{
-      const r=await fetch(u,{signal:ac.signal});
+      const isProxy=u.indexOf('/api/sheet/')>=0;
+      const r=await fetch(u,isProxy?{signal:ac.signal,headers:{Authorization:'Bearer '+t0}}:{signal:ac.signal});
       if(!r.ok){errs.push('HTTP '+r.status);continue}
       const txt=await r.text();if(txt.trim().startsWith('<')){errs.push('الشيت غير عام (طلب تسجيل دخول)');continue}
       $('lt').textContent='معالجة البيانات…';await new Promise(r=>setTimeout(r));
@@ -2686,7 +2692,9 @@ async function loadSupervisorTargets(){
       const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),20000);
       let rows;
       try{
-        const response=await fetch(`https://docs.google.com/spreadsheets/d/${SID}/gviz/tq?tqx=out:csv&gid=${SUP_TARGET_GID}`,{cache:'no-store',signal:controller.signal});
+        const tkSt=authToken();let response=null;
+        if(tkSt){try{response=await fetch(`${API_BASE}/api/sheet/csv?id=${SID}&gid=${SUP_TARGET_GID}&ttl=300`,{cache:'no-store',signal:controller.signal,headers:{Authorization:'Bearer '+tkSt}});if(!response.ok)response=null}catch(proxyErr){response=null}}
+        if(!response)response=await fetch(`https://docs.google.com/spreadsheets/d/${SID}/gviz/tq?tqx=out:csv&gid=${SUP_TARGET_GID}`,{cache:'no-store',signal:controller.signal});
         if(!response.ok)throw new Error('HTTP '+response.status);
         const text=await response.text();
         if(text.trim().startsWith('<'))throw new Error('الخادم requires access to the target tab.');

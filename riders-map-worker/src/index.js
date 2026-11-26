@@ -417,6 +417,57 @@ const cleanContact = {
   },
 };
 
+// 26 Nov speed pass (Micheal 21644370): cached server-side proxy for the
+// public-link Google Sheets the dashboard pulls in the browser. Measured live:
+// roster CSV 7-8.3s, supervisor targets 8.3s, live-riders poll ~1s per user per
+// minute. A same-origin worker fetch from a CF datacenter is much faster, and
+// the Cache API shares one upstream fetch across all users. Cache API only —
+// no D1 writes (writes are capped). Whitelisted sheets/gids, session required.
+const SHEET_PROXY_ALLOWED = {
+  '1_80LVAdt68HgKKvODqDZeIo29zVTxNb2fzJh6xmUfD8': new Set(['0', '1584356034']),
+  '1OLvK2_Wi7k8jTa9K1FdLkNjQwpMD5ntMsG_pC8woTlk': new Set(['524668708']),
+};
+async function handleSheetProxy(request, env, json, url, ctx) {
+  if (url.pathname !== '/api/sheet/csv' || request.method !== 'GET') return null;
+  const user = await getSessionUser(env, request);
+  if (!user) return json({ error: 'unauthorized' }, 401);
+  const id = String(url.searchParams.get('id') || '');
+  const gid = String(url.searchParams.get('gid') || '');
+  if (!SHEET_PROXY_ALLOWED[id] || !SHEET_PROXY_ALLOWED[id].has(gid)) return json({ error: 'not_allowed' }, 403);
+  const ttlMs = Math.min(Math.max(parseInt(url.searchParams.get('ttl') || '120', 10) || 120, 15), 600) * 1000;
+  const cache = caches.default;
+  const cacheKey = new Request('https://sheet-cache.internal/' + id + '/' + gid);
+  const serve = (text, how) => new Response(text, {
+    status: 200,
+    headers: { 'Content-Type': 'text/csv; charset=utf-8', 'Cache-Control': 'no-store', 'X-Sheet-Cache': how },
+  });
+  const fetchGoogle = async () => {
+    const g = await fetch('https://docs.google.com/spreadsheets/d/' + id + '/gviz/tq?tqx=out:csv&gid=' + encodeURIComponent(gid), { signal: AbortSignal.timeout(20000) });
+    if (!g.ok) throw new Error('upstream_' + g.status);
+    const text = await g.text();
+    if (text.trimStart().startsWith('<')) throw new Error('upstream_html');
+    return text;
+  };
+  const store = (text) => cache.put(cacheKey, new Response(text, { headers: { 'Cache-Control': 'public, max-age=600', 'x-cached-at': String(Date.now()) } }));
+  try {
+    const hit = await cache.match(cacheKey);
+    if (hit) {
+      const age = Date.now() - parseInt(hit.headers.get('x-cached-at') || '0', 10);
+      const body = await hit.text();
+      if (age >= 0 && age < ttlMs) return serve(body, 'hit');
+      if (age < ttlMs * 10) {
+        if (ctx && ctx.waitUntil) ctx.waitUntil(fetchGoogle().then(store).catch(() => {}));
+        return serve(body, 'stale');
+      }
+    }
+    const text = await fetchGoogle();
+    if (ctx && ctx.waitUntil) ctx.waitUntil(store(text).catch(() => {})); else await store(text).catch(() => {});
+    return serve(text, 'miss');
+  } catch (e) {
+    return json({ error: 'upstream_failed', detail: String(e && e.message || e).slice(0, 80) }, 502);
+  }
+}
+
 // --- Supervisor chat (Micheal 24 Nov): WhatsApp-style messaging between
 // admin, managers and supervisors. Stored in D1, polled from the dashboard.
 const CHAT_ROLES = ['admin', 'manager', 'sup'];
@@ -2151,6 +2202,16 @@ export default {
       try {
         await ensureSchema(env);
         const handled = await handleAuth(request, env, json, url);
+        if (handled) return handled;
+      } catch (e) {
+        return serverErr(e);
+      }
+      return json({ error: 'not_found' }, 404);
+    }
+
+    if (url.pathname === '/api/sheet/csv') {
+      try {
+        const handled = await handleSheetProxy(request, env, json, url, ctx);
         if (handled) return handled;
       } catch (e) {
         return serverErr(e);
