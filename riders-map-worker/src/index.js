@@ -458,7 +458,15 @@ async function handleSheetProxy(request, env, json, url, ctx) {
     if (text.trimStart().startsWith('<')) throw new Error('upstream_html');
     return text;
   };
+  // 38MB of gzip blew the free worker CPU budget on a miss (live 503, 26 Nov) —
+  // only compress small sheets (live poll 512KB, targets 13KB); the big roster
+  // CSV is stored/served plain. The shared cache still removes Google's 7-8s.
+  const GZIP_MAX_CHARS = 4000000;
   const store = async (text) => {
+    if (text.length > GZIP_MAX_CHARS) {
+      await cache.put(cacheKey, new Response(text, { headers: { 'Cache-Control': 'public, max-age=600', 'x-cached-at': String(Date.now()) } }));
+      return;
+    }
     let gz;
     try { gz = await gzipBuf(text); } catch (e) { return; }
     await cache.put(cacheKey, new Response(gz, { headers: { 'Cache-Control': 'public, max-age=600', 'x-cached-at': String(Date.now()), 'x-enc': 'gzip' } }));
@@ -483,12 +491,16 @@ async function handleSheetProxy(request, env, json, url, ctx) {
     }
     const text = await fetchGoogle();
     let gz = null;
-    try { gz = await gzipBuf(text); } catch (e) {}
+    if (text.length <= GZIP_MAX_CHARS) { try { gz = await gzipBuf(text); } catch (e) {} }
     if (gz) {
       const storeResp = new Response(gz.slice(0), { headers: { 'Cache-Control': 'public, max-age=600', 'x-cached-at': String(Date.now()), 'x-enc': 'gzip' } });
       if (ctx && ctx.waitUntil) ctx.waitUntil(cache.put(cacheKey, storeResp).catch(() => {})); else await cache.put(cacheKey, storeResp).catch(() => {});
       if (wantsGzip) return serveGz(gz, 'miss');
       return serve(text, 'miss');
+    }
+    if (text.length > GZIP_MAX_CHARS) {
+      const storeResp = new Response(text, { headers: { 'Cache-Control': 'public, max-age=600', 'x-cached-at': String(Date.now()) } });
+      if (ctx && ctx.waitUntil) ctx.waitUntil(cache.put(cacheKey, storeResp).catch(() => {})); else await cache.put(cacheKey, storeResp).catch(() => {});
     }
     return serve(text, 'miss-nocache');
   } catch (e) {
