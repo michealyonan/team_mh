@@ -1668,12 +1668,18 @@ function repHeaderKey(s) {
     .replace(/[‎‏‪-‮]/g, '')
     .replace(/\s+/g, '').trim().toLocaleLowerCase('ar');
 }
+// gviz CSV بيرجّع الأرقام منسّقة بالشكل العربي (فاصلة عشرية ٫ وفاصل آلاف ٬ وأحيانًا أرقام هندية) — parseFloat العادي كان بيقص الكسور
+function repNum(v) {
+  const t = String(v == null ? '' : v).replace(/[٠-٩]/g, d => String(d.charCodeAt(0) - 1632)).replace(/[٬,\s]/g, '').replace(/٫/g, '.');
+  const n = parseFloat(t);
+  return isFinite(n) ? n : 0;
+}
 async function repFetchDedLatest() {
   // آخر (سنة،شهر) فيه استقطاعات فعلية — نفس منطق اللوحة عشان التقرير يطابق اللي المدير شايفه
   const monthRows = await repFetchCsv('https://docs.google.com/spreadsheets/d/' + REP_PAY_SHEET_ID + '/gviz/tq?tqx=out:csv&gid=' + REP_SAHB_GID + '&headers=1&tq=' + encodeURIComponent('select AY, AZ, sum(AG) group by AY, AZ'), 'Month');
   let pick = null;
   for (const r of monthRows) {
-    const mo = +String(r[0] || '').replace(/,/g, ''), y = +String(r[1] || '').replace(/,/g, ''), s = Math.abs(parseFloat(String(r[2] || '0').replace(/,/g, '')) || 0);
+    const mo = repNum(r[0]), y = repNum(r[1]), s = Math.abs(repNum(r[2]));
     if (!mo || !y || !s) continue;
     if (!pick || y * 100 + mo > pick.y * 100 + pick.mo) pick = { y, mo };
   }
@@ -1691,7 +1697,7 @@ async function repFetchDedLatest() {
     for (const r of rows) {
       const id = String(r[0] || '').trim();
       if (!id) continue;
-      const amt = Math.abs(parseFloat(String(r[32] || '0').replace(/,/g, '')) || 0);
+      const amt = Math.abs(repNum(r[32]));
       if (!amt) continue;
       const wRaw = String(r[49] || '').trim();
       const wm = wRaw.match(/(\d+)/), wOrder = /last/i.test(wRaw) ? 99 : (wm ? +wm[1] : 50);
