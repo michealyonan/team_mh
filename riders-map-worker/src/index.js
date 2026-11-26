@@ -307,13 +307,10 @@ async function sendFcmToUser(env, u, title, body, riderId) {
     try { await env.DB.prepare('INSERT INTO push_log(u,token_tail,status,resp,ts) VALUES(?,?,?,?,?)').bind(u, '', -4, 'fcm_not_configured', Date.now()).run(); } catch (e) {}
     return;
   }
-  const log = async (status, resp) => {
-    try { await env.DB.prepare('INSERT INTO push_log(u,token_tail,status,resp,ts) VALUES(?,?,?,?,?)').bind(u, '', status, String(resp || '').slice(0, 500), Date.now()).run(); } catch (e) {}
-  };
   try {
     const rows = await env.DB.prepare('SELECT token FROM push_tokens WHERE u=?').bind(u).all();
     const tokens = (rows.results || []).map(r => r.token);
-    if (!tokens.length) { await log(-1, 'no_tokens'); return; }
+    if (!tokens.length) return; // 26 Nov quota cut: was logging a no_tokens row per notification per user
     const at = await fcmAccessToken(env);
     const proj = env.FCM_PROJECT_ID || 'pilot-dashboard-d0983';
     for (const t of tokens.slice(0, 20)) {
@@ -330,7 +327,9 @@ async function sendFcmToUser(env, u, title, body, riderId) {
         });
         let respTxt = '';
         try { respTxt = await r.text(); } catch (e) { respTxt = 'read_error'; }
-        try { await env.DB.prepare('INSERT INTO push_log(u,token_tail,status,resp,ts) VALUES(?,?,?,?,?)').bind(u, tail, r.status, respTxt.slice(0, 500), Date.now()).run(); } catch (e) {}
+        // 26 Nov quota cut: log only failed pushes (success logging wrote 1 row per token per notification -
+        // the state-flip flood burned tens of thousands of D1 writes on push_log alone).
+        if (r.status !== 200) { try { await env.DB.prepare('INSERT INTO push_log(u,token_tail,status,resp,ts) VALUES(?,?,?,?,?)').bind(u, tail, r.status, respTxt.slice(0, 500), Date.now()).run(); } catch (e) {} }
         if (r.status === 404) await env.DB.prepare('DELETE FROM push_tokens WHERE token=?').bind(t).run();
       } catch (e) {
         try { await env.DB.prepare('INSERT INTO push_log(u,token_tail,status,resp,ts) VALUES(?,?,?,?,?)').bind(u, tail, -2, String(e).slice(0, 300), Date.now()).run(); } catch (e2) {}
@@ -1753,12 +1752,16 @@ async function runStatusCron(env) {
   for (const id of prev.keys()) if (!current.has(id)) gone.push(env.DB.prepare('DELETE FROM rider_states WHERE rider_id=?').bind(id));
   if (gone.length) stmts.push(...gone);
   if (stmts.length) await env.DB.batch(stmts);
-  try {
+  // 26 Nov quota cut: only rewrite the snapshot when something actually changed (was 1 write every 2 min).
+  if (stmts.length) try {
     const snap = [];
     for (const [id, cur] of current) snap.push([id, cur.state, cur.name, cur.sup, cur.zone]);
     await env.DB.prepare("INSERT INTO status_meta(k,v) VALUES('prev',?) ON CONFLICT(k) DO UPDATE SET v=excluded.v").bind(JSON.stringify(snap)).run();
   } catch {}
   if (!seeded) return; // first run seeds state without notifying
+  // 26 Nov flood guard: >50 riders "changing state" in one 2-min run is a data-format event in the
+  // source sheet, never real flips. Update state silently, send zero notifications/pushes.
+  if (changed.length > 50) return;
   for (const [id, cur, old] of changed) {
     const oldState = old ? old.state : undefined;
     if (oldState === undefined || !cur.state || normLiveState(oldState) === normLiveState(cur.state)) continue;
