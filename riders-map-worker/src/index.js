@@ -100,6 +100,7 @@ async function ensureSchema(env) {
     env.DB.prepare(`CREATE INDEX IF NOT EXISTS chat_to ON chat_messages(to_u, from_u, id)`),
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS chat_presence(u TEXT PRIMARY KEY, ts INTEGER NOT NULL)`),
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS usage_daily(day TEXT PRIMARY KEY, n INTEGER NOT NULL DEFAULT 0)`),
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS status_meta(k TEXT PRIMARY KEY, v TEXT NOT NULL)`),
     env.DB.prepare(`CREATE INDEX IF NOT EXISTS form_submissions_user_ts ON form_submissions(u,ts)`),
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS form_phone_jobs(id INTEGER PRIMARY KEY AUTOINCREMENT,u TEXT NOT NULL,job TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'pending',result TEXT NOT NULL DEFAULT '',ts INTEGER NOT NULL,updated INTEGER NOT NULL)`),
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS hiring_requests(id INTEGER PRIMARY KEY AUTOINCREMENT,u TEXT NOT NULL,payload TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'pending',result TEXT NOT NULL DEFAULT '',ts INTEGER NOT NULL,updated INTEGER NOT NULL)`),
@@ -1709,13 +1710,23 @@ async function runStatusCron(env) {
       zone: String(r[1] || '').trim().slice(0, 80),
     });
   }
-  const prevRows = await env.DB.prepare('SELECT rider_id,name,state,sup,zone FROM rider_states').all();
-  const prev = new Map((prevRows.results || []).map(r => [r.rider_id, { state: r.state, name: r.name, sup: r.sup, zone: r.zone }]));
+  // 26 Nov quota fix: previous state lives in a single status_meta row (1 row read)
+  // instead of a full rider_states scan (~1.6k rows every 2 min = ~2M reads/day, 40% of the free D1 read limit).
+  let prev = null;
+  try {
+    const meta = await env.DB.prepare("SELECT v FROM status_meta WHERE k='prev'").first();
+    if (meta && meta.v) prev = new Map(JSON.parse(meta.v));
+  } catch {}
+  if (!prev) {
+    const prevRows = await env.DB.prepare('SELECT rider_id,name,state,sup,zone FROM rider_states').all();
+    prev = new Map((prevRows.results || []).map(r => [r.rider_id, [r.state, r.name, r.sup, r.zone]]));
+  }
   const seeded = prev.size > 0;
   const stmts = [];
   const changed = [];
   for (const [id, cur] of current) {
-    const old = prev.get(id);
+    const oldArr = prev.get(id);
+    const old = oldArr ? { state: oldArr[0], name: oldArr[1], sup: oldArr[2], zone: oldArr[3] } : undefined;
     if (old && old.state === cur.state && old.name === cur.name && old.sup === cur.sup && old.zone === cur.zone) continue; // unchanged: no write
     stmts.push(env.DB.prepare('INSERT INTO rider_states(rider_id,name,state,sup,zone,updated) VALUES(?,?,?,?,?,?) ON CONFLICT(rider_id) DO UPDATE SET name=excluded.name, state=excluded.state, sup=excluded.sup, zone=excluded.zone, updated=excluded.updated')
       .bind(id, cur.name, cur.state, cur.sup, cur.zone, Date.now()));
@@ -1726,6 +1737,11 @@ async function runStatusCron(env) {
   for (const id of prev.keys()) if (!current.has(id)) gone.push(env.DB.prepare('DELETE FROM rider_states WHERE rider_id=?').bind(id));
   if (gone.length) stmts.push(...gone);
   if (stmts.length) await env.DB.batch(stmts);
+  try {
+    const snap = [];
+    for (const [id, cur] of current) snap.push([id, cur.state, cur.name, cur.sup, cur.zone]);
+    await env.DB.prepare("INSERT INTO status_meta(k,v) VALUES('prev',?) ON CONFLICT(k) DO UPDATE SET v=excluded.v").bind(JSON.stringify(snap)).run();
+  } catch {}
   if (!seeded) return; // first run seeds state without notifying
   for (const [id, cur, old] of changed) {
     const oldState = old ? old.state : undefined;
@@ -2394,7 +2410,8 @@ export default {
           const rd = await env.DB.prepare('SELECT ts FROM notifications_read WHERE u=?').bind(user.u).first();
           const readTs = (rd && rd.ts) || 0;
           const items = rows.results || [];
-          return json({ day, count: items.length, unread: items.filter(i => i.ts > readTs).length, items });
+          const cu = await env.DB.prepare('SELECT COUNT(*) AS c FROM chat_messages WHERE to_u=? AND read_at IS NULL').bind(user.u).first().catch(() => null);
+          return json({ day, count: items.length, unread: items.filter(i => i.ts > readTs).length, chat_unread: (cu && cu.c) || 0, items });
         }
         if (url.pathname === '/api/notifications/read' && request.method === 'POST') {
           await env.DB.prepare('INSERT INTO notifications_read(u,ts) VALUES(?,?) ON CONFLICT(u) DO UPDATE SET ts=excluded.ts').bind(user.u, Date.now()).run();
