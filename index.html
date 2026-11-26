@@ -8,6 +8,7 @@ FORM: RTL operations console, preserving the existing dashboard content, control
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
+<script>try{const st=localStorage.getItem('pd_site_theme');if(st)document.documentElement.dataset.stheme=st}catch(e){}</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow,noarchive"><link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E🏍️%3C/text%3E%3C/svg%3E"><meta name="color-scheme" content="dark"><meta name="theme-color" content="#0a1322"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><title>داش بورد أداء الطيارين</title>
@@ -20,6 +21,50 @@ FORM: RTL operations console, preserving the existing dashboard content, control
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 <script defer src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
+/* 26 Nov (Micheal 19294180 + 19301527): 15 site themes, each with its own colors,
+   density/arrangement and sidebar style. Applied locally per device (pd_site_theme),
+   reset button restores the original. */
+html[data-stheme]{--inbg:#1a2438;--rad:14px;--hbg:rgba(11,15,25,.95)}
+html[data-stheme] body{background:var(--bg);color:var(--tx)}
+html[data-stheme] header{background:var(--hbg)}
+html[data-stheme] .btn,html[data-stheme] select,html[data-stheme] input{background:var(--inbg);color:var(--tx);border-color:var(--bd)}
+html[data-stheme] .btn.pr{background:var(--pr);border-color:var(--pr);color:var(--onpr,#fff)}
+html[data-stheme] .chip{background:var(--inbg);border-color:var(--bd)}
+html[data-stheme] .chip.on{background:var(--pr);border-color:var(--pr);color:var(--onpr,#fff)}
+html[data-stheme] .card{border-radius:var(--rad)}
+html[data-stheme] .nav-drawer{background:var(--nvbg);border:var(--nvbd,1px solid rgba(255,255,255,.22));border-radius:var(--nvrad,24px);backdrop-filter:var(--nvblur,blur(26px) saturate(1.7));-webkit-backdrop-filter:var(--nvblur,blur(26px) saturate(1.7))}
+html[data-stheme] .nav-drawer-links .btn{min-height:var(--nvbtnh,48px);font-size:var(--nvfs,13px)}
+html[data-stheme="ocean"]{--bg:#082032;--card:#0d2f45;--bd:#1b4a66;--tx:#eaf6fb;--mut:#9cc4d8;--pr:#06b6d4;--inbg:#0d3548;--hbg:rgba(8,32,50,.95);--nvbg:linear-gradient(165deg,#0d3548,#082032)}
+html[data-stheme="emerald"]{--bg:#052019;--card:#0a3527;--bd:#14503c;--tx:#ecfdf5;--mut:#9ccdbf;--pr:#10b981;--inbg:#0c3a2b;--hbg:rgba(5,32,25,.95);--nvbg:linear-gradient(165deg,#0a3527,#052019)}
+html[data-stheme="royal"]{--bg:#150b2e;--card:#211344;--bd:#3a2566;--tx:#faf5ff;--mut:#c0aee0;--pr:#8b5cf6;--inbg:#2a1a52;--hbg:rgba(21,11,46,.95);--nvbg:linear-gradient(165deg,#2a1a52,#150b2e)}
+html[data-stheme="sunset"]{--bg:#2b130a;--card:#3f1d10;--bd:#5f2f1c;--tx:#fff7ed;--mut:#e0b49c;--pr:#f97316;--inbg:#46220f;--hbg:rgba(43,19,10,.95);--nvbg:linear-gradient(165deg,#46220f,#2b130a)}
+html[data-stheme="gold"]{--bg:#0a0a0a;--card:#161412;--bd:#3d3428;--tx:#fef3c7;--mut:#cbb98a;--pr:#f59e0b;--onpr:#1c1917;--inbg:#1d1915;--rad:6px;--hbg:rgba(10,10,10,.97);--nvbg:#12100d;--nvrad:8px;--nvbd:1px solid #f59e0b55;--nvblur:none}
+html[data-stheme="rose"]{--bg:#2a0e1a;--card:#3d1526;--bd:#5c2438;--tx:#fff1f4;--mut:#e0aec0;--pr:#f43f5e;--inbg:#451a2d;--hbg:rgba(42,14,26,.95);--nvbg:linear-gradient(165deg,#451a2d,#2a0e1a)}
+html[data-stheme="sky"]{color-scheme:light;--bg:#eaf4fb;--card:#ffffff;--bd:#bcd9ec;--tx:#0c4a6e;--mut:#4d7590;--pr:#0284c7;--inbg:#f2f9fd;--hbg:rgba(234,244,251,.95);--nvbg:#ffffff;--nvbd:1px solid #bcd9ec;--nvblur:none}
+html[data-stheme="sky"] .nav-drawer-links .btn{background:#f0f7fc;border-color:#d3e6f2;color:#0c4a6e}
+html[data-stheme="sand"]{color-scheme:light;--bg:#f5efe3;--card:#fffdf7;--bd:#ddd0b8;--tx:#4a3a22;--mut:#8a7a5c;--pr:#b45309;--inbg:#faf5e9;--hbg:rgba(245,239,227,.95);--nvbg:#fffdf7;--nvbd:1px solid #ddd0b8;--nvblur:none}
+html[data-stheme="sand"] .nav-drawer-links .btn{background:#f8f2e4;border-color:#e4d9c0;color:#4a3a22}
+html[data-stheme="mint"]{color-scheme:light;--bg:#e8f7f0;--card:#ffffff;--bd:#bfe3d2;--tx:#064e3b;--mut:#4d8471;--pr:#059669;--inbg:#f2faf6;--hbg:rgba(232,247,240,.95);--nvbg:#ffffff;--nvbd:1px solid #bfe3d2;--nvblur:none}
+html[data-stheme="mint"] .nav-drawer-links .btn{background:#f0f9f4;border-color:#d2ebdd;color:#064e3b}
+html[data-stheme="space"]{--bg:#050510;--card:#101020;--bd:#26264a;--tx:#e0e7ff;--mut:#a5b4fc;--pr:#818cf8;--onpr:#050510;--inbg:#15152e;--hbg:rgba(5,5,16,.97);--nvbg:#0a0a1a;--nvrad:18px}
+html[data-stheme="crimson"]{--bg:#200a0a;--card:#311010;--bd:#522020;--tx:#fef2f2;--mut:#e0a8a8;--pr:#ef4444;--inbg:#381414;--hbg:rgba(32,10,10,.95);--nvbg:linear-gradient(165deg,#381414,#200a0a)}
+html[data-stheme="compact"]{--bg:#0b0f19;--card:#10182a;--bd:#22304a;--tx:#f3f5f9;--mut:#8b97b0;--pr:#3b82f6;--rad:8px;--hbg:rgba(11,15,25,.95);--nvbg:#0e1626;--nvbtnh:36px;--nvfs:12px;--nvrad:12px;--nvblur:none}
+html[data-stheme="compact"] body{font-size:13px}
+html[data-stheme="compact"] main{gap:8px;padding:8px 10px}
+html[data-stheme="compact"] .card{padding:8px}
+html[data-stheme="compact"] .kpi{padding:8px}
+html[data-stheme="compact"] .kpi b{font-size:18px}
+html[data-stheme="comfort"]{--bg:#0d1420;--card:#16203256;--bd:#2a3a55;--tx:#ffffff;--mut:#a8b6cc;--pr:#38bdf8;--rad:20px;--hbg:rgba(13,20,32,.95);--nvbg:linear-gradient(165deg,#1a2840,#0d1420);--nvbtnh:58px;--nvfs:16px;--nvrad:28px}
+html[data-stheme="comfort"] body{font-size:16px}
+html[data-stheme="comfort"] .card{padding:16px}
+html[data-stheme="comfort"] .kpi{padding:16px}
+html[data-stheme="comfort"] .kpi b{font-size:26px}
+html[data-stheme="comfort"] .btn,html[data-stheme="comfort"] select,html[data-stheme="comfort"] input{font-size:15px;min-height:46px}
+html[data-stheme="glass"]{--bg:linear-gradient(140deg,#0f2027,#203a43,#2c5364);--card:#ffffff14;--bd:#ffffff2e;--tx:#f0f9ff;--mut:#b8d4e0;--pr:#22d3ee;--onpr:#082f38;--inbg:#ffffff12;--rad:22px;--hbg:rgba(15,32,39,.6);--nvbg:#ffffff10;--nvblur:blur(30px) saturate(1.8)}
+html[data-stheme="glass"] .card{backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+html[data-stheme="classic"]{--bg:#101d33;--card:#182742;--bd:#2c3f60;--tx:#eef2f8;--mut:#96a4bd;--pr:#2563eb;--rad:4px;--hbg:rgba(16,29,51,.97);--nvbg:#14223c;--nvrad:4px;--nvblur:none}
+html[data-stheme="classic"] .kpi{border-radius:4px}
+html[data-stheme="classic"] .nav-drawer-links .btn{border-radius:6px}
 :root{color-scheme:dark;--bg:#0b0f19;--card:#121a2b;--bd:#232e45;--tx:#f3f5f9;--mut:#8b97b0;--pr:#3b82f6;--ok:#10b981;--wa:#f59e0b;--bad:#ef4444;--pu:#8b5cf6;--cy:#06b6d4}
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:Cairo,system-ui,sans-serif;background:var(--bg);color:var(--tx);padding-bottom:env(safe-area-inset-bottom)}
@@ -1321,7 +1366,7 @@ html[data-theme="light"] .kpi .l,html[data-theme="light"] .kpi .s{color:#526a82!
     <button class="btn" id="supRepB" style="display:none">📊 تقارير المشرفين</button>
     <button class="btn" id="loginAuditB" style="display:none">🕵️ سجل الدخول</button>
     <button class="btn" id="quotaB" style="display:none" onclick="toggleNavDrawer(false);openQuota()">☁️ استهلاك كلاودفلير</button>
-    <button class="btn" id="themeB" style="display:none" onclick="toggleNavDrawer(false);openThemePicker()">🎨 تصميم الدخول</button>
+    <button class="btn" id="themeB" style="display:none" onclick="toggleNavDrawer(false);openThemePicker()">🎨 تصميم الموقع</button>
    </div>
    <div class="nav-group"><div class="nav-group-title">👤 حسابي</div>
     <button class="btn" id="profileB" style="display:none" onclick="toggleNavDrawer(false);openProfile()">👤 الملف الشخصي</button>
@@ -1353,8 +1398,12 @@ html[data-theme="light"] .kpi .l,html[data-theme="light"] .kpi .s{color:#526a82!
  </div>
  <div id="themeModal" style="display:none;position:fixed;inset:0;background:#000c;z-index:75;overflow:auto;padding:12px" onclick="if(event.target===this)this.style.display='none'">
   <div class="card" style="max-width:560px;margin:auto">
-   <div class="row"><h3 style="margin:0">🎨 تصميم صفحة الدخول</h3><span id="themeSaved" class="sub" style="color:#4ade80"></span><button class="btn" style="margin-inline-start:auto" onclick="$('themeModal').style.display='none'">✕</button></div>
-   <div class="sub">اختار التصميم — بيتطبق فورًا على صفحة الدخول لكل المستخدمين.</div>
+   <div class="row"><h3 style="margin:0">🎨 تصميم الموقع</h3><span id="themeSaved" class="sub" style="color:#4ade80"></span><button class="btn" style="margin-inline-start:auto" onclick="$('themeModal').style.display='none'">✕</button></div>
+   <div class="sub" style="margin-bottom:8px">اختار تصميم للموقع كله (لوحة التحكم والقايمة وصفحة الدخول) — بيتطبق فورًا على جهازك عشان تجرب، ومحدش تاني بيتأثر.</div>
+   <div id="siteThemeGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(105px,1fr));gap:10px"></div>
+   <div class="row" style="margin-top:10px"><button type="button" class="btn" onclick="resetSiteTheme()">↩️ رجوع للتصميم الأصلي</button><span id="siteThemeNow" class="sub"></span></div>
+   <div style="margin-top:16px;border-top:1px solid var(--bd);padding-top:12px"><b>🚪 تصميم صفحة الدخول لكل المستخدمين</b></div>
+   <div class="sub">دي بتتطبق على صفحة الدخول عند كل الناس.</div>
    <div id="themeGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(115px,1fr));gap:10px;margin-top:10px"></div>
    <div style="margin-top:14px;border-top:1px solid var(--bd);padding-top:12px">
     <label for="themeTitleIn">عنوان صفحة الدخول</label>
@@ -3664,8 +3713,41 @@ function applyLoginTheme(id){
 }
 try{const cached=localStorage.getItem('pd_login_theme');if(cached)applyLoginTheme(cached);const ct=localStorage.getItem('pd_login_title'),cs=localStorage.getItem('pd_login_sub');if(ct||cs)applyLoginTitle(ct,cs)}catch(e){}
 async function loadLoginTheme(){try{const r=await fetch('/api/theme');const d=await r.json();if(d&&d.theme){applyLoginTheme(d.theme);try{localStorage.setItem('pd_login_theme',d.theme)}catch(e){}}if(d){if(d.title||d.sub)applyLoginTitle(d.title,d.sub);try{if(d.title)localStorage.setItem('pd_login_title',d.title);if(d.sub)localStorage.setItem('pd_login_sub',d.sub)}catch(e){}}}catch(e){}}
+const SITE_THEMES=[
+{id:'ocean',n:'محيط',c:['#082032','#06b6d4']},
+{id:'emerald',n:'زمردي',c:['#052019','#10b981']},
+{id:'royal',n:'بنفسجي ملكي',c:['#150b2e','#8b5cf6']},
+{id:'sunset',n:'غروب',c:['#2b130a','#f97316']},
+{id:'gold',n:'فحمي ذهبي',c:['#0a0a0a','#f59e0b']},
+{id:'rose',n:'وردي',c:['#2a0e1a','#f43f5e']},
+{id:'sky',n:'سماوي فاتح',c:['#eaf4fb','#0284c7']},
+{id:'sand',n:'رملي دافئ',c:['#f5efe3','#b45309']},
+{id:'mint',n:'نعناعي فاتح',c:['#e8f7f0','#059669']},
+{id:'space',n:'فضاء',c:['#050510','#818cf8']},
+{id:'crimson',n:'قرمزي',c:['#200a0a','#ef4444']},
+{id:'compact',n:'مضغوط',c:['#0b0f19','#3b82f6']},
+{id:'comfort',n:'كبير وواضح',c:['#0d1420','#38bdf8']},
+{id:'glass',n:'زجاجي شفاف',c:['#203a43','#22d3ee']},
+{id:'classic',n:'كلاسيك',c:['#101d33','#2563eb']}];
+function renderSiteThemes(){
+ const g=$('siteThemeGrid');if(!g)return;
+ let cur='';try{cur=localStorage.getItem('pd_site_theme')||''}catch(e){}
+ g.innerHTML=SITE_THEMES.map(t=>'<button type="button" class="btn" onclick="pickSiteTheme(\''+t.id+'\')" style="padding:0;overflow:hidden;border:2px solid '+(cur===t.id?t.c[1]:'var(--bd)')+';border-radius:12px"><span style="display:block;height:44px;background:linear-gradient(135deg,'+t.c[0]+' 55%,'+t.c[1]+')"></span><span style="display:block;padding:6px 4px;font-size:12px;font-weight:700">'+esc(t.n)+'</span></button>').join('');
+ const nm=SITE_THEMES.find(t=>t.id===cur);$('siteThemeNow').textContent=nm?('الحالي: '+nm.n):'الحالي: الأصلي';
+}
+function pickSiteTheme(id){
+ document.documentElement.dataset.stheme=id;
+ try{localStorage.setItem('pd_site_theme',id)}catch(e){}
+ renderSiteThemes();
+}
+function resetSiteTheme(){
+ delete document.documentElement.dataset.stheme;
+ try{localStorage.removeItem('pd_site_theme')}catch(e){}
+ renderSiteThemes();
+}
 function openThemePicker(){
  const g=$('themeGrid');$('themeSaved').textContent='';
+ renderSiteThemes();
  const h=document.querySelector('#lg .login-brand h2'),p=document.querySelector('#lg .login-brand .sub');
  $('themeTitleIn').value=h?h.textContent:'';$('themeSubIn').value=p?p.textContent:'';
  g.innerHTML=LOGIN_THEMES.map(t=>{
