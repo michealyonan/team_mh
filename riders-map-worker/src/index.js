@@ -101,6 +101,8 @@ async function ensureSchema(env) {
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS chat_presence(u TEXT PRIMARY KEY, ts INTEGER NOT NULL)`),
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS usage_daily(day TEXT PRIMARY KEY, n INTEGER NOT NULL DEFAULT 0)`),
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS status_meta(k TEXT PRIMARY KEY, v TEXT NOT NULL)`),
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS assistant_history(u TEXT NOT NULL, ts INTEGER NOT NULL, q TEXT NOT NULL DEFAULT '', a TEXT NOT NULL DEFAULT '')`),
+    env.DB.prepare(`CREATE INDEX IF NOT EXISTS ah_u_ts ON assistant_history(u, ts)`),
     env.DB.prepare(`CREATE INDEX IF NOT EXISTS form_submissions_user_ts ON form_submissions(u,ts)`),
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS form_phone_jobs(id INTEGER PRIMARY KEY AUTOINCREMENT,u TEXT NOT NULL,job TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'pending',result TEXT NOT NULL DEFAULT '',ts INTEGER NOT NULL,updated INTEGER NOT NULL)`),
     env.DB.prepare(`CREATE TABLE IF NOT EXISTS hiring_requests(id INTEGER PRIMARY KEY AUTOINCREMENT,u TEXT NOT NULL,payload TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'pending',result TEXT NOT NULL DEFAULT '',ts INTEGER NOT NULL,updated INTEGER NOT NULL)`),
@@ -1772,6 +1774,42 @@ async function runStatusCron(env) {
   }
 }
 
+// 26 Nov (19271108 upgrade 4): morning summary push to admins at 09:00 Cairo (cron 0 7 * * * UTC).
+// Idempotent per Cairo day via status_meta so a duplicate cron fire (or both workers) sends it once.
+async function runMorningSummary(env, force) {
+  await ensureSchema(env);
+  const day = cairoDay();
+  if (!force) {
+    const mark = await env.DB.prepare("INSERT OR IGNORE INTO status_meta(k,v) VALUES(?,?)").bind('morning:' + day, String(Date.now())).run();
+    if (!(mark.meta && mark.meta.changes)) return { sent: 0, skipped: true };
+  }
+  const rows = await env.DB.prepare('SELECT state, COUNT(*) AS c FROM rider_states GROUP BY state').all();
+  const counts = {};
+  let total = 0;
+  for (const r of (rows.results || [])) { const k = String(r.state || '').toUpperCase() || 'UNKNOWN'; counts[k] = r.c; total += r.c; }
+  const statsText = 'التاريخ: ' + day + '\nإجمالي الطيارين المتتبعين: ' + total + '\n' +
+    Object.entries(counts).map(([k, v]) => k + ': ' + v).join('\n');
+  let summary = '';
+  if (env.AI) {
+    try {
+      const r = await env.AI.run('@cf/meta/llama-3.3-70b-instruct-fp8-fast', {
+        messages: [
+          { role: 'system', content: 'إنت مساعد Team MH. اكتب ملخص صباحي بالعامية المصرية لمدير التشغيل عن حالة الطيارين دلوقتي، في 4 سطور قصيرة كحد أقصى. استخدم الأرقام زي ما هي بالظبط من غير ما تخترع حاجة. ابدأ بتحية قصيرة زي "صباح الخير يا معلم".' },
+          { role: 'user', content: statsText },
+        ],
+        max_tokens: 300,
+      });
+      summary = String((r && r.response) || '').trim();
+    } catch {}
+  }
+  if (!summary) summary = 'صباح الخير ☀️\nالطيارين دلوقتي: ' + total + '\n' + Object.entries(counts).map(([k, v]) => k + ': ' + v).join('، ');
+  summary = summary.slice(0, 480);
+  const admins = await env.DB.prepare("SELECT u FROM users WHERE status='active' AND r='admin'").all();
+  let sent = 0;
+  for (const a of (admins.results || [])) { await insertNotification(env, a.u, '☀️ ملخص الصباح', summary, ''); sent++; }
+  return { sent, preview: summary };
+}
+
 // ---- Scheduled shift commands (26 Nov) ----
 function cairoNowParts() {
   const parts = new Intl.DateTimeFormat('en-US', { timeZone: 'Africa/Cairo', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date());
@@ -2391,6 +2429,7 @@ export default {
         if (!user) return json({ error: 'unauthorized' }, 401);
         if (!['admin', 'manager', 'sup'].includes(user.r)) return json({ error: 'forbidden' }, 403);
         if (!env.AI) return json({ error: 'ai_unavailable' }, 503);
+        await ensureSchema(env);
         const dayKey = cairoDay() + ':' + user.u;
         const used = (_aiUse.get(dayKey) || 0);
         if (used >= 60) return json({ error: 'daily_limit' }, 429);
@@ -2401,16 +2440,36 @@ export default {
         if (!q) return json({ error: 'missing_fields' }, 400);
         let ctxStr = '{}';
         try { ctxStr = JSON.stringify((body && body.ctx) || {}).slice(0, 9000); } catch (e) {}
-        const sys = 'إنت "TEAM MH"، مساعد لوحة تحكم Team MH لمتابعة أداء المناديب (الطيارين). بتجاوب دايمًا بالعامية المصرية، باختصار ووضوح. أنواع الأسئلة: (1) سؤال عن بيانات اللوحة: جاوب من البيانات المبعوتة في رسالة المستخدم بس، متخترعش أرقام، ولو البيانات مش كفاية قول ده بصراحة. (2) طلب ترجمة: لو طلب ترجمة من العربي للإنجليزي أو العكس، ترجم النص بدقة وبس من غير زيادات، وحافظ على الأرقام والأسماء، ولو النص شغل (طلبات/شيفتات/مناديب) فهمّه المصطلحات صح. (3) سؤال عن معادلات Excel أو Google Sheets: افهم المعادلة واشرحها بالعربي خطوة خطوة، أو اكتبله المعادلة اللي يحتاجها بصيغة صحيحة شغالة في الاتنين، مع مثال قصير. (4) سؤال عام مش له علاقة بالبيانات: جاوب عادي من معرفتك وساعده برضه، وخلّي إجابتك قصيرة ومفيدة، ومتقولش إن ده من بيانات اللوحة. نسّق الإجابة في سطور قصيرة، ولو فيها قائمة خلي كل بند في سطر.';
-        const r = await env.AI.run('@cf/meta/llama-3.3-70b-instruct-fp8-fast', {
-          messages: [
-            { role: 'system', content: sys },
-            { role: 'user', content: 'بيانات اللوحة الحالية (JSON):\n' + ctxStr + '\n\nالسؤال: ' + q },
-          ],
-          max_tokens: 600,
-        });
-        const ans = String((r && r.response) || '').trim();
-        return json({ ok: true, answer: ans || 'معنديش إجابة واضحة من البيانات الحالية.' });
+        const sys = 'إنت "TEAM MH"، مساعد لوحة تحكم Team MH لمتابعة أداء المناديب (الطيارين). بتجاوب دايمًا بالعامية المصرية، باختصار ووضوح. بتشوف أسئلة المستخدم السابقة وردودك عليها في المحادثة، فلو سأل سؤال مكمل أو رجع لموضوع قديم، استخدم السياق ده. أنواع الأسئلة: (1) سؤال عن بيانات اللوحة: جاوب من البيانات المبعوتة في رسالة المستخدم بس، متخترعش أرقام، ولو البيانات مش كفاية قول ده بصراحة. (2) طلب ترجمة: لو طلب ترجمة من العربي للإنجليزي أو العكس، ترجم النص بدقة وبس من غير زيادات، وحافظ على الأرقام والأسماء، ولو النص شغل (طلبات/شيفتات/مناديب) فهمّه المصطلحات صح. (3) سؤال عن معادلات Excel أو Google Sheets: افهم المعادلة واشرحها بالعربي خطوة خطوة، أو اكتبله المعادلة اللي يحتاجها بصيغة صحيحة شغالة في الاتنين، مع مثال قصير. (4) سؤال عام مش له علاقة بالبيانات: جاوب عادي من معرفتك وساعده برضه، وخلّي إجابتك قصيرة ومفيدة، ومتقولش إن ده من بيانات اللوحة. نسّق الإجابة في سطور قصيرة، ولو فيها قائمة خلي كل بند في سطر.';
+        // 26 Nov (19271108 upgrade 2): remember each user's past Q&A in D1 and feed the last 6
+        // exchanges into the prompt so follow-up questions have context.
+        const histRows = await env.DB.prepare('SELECT q,a FROM assistant_history WHERE u=? ORDER BY ts DESC LIMIT 6').bind(user.u).all().catch(() => null);
+        const hist = ((histRows && histRows.results) || []).reverse();
+        const msgs = [{ role: 'system', content: sys }];
+        for (const h of hist) {
+          msgs.push({ role: 'user', content: String(h.q || '').slice(0, 300) });
+          msgs.push({ role: 'assistant', content: String(h.a || '').slice(0, 500) });
+        }
+        msgs.push({ role: 'user', content: 'بيانات اللوحة الحالية (JSON):\n' + ctxStr + '\n\nالسؤال: ' + q });
+        const r = await env.AI.run('@cf/meta/llama-3.3-70b-instruct-fp8-fast', { messages: msgs, max_tokens: 600 });
+        const ans = String((r && r.response) || '').trim() || 'معنديش إجابة واضحة من البيانات الحالية.';
+        try {
+          await env.DB.prepare('INSERT INTO assistant_history(u,ts,q,a) VALUES(?,?,?,?)').bind(user.u, Date.now(), q.slice(0, 600), ans.slice(0, 800)).run();
+          await env.DB.prepare('DELETE FROM assistant_history WHERE u=? AND ts < COALESCE((SELECT MIN(ts) FROM (SELECT ts FROM assistant_history WHERE u=? ORDER BY ts DESC LIMIT 30)),0)').bind(user.u, user.u).run();
+        } catch {}
+        return json({ ok: true, answer: ans, history: hist.length });
+      } catch (e) { return serverErr(e); }
+    }
+
+    // 26 Nov (19271108 upgrade 4): admin-only manual trigger for the morning summary (also used to verify it end-to-end).
+    if (url.pathname === '/api/assistant/morning-summary' && request.method === 'POST') {
+      try {
+        await ensureSchema(env);
+        const user = await getSessionUser(env, request);
+        if (!user) return json({ error: 'unauthorized' }, 401);
+        if (user.r !== 'admin') return json({ error: 'forbidden' }, 403);
+        const out = await runMorningSummary(env, true);
+        return json({ ok: true, sent: out.sent, preview: out.preview });
       } catch (e) { return serverErr(e); }
     }
 
@@ -2857,6 +2916,7 @@ export default {
     ctx.waitUntil(runStatusCron(env).catch(() => {}));
     ctx.waitUntil(runScheduleCron(env).catch(() => {}));
     ctx.waitUntil(runStoppedRiderCron(env).catch(() => {}));
+    if (event.cron === '0 7 * * *') ctx.waitUntil(runMorningSummary(env, false).catch(() => {}));
   },
 };
 
