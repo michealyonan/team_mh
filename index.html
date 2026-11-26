@@ -1913,7 +1913,7 @@ header{box-shadow:0 8px 24px rgba(2,8,23,.5)}
   <div class="section-screen-heading"><h2 id="riderMapTitle">🗺️ خريطة مواقع المناديب</h2><button class="btn" id="riderMapClose" type="button">✕ إغلاق</button></div>
   <div class="card" id="riderMapTools">
    <div id="riderMapStatus" class="sub" role="status" aria-live="polite" style="min-height:24px;margin:4px 0 8px">الخريطة جاهزة.</div>
-   <button class="btn" id="riderMapCopyKey" type="button" style="display:none" aria-label="نسخ كلمة مرور الخريطة">🔑 كلمة مرور الخريطة: Nover@2026 · اضغط للنسخ</button>
+   <button class="btn" id="riderMapCopyKey" type="button" style="display:none" aria-label="نسخ كلمة مرور الخريطة">🔑 كلمة مرور الخريطة: Nover@2026 · اضغط للنسخ</button><button class="btn" id="riderMapPause" type="button" style="display:none">⏸️ إيقاف الخريطة مؤقتًا</button>
    <div class="rider-map-toolbar">
     <button class="btn" id="riderMapFiltersToggle" type="button" aria-expanded="false">🔎 فلتر الخريطة</button><select id="riderMapSupervisor" aria-label="فلتر المشرف"><option value="">كل المشرفين</option></select><input id="riderMapSearch" type="search" inputmode="numeric" placeholder="🔎 بحث برقم ID المندوب" aria-label="بحث برقم ID المندوب">
     <button class="btn" id="riderMapZoomIn" type="button" style="display:none">＋ تكبير</button><button class="btn" id="riderMapZoomOut" type="button" style="display:none">－ تصغير</button><button class="btn" id="riderMapFit" type="button" style="display:none">🎯 عرض الكل</button><button class="btn" id="riderMapStatsToggle" type="button" style="display:none">📊 إحصائيات الأوردرات</button><button class="btn" id="riderMapDetailsToggle" type="button" style="display:none">📋 تفاصيل المندوب</button>
@@ -6875,7 +6875,9 @@ async function riderMapRefresh(){
     const viewKey=(CUR&&CUR.token)||'';if(!viewKey){riderMapStatus('سجّل الدخول أولًا لعرض خريطة المناديب.',true);return}
     const headers={Accept:'application/json',Authorization:'Bearer '+viewKey},response=await fetch(RIDER_MAP_API_URL,{headers,cache:'no-store'});
     if(!response.ok)throw new Error('HTTP '+response.status)
-    riderMapRender(await response.json());await riderMapConnect(viewKey,headers);
+    const data=await response.json();
+    if(data&&data.paused){riderMapSetPaused(true);return}
+    riderMapSetPaused(false);riderMapRender(data);await riderMapConnect(viewKey,headers);
   }catch(error){riderMapStatus('تعذّر تحميل المواقع: '+(error.message||error),true)}
   finally{RIDER_MAP_BUSY=false}
 }
@@ -6883,14 +6885,19 @@ async function riderMapConnect(viewKey,headers){
   if(RIDER_MAP_SOCKET&&(RIDER_MAP_SOCKET.readyState===WebSocket.OPEN||RIDER_MAP_SOCKET.readyState===WebSocket.CONNECTING))return;
   const api=new URL(RIDER_MAP_API_URL),ticketResponse=await fetch(new URL('/api/ws-ticket',api.origin),{method:'POST',headers,cache:'no-store'});
   if(!ticketResponse.ok)throw new Error(ticketResponse.status===401?'مفتاح العرض غير صحيح':('HTTP '+ticketResponse.status));
-  const {ticket}=await ticketResponse.json(),socketUrl=new URL('/ws',api.origin);socketUrl.protocol=api.protocol==='https:'?'wss:':'ws:';socketUrl.searchParams.set('ticket',ticket);
+  const ticketData=await ticketResponse.json();if(ticketData&&ticketData.paused){riderMapSetPaused(true);return}
+  const ticket=ticketData.ticket,socketUrl=new URL('/ws',api.origin);socketUrl.protocol=api.protocol==='https:'?'wss:':'ws:';socketUrl.searchParams.set('ticket',ticket);
   const socket=new WebSocket(socketUrl);RIDER_MAP_SOCKET=socket;
   socket.onopen=()=>{if(RIDER_MAP_OPEN)riderMapStatus('متصل — التحديث لحظي عند وصول كل سحبة جديدة.')};
   socket.onmessage=event=>{try{const message=JSON.parse(event.data);if(message.type==='snapshot')riderMapRender(message.snapshot)}catch(error){console.error('Invalid rider map update',error)}};
   socket.onerror=()=>{if(RIDER_MAP_OPEN)riderMapStatus('الاتصال اللحظي انقطع؛ جاري إعادة المحاولة…',true)};
   socket.onclose=()=>{if(RIDER_MAP_SOCKET===socket)RIDER_MAP_SOCKET=null;if(RIDER_MAP_OPEN){clearTimeout(RIDER_MAP_RECONNECT);RIDER_MAP_RECONNECT=setTimeout(()=>riderMapRefresh(),4000)}};
 }
-function openRiderMap(){$('riderMapCopyKey').style.display=CUR&&CUR.r==='sup'?'':'none';toggleNavDrawer(false);RIDER_MAP_OPEN=true;openSectionScreen('riderMapPanel','riderMapB');requestAnimationFrame(async()=>{if(await riderMapInit())riderMapInstance.resize();riderMapRefresh()})}
+let RIDER_MAP_PAUSED=false;
+function riderMapSetPaused(p){RIDER_MAP_PAUSED=p;const btn=$('riderMapPause');if(btn)btn.textContent=p?'▶️ تشغيل الخريطة':'⏸️ إيقاف الخريطة مؤقتًا';if(p){if(RIDER_MAP_SOCKET){RIDER_MAP_SOCKET.onclose=null;try{RIDER_MAP_SOCKET.close()}catch(e){}RIDER_MAP_SOCKET=null}riderMapStatus('⏸️ الخريطة متوقفة مؤقتًا من الأدمن — ولا يوجد أي استهلاك من الحد اليومي. هتشتغل لوحدها أول ما الأدمن يشغّلها.');if(RIDER_MAP_OPEN){clearTimeout(RIDER_MAP_RECONNECT);RIDER_MAP_RECONNECT=setTimeout(()=>{if(RIDER_MAP_OPEN)riderMapRefresh()},60000)}}
+}
+$('riderMapPause').addEventListener('click',async()=>{if(!CUR||CUR.r!=='admin')return;try{const d=await api('/api/rider-map/pause',{method:'POST',body:{paused:!RIDER_MAP_PAUSED}});clearTimeout(RIDER_MAP_RECONNECT);RIDER_MAP_RECONNECT=null;riderMapSetPaused(!!d.paused);if(!d.paused){RIDER_MAP_BUSY=false;riderMapRefresh()}}catch(e){riderMapStatus('تعذّر تغيير حالة الخريطة: '+(e.message||e),true)}});
+function openRiderMap(){$('riderMapCopyKey').style.display=CUR&&CUR.r==='sup'?'':'none';$('riderMapPause').style.display=CUR&&CUR.r==='admin'?'':'none';toggleNavDrawer(false);RIDER_MAP_OPEN=true;openSectionScreen('riderMapPanel','riderMapB');requestAnimationFrame(async()=>{if(await riderMapInit())riderMapInstance.resize();riderMapRefresh()})}
 function closeRiderMap(){RIDER_MAP_OPEN=false;clearTimeout(RIDER_MAP_RECONNECT);RIDER_MAP_RECONNECT=null;if(RIDER_MAP_SOCKET){RIDER_MAP_SOCKET.onclose=null;RIDER_MAP_SOCKET.close(1000,'map closed');RIDER_MAP_SOCKET=null}closeSectionScreen('riderMapPanel','riderMapB')}
 $('riderMapZoomIn').addEventListener('click',()=>riderMapInstance&&riderMapInstance.zoomIn());
 $('riderMapZoomOut').addEventListener('click',()=>riderMapInstance&&riderMapInstance.zoomOut());

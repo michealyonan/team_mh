@@ -157,6 +157,10 @@ function bumpUsage(env, ctx) {
   }
 }
 
+async function isMapPaused(env) {
+  try { const r = await env.DB.prepare("SELECT v FROM status_meta WHERE k='map_paused'").first(); return !!(r && r.v === '1'); } catch (e) { return false; }
+}
+
 async function usageEstimate(env) {
   const day = utcDay();
   let used = 0;
@@ -1816,6 +1820,7 @@ const STOPPED_RIDER_MS = 30 * 60 * 1000;
 const STOPPED_RIDER_MOVED_DEG = 0.0004; // ~40m
 async function runStoppedRiderCron(env) {
   await ensureSchema(env);
+  if (await isMapPaused(env)) return; // map paused by admin (quota saver)
   const hub = env.RIDER_MAP_HUB.get(env.RIDER_MAP_HUB.idFromName('riders-global'));
   const resp = await hub.fetch('https://rider-map.internal/snapshot');
   if (!resp.ok) return;
@@ -2472,9 +2477,30 @@ export default {
       return json({ ok: true, riders: riders.length, updated_at: snapshot.updated_at });
     }
 
+    // Micheal 26 Nov (19157868): admin pause switch for the live map to save the daily quota
+    if (url.pathname === '/api/rider-map/pause' && request.method === 'POST') {
+      try {
+        await ensureSchema(env);
+        const user = await getSessionUser(env, request);
+        if (!user) return json({ error: 'unauthorized' }, 401);
+        if (user.r !== 'admin') return json({ error: 'forbidden' }, 403);
+        const body = await request.json().catch(() => ({}));
+        const paused = !!(body && body.paused);
+        await env.DB.prepare("INSERT INTO status_meta(k,v) VALUES('map_paused',?) ON CONFLICT(k) DO UPDATE SET v=excluded.v").bind(paused ? '1' : '0').run();
+        return json({ ok: true, paused });
+      } catch (e) { return serverErr(e); }
+    }
+
+    if (url.pathname === '/api/rider-map/state' && request.method === 'GET') {
+      const user = await getSessionUser(env, request);
+      if (!user) return json({ error: 'unauthorized' }, 401);
+      return json({ paused: await isMapPaused(env) });
+    }
+
     if (url.pathname === '/api/riders' && request.method === 'GET') {
       const okMapToken = env.MAP_VIEW_TOKEN && safeEqual(request.headers.get('Authorization') || '', `Bearer ${env.MAP_VIEW_TOKEN}`);
       if (!okMapToken && !await getSessionUser(env, request)) return json({ error: 'unauthorized' }, 401);
+      if (await isMapPaused(env)) return json({ paused: true, updated_at: null, riders: [] });
       const response = await hub.fetch('https://rider-map.internal/snapshot');
       return json(await response.json());
     }
@@ -2752,6 +2778,7 @@ export default {
     if (url.pathname === '/api/ws-ticket' && request.method === 'POST') {
       const okMapToken = env.MAP_VIEW_TOKEN && safeEqual(request.headers.get('Authorization') || '', `Bearer ${env.MAP_VIEW_TOKEN}`);
       if (!okMapToken && !await getSessionUser(env, request)) return json({ error: 'unauthorized' }, 401);
+      if (await isMapPaused(env)) return json({ paused: true });
       const ticket = `${crypto.randomUUID()}${crypto.randomUUID()}`;
       const response = await hub.fetch('https://rider-map.internal/ticket', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ticket }),
