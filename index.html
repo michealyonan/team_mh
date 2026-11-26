@@ -1887,6 +1887,7 @@ header{box-shadow:0 8px 24px rgba(2,8,23,.5)}
     <div class="pay-deduction-head"><h3 id="paySupDedTitle">📋 استقطاعات المشرفين</h3><button class="btn" id="paySupDedWeeks" type="button"></button><button class="btn" id="paySupDedClose" type="button">✕ إغلاق</button></div>
     <div class="row" style="margin:0 0 8px;gap:8px;flex-wrap:wrap"><input id="paySupDedSearch" type="search" autocomplete="off" placeholder="🔎 بحث بالكود أو الاسم" aria-label="بحث بالكود أو الاسم" style="flex:1;min-width:160px;min-height:42px"><select id="paySupDedSup" aria-label="فلتر بالمشرف" style="min-width:160px;min-height:42px"><option value="">كل المشرفين</option></select><button class="btn" id="paySupDedCsv" type="button">⬇ تنزيل CSV</button></div>
     <div class="sub" id="paySupDedMessage" role="status" aria-live="polite"></div>
+    <div id="paySupDedTotals" style="display:none;margin:0 0 10px;padding:12px 14px;border-radius:12px;background:rgba(255,255,255,.07);text-align:center"><div class="sub" style="margin:0">إجمالي الاستقطاعات</div><div id="paySupDedGrand" style="font-size:30px;font-weight:800;line-height:1.3"></div></div>
     <div class="pay-deduction-table"><table><thead id="paySupDedHead"></thead><tbody id="paySupDedBody"></tbody></table></div>
    </div>
   </div>
@@ -5942,9 +5943,12 @@ function supDedRender(){
  const rows=supDedFiltered();
  let grand=0,count=0;for(const x of rows){grand+=x.total;count+=x.n}
  rows.sort((a,b)=>b.total-a.total);
- message.textContent=rows.length?`الإجمالي ${payDeductionMoney(grand)} · ${rows.length.toLocaleString('ar-EG')} مندوب · ${count.toLocaleString('ar-EG')} استقطاع`:'لا توجد استقطاعات مطابقة.';
+ message.textContent=rows.length?`${rows.length.toLocaleString('ar-EG')} مندوب · ${count.toLocaleString('ar-EG')} استقطاع`:'لا توجد استقطاعات مطابقة.';
+ $('paySupDedTotals').style.display=rows.length?'':'none';$('paySupDedGrand').textContent=payDeductionMoney(grand);
  head.innerHTML='<tr><th>كود الطيار</th><th>اسم الطيار</th>'+visible.map(k=>`<th>${esc(weeks.get(k).label)}</th>`).join('')+'<th>الإجمالي</th></tr>';
- body.innerHTML=rows.map(({r,total})=>'<tr class="rider-row"><td data-label="كود الطيار">'+esc(r.id)+'</td><td data-label="اسم الطيار">'+esc(r.name||'—')+'</td>'+visible.map(k=>{const arr=r.weeks.get(k);return `<td data-label="${esc(weeks.get(k).label)}">${arr?arr.map(a=>esc(payDeductionMoney(a))).join(' + '):''}</td>`}).join('')+`<td data-label="الإجمالي"><b>${esc(payDeductionMoney(total))}</b></td></tr>`).join('');
+ const weekTotals=visible.map(k=>{let s=0;for(const x of rows){const arr=x.r.weeks.get(k);if(arr)for(const a of arr)s+=a}return s});
+ const totalsRow=rows.length?'<tr class="rider-row" style="font-weight:800;background:rgba(255,255,255,.08)"><td data-label="كود الطيار"></td><td data-label="اسم الطيار">الإجمالي</td>'+weekTotals.map((s,i)=>`<td data-label="${esc(weeks.get(visible[i]).label)}">${esc(payDeductionMoney(s))}</td>`).join('')+`<td data-label="الإجمالي">${esc(payDeductionMoney(grand))}</td></tr>`:'';
+ body.innerHTML=totalsRow+rows.map(({r,total})=>'<tr class="rider-row"><td data-label="كود الطيار">'+esc(r.id)+'</td><td data-label="اسم الطيار">'+esc(r.name||'—')+'</td>'+visible.map(k=>{const arr=r.weeks.get(k);return `<td data-label="${esc(weeks.get(k).label)}">${arr?arr.map(a=>esc(payDeductionMoney(a))).join(' + '):''}</td>`}).join('')+`<td data-label="الإجمالي"><b>${esc(payDeductionMoney(total))}</b></td></tr>`).join('');
 }
 function paySupDedExport(){
  if(!SUP_DED_DATA)return;const {weeks,weekKeys}=SUP_DED_DATA,visible=SUP_DED_ALL?weekKeys:weekKeys.slice(-8),rows=supDedFiltered().sort((a,b)=>b.total-a.total);
