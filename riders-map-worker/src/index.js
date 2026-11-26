@@ -437,9 +437,19 @@ async function handleSheetProxy(request, env, json, url, ctx) {
   const ttlMs = Math.min(Math.max(parseInt(url.searchParams.get('ttl') || '120', 10) || 120, 15), 600) * 1000;
   const cache = caches.default;
   const cacheKey = new Request('https://sheet-cache.internal/' + id + '/' + gid);
+  // Workers responses are not auto-compressed by Cloudflare (assets are, API responses are not -
+  // measured live: the 38MB roster CSV crossed uncompressed). Gzip once at store time; hits just
+  // pipe the stored bytes. If compression ever throws (CPU limits), the plain path still works.
+  const gzipBuf = async (text) => await new Response(new Blob([text]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer();
+  const gunzipBuf = async (buf) => await new Response(new Blob([buf]).stream().pipeThrough(new DecompressionStream('gzip'))).text();
+  const wantsGzip = /(?:^|[,\s])gzip(?:[,\s;]|$)/i.test(request.headers.get('Accept-Encoding') || '');
   const serve = (text, how) => new Response(text, {
     status: 200,
     headers: { 'Content-Type': 'text/csv; charset=utf-8', 'Cache-Control': 'no-store', 'X-Sheet-Cache': how },
+  });
+  const serveGz = (buf, how) => new Response(buf, {
+    status: 200,
+    headers: { 'Content-Type': 'text/csv; charset=utf-8', 'Cache-Control': 'no-store', 'X-Sheet-Cache': how, 'Content-Encoding': 'gzip', 'Vary': 'Accept-Encoding' },
   });
   const fetchGoogle = async () => {
     const g = await fetch('https://docs.google.com/spreadsheets/d/' + id + '/gviz/tq?tqx=out:csv&gid=' + encodeURIComponent(gid), { signal: AbortSignal.timeout(20000) });
@@ -448,21 +458,39 @@ async function handleSheetProxy(request, env, json, url, ctx) {
     if (text.trimStart().startsWith('<')) throw new Error('upstream_html');
     return text;
   };
-  const store = (text) => cache.put(cacheKey, new Response(text, { headers: { 'Cache-Control': 'public, max-age=600', 'x-cached-at': String(Date.now()) } }));
+  const store = async (text) => {
+    let gz;
+    try { gz = await gzipBuf(text); } catch (e) { return; }
+    await cache.put(cacheKey, new Response(gz, { headers: { 'Cache-Control': 'public, max-age=600', 'x-cached-at': String(Date.now()), 'x-enc': 'gzip' } }));
+  };
+  const serveHit = async (hit, how) => {
+    const buf = await hit.arrayBuffer();
+    if (hit.headers.get('x-enc') === 'gzip') {
+      if (wantsGzip) return serveGz(buf, how);
+      try { return serve(await gunzipBuf(buf), how); } catch (e) { return serve(await new Response(new Blob([buf]).stream().pipeThrough(new DecompressionStream('gzip'))).text(), how); }
+    }
+    return serve(new TextDecoder().decode(buf), how);
+  };
   try {
     const hit = await cache.match(cacheKey);
     if (hit) {
       const age = Date.now() - parseInt(hit.headers.get('x-cached-at') || '0', 10);
-      const body = await hit.text();
-      if (age >= 0 && age < ttlMs) return serve(body, 'hit');
+      if (age >= 0 && age < ttlMs) return await serveHit(hit, 'hit');
       if (age < ttlMs * 10) {
         if (ctx && ctx.waitUntil) ctx.waitUntil(fetchGoogle().then(store).catch(() => {}));
-        return serve(body, 'stale');
+        return await serveHit(hit, 'stale');
       }
     }
     const text = await fetchGoogle();
-    if (ctx && ctx.waitUntil) ctx.waitUntil(store(text).catch(() => {})); else await store(text).catch(() => {});
-    return serve(text, 'miss');
+    let gz = null;
+    try { gz = await gzipBuf(text); } catch (e) {}
+    if (gz) {
+      const storeResp = new Response(gz.slice(0), { headers: { 'Cache-Control': 'public, max-age=600', 'x-cached-at': String(Date.now()), 'x-enc': 'gzip' } });
+      if (ctx && ctx.waitUntil) ctx.waitUntil(cache.put(cacheKey, storeResp).catch(() => {})); else await cache.put(cacheKey, storeResp).catch(() => {});
+      if (wantsGzip) return serveGz(gz, 'miss');
+      return serve(text, 'miss');
+    }
+    return serve(text, 'miss-nocache');
   } catch (e) {
     return json({ error: 'upstream_failed', detail: String(e && e.message || e).slice(0, 80) }, 502);
   }
