@@ -424,7 +424,7 @@ const cleanContact = {
 // the Cache API shares one upstream fetch across all users. Cache API only —
 // no D1 writes (writes are capped). Whitelisted sheets/gids, session required.
 const SHEET_PROXY_ALLOWED = {
-  '1_80LVAdt68HgKKvODqDZeIo29zVTxNb2fzJh6xmUfD8': new Set(['0', '1584356034']),
+  '1_80LVAdt68HgKKvODqDZeIo29zVTxNb2fzJh6xmUfD8': new Set(['0', '1584356034', '475252173']), // 475252173 = تاب الاستقطاعات (فورم المشرفين) - read-only, Micheal 26 Nov
   '1OLvK2_Wi7k8jTa9K1FdLkNjQwpMD5ntMsG_pC8woTlk': new Set(['524668708']),
 };
 async function handleSheetProxy(request, env, json, url, ctx) {
