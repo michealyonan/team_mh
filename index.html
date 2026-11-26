@@ -5922,6 +5922,10 @@ async function payShowSupDed(){
    let arr=r.weeks.get(wk.key);if(!arr){arr=[];r.weeks.set(wk.key,arr)}
    arr.push(amount);
   }
+  // أظهر آخر شهر قبض بس: التابة بيحتفظ بصفوف الشهر اللي فات (زي Week 4 بتاع أكتوبر) ومايكل بيرفع الشهر الحالي بس (22021331)
+  let maxYM=0;for(const wk of weeks.values())maxYM=Math.max(maxYM,wk.y*100+wk.mo);
+  for(const [k,wk] of weeks)if(wk.y*100+wk.mo!==maxYM)weeks.delete(k);
+  for(const r of riders.values())for(const k of [...r.weeks.keys()])if(!weeks.has(k))r.weeks.delete(k);
   const labelCounts={};for(const wk of weeks.values())labelCounts[wk.raw]=(labelCounts[wk.raw]||0)+1;
   for(const wk of weeks.values())wk.label=labelCounts[wk.raw]>1?wk.raw+' ('+SUP_DED_MONTHS[wk.mo-1]+' '+String(wk.y).slice(2)+')':wk.raw;
   SUP_DED_DATA={riders:[...riders.values()],weeks,weekKeys:[...weeks.keys()].sort((a,b)=>a-b),supById};
