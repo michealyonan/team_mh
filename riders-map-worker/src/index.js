@@ -463,16 +463,14 @@ async function handleSheetProxy(request, env, json, url, ctx) {
   // Gzip is now done ON THE FLY at serve time, only for bodies small enough to fit
   // the free 10ms CPU budget (~1M chars ≈ a few ms; 2.8MB ded sheet stays plain;
   // 38MB roster blew the budget before - live 503 - so it stays plain too).
-  const GZIP_MAX_CHARS = 1000000;
+  // Serve PLAIN always. Live-verified 26 Nov: when this worker sets
+  // Content-Encoding: gzip itself, the platform compresses the body AGAIN at
+  // egress - clients receive gzip(gzip(csv)) with one header and silently fall
+  // back. There is no safe self-gzip from this worker; keep everything plain.
   const store = async (text) => {
     await cache.put(cacheKey, new Response(text, { headers: { 'Cache-Control': 'public, max-age=600', 'x-cached-at': String(Date.now()) } }));
   };
-  const serveText = async (text, how) => {
-    if (wantsGzip && text.length <= GZIP_MAX_CHARS) {
-      try { return serveGz(await gzipBuf(text), how); } catch (e) {}
-    }
-    return serve(text, how);
-  };
+  const serveText = async (text, how) => serve(text, how);
   const serveHit = async (hit, how) => {
     const buf = await hit.arrayBuffer();
     return serveText(new TextDecoder().decode(buf), how);
