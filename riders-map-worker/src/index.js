@@ -1755,7 +1755,10 @@ async function runStatusCron(env) {
   // 26 Nov quota cut: only rewrite the snapshot when something actually changed (was 1 write every 2 min).
   if (stmts.length) try {
     const snap = [];
-    for (const [id, cur] of current) snap.push([id, cur.state, cur.name, cur.sup, cur.zone]);
+    // 26 Nov CRITICAL: entries must be [id, [state,name,sup,zone]] - new Map() reads entry[1] as the
+    // whole value. The old flat shape decoded oldArr to a STRING, so every rider looked changed every run
+    // (~1,600 D1 writes every 2 min) and notifications showed old state as its first letter.
+    for (const [id, cur] of current) snap.push([id, [cur.state, cur.name, cur.sup, cur.zone]]);
     await env.DB.prepare("INSERT INTO status_meta(k,v) VALUES('prev',?) ON CONFLICT(k) DO UPDATE SET v=excluded.v").bind(JSON.stringify(snap)).run();
   } catch {}
   if (!seeded) return; // first run seeds state without notifying
