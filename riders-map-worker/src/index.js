@@ -1700,6 +1700,16 @@ async function repMatchUsers(env, files) {
 
 async function runStatusCron(env) {
   await ensureSchema(env);
+  // 26 Nov (19219967): the live source flips between one-letter codes (W/T) and full names
+  // (WORKING/TEMP_NOT_WORKING). Normalize before comparing so a format flip never fires false
+  // "تغيير حالة مندوب" notifications. Every known code is the first letter of its full name.
+  const STATE_NAMES = ['WORKING', 'BREAK', 'LATE', 'TEMP_NOT_WORKING', 'ENDING', 'STARTING', 'READY'];
+  const normLiveState = (s) => {
+    const t = String(s || '').trim();
+    if (!t) return '';
+    if (t.length === 1) { const m = STATE_NAMES.find(x => x[0] === t.toUpperCase()); if (m) return m; }
+    return t.toUpperCase();
+  };
   const res = await fetch(`https://docs.google.com/spreadsheets/d/${LIVE_SHEET_ID}/gviz/tq?tqx=out:csv&gid=${LIVE_GID}&headers=1&_=${Date.now()}`);
   if (!res.ok) return;
   const rows = parseCsv(await res.text()).slice(1);
@@ -1731,7 +1741,7 @@ async function runStatusCron(env) {
   for (const [id, cur] of current) {
     const oldArr = prev.get(id);
     const old = oldArr ? { state: oldArr[0], name: oldArr[1], sup: oldArr[2], zone: oldArr[3] } : undefined;
-    if (old && old.state === cur.state && old.name === cur.name && old.sup === cur.sup && old.zone === cur.zone) continue; // unchanged: no write
+    if (old && normLiveState(old.state) === normLiveState(cur.state) && old.name === cur.name && old.sup === cur.sup && old.zone === cur.zone) continue; // unchanged: no write
     stmts.push(env.DB.prepare('INSERT INTO rider_states(rider_id,name,state,sup,zone,updated) VALUES(?,?,?,?,?,?) ON CONFLICT(rider_id) DO UPDATE SET name=excluded.name, state=excluded.state, sup=excluded.sup, zone=excluded.zone, updated=excluded.updated')
       .bind(id, cur.name, cur.state, cur.sup, cur.zone, Date.now()));
     changed.push([id, cur, old]);
@@ -1749,7 +1759,7 @@ async function runStatusCron(env) {
   if (!seeded) return; // first run seeds state without notifying
   for (const [id, cur, old] of changed) {
     const oldState = old ? old.state : undefined;
-    if (oldState === undefined || oldState === cur.state || !cur.state) continue;
+    if (oldState === undefined || !cur.state || normLiveState(oldState) === normLiveState(cur.state)) continue;
     const targets = new Map();
     if (cur.sup) {
       let supRows = await env.DB.prepare("SELECT u FROM users WHERE status='active' AND (n=? OR u=?)").bind(cur.sup, cur.sup.toLowerCase()).all();
@@ -2421,6 +2431,13 @@ export default {
         if (url.pathname === '/api/notifications/read' && request.method === 'POST') {
           await env.DB.prepare('INSERT INTO notifications_read(u,ts) VALUES(?,?) ON CONFLICT(u) DO UPDATE SET ts=excluded.ts').bind(user.u, Date.now()).run();
           return json({ ok: true });
+        }
+        // 26 Nov (Micheal 19222604): purge false "state flip" notifications — rows whose OLD state
+        // is a single-letter code (من "W" إلى "WORKING") fired when the live source flipped format.
+        if (url.pathname === '/api/notifications/purge-state-flips' && request.method === 'POST') {
+          if (user.r !== 'admin') return json({ error: 'forbidden' }, 403);
+          const r = await env.DB.prepare(`DELETE FROM notifications WHERE title='تغيير حالة مندوب' AND day=? AND body LIKE '%من "_" إلى "%"'`).bind(cairoDay()).run();
+          return json({ ok: true, deleted: (r.meta && r.meta.changes) || 0 });
         }
         if (url.pathname === '/api/notifications/test' && request.method === 'POST') {
           if (user.r !== 'admin' && user.r !== 'manager') return json({ error: 'forbidden' }, 403);
