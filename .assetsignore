@@ -1,0 +1,13 @@
+# Only ship what the worker actually serves; .git packfiles broke Workers Builds (92MB > 25MiB asset cap)
+.git
+.github
+android
+android-v3
+desktop
+docs
+node_modules
+riders-map-worker
+relay
+wa-gateway
+.gitignore
+.assetsignore

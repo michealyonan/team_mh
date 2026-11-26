@@ -1394,13 +1394,7 @@ header{box-shadow:0 8px 24px rgba(2,8,23,.5)}
 <div id="mkPanel" class="card">
  <div class="row" style="padding:10px 12px;border-bottom:1px solid var(--bd)"><b>🤖 TEAM MH</b><span class="sub">مساعد لوحة التحكم</span><button class="btn" style="margin-inline-start:auto" onclick="toggleMike()">✕</button></div>
  <div id="mkMsgs" style="flex:1;overflow:auto;padding:10px 12px;display:grid;gap:8px;align-content:start"></div>
- <div class="row" style="gap:6px;padding:6px 12px 0;overflow-x:auto;flex-wrap:nowrap;border-top:1px solid var(--bd)">
-  <button class="mkchip" onclick="mkAsk('مين المتأخرين دلوقتي؟')">⏰ المتأخرين</button>
-  <button class="mkchip" onclick="mkAsk('اديني ملخص أداء النهاردة')">📊 ملخص النهاردة</button>
-  <button class="mkchip" onclick="mkAsk('مين أحسن ٥ مناديب؟')">🏆 أحسن ٥</button>
-  <button class="mkchip" onclick="mkAsk('مين أقل ٥ في الأداء؟')">⚠️ أقل ٥</button>
- </div>
- <div class="row" style="gap:6px;padding:8px 12px 12px">
+ <div class="row" style="gap:6px;padding:8px 12px 12px;border-top:1px solid var(--bd)">
   <input id="mkQ" placeholder="اسأل TEAM MH أي حاجة عن الشغل…" style="flex:1;min-height:42px;font-size:15px" onkeydown="if(event.key==='Enter')sendMike()">
   <button class="btn pr" style="min-height:42px" onclick="sendMike()">إرسال</button>
  </div>
