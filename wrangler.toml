@@ -27,4 +27,4 @@ ALLOWED_ORIGIN = "https://michealyonan.github.io,https://team-mh.michealuonanaya
 binding = "AI"
 
 [triggers]
-crons = ["*/2 * * * *", "0 7 * * *"]
+crons = ["* * * * *", "0 7 * * *"]
