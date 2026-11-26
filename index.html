@@ -1392,6 +1392,7 @@ html[data-theme="light"] .kpi .l,html[data-theme="light"] .kpi .s{color:#526a82!
     <div id="chatMsgs" style="flex:1;min-height:300px;max-height:55vh;overflow:auto;display:flex;flex-direction:column;gap:6px;padding:8px;background:rgba(255,255,255,.04);border-radius:10px"></div>
     <div id="chatComposer" style="display:flex;gap:6px;margin-top:8px"><button class="btn" id="chatImgB" type="button" title="إرسال صورة" aria-label="إرسال صورة">📷</button><button class="btn" id="chatMicB" type="button" title="إرسال فويس" aria-label="إرسال فويس">🎤</button><input id="chatIn" placeholder="اكتب رسالة…" style="flex:1" maxlength="1000"><button class="btn pr" id="chatSendBtn" type="button">إرسال ⬅</button></div>
     <div id="chatRecBar" style="display:none;align-items:center;gap:8px;margin-top:8px"><button class="btn" id="chatRecCancel" type="button" style="background:#7f1d1d" title="إلغاء">✖ إلغاء</button><span id="chatRecTimer" style="flex:1;text-align:center;font-weight:900;color:#ef4444">🔴 0:00</span><button class="btn pr" id="chatRecSend" type="button" title="إرسال الفويس">✔ إرسال</button></div>
+    <div id="chatFeatRow" style="display:none;gap:6px;margin-top:6px;flex-wrap:wrap"><button class="btn" id="chatFeatPhoto" type="button" onclick="chatFeatToggle('photo')"></button><button class="btn" id="chatFeatVoice" type="button" onclick="chatFeatToggle('voice')"></button></div>
     <input type="file" id="chatImgFile" accept="image/*" style="display:none">
    </div>
   </div>
@@ -7294,7 +7295,7 @@ async function refreshChatBadge(){
   // newly added supervisors/managers appear on their own while the list is open (Micheal 16444174)
   if($('chatModal').style.display!=='none'&&$('chatListWrap').style.display!=='none')chatList(true);
 }
-function openChat(){toggleNavDrawer(false);$('chatModal').style.display='';chatList()}
+function openChat(){toggleNavDrawer(false);$('chatModal').style.display='';chatFeaturesLoad();chatList()}
 function closeChat(){if(typeof VR_REC!=='undefined'&&VR_REC)stopVoiceRec(true);$('chatModal').style.display='none';CHAT_PEER=null;if(CHAT_TIMER){clearInterval(CHAT_TIMER);CHAT_TIMER=null}refreshChatBadge()}
 function chatHideAll(){$('chatListWrap').style.display='none';$('chatThreadWrap').style.display='none';$('chatMonitorWrap').style.display='none'}
 async function chatList(silent){
@@ -7418,7 +7419,7 @@ async function sendChat(){
 // Images: compressed to a small JPEG data-URL client-side, stored in D1 (free tier).
 async function sendChatImage(data){
   if(!CHAT_PEER)return;
-  try{await api('/api/chat/send',{method:'POST',body:{to:CHAT_PEER,body:data,kind:'image'}})}catch(e){}
+  try{await api('/api/chat/send',{method:'POST',body:{to:CHAT_PEER,body:data,kind:'image'}})}catch(e){if(e&&e.message==='photos_disabled')alert('إرسال الصور متوقف من الأدمن حاليًا')}
   pollThread(false);
 }
 // Voice notes (Micheal 25 Nov): MediaRecorder -> small audio data-URL in D1, same as images.
@@ -7478,7 +7479,7 @@ function stopVoiceRec(cancel){
       if(typeof dataUrl!=='string'||!/^data:audio\//.test(dataUrl)||dataUrl.length>700000){alert('الفويس طلع كبير أوي - جرّب تسجّل أقل من دقيقة');return}
       await api('/api/chat/send',{method:'POST',body:{to:CHAT_PEER,body:dataUrl,kind:'voice'}});
       pollThread(false);
-    }catch(e){}
+    }catch(e){if(e&&e.message==='voice_disabled')alert('إرسال الفويس متوقف من الأدمن حاليًا')}
   };
   try{rec.stop()}catch(e){}
 }
@@ -7533,6 +7534,29 @@ async function chatMonitorDelete(i){
     if(typeof i==='number'){chatMonitorList()}
     else $('chatMonMsgs').innerHTML='<div class="sub" style="text-align:center;margin-top:20px">اتمسح الشات ✅ ('+NF(d.deleted||0)+' رسالة)</div>';
   }catch(e){$('chatMonMsgs').innerHTML='<div class="sub">فشل المسح</div>'}
+}
+// Admin switches for chat photo/voice (Micheal 26 Nov, 21177591): the admin gets two toggle
+// buttons inside the chat modal; when a feature is off, the button hides for supervisors and
+// managers (admins keep it) and the server rejects those sends too.
+let CHAT_FEATS={photo:true,voice:true};
+function chatFeatPaint(){
+  const p=$('chatFeatPhoto'),v=$('chatFeatVoice');
+  if(p)p.textContent='📷 الصور: '+(CHAT_FEATS.photo?'شغالة ✅':'متوقفة ⛔');
+  if(v)v.textContent='🎤 الفويس: '+(CHAT_FEATS.voice?'شغالة ✅':'متوقفة ⛔');
+}
+async function chatFeaturesLoad(){
+  try{const d=await api('/api/chat/features');if(d&&d.features)CHAT_FEATS=d.features}catch(e){}
+  const isAdmin=CUR&&CUR.r==='admin';
+  const img=$('chatImgB'),mic=$('chatMicB');
+  if(img)img.style.display=(isAdmin||CHAT_FEATS.photo)?'':'none';
+  if(mic)mic.style.display=(isAdmin||CHAT_FEATS.voice)?'':'none';
+  const row=$('chatFeatRow');if(row)row.style.display=isAdmin?'flex':'none';
+  chatFeatPaint();
+}
+async function chatFeatToggle(which){
+  if(!CUR||CUR.r!=='admin')return;
+  const body=which==='photo'?{photo:!CHAT_FEATS.photo}:{voice:!CHAT_FEATS.voice};
+  try{const d=await api('/api/chat/features',{method:'POST',body});if(d&&d.features){CHAT_FEATS=d.features;chatFeaturesLoad()}}catch(e){alert('اتعذّر حفظ الإعداد حاليًا: '+(e&&e.message?e.message:e))}
 }
 $('chatSendBtn').onclick=sendChat;
 $('chatIn').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();sendChat()}});

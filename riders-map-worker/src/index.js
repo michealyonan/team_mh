@@ -258,6 +258,19 @@ function cairoDay(ts) {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Cairo', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(ts || Date.now()));
 }
 
+async function chatFeatures(env) {
+  // Micheal 26 Nov (21177591): admin switches for chat photo/voice sending.
+  // Default ON (missing settings rows) so behavior is unchanged until an admin turns one off.
+  let photo = true, voice = true;
+  try {
+    const rows = await env.DB.prepare("SELECT k,v FROM settings WHERE k IN ('chat_photo','chat_voice')").all();
+    for (const r of (rows.results || [])) {
+      if (r.k === 'chat_photo') photo = r.v !== '0';
+      if (r.k === 'chat_voice') voice = r.v !== '0';
+    }
+  } catch (e) {}
+  return { photo, voice };
+}
 async function insertNotification(env, u, title, body, riderId) {
   await env.DB.prepare('INSERT INTO notifications(u,day,title,body,rider_id,ts) VALUES(?,?,?,?,?,?)')
     .bind(u, cairoDay(), String(title || '').slice(0, 120), String(body || '').slice(0, 500), String(riderId || '').slice(0, 40), Date.now()).run();
@@ -505,6 +518,21 @@ async function handleChat(request, env, json, url) {
     return json({ peer: { u: prow.u, n: prow.n, r: prow.r, s: prow.s }, messages: (rows.results || []).map(m => ({ id: m.id, mine: m.from_u === user.u, body: m.body, kind: m.kind || 'text', ts: m.ts, read: !!m.read_at })) });
   }
 
+  // Micheal 26 Nov (21177591): admin switches for chat photo/voice sending.
+  if (p === '/api/chat/features' && request.method === 'GET') {
+    return json({ features: await chatFeatures(env) });
+  }
+  if (p === '/api/chat/features' && request.method === 'POST') {
+    if (user.r !== 'admin') return json({ error: 'forbidden' }, 403);
+    let fbody = null; try { fbody = await request.json(); } catch (e) {}
+    const cur = await chatFeatures(env);
+    const photo = fbody && typeof fbody.photo === 'boolean' ? fbody.photo : cur.photo;
+    const voice = fbody && typeof fbody.voice === 'boolean' ? fbody.voice : cur.voice;
+    await env.DB.prepare("INSERT INTO settings(k,v) VALUES('chat_photo',?) ON CONFLICT(k) DO UPDATE SET v=excluded.v").bind(photo ? '1' : '0').run();
+    await env.DB.prepare("INSERT INTO settings(k,v) VALUES('chat_voice',?) ON CONFLICT(k) DO UPDATE SET v=excluded.v").bind(voice ? '1' : '0').run();
+    return json({ ok: true, features: { photo, voice } });
+  }
+
   if (p === '/api/chat/send' && request.method === 'POST') {
     const wait = await rateLimit(env, 'chat:' + user.u, 30, 60000, 60000);
     if (wait) return json({ error: 'rate_limited', wait }, 429);
@@ -512,6 +540,12 @@ async function handleChat(request, env, json, url) {
     try { body = await request.json(); } catch (e) {}
     const peer = String(body && body.to || '').toLowerCase().slice(0, 60);
     const kind = body && (body.kind === 'image' || body.kind === 'voice') ? body.kind : 'text';
+    if (kind !== 'text' && user.r !== 'admin') {
+      // Admin switches (21177591): server-side enforcement, not just hidden buttons.
+      const f = await chatFeatures(env);
+      if (kind === 'image' && !f.photo) return json({ error: 'photos_disabled' }, 403);
+      if (kind === 'voice' && !f.voice) return json({ error: 'voice_disabled' }, 403);
+    }
     const text = String(body && body.body || '').trim();
     if (kind === 'image') {
       // Images are small data-URLs compressed client-side, stored in D1 (free tier).
