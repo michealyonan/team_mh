@@ -6663,7 +6663,7 @@ async function loadNotifs(show){
    const st=$('notifStatus'),list=$('notifList');
    st.textContent=items.length?('إشعارات اليوم: '+items.length):'مفيش إشعارات النهاردة 🎉';
    api('/api/notifications/read',{method:'POST'}).then(()=>{if(badge)badge.style.display='none'}).catch(()=>{});
-   const NCOLORS={'🟢':'#16a34a','☕':'#d97706','🟡':'#ca8a04','🔴':'#dc2626','🟣':'#9333ea','🔵':'#2563eb','⚪':'#6b7280','🔔':'#475569'};
+   const NCOLORS={'🔵':'#2563eb','🟤':'#92400e','🔴':'#dc2626','⚫':'#111827','🟠':'#ea580c','🟡':'#eab308','🟢':'#16a34a','🔔':'#475569'};
    list.innerHTML=items.map(it=>{
     const t=new Date(it.ts).toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'});
     const cc=NCOLORS[String(it.title||'').trim().charAt(0)]||'';

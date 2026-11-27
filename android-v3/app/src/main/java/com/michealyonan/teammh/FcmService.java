@@ -65,6 +65,7 @@ public class FcmService extends FirebaseMessagingService {
                 .setSmallIcon(R.mipmap.ic_launcher)
                 .setContentTitle(title == null ? "Team MH" : title)
                 .setContentText(body == null ? "" : body)
+                .setStyle(new NotificationCompat.BigTextStyle().bigText(body == null ? "" : body))
                 .setAutoCancel(true)
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setContentIntent(pi);

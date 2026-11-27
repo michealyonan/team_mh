@@ -287,10 +287,12 @@ async function insertNotification(env, u, title, body, riderId, color) {
   await sendFcmToUser(env, u, String(title || '').slice(0, 120), String(body || '').slice(0, 500), riderId, color);
 }
 // Status-change styling (27 Nov): emoji marker + Android small-icon tint per new state.
+// Micheal 24214827: dot by NEW state - LATE red, STARTING yellow, READY green, WORKING blue,
+// BREAK brown. TEMP_NOT_WORKING/ENDING he didn't specify: black/orange.
 const STATE_STYLE = {
-  WORKING: ['🟢', '#16a34a'], BREAK: ['☕', '#d97706'], LATE: ['🟡', '#ca8a04'],
-  TEMP_NOT_WORKING: ['🔴', '#dc2626'], ENDING: ['🟣', '#9333ea'], STARTING: ['🔵', '#2563eb'],
-  READY: ['⚪', '#6b7280'], _: ['🔔', '#475569'],
+  WORKING: ['🔵', '#2563eb'], BREAK: ['🟤', '#92400e'], LATE: ['🔴', '#dc2626'],
+  TEMP_NOT_WORKING: ['⚫', '#111827'], ENDING: ['🟠', '#ea580c'], STARTING: ['🟡', '#eab308'],
+  READY: ['🟢', '#16a34a'], _: ['🔔', '#475569'],
 };
 
 async function enforceDeviceLimit(env, u, maxSessions) {
@@ -1913,6 +1915,15 @@ async function runStatusCron(env) {
   // (WORKING/TEMP_NOT_WORKING). Normalize before comparing so a format flip never fires false
   // "تغيير حالة مندوب" notifications. Every known code is the first letter of its full name.
   const STATE_NAMES = ['WORKING', 'BREAK', 'LATE', 'TEMP_NOT_WORKING', 'ENDING', 'STARTING', 'READY'];
+  const normDigits = (s) => String(s || '').replace(/[\u0660-\u0669\u06F0-\u06F9]/g, (c) => String(c.charCodeAt(0) % 16));
+  // "05:20:00" -> "5س 20د", "00:12:00" -> "12د"; '' for empty/zero.
+  const fmtDur = (v) => {
+    const m = /^(\d+):(\d{1,2})(?::(\d{1,2}))?$/.exec(String(v || '').trim());
+    if (!m) return '';
+    const h = +m[1], mm = +m[2];
+    if (!h && !mm) return '';
+    return h ? h + 'س ' + mm + 'د' : mm + 'د';
+  };
   const normLiveState = (s) => {
     const t = String(s || '').trim();
     if (!t) return '';
@@ -1932,6 +1943,13 @@ async function runStatusCron(env) {
       sup: String(r[16] || '').trim().slice(0, 80),
       zone: String(r[1] || '').trim().slice(0, 80),
       phone: String(r[4] || '').trim().slice(0, 40),
+      // extra detail fields for the notification body only (27 Nov 24216213) - deliberately NOT
+      // part of the change comparison or rider_states writes: they churn every minute for active
+      // riders and would cost ~1.6k writes/min. gviz may render numbers with Arabic-Indic digits.
+      deliveries: normDigits(String(r[7] || '').trim()).slice(0, 20),
+      timeWorked: normDigits(String(r[8] || '').trim()).slice(0, 20),
+      breaksTime: normDigits(String(r[12] || '').trim()).slice(0, 20),
+      lateTime: normDigits(String(r[13] || '').trim()).slice(0, 20),
     });
   }
   // 26 Nov quota fix: previous state lives in a single status_meta row (1 row read)
@@ -2037,10 +2055,18 @@ async function runStatusCron(env) {
         // 27 Nov (Micheal 24163340/24172059): ID first line, name under it, then the status
         // change, phone, zone, and the supervisor's name. Emoji + Android icon color per new state.
         const sm = STATE_STYLE[normLiveState(cur.state)] || STATE_STYLE._;
-        const lines = [id, cur.name || 'مندوب', 'من ' + (oldState ? normLiveState(oldState) : 'بدون حالة') + ' إلى ' + normLiveState(cur.state)];
+        const fromStyle = oldState ? (STATE_STYLE[normLiveState(oldState)] || STATE_STYLE._) : null;
+        const transition = 'من ' + (fromStyle ? fromStyle[0] + ' ' : '') + (oldState ? normLiveState(oldState) : 'بدون حالة') + ' إلى ' + sm[0] + ' ' + normLiveState(cur.state);
+        const lines = [id, cur.name || 'مندوب', transition];
         if (cur.phone) lines.push('📞 ' + cur.phone);
         if (cur.zone) lines.push('الزون: ' + cur.zone);
         if (cur.sup) lines.push('المشرف: ' + cur.sup);
+        // 27 Nov (24216213 + 24217141): live stats from the sheet, each on its OWN line so the
+        // expanded push reads clearly; empty fields skipped (STARTING has no timer).
+        const tw = fmtDur(cur.timeWorked); if (tw) lines.push('⏱ شغال: ' + tw);
+        const bt = fmtDur(cur.breaksTime); if (bt) lines.push('☕ بريك: ' + bt);
+        if (cur.deliveries && cur.deliveries !== '0') lines.push('📦 الأوردرات: ' + cur.deliveries);
+        const lt = fmtDur(cur.lateTime); if (lt) lines.push('⏰ تأخير: ' + lt);
         sendQueue.push([u, sm[0] + ' تغيير حالة مندوب', lines.join('\n'), id, sm[1]]);
       }
     }
