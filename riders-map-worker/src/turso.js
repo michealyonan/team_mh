@@ -78,6 +78,7 @@ export function makeTursoDb(url, token) {
 
   function prepare(sql) {
     return {
+      sql, // 27 Nov: D1 batch() accepts unbound statements too; expose sql so batch can pack them
       bind(...args) { return { sql, args, run: () => runOne(sql, args), all: () => allOne(sql, args), first: () => firstOne(sql, args) }; },
       run: () => runOne(sql, []),
       all: () => allOne(sql, []),

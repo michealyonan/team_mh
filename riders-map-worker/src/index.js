@@ -3407,13 +3407,15 @@ async function handleFetch(request, rawEnv, ctx) {
     }
 
     // static assets: worker runs first (run_worker_first), so fetch from the assets binding
-    if (request.method === 'GET' || request.method === 'HEAD') {
+    // 27 Nov: staging has no assets binding - answer plainly instead of throwing (1101).
+    if ((request.method === 'GET' || request.method === 'HEAD') && env.ASSETS) {
       const assetResp = await env.ASSETS.fetch(request);
       if (assetResp.status !== 404) {
         const ct = assetResp.headers.get('Content-Type') || '';
         return withSec(assetResp, /text\/html/.test(ct));
       }
     }
+    if (!env.ASSETS && (url.pathname === '/' || url.pathname === '/index.html')) return new Response('team-mh staging worker OK (no assets)', { status: 200 });
     return json({ error: 'not_found' }, 404);
 }
 
