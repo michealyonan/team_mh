@@ -2028,6 +2028,7 @@ async function runStatusCron(env) {
         perSup.get(u).push([id, cur, old]);
       }
     }
+    const sendQueue = [];
     for (const [u, flips] of perSup) {
       if (flips.length > max_per_sup) max_per_sup = flips.length;
       if (flips.length > PER_SUP_CAP) { muted_sups++; continue; } // that sup only; others notify
@@ -2040,9 +2041,18 @@ async function runStatusCron(env) {
         if (cur.phone) lines.push('📞 ' + cur.phone);
         if (cur.zone) lines.push('الزون: ' + cur.zone);
         if (cur.sup) lines.push('المشرف: ' + cur.sup);
-        await insertNotification(env, u, sm[0] + ' تغيير حالة مندوب', lines.join('\n'), id, sm[1]);
-        notified++;
+        sendQueue.push([u, sm[0] + ' تغيير حالة مندوب', lines.join('\n'), id, sm[1]]);
       }
+    }
+    // 27 Nov: sequential awaits let big flip batches overrun the cron wall-clock limit - the run
+    // died mid-send AFTER the snapshot was saved, so the next run saw 0 changes and the stats row
+    // was never written (looked like "no detections" while pushes actually went out). Parallel
+    // chunks keep a ~600-flip minute inside the limit.
+    const CHUNK = 25;
+    for (let i = 0; i < sendQueue.length; i += CHUNK) {
+      const part = sendQueue.slice(i, i + CHUNK);
+      await Promise.all(part.map(([u, title, body, id, color]) => insertNotification(env, u, title, body, id, color).catch(() => {})));
+      notified += part.length;
     }
   }
   // 27 Nov: per-run stats for the admin usage page (1 write/min) so notification health is visible.
