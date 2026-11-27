@@ -1,4 +1,23 @@
 import { DurableObject } from 'cloudflare:workers';
+import { makeTursoDb } from './turso.js';
+
+/* 27 Nov staging (Micheal 24282605): when TURSO_URL + TURSO_AUTH_TOKEN secrets exist,
+   ALL database traffic goes to Turso instead of D1 (staging copy only; live has no such
+   secrets, so nothing changes there). The Turso adapter mimics the D1 binding surface.
+   STAGING=1 also disables FCM fanout so the staging cron never double-pushes supervisors. */
+function dbOf(env) {
+  if (env.TURSO_URL && env.TURSO_AUTH_TOKEN) {
+    if (!env.__turso) Object.defineProperty(env, '__turso', { value: makeTursoDb(env.TURSO_URL, env.TURSO_AUTH_TOKEN), enumerable: false });
+    return env.__turso;
+  }
+  return env.DB;
+}
+function withDb(env) {
+  if (!(env.TURSO_URL && env.TURSO_AUTH_TOKEN)) return env;
+  const e = Object.create(env);
+  Object.defineProperty(e, 'DB', { get: () => dbOf(env) });
+  return e;
+}
 
 const MAX_BODY_BYTES = 2_000_000;
 const SNAPSHOT_TTL_MS = 15 * 60 * 1000;
@@ -335,6 +354,7 @@ async function fcmAccessToken(env) {
   return _fcmTok;
 }
 async function sendFcmToUser(env, u, title, body, riderId, color) {
+  if (env.STAGING) return; // staging copy: never fan out real pushes
   if (!env.FCM_SA_JSON) {
     try { await env.DB.prepare('INSERT INTO push_log(u,token_tail,status,resp,ts) VALUES(?,?,?,?,?)').bind(u, '', -4, 'fcm_not_configured', Date.now()).run(); } catch (e) {}
     return;
@@ -2374,7 +2394,8 @@ async function walkFormDirect({ formId, cookie, email, fields, probe }) {
 }
 
 export default {
-  async fetch(request, env, ctx) {
+  async fetch(request, rawEnv, ctx) {
+    const env = withDb(rawEnv);
     bumpUsage(env, ctx);
     const origin = request.headers.get('Origin') || '';
     const allowedList = String(env.ALLOWED_ORIGIN || '*').split(',').map((x) => x.trim()).filter(Boolean);
@@ -3329,7 +3350,8 @@ export default {
     return json({ error: 'not_found' }, 404);
   },
 
-  async scheduled(event, env, ctx) {
+  async scheduled(event, rawEnv, ctx) {
+    const env = withDb(rawEnv);
     bumpUsage(env, ctx);
     // 26 Nov cron dedup (Micheal 22473910): same code runs at two addresses (team-mh + riders-map-relay)
     // on ONE D1, so every cron fired twice. Claim the slot first; only the claimer works. 1 write/min total.
