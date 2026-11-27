@@ -6683,8 +6683,7 @@ async function loadNotifs(show){
     // 27 Nov (Micheal 24818746/24819493): the whole notification card opens the rider in the live view,
     // no separate button. Cards without a rider stay plain.
     const openAttr=it.rider_id?' data-rider-open="'+esc(it.rider_id)+'"':'';
-    const openHint=it.rider_id?'<div class="sub" style="margin-top:6px;font-size:11px;opacity:.7">📍 اضغط على الإشعار يفتح المندوب في اللايف</div>':'';
-    return '<div class="card"'+openAttr+' style="padding:10px 12px'+cc2+(it.rider_id?';cursor:pointer':'')+'"><div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><b>'+esc(it.title)+'</b><span class="sub" style="white-space:nowrap">'+t+'</span></div>'+(it.body?'<div class="sub" style="margin-top:4px;white-space:pre-line">'+esc(it.body)+'</div>':'')+openHint+'</div>'
+    return '<div class="card"'+openAttr+' style="padding:10px 12px'+cc2+(it.rider_id?';cursor:pointer':'')+'"><div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><b>'+esc(it.title)+'</b><span class="sub" style="white-space:nowrap">'+t+'</span></div>'+(it.body?'<div class="sub" style="margin-top:4px;white-space:pre-line">'+esc(it.body)+'</div>':'')+'</div>'
    }).join('');
   }
  }catch(e){if(show)$('notifStatus').textContent='مش قادر أحمل الإشعارات — '+(e.message||e)}
