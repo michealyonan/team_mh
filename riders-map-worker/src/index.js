@@ -330,8 +330,31 @@ async function getSessionUser(env, request) {
   const h = request.headers.get('Authorization') || '';
   const m = h.match(/^Bearer\s+([0-9a-f]{64})$/i);
   if (!m) return null;
-  const row = await env.DB.prepare('SELECT s.token, s.expires, u.u, u.n, u.r, u.s, u.status, u.email, u.phone, u.channel FROM sessions s JOIN users u ON u.u=s.u WHERE s.token=?').bind(m[1].toLowerCase()).first();
-  if (!row || row.expires < Date.now() || row.status === 'disabled') return null;
+  const tok = m[1].toLowerCase();
+  const SQL = 'SELECT s.token, s.expires, u.u, u.n, u.r, u.s, u.status, u.email, u.phone, u.channel FROM sessions s JOIN users u ON u.u=s.u WHERE s.token=?';
+  const load = async (db) => db.prepare(SQL).bind(tok).first();
+  const ok = (r) => !!r && !(r.expires < Date.now()) && r.status !== 'disabled';
+  let row = null, fromD1 = false;
+  try { row = await load(env.DB); } catch (e) { row = null; }
+  if (!ok(row)) {
+    // 27 Nov (Micheal 24957171): after the switch to Turso, sessions made BEFORE the flip exist in
+    // D1 and sessions made AFTER it exist only in Turso. Whichever database is active, look in the
+    // other one before refusing, otherwise an admin gets logged out the moment a request lands on
+    // the wrong side. A D1 hit is mirrored into the active database so the next request is local;
+    // D1 is never written to.
+    row = null;
+    const d1 = env.D1 && env.D1 !== env.DB ? env.D1 : null;
+    if (d1) {
+      try { const r2 = await load(d1); if (ok(r2)) { row = r2; fromD1 = true; } } catch (e) {}
+    }
+  }
+  if (!ok(row)) return null;
+  if (fromD1) {
+    try {
+      await env.DB.prepare('INSERT INTO sessions(token,u,expires,created) VALUES(?,?,?,?) ON CONFLICT(token) DO UPDATE SET u=excluded.u, expires=excluded.expires')
+        .bind(row.token, row.u, row.expires, Date.now()).run();
+    } catch (e) {}
+  }
   return { u: row.u, n: row.n, r: row.r, s: row.s, token: row.token, email: row.email, phone: row.phone, channel: row.channel };
 }
 
@@ -3462,7 +3485,11 @@ async function handleFetch(request, rawEnv, ctx) {
       const d1env = Object.create(env);
       Object.defineProperty(d1env, 'DB', { value: d1db });
       await ensureSchema(d1env);
-      const user = await getSessionUser(d1env, request);
+      // 27 Nov (Micheal 24957171): auth here must accept a session from either database. An admin
+      // who logged in after the switch only exists in Turso, and this endpoint used to look in D1
+      // only, so the notifications tab showed "cannot read the database state" and logged him out.
+      let user = await getSessionUser(d1env, request);
+      if (!user) user = await getSessionUser(env, request);
       if (!user) return json({ error: 'unauthorized' }, 401);
       if (user.r !== 'admin') return json({ error: 'forbidden' }, 403);
       const pair = tursoPair(env);
