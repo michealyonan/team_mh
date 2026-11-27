@@ -1931,7 +1931,11 @@ async function runStatusCron(env) {
     return t.toUpperCase();
   };
   const res = await fetch(`https://docs.google.com/spreadsheets/d/${LIVE_SHEET_ID}/gviz/tq?tqx=out:csv&gid=${LIVE_GID}&headers=1&_=${Date.now()}`);
-  if (!res.ok) return;
+  if (!res.ok) {
+    // 27 Nov: make silent fetch bails visible (gviz throttling/5xx looked like "no changes").
+    try { await env.DB.prepare("INSERT INTO status_meta(k,v) VALUES('cron:status_fetch_err',?) ON CONFLICT(k) DO UPDATE SET v=excluded.v").bind(JSON.stringify({ ts: Date.now(), status: res.status })).run(); } catch {}
+    return;
+  }
   const rows = parseCsv(await res.text()).slice(1);
   const current = new Map();
   for (const r of rows) {
@@ -2071,13 +2075,17 @@ async function runStatusCron(env) {
       }
     }
   }
+  // 27 Nov: per-state histogram of what the cron ACTUALLY read - distinguishes a stale gviz read
+  // from a comparison bug when flips seem missed.
+  const stateCounts = {};
+  for (const [, cur] of current) { const k = normLiveState(cur.state) || 'EMPTY'; stateCounts[k] = (stateCounts[k] || 0) + 1; }
   notified = sendQueue.length;
   // 27 Nov: per-run stats for the admin usage page (1 write/min) so notification health is visible.
   // hist keeps the last 9 runs: a single overwrite hid detection runs that were followed by a quiet run.
   // Stats are written BEFORE the send loop: even if a huge batch overruns the cron wall-clock
   // mid-send, the detection (and how many were queued) is always recorded.
   try {
-    const entry = { ts: Date.now(), riders: current.size, changed_any: changed.length, changed_state: stateChanged.length, notified, guard, muted_sups, max_per_sup };
+    const entry = { ts: Date.now(), riders: current.size, changed_any: changed.length, changed_state: stateChanged.length, notified, guard, muted_sups, max_per_sup, states: stateCounts };
     let hist = [];
     try {
       const prevRow = await env.DB.prepare("SELECT v FROM status_meta WHERE k='cron:status_stats'").first();
