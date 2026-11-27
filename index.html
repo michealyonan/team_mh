@@ -1452,7 +1452,7 @@ header{box-shadow:0 8px 24px rgba(2,8,23,.5)}
 </div>
 <div id="notifModal" style="display:none;position:fixed;inset:0;background:#000c;z-index:75;overflow:auto;padding:12px" onclick="if(event.target===this)this.style.display='none'">
   <div class="card" style="max-width:640px;margin:auto">
-   <div class="row"><h3 style="margin:0">🔔 إشعارات اليوم</h3><button class="btn" id="notifClearAll" type="button" style="display:none" onclick="clearAllNotifs()">🗑 مسح عند الكل</button><button class="btn pr" type="button" onclick="loadNotifs(true)">🔄 تحديث</button><button class="btn" style="margin-inline-start:auto" onclick="$('notifModal').style.display='none'">✕</button></div>
+   <div class="row"><h3 style="margin:0">🔔 إشعارات اليوم</h3><button class="btn" id="notifClearMine" type="button" onclick="clearMyNotifs()">🗑 مسح إشعاراتي</button><button class="btn" id="notifClearAll" type="button" style="display:none" onclick="clearAllNotifs()">🗑 مسح عند الكل</button><button class="btn pr" type="button" onclick="loadNotifs(true)">🔄 تحديث</button><button class="btn" style="margin-inline-start:auto" onclick="$('notifModal').style.display='none'">✕</button></div>
    <div id="notifCompose" style="display:none;margin-bottom:10px;padding:10px;border:1px solid var(--bd);border-radius:10px">
     <div class="sub" style="margin-bottom:6px">📢 إشعار من الإدارة</div>
     <input id="ncTitle" placeholder="العنوان" style="width:100%;margin-bottom:6px">
@@ -6673,6 +6673,11 @@ async function loadNotifs(show){
    }).join('');
   }
  }catch(e){if(show)$('notifStatus').textContent='مش قادر أحمل الإشعارات — '+(e.message||e)}
+}
+// 27 Nov (Micheal 24177597): supervisor clears his own notifications at once.
+async function clearMyNotifs(){
+ if(!confirm('تمسح كل إشعاراتك مرة واحدة؟ اللي وصل الموبايل قبل كده مش بيتسحب.'))return;
+ try{const r=await api('/api/notifications/clear-mine',{method:'POST'});loadNotifs(true);alert('اتمسحت '+(r.deleted||0)+' إشعار ✅')}catch(e){alert('مش قادر أمسح — '+(e.message||e))}
 }
 async function clearAllNotifs(){
  if(!confirm('متأكد؟ ده هيمسح الإشعارات من عند كل الناس (أنت والمشرفين). اللي وصل الموبايلات قبل كده مش بيتسحب.'))return;

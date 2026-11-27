@@ -2761,7 +2761,7 @@ export default {
       } catch (e) { return serverErr(e); }
     }
 
-    if (url.pathname === '/api/notifications' || url.pathname === '/api/notifications/read' || url.pathname === '/api/notifications/purge-state-flips' || url.pathname === '/api/notifications/clear-all' || url.pathname === '/api/notifications/test') {
+    if (url.pathname === '/api/notifications' || url.pathname === '/api/notifications/read' || url.pathname === '/api/notifications/purge-state-flips' || url.pathname === '/api/notifications/clear-all' || url.pathname === '/api/notifications/clear-mine' || url.pathname === '/api/notifications/test') {
       try {
         await ensureSchema(env);
         const user = await getSessionUser(env, request);
@@ -2790,6 +2790,12 @@ export default {
         if (url.pathname === '/api/notifications/clear-all' && request.method === 'POST') {
           if (user.r !== 'admin') return json({ error: 'forbidden' }, 403);
           const r = await env.DB.prepare('DELETE FROM notifications').run();
+          return json({ ok: true, deleted: (r.meta && r.meta.changes) || 0 });
+        }
+        // 27 Nov (Micheal 24177597): any user clears ALL their own notification rows at once
+        // (scoped strictly to the session user; also frees D1 space).
+        if (url.pathname === '/api/notifications/clear-mine' && request.method === 'POST') {
+          const r = await env.DB.prepare('DELETE FROM notifications WHERE u=?').bind(user.u).run();
           return json({ ok: true, deleted: (r.meta && r.meta.changes) || 0 });
         }
         if (url.pathname === '/api/notifications/test' && request.method === 'POST') {
