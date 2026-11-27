@@ -2013,13 +2013,13 @@ async function runStatusCron(env) {
   }
   const seeded = prev.size > 0;
   const stmts = [];
+  const changedRows = []; // 27 Nov staging: collected for multi-row INSERT (see below)
   const changed = [];
   for (const [id, cur] of current) {
     const oldArr = prev.get(id);
     const old = oldArr ? { state: oldArr[0], name: oldArr[1], sup: oldArr[2], zone: oldArr[3] } : undefined;
     if (old && normLiveState(old.state) === normLiveState(cur.state) && old.name === cur.name && old.sup === cur.sup && old.zone === cur.zone) continue; // unchanged: no write
-    stmts.push(env.DB.prepare('INSERT INTO rider_states(rider_id,name,state,sup,zone,updated) VALUES(?,?,?,?,?,?) ON CONFLICT(rider_id) DO UPDATE SET name=excluded.name, state=excluded.state, sup=excluded.sup, zone=excluded.zone, updated=excluded.updated')
-      .bind(id, cur.name, cur.state, cur.sup, cur.zone, Date.now()));
+    changedRows.push([id, cur.name, cur.state, cur.sup, cur.zone, Date.now()]);
     changed.push([id, cur, old]);
   }
   // 27 Nov (Micheal 24141335): the live source drops and re-adds rows on refresh. A vanished rider
@@ -2043,6 +2043,24 @@ async function runStatusCron(env) {
     }
   }
   if (gone.length) stmts.push(...gone);
+  // 27 Nov staging (24300032): multi-row upserts, 15 riders per statement (90 params - under
+  // D1's 100 bound-parameter limit), all chunks in ONE batch/pipeline call. On Turso each HTTP
+  // round trip costs real latency; 350 separate upserts pushed the cron past its 30s wall-clock
+  // and every detection run died silently after writing the snapshot but before stats.
+  if (changedRows.length) {
+    const upStmts = [];
+    for (let i = 0; i < changedRows.length; i += 15) {
+      const part = changedRows.slice(i, i + 15);
+      const sql = 'INSERT INTO rider_states(rider_id,name,state,sup,zone,updated) VALUES ' +
+        part.map(() => '(?,?,?,?,?,?)').join(',') +
+        ' ON CONFLICT(rider_id) DO UPDATE SET name=excluded.name, state=excluded.state, sup=excluded.sup, zone=excluded.zone, updated=excluded.updated';
+      upStmts.push(env.DB.prepare(sql).bind(...part.flat()));
+    }
+    try {
+      const ur = await env.DB.batch(upStmts);
+      for (const r of ur || []) d1w += (r && r.meta && (r.meta.rows_written || r.meta.changes)) || 0;
+    } catch {}
+  }
   if (stmts.length) {
     const br = await env.DB.batch(stmts);
     for (const r of br || []) d1w += (r && r.meta && r.meta.rows_written) || 0;
@@ -2050,7 +2068,7 @@ async function runStatusCron(env) {
   // 26 Nov quota cut: only rewrite the snapshot when something actually changed (was 1 write every 2 min).
   // Rewrite the snapshot on data changes and when vanish-marks were just added (otherwise the
   // grace clock would restart every run and rows would never age out).
-  if (stmts.length || newlyMarked) try {
+  if (stmts.length || changedRows.length || newlyMarked) try {
     const snap = [];
     // 26 Nov CRITICAL: entries must be [id, [state,name,sup,zone]] - new Map() reads entry[1] as the
     // whole value. The old flat shape decoded oldArr to a STRING, so every rider looked changed every run
@@ -2146,17 +2164,24 @@ async function runStatusCron(env) {
   // Sends run AFTER stats are saved, in parallel chunks so a ~600-flip minute stays inside the
   // cron limit (sequential awaits overran it and the run died before stats - pushes went out but
   // the run looked like a zero).
-  // 27 Nov staging (24300032): batch the notification ROWS (100 stmts per pipeline call)
-  // instead of one insertNotification round trip per flip - on Turso each round trip is a real
-  // HTTP call and ~350 flips overran the cron wall-clock, silently killing every detection run.
-  // Same rows, same pushes; D1 batch handles the chunks identically on live.
-  for (let i = 0; i < sendQueue.length; i += 100) {
-    const part = sendQueue.slice(i, i + 100);
+  // 27 Nov staging (24300032): batch the notification ROWS as multi-row INSERTs (15 rows per
+  // statement - D1's 100 bound-parameter limit), all chunks in ONE batch/pipeline call per 300.
+  // One insertNotification round trip per flip overran the cron wall-clock on Turso latency.
+  // Same rows, same pushes; identical semantics on D1 after the live cron resumes.
+  const dayNow = cairoDay();
+  for (let i = 0; i < sendQueue.length; i += 300) {
+    const part = sendQueue.slice(i, i + 300);
     try {
-      const stmts = part.map(([u, title, body, id]) => env.DB.prepare('INSERT INTO notifications(u,day,title,body,rider_id,ts) VALUES(?,?,?,?,?,?)')
-        .bind(u, cairoDay(), String(title || '').slice(0, 120), String(body || '').slice(0, 500), String(id || '').slice(0, 40), Date.now()));
-      const ress = await env.DB.batch(stmts);
-      for (const r of ress) d1w += (r && r.meta && r.meta.rows_written) || 0;
+      const nStmts = [];
+      for (let j = 0; j < part.length; j += 15) {
+        const rows = part.slice(j, j + 15);
+        const sql = 'INSERT INTO notifications(u,day,title,body,rider_id,ts) VALUES ' + rows.map(() => '(?,?,?,?,?,?)').join(',');
+        const args = [];
+        for (const [u, title, body, id] of rows) args.push(u, dayNow, String(title || '').slice(0, 120), String(body || '').slice(0, 500), String(id || '').slice(0, 40), Date.now());
+        nStmts.push(env.DB.prepare(sql).bind(...args));
+      }
+      const ress = await env.DB.batch(nStmts);
+      for (const r of ress || []) d1w += (r && r.meta && r.meta.rows_written) || 0;
     } catch {}
   }
   // Pushes after the rows: pre-scan tokens once (1 query) and FCM only users that have any.
