@@ -2,9 +2,20 @@ name = "team-mh-staging"
 main = "../riders-map-worker/src/index.js"
 compatibility_date = "2026-10-28"
 
+[[durable_objects.bindings]]
+name = "RIDER_MAP_HUB"
+class_name = "RiderMapHub"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = [ "RiderMapHub" ]
+
 [vars]
 STAGING = "1"
 ALLOWED_ORIGIN = "*"
+
+[ai]
+binding = "AI"
 
 [triggers]
 crons = ["* * * * *"]
