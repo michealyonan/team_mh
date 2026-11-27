@@ -452,7 +452,7 @@ async function sendFcmToUser(env, u, title, body, riderId, color) {
           body: JSON.stringify({ message: {
             token: t,
             notification: { title: String(title || ''), body: String(body || '') },
-            android: { priority: 'HIGH', notification: Object.assign({ sound: 'default', channel_id: 'teammh_alerts' }, color ? { color } : {}) },
+            android: { priority: 'HIGH', notification: Object.assign({ sound: 'default', channel_id: 'teammh_alerts', style: 'BIGTEXT', big_text: String(body || '') }, color ? { color } : {}) },
             data: { rider_id: String(riderId || ''), title: String(title || ''), body: String(body || '') },
           } }),
         });
@@ -1400,21 +1400,28 @@ async function handleAuth(request, env, json, url) {
     if (user && user.status !== 'disabled' && (user.email || user.phone)) {
       const code = await makeCode(env, u, 'reset', 8, 60 * 60 * 1000);
       const text = 'أهلًا ' + user.n + ',\n\nكود إعادة تعيين كلمة المرور: ' + code + '\nصالح لمدة ساعة.\n\nلو مش انت اللي طلبت، كلم الأدمن فورًا.';
-      let sent = false, via = '';
+      let sent = false, via = '', mailTried = false, mailFailed = false;
       // Email first for EVERY channel: the worker has no WhatsApp sender, and a 'whatsapp' channel used to fall straight to Brevo SMS, which never arrived.
       if (user.email) {
+        mailTried = true;
         const mail = await sendMail(env, user.email, 'كود إعادة تعيين كلمة المرور', text);
-        sent = mail.ok; via = 'email';
+        sent = mail.ok; via = 'email'; if (!mail.ok) mailFailed = true;
       }
       if (!sent && user.phone) {
         const sm = await sendSms(env, user.phone, 'كود إعادة تعيين كلمة المرور: ' + code + ' (صالح لمدة ساعة)');
         sent = sm.ok; via = 'sms';
       }
       if (!sent && user.email && via !== 'email') {
+        mailTried = true;
         const mail = await sendMail(env, user.email, 'كود إعادة تعيين كلمة المرور', text);
-        sent = mail.ok; via = 'email';
+        sent = mail.ok; via = 'email'; if (!mail.ok) mailFailed = true;
       }
       if (sent) return json({ ok: true, self: true, via, hint: via === 'email' ? user.email.replace(/^(.{2}).+(@.+)$/, '$1***$2') : ('*****' + String(user.phone).replace(/[^0-9]/g, '').slice(-4)) });
+      // 27 Nov: the send failed, so say so. File the admin request AND tell the client the mail did not go out,
+      // instead of the old silent "ok" that made the supervisor think a code was on its way.
+      const existingMail = await env.DB.prepare("SELECT id FROM recoveries WHERE u=? AND status='pending'").bind(u).first();
+      if (!existingMail) await env.DB.prepare('INSERT INTO recoveries(u,created) VALUES(?,?)').bind(u, Date.now()).run();
+      return json({ ok: true, self: false, mail_failed: mailTried && mailFailed, hint: user.email ? user.email.replace(/^(.{2}).+(@.+)$/, '$1***$2') : '' });
     }
     if (user) {
       const existing = await env.DB.prepare("SELECT id FROM recoveries WHERE u=? AND status='pending'").bind(u).first();
