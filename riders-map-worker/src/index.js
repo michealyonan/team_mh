@@ -2125,13 +2125,21 @@ async function runStatusCron(env) {
   const guard = stateChanged.length > FLEET_GUARD;
   let notified = 0, muted_sups = 0, max_per_sup = 0;
   const sendQueue = [];
+  // 28 Nov: filled in the same query as the user list (see below); declared here so the push
+  // block outside the guard still sees it.
+  let tokenUsers = new Set();
   if (!guard) {
     const perSup = new Map();   // target user -> [[id, cur, old], ...]
     // 27 Nov staging (24300032): load active users ONCE (1 DB round trip) and match in JS.
     // The old sequential per-sup queries each cost a full Turso HTTP round trip (~1s) and
     // pushed every flip-heavy cron run past the 30s wall-clock - silent death before stats.
     let allUsers = [];
-    try { const ur = await env.DB.prepare("SELECT u, n FROM users WHERE status='active'").all(); allUsers = ur.results || []; } catch {}
+    // 28 Nov: the push-token set comes back in the same round trip as the user list (was a second
+    // query after the sends). Turso round trips are what pushed runs past the cron wall clock.
+    try {
+      const ur = await env.DB.prepare("SELECT 'u' AS k, u, n AS a FROM users WHERE status='active' UNION ALL SELECT 'p' AS k, u, token AS a FROM push_tokens").all();
+      for (const r of (ur.results || [])) { if (r.k === 'p') { if (r.a) tokenUsers.add(r.u); } else allUsers.push({ u: r.u, n: r.a }); }
+    } catch {}
     const resolveSup = (supName) => {
       const lower = String(supName || '').toLowerCase();
       let hits = allUsers.filter(x => x.n === supName || x.u === lower).map(x => x.u);
@@ -2180,7 +2188,7 @@ async function runStatusCron(env) {
   // mid-send, the detection (and how many were queued) is always recorded.
   let statsPayload = null;
   try {
-    const entry = { ts: Date.now(), riders: current.size, changed_any: changed.length, changed_state: stateChanged.length, notified, guard, muted_sups, max_per_sup, states: stateCounts, d1w_pre: d1w };
+    const entry = { ts: Date.now(), riders: current.size, changed_any: changed.length, changed_state: stateChanged.length, notified, guard, muted_sups, max_per_sup, states: stateCounts, d1w_pre: d1w, ms: elapsed() };
     let hist = [];
     try {
       if (prevStatsRaw) { const p = JSON.parse(prevStatsRaw); if (Array.isArray(p.hist)) hist = p.hist; else if (p.ts) hist = [p]; }
@@ -2217,9 +2225,7 @@ async function runStatusCron(env) {
   try {
     const uniqU = [...new Set(sendQueue.map(([u]) => u))];
     if (uniqU.length) {
-      const tokRows = await env.DB.prepare(`SELECT u, token FROM push_tokens WHERE u IN (${uniqU.map(() => '?').join(',')})`).bind(...uniqU).all();
-      const hasTok = new Set((tokRows.results || []).map(r => r.u));
-      const withPush = sendQueue.filter(([u]) => hasTok.has(u));
+      const withPush = sendQueue.filter(([u]) => tokenUsers.has(u));
       const CHUNK = 10;
       for (let i = 0; i < withPush.length; i += CHUNK) {
         await Promise.all(withPush.slice(i, i + CHUNK).map(([u, title, body, id, color]) => sendFcmToUser(env, u, String(title || '').slice(0, 120), String(body || '').slice(0, 500), id, color).catch(() => 0)));
