@@ -3237,10 +3237,12 @@ export default {
         } catch {}
         // 27 Nov: status-cron stats + recent push failures, so notification health is checkable
         // without D1 console access. -4 = FCM not configured; other non-200 = FCM rejections.
-        let status_cron = null, push_log = null;
+        let status_cron = null, push_log = null, status_fetch_err = null;
         try {
           const sr = await env.DB.prepare("SELECT v FROM status_meta WHERE k='cron:status_stats'").first();
           if (sr && sr.v) status_cron = JSON.parse(sr.v);
+          const fe = await env.DB.prepare("SELECT v FROM status_meta WHERE k='cron:status_fetch_err'").first();
+          if (fe && fe.v) status_fetch_err = JSON.parse(fe.v);
         } catch {}
         try {
           const pr = await env.DB.prepare('SELECT u,token_tail,status,resp,ts FROM push_log ORDER BY ts DESC LIMIT 5').all();
@@ -3286,14 +3288,14 @@ export default {
         if (env.CF_API_TOKEN && env.CF_ACCOUNT_ID) {
           try {
             const used = await usageFromCloudflare(env);
-            return json({ ok: true, source: 'cloudflare', scope: 'account', limit: QUOTA_DAILY_LIMIT, used, remaining: Math.max(0, QUOTA_DAILY_LIMIT - used), day, hiring, cron, status_cron, push_log, notif_audit, reset_at: reset.toISOString() });
+            return json({ ok: true, source: 'cloudflare', scope: 'account', limit: QUOTA_DAILY_LIMIT, used, remaining: Math.max(0, QUOTA_DAILY_LIMIT - used), day, hiring, cron, status_cron, push_log, notif_audit, status_fetch_err, reset_at: reset.toISOString() });
           } catch (e) {
             const used = await usageEstimate(env);
-            return json({ ok: true, source: 'estimate', scope: 'worker', cloudflare_error: String(e && e.message || e).slice(0, 200), limit: QUOTA_DAILY_LIMIT, used, remaining: Math.max(0, QUOTA_DAILY_LIMIT - used), day, hiring, cron, status_cron, push_log, notif_audit, reset_at: reset.toISOString() });
+            return json({ ok: true, source: 'estimate', scope: 'worker', cloudflare_error: String(e && e.message || e).slice(0, 200), limit: QUOTA_DAILY_LIMIT, used, remaining: Math.max(0, QUOTA_DAILY_LIMIT - used), day, hiring, cron, status_cron, push_log, notif_audit, status_fetch_err, reset_at: reset.toISOString() });
           }
         }
         const used = await usageEstimate(env);
-        return json({ ok: true, source: 'estimate', scope: 'worker', limit: QUOTA_DAILY_LIMIT, used, remaining: Math.max(0, QUOTA_DAILY_LIMIT - used), day, hiring, cron, status_cron, push_log, notif_audit, reset_at: reset.toISOString() });
+        return json({ ok: true, source: 'estimate', scope: 'worker', limit: QUOTA_DAILY_LIMIT, used, remaining: Math.max(0, QUOTA_DAILY_LIMIT - used), day, hiring, cron, status_cron, push_log, notif_audit, status_fetch_err, reset_at: reset.toISOString() });
       } catch (e) {
         return serverErr(e);
       }
