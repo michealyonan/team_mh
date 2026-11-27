@@ -1949,18 +1949,38 @@ async function runStatusCron(env) {
       .bind(id, cur.name, cur.state, cur.sup, cur.zone, Date.now()));
     changed.push([id, cur, old]);
   }
-  // riders that vanished from the sheet: drop their state rows
+  // 27 Nov (Micheal 24141335): the live source drops and re-adds rows on refresh. A vanished rider
+  // keeps their snapshot entry (marked gone) for GONE_GRACE_MS instead of an immediate delete, so a
+  // refresh glitch no longer costs a delete+reinsert pair per rider. Back with the SAME state =
+  // unchanged (no write, no notification); back with a NEW state = a real flip. The state row is
+  // deleted only after the grace.
+  const GONE_GRACE_MS = 30 * 60 * 1000;
+  const nowTs = Date.now();
+  const retainedGone = [];
+  let newlyMarked = 0;
   const gone = [];
-  for (const id of prev.keys()) if (!current.has(id)) gone.push(env.DB.prepare('DELETE FROM rider_states WHERE rider_id=?').bind(id));
+  for (const [id, arr] of prev.entries()) {
+    if (current.has(id)) continue;
+    const goneSince = Number(arr[4]) || nowTs;
+    if (nowTs - goneSince >= GONE_GRACE_MS) {
+      gone.push(env.DB.prepare('DELETE FROM rider_states WHERE rider_id=?').bind(id));
+    } else {
+      if (!arr[4]) newlyMarked++;
+      retainedGone.push([id, [arr[0], arr[1], arr[2], arr[3], goneSince]]);
+    }
+  }
   if (gone.length) stmts.push(...gone);
   if (stmts.length) await env.DB.batch(stmts);
   // 26 Nov quota cut: only rewrite the snapshot when something actually changed (was 1 write every 2 min).
-  if (stmts.length) try {
+  // Rewrite the snapshot on data changes and when vanish-marks were just added (otherwise the
+  // grace clock would restart every run and rows would never age out).
+  if (stmts.length || newlyMarked) try {
     const snap = [];
     // 26 Nov CRITICAL: entries must be [id, [state,name,sup,zone]] - new Map() reads entry[1] as the
     // whole value. The old flat shape decoded oldArr to a STRING, so every rider looked changed every run
     // (~1,600 D1 writes every 2 min) and notifications showed old state as its first letter.
     for (const [id, cur] of current) snap.push([id, [cur.state, cur.name, cur.sup, cur.zone]]);
+    for (const g of retainedGone) snap.push(g);
     await env.DB.prepare("INSERT INTO status_meta(k,v) VALUES('prev',?) ON CONFLICT(k) DO UPDATE SET v=excluded.v").bind(JSON.stringify(snap)).run();
   } catch {}
   if (!seeded) return; // first run seeds state without notifying
