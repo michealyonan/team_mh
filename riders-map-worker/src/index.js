@@ -12,7 +12,7 @@ import { makeTursoDb } from './turso.js';
    always read from and written to D1 so it stays readable whichever backend is live, and it is
    cached per isolate for 10s so a flip reaches every isolate quickly. With no live credentials
    the worker is always D1, so this code changes nothing until those secrets are set. */
-const DB_MODE_TTL_MS = 10000;
+const DB_MODE_TTL_MS = 60000;
 let __dbMode = null, __dbModeAt = 0;
 function tursoPair(env) {
   if (env.TURSO_LIVE_URL && env.TURSO_LIVE_TOKEN) return { url: env.TURSO_LIVE_URL, token: env.TURSO_LIVE_TOKEN, key: '__tursoLive', live: true };
@@ -30,8 +30,13 @@ async function readDbMode(d1db, pair) {
   try {
     const r = await d1db.prepare("SELECT v FROM settings WHERE k='db_mode'").first();
     __dbMode = r && r.v === 'turso' ? 'turso' : 'd1';
-  } catch (e) { if (!__dbMode) __dbMode = 'd1'; }
-  __dbModeAt = Date.now();
+    __dbModeAt = Date.now();
+  } catch (e) {
+    // 27 Nov fix: a failed flag read must NEVER silently move traffic to D1 (that split the live
+    // traffic across both databases right after the switch). Keep the last known mode and retry
+    // on the next request; only a successful read may change the mode.
+    __dbModeAt = Date.now() - DB_MODE_TTL_MS + 5000; // retry in ~5s instead of waiting a full TTL
+  }
   return __dbMode;
 }
 function dbOf(env) {
