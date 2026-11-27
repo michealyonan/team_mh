@@ -2146,12 +2146,32 @@ async function runStatusCron(env) {
   // Sends run AFTER stats are saved, in parallel chunks so a ~600-flip minute stays inside the
   // cron limit (sequential awaits overran it and the run died before stats - pushes went out but
   // the run looked like a zero).
-  const CHUNK = 25;
-  for (let i = 0; i < sendQueue.length; i += CHUNK) {
-    const part = sendQueue.slice(i, i + CHUNK);
-    const ress = await Promise.all(part.map(([u, title, body, id, color]) => insertNotification(env, u, title, body, id, color).catch(() => 0)));
-    for (const w of ress) d1w += w || 0;
+  // 27 Nov staging (24300032): batch the notification ROWS (100 stmts per pipeline call)
+  // instead of one insertNotification round trip per flip - on Turso each round trip is a real
+  // HTTP call and ~350 flips overran the cron wall-clock, silently killing every detection run.
+  // Same rows, same pushes; D1 batch handles the chunks identically on live.
+  for (let i = 0; i < sendQueue.length; i += 100) {
+    const part = sendQueue.slice(i, i + 100);
+    try {
+      const stmts = part.map(([u, title, body, id]) => env.DB.prepare('INSERT INTO notifications(u,day,title,body,rider_id,ts) VALUES(?,?,?,?,?,?)')
+        .bind(u, cairoDay(), String(title || '').slice(0, 120), String(body || '').slice(0, 500), String(id || '').slice(0, 40), Date.now()));
+      const ress = await env.DB.batch(stmts);
+      for (const r of ress) d1w += (r && r.meta && r.meta.rows_written) || 0;
+    } catch {}
   }
+  // Pushes after the rows: pre-scan tokens once (1 query) and FCM only users that have any.
+  try {
+    const uniqU = [...new Set(sendQueue.map(([u]) => u))];
+    if (uniqU.length) {
+      const tokRows = await env.DB.prepare(`SELECT u, token FROM push_tokens WHERE u IN (${uniqU.map(() => '?').join(',')})`).bind(...uniqU).all();
+      const hasTok = new Set((tokRows.results || []).map(r => r.u));
+      const withPush = sendQueue.filter(([u]) => hasTok.has(u));
+      const CHUNK = 10;
+      for (let i = 0; i < withPush.length; i += CHUNK) {
+        await Promise.all(withPush.slice(i, i + CHUNK).map(([u, title, body, id, color]) => sendFcmToUser(env, u, String(title || '').slice(0, 120), String(body || '').slice(0, 500), id, color).catch(() => 0)));
+      }
+    }
+  } catch {}
   // Patch the stats entry with the FULL measured write total (states + snapshot + stats + notification rows).
   try {
     const row = await env.DB.prepare("SELECT v FROM status_meta WHERE k='cron:status_stats'").first();
