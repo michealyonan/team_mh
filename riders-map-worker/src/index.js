@@ -3482,9 +3482,14 @@ async function handleFetch(request, rawEnv, ctx) {
       if (body.table) {
         const table = String(body.table);
         if (SWITCH_COPY_TABLES.indexOf(table) < 0) return json({ error: 'bad_table' }, 400);
-        if (cur === 'd1') await ensureDstSchema();
-        const r = await copyTableChunk(src, dst, table, Math.max(0, Number(body.offset) || 0));
-        return json({ ok: true, from: cur, ...r });
+        // 27 Nov repair path: dir='to_turso' copies D1 -> Turso even when Turso is already live.
+        // Used to re-seed a table that was missed (sessions were), without flipping anything.
+        let csrc = src, cdst = dst;
+        if (String(body.dir || '') === 'to_turso') { csrc = d1db; cdst = tursoOf(env, pair); }
+        if (cdst === dst && cur === 'd1') await ensureDstSchema();
+        if (String(body.dir || '') === 'to_turso') await ensureDstSchema();
+        const r = await copyTableChunk(csrc, cdst, table, Math.max(0, Number(body.offset) || 0));
+        return json({ ok: true, from: String(body.dir || '') === 'to_turso' ? 'd1' : cur, ...r });
       }
       const mode = String(body.mode || '');
       if (mode !== 'd1' && mode !== 'turso') return json({ error: 'bad_mode' }, 400);
