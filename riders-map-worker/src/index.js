@@ -2414,6 +2414,7 @@ async function walkFormDirect({ formId, cookie, email, fields, probe }) {
   return { error: 'too_many_pages', trail, engine: 'direct' };
 }
 
+export default {
   async fetch(request, rawEnv, ctx) {
     // 27 Nov staging debug: surface uncaught errors as text instead of a bare 1101 page.
     try { return await handleFetch(request, rawEnv, ctx); }
