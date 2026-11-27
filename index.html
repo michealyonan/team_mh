@@ -1458,6 +1458,10 @@ header{box-shadow:0 8px 24px rgba(2,8,23,.5)}
      <button class="btn" id="notifPauseBtn" type="button" onclick="toggleNotifPause()">⏸ إيقاف الإشعارات</button>
      <span class="sub" id="notifPauseState"></span>
     </div>
+    <div class="row" style="gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px">
+     <button class="btn" id="dbSwitchBtn" type="button" onclick="toggleDbMode()">🔀 تحويل قاعدة البيانات</button>
+     <span class="sub" id="dbSwitchState"></span>
+    </div>
    </div>
    <div id="notifCompose" style="display:none;margin-bottom:10px;padding:10px;border:1px solid var(--bd);border-radius:10px">
     <div class="sub" style="margin-bottom:6px">📢 إشعار من الإدارة</div>
@@ -6667,7 +6671,7 @@ async function loadNotifs(show){
    if(compose&&CUR&&['admin','manager'].includes(CUR.r)){compose.style.display='';fillAnnounceTargets()}
    const ca=$('notifClearAll');if(ca)ca.style.display=(CUR&&CUR.r==='admin')?'':'none';
    const ar=$('notifAdminRow');if(ar)ar.style.display=(CUR&&CUR.r==='admin')?'':'none';
-   if(CUR&&CUR.r==='admin')loadNotifPauseState();
+   if(CUR&&CUR.r==='admin'){loadNotifPauseState();loadDbModeState()}
    const st=$('notifStatus'),list=$('notifList');
    st.textContent=items.length?('إشعارات اليوم: '+items.length):'مفيش إشعارات النهاردة 🎉';
    api('/api/notifications/read',{method:'POST'}).then(()=>{if(badge)badge.style.display='none'}).catch(()=>{});
@@ -6702,6 +6706,41 @@ async function toggleNotifPause(){
   const r=await api('/api/admin/notif_pause',{method:'POST',body:{on:pauseNow}});
   setNotifPauseUI(!!r.paused);
  }catch(e){alert('مش قادر أغير حالة الإشعارات — '+(e.message||e))}
+}
+// 27 Nov (Micheal 24770953 / 24799031): switch the live database between Cloudflare D1 and Turso.
+// Only one database is used at a time; the other gets no traffic until the next switch.
+async function loadDbModeState(){
+ try{ setDbModeUI(await api('/api/admin/db_switch')) }
+ catch(e){ const st=$('dbSwitchState'); if(st)st.textContent='مش قادر أقرأ حالة قاعدة البيانات' }
+}
+function setDbModeUI(r){
+ const b=$('dbSwitchBtn'),st=$('dbSwitchState');
+ const turso=!!(r&&r.mode==='turso'), ready=!!(r&&r.live_ready);
+ if(b){ b.textContent=turso?'🔀 رجّع على Cloudflare':'🔀 حوّل على Turso'; b.disabled=!ready }
+ if(st){ st.textContent=!ready?'بيانات Turso لسه مش متظبطة على السيرفر':(turso?'شغال على Turso':'شغال على Cloudflare') }
+}
+async function toggleDbMode(){
+ try{
+  const cur=await api('/api/admin/db_switch');
+  if(!cur.live_ready){ alert('بيانات دخول Turso لسه مش متظبطة على السيرفر'); return }
+  const to=cur.mode==='turso'?'d1':'turso';
+  const msg=to==='turso'
+   ?'هحوّل الشغل على Turso. الأول هنقل البيانات اللي الشيت مايقدرش يبنيها (المستخدمين، الدخول، القضايا، الطلبات، الشات) وده بياخد ثواني، وبعدها التحويل نفسه لحظي. حالة الرايدرز والإشعارات هتتبنى من الشيت تاني، يعني ممكن فرق دقيقتين. نكمّل؟'
+   :'هرجّع الشغل على Cloudflare D1، وهنقل البيانات الحالية من Turso الأول. نكمّل؟';
+  if(!await askConfirm(msg))return;
+  const tables=cur.tables||[],st=$('dbSwitchState');
+  for(let i=0;i<tables.length;i++){
+   let off=0;
+   for(let k=0;k<3000;k++){
+    const r=await api('/api/admin/db_switch',{method:'POST',body:{table:tables[i],offset:off}});
+    off=r.next||0; if(r.done)break;
+   }
+   if(st)st.textContent='بنقل البيانات… '+(i+1)+'/'+tables.length;
+  }
+  const r=await api('/api/admin/db_switch',{method:'POST',body:{mode:to}});
+  setDbModeUI({mode:r.mode,live_ready:true});
+  alert('تم التحويل، الشغل دلوقتي على '+(r.mode==='turso'?'Turso':'Cloudflare D1')+'.');
+ }catch(e){ alert('التحويل ما كملش — '+(e.message||e)); loadDbModeState() }
 }
 // 27 Nov (Micheal 24235100): themed in-app confirm instead of the native browser confirm()
 function askConfirm(msg){

@@ -2,21 +2,68 @@ import { DurableObject } from 'cloudflare:workers';
 import { makeTursoDb } from './turso.js';
 
 /* 27 Nov staging (Micheal 24282605): when TURSO_URL + TURSO_AUTH_TOKEN secrets exist,
-   ALL database traffic goes to Turso instead of D1 (staging copy only; live has no such
-   secrets, so nothing changes there). The Turso adapter mimics the D1 binding surface.
-   STAGING=1 also disables FCM fanout so the staging cron never double-pushes supervisors. */
+   ALL database traffic goes to Turso instead of D1 (staging copy only). The Turso adapter
+   mimics the D1 binding surface. STAGING=1 also disables FCM fanout so the staging cron never
+   double-pushes supervisors.
+
+   27 Nov live switch (Micheal 24792395 / 24792062): on the LIVE worker the secrets
+   TURSO_LIVE_URL + TURSO_LIVE_TOKEN make a second Turso database available, and
+   settings.db_mode ('d1' | 'turso') decides which backend the worker actually uses. The flag is
+   always read from and written to D1 so it stays readable whichever backend is live, and it is
+   cached per isolate for 10s so a flip reaches every isolate quickly. With no live credentials
+   the worker is always D1, so this code changes nothing until those secrets are set. */
+const DB_MODE_TTL_MS = 10000;
+let __dbMode = null, __dbModeAt = 0;
+function tursoPair(env) {
+  if (env.TURSO_LIVE_URL && env.TURSO_LIVE_TOKEN) return { url: env.TURSO_LIVE_URL, token: env.TURSO_LIVE_TOKEN, key: '__tursoLive', live: true };
+  if (env.TURSO_URL && env.TURSO_AUTH_TOKEN) return { url: env.TURSO_URL, token: env.TURSO_AUTH_TOKEN, key: '__turso', live: false };
+  return null;
+}
+function tursoOf(env, pair) {
+  if (!pair) return null;
+  if (!env[pair.key]) Object.defineProperty(env, pair.key, { value: makeTursoDb(pair.url, pair.token), enumerable: false });
+  return env[pair.key];
+}
+async function readDbMode(d1db, pair) {
+  if (!pair) { __dbMode = 'd1'; __dbModeAt = Date.now(); return __dbMode; }
+  if (!pair.live) { __dbMode = 'turso'; __dbModeAt = Date.now(); return __dbMode; } // staging: unchanged
+  try {
+    const r = await d1db.prepare("SELECT v FROM settings WHERE k='db_mode'").first();
+    __dbMode = r && r.v === 'turso' ? 'turso' : 'd1';
+  } catch (e) { if (!__dbMode) __dbMode = 'd1'; }
+  __dbModeAt = Date.now();
+  return __dbMode;
+}
 function dbOf(env) {
-  if (env.TURSO_URL && env.TURSO_AUTH_TOKEN) {
-    if (!env.__turso) Object.defineProperty(env, '__turso', { value: makeTursoDb(env.TURSO_URL, env.TURSO_AUTH_TOKEN), enumerable: false });
-    return env.__turso;
-  }
+  const pair = tursoPair(env);
+  if (pair && __dbMode === 'turso') return tursoOf(env, pair);
   return env.DB;
 }
-function withDb(env) {
-  if (!(env.TURSO_URL && env.TURSO_AUTH_TOKEN)) return env;
+async function withDb(env) {
+  const pair = tursoPair(env);
+  if (!pair) { __dbMode = 'd1'; __dbModeAt = Date.now(); return env; }
+  if (!__dbMode || Date.now() - __dbModeAt > DB_MODE_TTL_MS) await readDbMode(env.DB, pair);
   const e = Object.create(env);
   Object.defineProperty(e, 'DB', { get: () => dbOf(env) });
+  Object.defineProperty(e, 'D1', { value: env.DB });
   return e;
+}
+
+/* Tables a D1 <-> Turso switch copies. The sheet-derived bulk (rider_states, notifications,
+   notifications_read, geo, push_log, audit, rl) is deliberately NOT copied: the live data
+   rebuilds from the sheet, which keeps the switch short and keeps history nobody re-reads off
+   the other database's write budget. */
+const SWITCH_COPY_TABLES = ['settings', 'users', 'sessions', 'codes', 'recoveries', 'viewer_access', 'login_fails', 'push_tokens', 'status_meta', 'legal_reminders', 'rider_stops', 'chat_messages', 'chat_presence', 'assistant_history', 'form_submissions', 'form_phone_jobs', 'hiring_requests', 'hiring_images', 'legal_cases', 'legal_case_images', 'legal_case_history', 'legal_case_deletes', 'shift_commands', 'shiftcmd_schedules', 'report_logs', 'usage_daily'];
+// rows per request: the photo tables hold base64 images, so they move a few rows at a time
+const SWITCH_CHUNK = { hiring_images: 4, legal_case_images: 4, chat_messages: 40, assistant_history: 40 };
+async function copyTableChunk(src, dst, table, offset) {
+  const limit = SWITCH_CHUNK[table] || 60;
+  const rows = (await src.prepare('SELECT * FROM ' + table + ' LIMIT ' + limit + ' OFFSET ' + offset).all()).results || [];
+  if (!rows.length) return { table, copied: 0, next: offset, done: true };
+  const cols = Object.keys(rows[0]);
+  const stmts = rows.map((r) => dst.prepare('INSERT OR REPLACE INTO ' + table + '(' + cols.join(',') + ') VALUES(' + cols.map(() => '?').join(',') + ')').bind(...cols.map((c) => r[c])));
+  await dst.batch(stmts);
+  return { table, copied: rows.length, next: offset + rows.length, done: rows.length < limit };
 }
 
 const MAX_BODY_BYTES = 2_000_000;
@@ -2511,7 +2558,7 @@ export default {
     try { return await handleScheduled(event, rawEnv, ctx); }
     catch (e) {
       try {
-        const env = withDb(rawEnv);
+        const env = await withDb(rawEnv);
         await env.DB.prepare("INSERT INTO status_meta(k,v) VALUES('cron:status_fetch_err',?) ON CONFLICT(k) DO UPDATE SET v=excluded.v").bind(JSON.stringify({ ts: Date.now(), crash: String(e).slice(0, 300) })).run();
       } catch {}
       throw e;
@@ -2519,7 +2566,7 @@ export default {
   }
 };
 async function handleFetch(request, rawEnv, ctx) {
-    const env = withDb(rawEnv);
+    const env = await withDb(rawEnv);
     bumpUsage(env, ctx);
     const origin = request.headers.get('Origin') || '';
     const allowedList = String(env.ALLOWED_ORIGIN || '*').split(',').map((x) => x.trim()).filter(Boolean);
@@ -3399,6 +3446,56 @@ async function handleFetch(request, rawEnv, ctx) {
       return json({ ok: true, paused: !!(p && p.v === '1') });
     }
 
+    // 27 Nov (Micheal 24770953 / 24799031): live database switch, D1 <-> Turso.
+    // Only ONE backend is used at a time: settings.db_mode in D1 picks it, and the other side gets
+    // no reads and no writes at all. GET reports the mode. POST {table, offset} moves one chunk of
+    // the live data into the other side and is used only right before a flip, so the big photo
+    // tables never have to fit in one request. POST {mode} flips the flag. Auth and the flag both
+    // live in D1, so the switch back still works if Turso is unreachable.
+    if (url.pathname === '/api/admin/db_switch' && (request.method === 'GET' || request.method === 'POST')) {
+      const d1env = Object.create(env);
+      Object.defineProperty(d1env, 'DB', { value: env.D1 });
+      await ensureSchema(d1env);
+      const user = await getSessionUser(d1env, request);
+      if (!user) return json({ error: 'unauthorized' }, 401);
+      if (user.r !== 'admin') return json({ error: 'forbidden' }, 403);
+      const pair = tursoPair(env);
+      const liveReady = !!(pair && pair.live);
+      await readDbMode(env.D1, pair);
+      if (request.method === 'GET') return json({ ok: true, mode: __dbMode, live_ready: liveReady, tables: SWITCH_COPY_TABLES });
+      if (!liveReady) return json({ error: 'no_live_credentials' }, 400);
+      let body = {};
+      try { body = await request.json(); } catch { return json({ error: 'bad_json' }, 400); }
+      const cur = __dbMode;
+      const src = cur === 'turso' ? tursoOf(env, pair) : env.D1;
+      const dst = cur === 'turso' ? env.D1 : tursoOf(env, pair);
+      const ensureDstSchema = async () => {
+        const prev = schemaReady; schemaReady = false;
+        try { await ensureSchema({ DB: dst }); } finally { schemaReady = prev; }
+      };
+      if (body.table) {
+        const table = String(body.table);
+        if (SWITCH_COPY_TABLES.indexOf(table) < 0) return json({ error: 'bad_table' }, 400);
+        if (cur === 'd1') await ensureDstSchema();
+        const r = await copyTableChunk(src, dst, table, Math.max(0, Number(body.offset) || 0));
+        return json({ ok: true, from: cur, ...r });
+      }
+      const mode = String(body.mode || '');
+      if (mode !== 'd1' && mode !== 'turso') return json({ error: 'bad_mode' }, 400);
+      if (mode === cur) return json({ ok: true, mode: cur, changed: false });
+      if (mode === 'turso') await ensureDstSchema();
+      // last-moment catch-up on the small tables so a login made during the copy is not lost
+      const catchUp = {};
+      for (const t of ['settings', 'users', 'sessions', 'push_tokens', 'codes', 'recoveries', 'viewer_access', 'status_meta']) {
+        let off = 0, n = 0;
+        try { for (let i = 0; i < 40; i++) { const r = await copyTableChunk(src, dst, t, off); n += r.copied; off = r.next; if (r.done) break; } } catch (e) { n = 'err'; }
+        catchUp[t] = n;
+      }
+      await env.D1.prepare("INSERT INTO settings(k,v) VALUES('db_mode',?) ON CONFLICT(k) DO UPDATE SET v=excluded.v").bind(mode).run();
+      __dbMode = mode; __dbModeAt = Date.now();
+      return json({ ok: true, mode, changed: true, catch_up: catchUp });
+    }
+
     // 27 Nov (24301978): one-shot seed export for the Turso staging copy (users incl. roles,
     // push tokens, current rider states so staging's first cron sees no fake flips). Admin-only.
     if (url.pathname === '/api/admin/export_state' && request.method === 'GET') {
@@ -3506,7 +3603,7 @@ async function handleFetch(request, rawEnv, ctx) {
 }
 
 async function handleScheduled(event, rawEnv, ctx) {
-    const env = withDb(rawEnv);
+    const env = await withDb(rawEnv);
     bumpUsage(env, ctx);
     // 26 Nov cron dedup (Micheal 22473910): same code runs at two addresses (team-mh + riders-map-relay)
     // on ONE D1, so every cron fired twice. Claim the slot first; only the claimer works. 1 write/min total.
