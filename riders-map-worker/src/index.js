@@ -2056,9 +2056,16 @@ async function runStatusCron(env) {
     }
   }
   // 27 Nov: per-run stats for the admin usage page (1 write/min) so notification health is visible.
+  // hist keeps the last 9 runs: a single overwrite hid detection runs that were followed by a quiet run.
   try {
+    const entry = { ts: Date.now(), riders: current.size, changed_any: changed.length, changed_state: stateChanged.length, notified, guard, muted_sups, max_per_sup };
+    let hist = [];
+    try {
+      const prevRow = await env.DB.prepare("SELECT v FROM status_meta WHERE k='cron:status_stats'").first();
+      if (prevRow && prevRow.v) { const p = JSON.parse(prevRow.v); if (Array.isArray(p.hist)) hist = p.hist; else if (p.ts) hist = [p]; }
+    } catch {}
     await env.DB.prepare("INSERT INTO status_meta(k,v) VALUES('cron:status_stats',?) ON CONFLICT(k) DO UPDATE SET v=excluded.v")
-      .bind(JSON.stringify({ ts: Date.now(), riders: current.size, changed_any: changed.length, changed_state: stateChanged.length, notified, guard, muted_sups, max_per_sup })).run();
+      .bind(JSON.stringify({ ...entry, hist: [entry, ...hist].slice(0, 10) })).run();
   } catch {}
 }
 
@@ -3204,6 +3211,36 @@ export default {
           const pr = await env.DB.prepare('SELECT u,token_tail,status,resp,ts FROM push_log ORDER BY ts DESC LIMIT 5').all();
           push_log = (pr.results || []).map(r => ({ u: r.u, tail: r.token_tail, status: r.status, resp: String(r.resp || '').slice(0, 160), ts: r.ts }));
         } catch {}
+        // 27 Nov (Micheal 24167952): on-demand supervisor-scoping audit (?audit=1). Re-checks the
+        // last 200 state-flip notifications: each must have gone ONLY to users matching the rider's
+        // supervisor cell. Uses the rider's CURRENT sup (sups don't change during the flip test).
+        let notif_audit = null;
+        if (url.searchParams.get('audit') === '1') {
+          try {
+            const nrows = await env.DB.prepare("SELECT u, rider_id, ts FROM notifications WHERE title LIKE '%تغيير حالة%' ORDER BY id DESC LIMIT 200").all();
+            const items = nrows.results || [];
+            const riderIds = [...new Set(items.map(r => r.rider_id).filter(Boolean))];
+            const supByRider = new Map();
+            for (const rid of riderIds) {
+              const rr = await env.DB.prepare('SELECT sup FROM rider_states WHERE rider_id=?').bind(rid).first();
+              if (rr) supByRider.set(rid, rr.sup);
+            }
+            const supUsers = new Map();
+            let checked = 0; const mismatches = [];
+            for (const it of items) {
+              const sup = supByRider.get(it.rider_id);
+              if (!sup) continue; // rider no longer tracked - cannot verify
+              if (!supUsers.has(sup)) {
+                let sr = await env.DB.prepare("SELECT u FROM users WHERE status='active' AND (n=? OR u=?)").bind(sup, sup.toLowerCase()).all();
+                if (!(sr.results || []).length) sr = await env.DB.prepare("SELECT u FROM users WHERE status='active' AND n LIKE ?").bind('%' + sup.replace(/%/g, '') + '%').all();
+                supUsers.set(sup, new Set((sr.results || []).map(x => x.u)));
+              }
+              checked++;
+              if (!supUsers.get(sup).has(it.u)) mismatches.push({ u: it.u, rider_id: it.rider_id, sup, ts: it.ts });
+            }
+            notif_audit = { window: items.length, checked, mismatch_count: mismatches.length, mismatches: mismatches.slice(0, 20) };
+          } catch (e) { notif_audit = { error: String(e).slice(0, 200) }; }
+        }
         // Hiring storage footprint (Micheal 25 Nov): images are the heavy rows.
         let hiring = null;
         try {
@@ -3214,14 +3251,14 @@ export default {
         if (env.CF_API_TOKEN && env.CF_ACCOUNT_ID) {
           try {
             const used = await usageFromCloudflare(env);
-            return json({ ok: true, source: 'cloudflare', scope: 'account', limit: QUOTA_DAILY_LIMIT, used, remaining: Math.max(0, QUOTA_DAILY_LIMIT - used), day, hiring, cron, status_cron, push_log, reset_at: reset.toISOString() });
+            return json({ ok: true, source: 'cloudflare', scope: 'account', limit: QUOTA_DAILY_LIMIT, used, remaining: Math.max(0, QUOTA_DAILY_LIMIT - used), day, hiring, cron, status_cron, push_log, notif_audit, reset_at: reset.toISOString() });
           } catch (e) {
             const used = await usageEstimate(env);
-            return json({ ok: true, source: 'estimate', scope: 'worker', cloudflare_error: String(e && e.message || e).slice(0, 200), limit: QUOTA_DAILY_LIMIT, used, remaining: Math.max(0, QUOTA_DAILY_LIMIT - used), day, hiring, cron, status_cron, push_log, reset_at: reset.toISOString() });
+            return json({ ok: true, source: 'estimate', scope: 'worker', cloudflare_error: String(e && e.message || e).slice(0, 200), limit: QUOTA_DAILY_LIMIT, used, remaining: Math.max(0, QUOTA_DAILY_LIMIT - used), day, hiring, cron, status_cron, push_log, notif_audit, reset_at: reset.toISOString() });
           }
         }
         const used = await usageEstimate(env);
-        return json({ ok: true, source: 'estimate', scope: 'worker', limit: QUOTA_DAILY_LIMIT, used, remaining: Math.max(0, QUOTA_DAILY_LIMIT - used), day, hiring, cron, status_cron, push_log, reset_at: reset.toISOString() });
+        return json({ ok: true, source: 'estimate', scope: 'worker', limit: QUOTA_DAILY_LIMIT, used, remaining: Math.max(0, QUOTA_DAILY_LIMIT - used), day, hiring, cron, status_cron, push_log, notif_audit, reset_at: reset.toISOString() });
       } catch (e) {
         return serverErr(e);
       }
