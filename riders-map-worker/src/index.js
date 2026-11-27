@@ -1975,20 +1975,37 @@ async function runStatusCron(env) {
     if (oldState === undefined || !cur.state || normLiveState(oldState) === normLiveState(cur.state)) continue;
     stateChanged.push([id, cur, old]);
   }
-  // >400 real flips in one minute (~25% of the fleet at once) is a source data event, not real
-  // flips: update state silently, send zero notifications/pushes, and record the trip below.
-  const guard = stateChanged.length > 400;
-  let notified = 0;
+  // 27 Nov (Micheal 24139285): two-level flood protection, per his call.
+  // Per-supervisor: a sup normally watches ~30-40 riders, so >60 flips for ONE sup in one run is a
+  // data event for that sup - mute just them, everyone else still notifies.
+  // Fleet-wide: >800 flips in one minute (over half the fleet) is a source glitch/reload - silent
+  // run. ~600 real flips spread across supervisors notify as they should.
+  const PER_SUP_CAP = 60, FLEET_GUARD = 800;
+  const guard = stateChanged.length > FLEET_GUARD;
+  let notified = 0, muted_sups = 0, max_per_sup = 0;
   if (!guard) {
+    const perSup = new Map();   // target user -> [[id, cur, old], ...]
+    const supCache = new Map(); // sup name -> [target usernames]
     for (const [id, cur, old] of stateChanged) {
-      const oldState = old ? old.state : undefined;
-      const targets = new Map();
+      let targetList = [];
       if (cur.sup) {
-        let supRows = await env.DB.prepare("SELECT u FROM users WHERE status='active' AND (n=? OR u=?)").bind(cur.sup, cur.sup.toLowerCase()).all();
-        if (!(supRows.results || []).length) supRows = await env.DB.prepare("SELECT u FROM users WHERE status='active' AND n LIKE ?").bind('%' + cur.sup.replace(/%/g, '') + '%').all();
-        for (const t of (supRows.results || [])) targets.set(t.u, 1);
+        if (!supCache.has(cur.sup)) {
+          let supRows = await env.DB.prepare("SELECT u FROM users WHERE status='active' AND (n=? OR u=?)").bind(cur.sup, cur.sup.toLowerCase()).all();
+          if (!(supRows.results || []).length) supRows = await env.DB.prepare("SELECT u FROM users WHERE status='active' AND n LIKE ?").bind('%' + cur.sup.replace(/%/g, '') + '%').all();
+          supCache.set(cur.sup, [...new Set((supRows.results || []).map(r => r.u))]);
+        }
+        targetList = supCache.get(cur.sup);
       }
-      for (const u of targets.keys()) {
+      for (const u of targetList) {
+        if (!perSup.has(u)) perSup.set(u, []);
+        perSup.get(u).push([id, cur, old]);
+      }
+    }
+    for (const [u, flips] of perSup) {
+      if (flips.length > max_per_sup) max_per_sup = flips.length;
+      if (flips.length > PER_SUP_CAP) { muted_sups++; continue; } // that sup only; others notify
+      for (const [id, cur, old] of flips) {
+        const oldState = old ? old.state : undefined;
         await insertNotification(env, u, 'تغيير حالة مندوب', `${cur.name}: من "${oldState || 'بدون حالة'}" إلى "${cur.state}"`, id);
         notified++;
       }
@@ -1997,7 +2014,7 @@ async function runStatusCron(env) {
   // 27 Nov: per-run stats for the admin usage page (1 write/min) so notification health is visible.
   try {
     await env.DB.prepare("INSERT INTO status_meta(k,v) VALUES('cron:status_stats',?) ON CONFLICT(k) DO UPDATE SET v=excluded.v")
-      .bind(JSON.stringify({ ts: Date.now(), riders: current.size, changed_any: changed.length, changed_state: stateChanged.length, notified, guard })).run();
+      .bind(JSON.stringify({ ts: Date.now(), riders: current.size, changed_any: changed.length, changed_state: stateChanged.length, notified, guard, muted_sups, max_per_sup })).run();
   } catch {}
 }
 
