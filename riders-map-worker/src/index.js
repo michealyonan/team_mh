@@ -2028,6 +2028,7 @@ async function runStatusCron(env) {
   const PER_SUP_CAP = 80, FLEET_GUARD = 800;
   const guard = stateChanged.length > FLEET_GUARD;
   let notified = 0, muted_sups = 0, max_per_sup = 0;
+  const sendQueue = [];
   if (!guard) {
     const perSup = new Map();   // target user -> [[id, cur, old], ...]
     const supCache = new Map(); // sup name -> [target usernames]
@@ -2046,7 +2047,6 @@ async function runStatusCron(env) {
         perSup.get(u).push([id, cur, old]);
       }
     }
-    const sendQueue = [];
     for (const [u, flips] of perSup) {
       if (flips.length > max_per_sup) max_per_sup = flips.length;
       if (flips.length > PER_SUP_CAP) { muted_sups++; continue; } // that sup only; others notify
@@ -2070,19 +2070,12 @@ async function runStatusCron(env) {
         sendQueue.push([u, sm[0] + ' تغيير حالة مندوب', lines.join('\n'), id, sm[1]]);
       }
     }
-    // 27 Nov: sequential awaits let big flip batches overrun the cron wall-clock limit - the run
-    // died mid-send AFTER the snapshot was saved, so the next run saw 0 changes and the stats row
-    // was never written (looked like "no detections" while pushes actually went out). Parallel
-    // chunks keep a ~600-flip minute inside the limit.
-    const CHUNK = 25;
-    for (let i = 0; i < sendQueue.length; i += CHUNK) {
-      const part = sendQueue.slice(i, i + CHUNK);
-      await Promise.all(part.map(([u, title, body, id, color]) => insertNotification(env, u, title, body, id, color).catch(() => {})));
-      notified += part.length;
-    }
   }
+  notified = sendQueue.length;
   // 27 Nov: per-run stats for the admin usage page (1 write/min) so notification health is visible.
   // hist keeps the last 9 runs: a single overwrite hid detection runs that were followed by a quiet run.
+  // Stats are written BEFORE the send loop: even if a huge batch overruns the cron wall-clock
+  // mid-send, the detection (and how many were queued) is always recorded.
   try {
     const entry = { ts: Date.now(), riders: current.size, changed_any: changed.length, changed_state: stateChanged.length, notified, guard, muted_sups, max_per_sup };
     let hist = [];
@@ -2093,6 +2086,14 @@ async function runStatusCron(env) {
     await env.DB.prepare("INSERT INTO status_meta(k,v) VALUES('cron:status_stats',?) ON CONFLICT(k) DO UPDATE SET v=excluded.v")
       .bind(JSON.stringify({ ...entry, hist: [entry, ...hist].slice(0, 10) })).run();
   } catch {}
+  // Sends run AFTER stats are saved, in parallel chunks so a ~600-flip minute stays inside the
+  // cron limit (sequential awaits overran it and the run died before stats - pushes went out but
+  // the run looked like a zero).
+  const CHUNK = 25;
+  for (let i = 0; i < sendQueue.length; i += CHUNK) {
+    const part = sendQueue.slice(i, i + CHUNK);
+    await Promise.all(part.map(([u, title, body, id, color]) => insertNotification(env, u, title, body, id, color).catch(() => {})));
+  }
 }
 
 // 26 Nov (19271108 upgrade 4): morning summary push to admins at 09:00 Cairo (cron 0 7 * * * UTC).
