@@ -3453,22 +3453,23 @@ async function handleFetch(request, rawEnv, ctx) {
     // tables never have to fit in one request. POST {mode} flips the flag. Auth and the flag both
     // live in D1, so the switch back still works if Turso is unreachable.
     if (url.pathname === '/api/admin/db_switch' && (request.method === 'GET' || request.method === 'POST')) {
+      const d1db = env.D1 || env.DB; // env.D1 exists on the wrapped env; plain env (no Turso secrets) has only DB
       const d1env = Object.create(env);
-      Object.defineProperty(d1env, 'DB', { value: env.D1 });
+      Object.defineProperty(d1env, 'DB', { value: d1db });
       await ensureSchema(d1env);
       const user = await getSessionUser(d1env, request);
       if (!user) return json({ error: 'unauthorized' }, 401);
       if (user.r !== 'admin') return json({ error: 'forbidden' }, 403);
       const pair = tursoPair(env);
       const liveReady = !!(pair && pair.live);
-      await readDbMode(env.D1, pair);
+      await readDbMode(d1db, pair);
       if (request.method === 'GET') return json({ ok: true, mode: __dbMode, live_ready: liveReady, tables: SWITCH_COPY_TABLES });
       if (!liveReady) return json({ error: 'no_live_credentials' }, 400);
       let body = {};
       try { body = await request.json(); } catch { return json({ error: 'bad_json' }, 400); }
       const cur = __dbMode;
-      const src = cur === 'turso' ? tursoOf(env, pair) : env.D1;
-      const dst = cur === 'turso' ? env.D1 : tursoOf(env, pair);
+      const src = cur === 'turso' ? tursoOf(env, pair) : d1db;
+      const dst = cur === 'turso' ? d1db : tursoOf(env, pair);
       const ensureDstSchema = async () => {
         const prev = schemaReady; schemaReady = false;
         try { await ensureSchema({ DB: dst }); } finally { schemaReady = prev; }
@@ -3491,7 +3492,7 @@ async function handleFetch(request, rawEnv, ctx) {
         try { for (let i = 0; i < 40; i++) { const r = await copyTableChunk(src, dst, t, off); n += r.copied; off = r.next; if (r.done) break; } } catch (e) { n = 'err'; }
         catchUp[t] = n;
       }
-      await env.D1.prepare("INSERT INTO settings(k,v) VALUES('db_mode',?) ON CONFLICT(k) DO UPDATE SET v=excluded.v").bind(mode).run();
+      await d1db.prepare("INSERT INTO settings(k,v) VALUES('db_mode',?) ON CONFLICT(k) DO UPDATE SET v=excluded.v").bind(mode).run();
       __dbMode = mode; __dbModeAt = Date.now();
       return json({ ok: true, mode, changed: true, catch_up: catchUp });
     }
