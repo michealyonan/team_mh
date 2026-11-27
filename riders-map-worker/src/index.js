@@ -2414,8 +2414,24 @@ async function walkFormDirect({ formId, cookie, email, fields, probe }) {
   return { error: 'too_many_pages', trail, engine: 'direct' };
 }
 
-export default {
   async fetch(request, rawEnv, ctx) {
+    // 27 Nov staging debug: surface uncaught errors as text instead of a bare 1101 page.
+    try { return await handleFetch(request, rawEnv, ctx); }
+    catch (e) { return new Response('WORKER_ERR ' + String((e && e.stack) || e).slice(0, 500), { status: 500 }); }
+  },
+  async scheduled(event, rawEnv, ctx) {
+    // same wrapper for cron: log the failure into status_meta so /api/admin/usage shows it.
+    try { return await handleScheduled(event, rawEnv, ctx); }
+    catch (e) {
+      try {
+        const env = withDb(rawEnv);
+        await env.DB.prepare("INSERT INTO status_meta(k,v) VALUES('cron:status_fetch_err',?) ON CONFLICT(k) DO UPDATE SET v=excluded.v").bind(JSON.stringify({ ts: Date.now(), crash: String(e).slice(0, 300) })).run();
+      } catch {}
+      throw e;
+    }
+  }
+};
+async function handleFetch(request, rawEnv, ctx) {
     const env = withDb(rawEnv);
     bumpUsage(env, ctx);
     const origin = request.headers.get('Origin') || '';
@@ -3398,9 +3414,9 @@ export default {
       }
     }
     return json({ error: 'not_found' }, 404);
-  },
+}
 
-  async scheduled(event, rawEnv, ctx) {
+async function handleScheduled(event, rawEnv, ctx) {
     const env = withDb(rawEnv);
     bumpUsage(env, ctx);
     // 26 Nov cron dedup (Micheal 22473910): same code runs at two addresses (team-mh + riders-map-relay)
@@ -3413,8 +3429,7 @@ export default {
     }
     if (event.cron === '0 7 * * *' && await claimCronSlot(env, 'cron_lock_morning', utcDay())) jobs.push(runMorningSummary(env, false).catch(() => {}));
     ctx.waitUntil(Promise.all(jobs));
-  },
-};
+}
 
 export class RiderMapHub extends DurableObject {
   async fetch(request) {
