@@ -354,7 +354,8 @@ async function fcmAccessToken(env) {
   return _fcmTok;
 }
 async function sendFcmToUser(env, u, title, body, riderId, color) {
-  if (env.STAGING) return; // staging copy: never fan out real pushes
+  // 27 Nov (24301978): staging now pushes normally - during the Turso load test it is the
+  // single notifier (the live cron stands down via /api/admin/notif_pause), so no double pushes.
   if (!env.FCM_SA_JSON) {
     try { await env.DB.prepare('INSERT INTO push_log(u,token_tail,status,resp,ts) VALUES(?,?,?,?,?)').bind(u, '', -4, 'fcm_not_configured', Date.now()).run(); } catch (e) {}
     return;
@@ -1932,6 +1933,26 @@ async function repMatchUsers(env, files) {
 
 async function runStatusCron(env) {
   await ensureSchema(env);
+  // 27 Nov (24301978): Turso staging load test. While settings.notif_pause='1' the LIVE cron
+  // stands down (no rider_states writes, no notifications/pushes) so staging is the single
+  // notifier and live D1 keeps its write budget for logins/requests. Staging never pauses.
+  // Reversible via /api/admin/notif_pause.
+  if (!env.STAGING) {
+    try {
+      const p = await env.DB.prepare("SELECT v FROM settings WHERE k='notif_pause'").first();
+      if (p && p.v === '1') {
+        try {
+          const entry = { ts: Date.now(), paused: 1 };
+          let hist = [];
+          const prevRow = await env.DB.prepare("SELECT v FROM status_meta WHERE k='cron:status_stats'").first();
+          if (prevRow && prevRow.v) { const pj = JSON.parse(prevRow.v); if (Array.isArray(pj.hist)) hist = pj.hist; else if (pj.ts) hist = [pj]; }
+          await env.DB.prepare("INSERT INTO status_meta(k,v) VALUES('cron:status_stats',?) ON CONFLICT(k) DO UPDATE SET v=excluded.v")
+            .bind(JSON.stringify({ ...entry, hist: [entry, ...hist].slice(0, 10) })).run();
+        } catch {}
+        return;
+      }
+    } catch {}
+  }
   // 26 Nov (19219967): the live source flips between one-letter codes (W/T) and full names
   // (WORKING/TEMP_NOT_WORKING). Normalize before comparing so a format flip never fires false
   // "تغيير حالة مندوب" notifications. Every known code is the first letter of its full name.
@@ -3257,6 +3278,35 @@ export default {
       if (!url.searchParams.get('ticket')) return new Response('Missing ticket', { status: 401 });
       const doRequest = new Request(`https://rider-map.internal/ws?ticket=${encodeURIComponent(url.searchParams.get('ticket'))}`, request);
       return hub.fetch(doRequest);
+    }
+
+    // 27 Nov (24301978): reversible stand-down switch for the live status cron while the
+    // Turso staging copy runs as the single notifier. GET reads, POST {on:bool} sets.
+    if (url.pathname === '/api/admin/notif_pause' && (request.method === 'GET' || request.method === 'POST')) {
+      await ensureSchema(env);
+      const user = await getSessionUser(env, request);
+      if (!user) return json({ error: 'unauthorized' }, 401);
+      if (user.r !== 'admin') return json({ error: 'forbidden' }, 403);
+      if (request.method === 'POST') {
+        let on = null;
+        try { const b = await request.json(); on = !!(b && b.on); } catch { return json({ error: 'bad_json' }, 400); }
+        await env.DB.prepare("INSERT INTO settings(k,v) VALUES('notif_pause',?) ON CONFLICT(k) DO UPDATE SET v=excluded.v").bind(on ? '1' : '0').run();
+      }
+      const p = await env.DB.prepare("SELECT v FROM settings WHERE k='notif_pause'").first();
+      return json({ ok: true, paused: !!(p && p.v === '1') });
+    }
+
+    // 27 Nov (24301978): one-shot seed export for the Turso staging copy (users incl. roles,
+    // push tokens, current rider states so staging's first cron sees no fake flips). Admin-only.
+    if (url.pathname === '/api/admin/export_state' && request.method === 'GET') {
+      await ensureSchema(env);
+      const user = await getSessionUser(env, request);
+      if (!user) return json({ error: 'unauthorized' }, 401);
+      if (user.r !== 'admin') return json({ error: 'forbidden' }, 403);
+      const users = await env.DB.prepare('SELECT * FROM users').all();
+      const tokens = await env.DB.prepare('SELECT * FROM push_tokens').all();
+      const states = await env.DB.prepare('SELECT * FROM rider_states').all();
+      return json({ ok: true, users: users.results || [], push_tokens: tokens.results || [], rider_states: states.results || [] });
     }
 
     if (url.pathname === '/api/admin/usage' && request.method === 'GET') {
