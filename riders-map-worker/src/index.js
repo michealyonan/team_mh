@@ -282,9 +282,10 @@ async function chatFeatures(env) {
   return { photo, voice };
 }
 async function insertNotification(env, u, title, body, riderId, color) {
-  await env.DB.prepare('INSERT INTO notifications(u,day,title,body,rider_id,ts) VALUES(?,?,?,?,?,?)')
+  const r = await env.DB.prepare('INSERT INTO notifications(u,day,title,body,rider_id,ts) VALUES(?,?,?,?,?,?)')
     .bind(u, cairoDay(), String(title || '').slice(0, 120), String(body || '').slice(0, 500), String(riderId || '').slice(0, 40), Date.now()).run();
   await sendFcmToUser(env, u, String(title || '').slice(0, 120), String(body || '').slice(0, 500), riderId, color);
+  return (r && r.meta && r.meta.rows_written) || 0;
 }
 // Status-change styling (27 Nov): emoji marker + Android small-icon tint per new state.
 // Micheal 24214827: dot by NEW state - LATE red, STARTING yellow, READY green, WORKING blue,
@@ -1958,6 +1959,8 @@ async function runStatusCron(env) {
   }
   // 26 Nov quota fix: previous state lives in a single status_meta row (1 row read)
   // instead of a full rider_states scan (~1.6k rows every 2 min = ~2M reads/day, 40% of the free D1 read limit).
+  // 27 Nov (24256194): measured D1 rows written this run, from each query's meta (billing truth).
+  let d1w = 0;
   let prev = null;
   try {
     const meta = await env.DB.prepare("SELECT v FROM status_meta WHERE k='prev'").first();
@@ -1999,7 +2002,10 @@ async function runStatusCron(env) {
     }
   }
   if (gone.length) stmts.push(...gone);
-  if (stmts.length) await env.DB.batch(stmts);
+  if (stmts.length) {
+    const br = await env.DB.batch(stmts);
+    for (const r of br || []) d1w += (r && r.meta && r.meta.rows_written) || 0;
+  }
   // 26 Nov quota cut: only rewrite the snapshot when something actually changed (was 1 write every 2 min).
   // Rewrite the snapshot on data changes and when vanish-marks were just added (otherwise the
   // grace clock would restart every run and rows would never age out).
@@ -2010,7 +2016,8 @@ async function runStatusCron(env) {
     // (~1,600 D1 writes every 2 min) and notifications showed old state as its first letter.
     for (const [id, cur] of current) snap.push([id, [cur.state, cur.name, cur.sup, cur.zone]]);
     for (const g of retainedGone) snap.push(g);
-    await env.DB.prepare("INSERT INTO status_meta(k,v) VALUES('prev',?) ON CONFLICT(k) DO UPDATE SET v=excluded.v").bind(JSON.stringify(snap)).run();
+    const sr = await env.DB.prepare("INSERT INTO status_meta(k,v) VALUES('prev',?) ON CONFLICT(k) DO UPDATE SET v=excluded.v").bind(JSON.stringify(snap)).run();
+    d1w += (sr && sr.meta && sr.meta.rows_written) || 0;
   } catch {}
   if (!seeded) return; // first run seeds state without notifying
   // 26 Nov flood guard: >50 riders "changing state" in one 2-min run is a data-format event in the
@@ -2085,14 +2092,15 @@ async function runStatusCron(env) {
   // Stats are written BEFORE the send loop: even if a huge batch overruns the cron wall-clock
   // mid-send, the detection (and how many were queued) is always recorded.
   try {
-    const entry = { ts: Date.now(), riders: current.size, changed_any: changed.length, changed_state: stateChanged.length, notified, guard, muted_sups, max_per_sup, states: stateCounts };
+    const entry = { ts: Date.now(), riders: current.size, changed_any: changed.length, changed_state: stateChanged.length, notified, guard, muted_sups, max_per_sup, states: stateCounts, d1w_pre: d1w };
     let hist = [];
     try {
       const prevRow = await env.DB.prepare("SELECT v FROM status_meta WHERE k='cron:status_stats'").first();
       if (prevRow && prevRow.v) { const p = JSON.parse(prevRow.v); if (Array.isArray(p.hist)) hist = p.hist; else if (p.ts) hist = [p]; }
     } catch {}
-    await env.DB.prepare("INSERT INTO status_meta(k,v) VALUES('cron:status_stats',?) ON CONFLICT(k) DO UPDATE SET v=excluded.v")
+    const stw = await env.DB.prepare("INSERT INTO status_meta(k,v) VALUES('cron:status_stats',?) ON CONFLICT(k) DO UPDATE SET v=excluded.v")
       .bind(JSON.stringify({ ...entry, hist: [entry, ...hist].slice(0, 10) })).run();
+    d1w += (stw && stw.meta && stw.meta.rows_written) || 0;
   } catch {}
   // Sends run AFTER stats are saved, in parallel chunks so a ~600-flip minute stays inside the
   // cron limit (sequential awaits overran it and the run died before stats - pushes went out but
@@ -2100,8 +2108,17 @@ async function runStatusCron(env) {
   const CHUNK = 25;
   for (let i = 0; i < sendQueue.length; i += CHUNK) {
     const part = sendQueue.slice(i, i + CHUNK);
-    await Promise.all(part.map(([u, title, body, id, color]) => insertNotification(env, u, title, body, id, color).catch(() => {})));
+    const ress = await Promise.all(part.map(([u, title, body, id, color]) => insertNotification(env, u, title, body, id, color).catch(() => 0)));
+    for (const w of ress) d1w += w || 0;
   }
+  // Patch the stats entry with the FULL measured write total (states + snapshot + stats + notification rows).
+  try {
+    const row = await env.DB.prepare("SELECT v FROM status_meta WHERE k='cron:status_stats'").first();
+    if (row && row.v) {
+      const p = JSON.parse(row.v);
+      if (Array.isArray(p.hist) && p.hist.length) { p.hist[0].d1w = d1w; p.d1w = d1w; await env.DB.prepare("UPDATE status_meta SET v=? WHERE k='cron:status_stats'").bind(JSON.stringify(p)).run(); }
+    }
+  } catch {}
 }
 
 // 26 Nov (19271108 upgrade 4): morning summary push to admins at 09:00 Cairo (cron 0 7 * * * UTC).
