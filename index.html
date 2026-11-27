@@ -2475,6 +2475,13 @@ function ensureLiveStartingPoints(){
 function openLivePanel(){
   const panel=$('livePanel');panel.style.display='flex';panel.setAttribute('aria-hidden','false');$('liveB').setAttribute('aria-expanded','true');renderLive();ensureLiveStartingPoints();(CUR&&CUR.r==='monitor'?$('liveSearch'):$('liveClose')).focus();
 }
+// 27 Nov (Micheal 24163340): push deep link - tapping a status push opens the rider in live view.
+function openRiderInLive(id){id=String(id||'').trim();if(!id)return;try{openLivePanel()}catch(e){return}const s=$('liveSearch');if(s){s.value=id;renderLive()}}
+window.openRiderFromPush=openRiderInLive;
+function riderFromHash(){const m=/(?:^|#)rider=([0-9A-Za-z-]{3,20})/.exec(location.hash||'');return m?m[1]:''}
+window.addEventListener('hashchange',()=>{const id=riderFromHash();if(id)openRiderInLive(id)});
+document.addEventListener('click',(e)=>{const b=e.target.closest('[data-rider-open]');if(!b)return;const nm=$('notifModal');if(nm)nm.style.display='none';openRiderInLive(b.getAttribute('data-rider-open'))});
+(function(){const id=riderFromHash();if(!id)return;let tries=0;const t=setInterval(()=>{tries++;if(typeof CUR!=='undefined'&&CUR){clearInterval(t);openRiderInLive(id)}else if(tries>30)clearInterval(t)},1000)})();
 function closeLivePanel(){
   if(CUR&&CUR.r==='monitor')return;
   const panel=$('livePanel');panel.style.display='none';panel.setAttribute('aria-hidden','true');$('liveB').setAttribute('aria-expanded','false');
@@ -6656,9 +6663,13 @@ async function loadNotifs(show){
    const st=$('notifStatus'),list=$('notifList');
    st.textContent=items.length?('إشعارات اليوم: '+items.length):'مفيش إشعارات النهاردة 🎉';
    api('/api/notifications/read',{method:'POST'}).then(()=>{if(badge)badge.style.display='none'}).catch(()=>{});
+   const NCOLORS={'🟢':'#16a34a','☕':'#d97706','🟡':'#ca8a04','🔴':'#dc2626','🟣':'#9333ea','🔵':'#2563eb','⚪':'#6b7280','🔔':'#475569'};
    list.innerHTML=items.map(it=>{
     const t=new Date(it.ts).toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'});
-    return '<div class="card" style="padding:10px 12px"><div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><b>'+esc(it.title)+'</b><span class="sub" style="white-space:nowrap">'+t+'</span></div>'+(it.body?'<div class="sub" style="margin-top:4px">'+esc(it.body)+'</div>':'')+'</div>'
+    const cc=NCOLORS[String(it.title||'').trim().charAt(0)]||'';
+    const cc2=cc?';border-inline-start:5px solid '+cc:'';
+    const riderLink=it.rider_id?'<button class="btn" style="margin-top:6px;padding:6px 12px;min-height:34px;font-size:12px" data-rider-open="'+esc(it.rider_id)+'">📍 فتح في اللايف</button>':'';
+    return '<div class="card" style="padding:10px 12px'+cc2+'"><div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><b>'+esc(it.title)+'</b><span class="sub" style="white-space:nowrap">'+t+'</span></div>'+(it.body?'<div class="sub" style="margin-top:4px;white-space:pre-line">'+esc(it.body)+'</div>':'')+riderLink+'</div>'
    }).join('');
   }
  }catch(e){if(show)$('notifStatus').textContent='مش قادر أحمل الإشعارات — '+(e.message||e)}
