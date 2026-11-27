@@ -1972,25 +1972,34 @@ async function runStatusCron(env) {
     if (t.length === 1) { const m = STATE_NAMES.find(x => x[0] === t.toUpperCase()); if (m) return m; }
     return t.toUpperCase();
   };
-  // 27 Nov staging debug: stage markers (one row, overwritten per stage) so a silently-killed
-  // cron run shows where it died. Temporary - remove after the Turso load test.
-  const mark = async (s) => { try { await env.DB.prepare("INSERT INTO status_meta(k,v) VALUES('cron:stage',?) ON CONFLICT(k) DO UPDATE SET v=excluded.v").bind(JSON.stringify({ ts: Date.now(), stage: s })).run(); } catch {} };
-  await mark('start');
-  let res;
-  try {
-    const ac = new AbortController();
-    const to = setTimeout(() => ac.abort('gviz_timeout'), 12000);
-    res = await fetch(`https://docs.google.com/spreadsheets/d/${LIVE_SHEET_ID}/gviz/tq?tqx=out:csv&gid=${LIVE_GID}&headers=1&_=${Date.now()}`, { signal: ac.signal });
-    clearTimeout(to);
-  } catch (e) { await mark('fetch_threw:' + String(e).slice(0, 80)); throw e; }
-  await mark('fetched:' + res.status);
-  if (!res.ok) {
-    // 27 Nov: make silent fetch bails visible (gviz throttling/5xx looked like "no changes").
-    try { await env.DB.prepare("INSERT INTO status_meta(k,v) VALUES('cron:status_fetch_err',?) ON CONFLICT(k) DO UPDATE SET v=excluded.v").bind(JSON.stringify({ ts: Date.now(), status: res.status })).run(); } catch {}
+  // 28 Nov (staging load test): the per-stage mark() rows cost one Turso round trip each (8 per
+  // run) and were enough to push flip-heavy runs past the 30s cron wall clock, where they died
+  // silently before writing stats. Diagnostics are now one marker, written only on a real failure.
+  const t0 = Date.now();
+  const elapsed = () => Date.now() - t0;
+  const markFail = async (s) => { try { await env.DB.prepare("INSERT INTO status_meta(k,v) VALUES('cron:stage',?) ON CONFLICT(k) DO UPDATE SET v=excluded.v").bind(JSON.stringify({ ts: Date.now(), stage: s })).run(); } catch {} };
+  // Sheet read: two attempts, each with its own abort, so one slow or throttled response cannot
+  // eat the whole cron budget. A failed read now records a marker and returns - throwing left no
+  // stats row at all, which is what made dropped minutes look like nothing happened.
+  let res = null, lastErr = '';
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      const ac = new AbortController();
+      const to = setTimeout(() => ac.abort('gviz_timeout'), 6000);
+      try {
+        res = await fetch(`https://docs.google.com/spreadsheets/d/${LIVE_SHEET_ID}/gviz/tq?tqx=out:csv&gid=${LIVE_GID}&headers=1&_=${Date.now()}`, { signal: ac.signal });
+      } finally { clearTimeout(to); }
+      if (res && res.ok) break;
+      lastErr = 'http:' + (res ? res.status : 'none');
+    } catch (e) { lastErr = String(e).slice(0, 80); res = null; }
+  }
+  if (!res || !res.ok) {
+    await markFail('fetch_failed:' + lastErr);
+    // 27 Nov: make fetch bails visible (gviz throttling/5xx looked like "no changes").
+    try { await env.DB.prepare("INSERT INTO status_meta(k,v) VALUES('cron:status_fetch_err',?) ON CONFLICT(k) DO UPDATE SET v=excluded.v").bind(JSON.stringify({ ts: Date.now(), status: lastErr })).run(); } catch {}
     return;
   }
   const rows = parseCsv(await res.text()).slice(1);
-  await mark('parsed:' + rows.length);
   const current = new Map();
   for (const r of rows) {
     const id = String(r[2] || '').trim();
@@ -2015,16 +2024,20 @@ async function runStatusCron(env) {
   // 27 Nov (24256194): measured D1 rows written this run, from each query's meta (billing truth).
   let d1w = 0;
   let prev = null;
+  // 28 Nov: read the previous snapshot AND the previous stats row in ONE round trip (was two).
+  let prevStatsRaw = null;
   try {
-    const meta = await env.DB.prepare("SELECT v FROM status_meta WHERE k='prev'").first();
-    if (meta && meta.v) prev = new Map(JSON.parse(meta.v));
+    const metas = await env.DB.prepare("SELECT k, v FROM status_meta WHERE k IN ('prev','cron:status_stats')").all();
+    for (const m of (metas.results || [])) {
+      if (m.k === 'prev' && m.v) { try { prev = new Map(JSON.parse(m.v)); } catch {} }
+      else if (m.k === 'cron:status_stats' && m.v) prevStatsRaw = m.v;
+    }
   } catch {}
   if (!prev) {
     const prevRows = await env.DB.prepare('SELECT rider_id,name,state,sup,zone FROM rider_states').all();
     prev = new Map((prevRows.results || []).map(r => [r.rider_id, [r.state, r.name, r.sup, r.zone]]));
   }
   const seeded = prev.size > 0;
-  await mark('prev:' + seeded);
   const stmts = [];
   const changedRows = []; // 27 Nov staging: collected for multi-row INSERT (see below)
   const changed = [];
@@ -2074,12 +2087,10 @@ async function runStatusCron(env) {
       for (const r of ur || []) d1w += (r && r.meta && (r.meta.rows_written || r.meta.changes)) || 0;
     } catch {}
   }
-  await mark('upserted:' + changedRows.length);
   if (stmts.length) {
     const br = await env.DB.batch(stmts);
     for (const r of br || []) d1w += (r && r.meta && r.meta.rows_written) || 0;
   }
-  await mark('gone_done');
   // 26 Nov quota cut: only rewrite the snapshot when something actually changed (was 1 write every 2 min).
   // Rewrite the snapshot on data changes and when vanish-marks were just added (otherwise the
   // grace clock would restart every run and rows would never age out).
@@ -2114,7 +2125,6 @@ async function runStatusCron(env) {
   const guard = stateChanged.length > FLEET_GUARD;
   let notified = 0, muted_sups = 0, max_per_sup = 0;
   const sendQueue = [];
-  await mark('presend:' + stateChanged.length);
   if (!guard) {
     const perSup = new Map();   // target user -> [[id, cur, old], ...]
     // 27 Nov staging (24300032): load active users ONCE (1 DB round trip) and match in JS.
@@ -2164,22 +2174,22 @@ async function runStatusCron(env) {
   const stateCounts = {};
   for (const [, cur] of current) { const k = normLiveState(cur.state) || 'EMPTY'; stateCounts[k] = (stateCounts[k] || 0) + 1; }
   notified = sendQueue.length;
-  await mark('queue:' + sendQueue.length + ':' + muted_sups);
   // 27 Nov: per-run stats for the admin usage page (1 write/min) so notification health is visible.
   // hist keeps the last 9 runs: a single overwrite hid detection runs that were followed by a quiet run.
   // Stats are written BEFORE the send loop: even if a huge batch overruns the cron wall-clock
   // mid-send, the detection (and how many were queued) is always recorded.
+  let statsPayload = null;
   try {
     const entry = { ts: Date.now(), riders: current.size, changed_any: changed.length, changed_state: stateChanged.length, notified, guard, muted_sups, max_per_sup, states: stateCounts, d1w_pre: d1w };
     let hist = [];
     try {
-      const prevRow = await env.DB.prepare("SELECT v FROM status_meta WHERE k='cron:status_stats'").first();
-      if (prevRow && prevRow.v) { const p = JSON.parse(prevRow.v); if (Array.isArray(p.hist)) hist = p.hist; else if (p.ts) hist = [p]; }
+      if (prevStatsRaw) { const p = JSON.parse(prevStatsRaw); if (Array.isArray(p.hist)) hist = p.hist; else if (p.ts) hist = [p]; }
     } catch {}
+    statsPayload = { ...entry, hist: [entry, ...hist].slice(0, 10) };
     const stw = await env.DB.prepare("INSERT INTO status_meta(k,v) VALUES('cron:status_stats',?) ON CONFLICT(k) DO UPDATE SET v=excluded.v")
-      .bind(JSON.stringify({ ...entry, hist: [entry, ...hist].slice(0, 10) })).run();
+      .bind(JSON.stringify(statsPayload)).run();
     d1w += (stw && stw.meta && stw.meta.rows_written) || 0;
-  } catch {}
+  } catch { statsPayload = null; }
   // Sends run AFTER stats are saved, in parallel chunks so a ~600-flip minute stays inside the
   // cron limit (sequential awaits overran it and the run died before stats - pushes went out but
   // the run looked like a zero).
@@ -2217,13 +2227,16 @@ async function runStatusCron(env) {
     }
   } catch {}
   // Patch the stats entry with the FULL measured write total (states + snapshot + stats + notification rows).
-  try {
-    const row = await env.DB.prepare("SELECT v FROM status_meta WHERE k='cron:status_stats'").first();
-    if (row && row.v) {
-      const p = JSON.parse(row.v);
-      if (Array.isArray(p.hist) && p.hist.length) { p.hist[0].d1w = d1w; p.d1w = d1w; await env.DB.prepare("UPDATE status_meta SET v=? WHERE k='cron:status_stats'").bind(JSON.stringify(p)).run(); }
-    }
-  } catch {}
+  // 28 Nov: written from the in-memory payload instead of re-reading the row (one fewer round trip),
+  // and skipped when the run is already close to the cron wall clock - the stats row is the record,
+  // the total is cosmetic.
+  if (statsPayload && elapsed() < 22000) {
+    try {
+      statsPayload.d1w = d1w;
+      if (Array.isArray(statsPayload.hist) && statsPayload.hist.length) statsPayload.hist[0].d1w = d1w;
+      await env.DB.prepare("UPDATE status_meta SET v=? WHERE k='cron:status_stats'").bind(JSON.stringify(statsPayload)).run();
+    } catch {}
+  }
 }
 
 // 26 Nov (19271108 upgrade 4): morning summary push to admins at 09:00 Cairo (cron 0 7 * * * UTC).
