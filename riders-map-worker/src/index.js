@@ -2002,12 +2002,10 @@ async function runStatusCron(env) {
     if (oldState === undefined || !cur.state || normLiveState(oldState) === normLiveState(cur.state)) continue;
     stateChanged.push([id, cur, old]);
   }
-  // 27 Nov (Micheal 24139285): two-level flood protection, per his call.
-  // Per-supervisor: a sup normally watches ~30-40 riders, so >60 flips for ONE sup in one run is a
-  // data event for that sup - mute just them, everyone else still notifies.
-  // Fleet-wide: >800 flips in one minute (over half the fleet) is a source glitch/reload - silent
-  // run. ~600 real flips spread across supervisors notify as they should.
-  const PER_SUP_CAP = 60, FLEET_GUARD = 800;
+  // 27 Nov (Micheal 24139285, revised 24197168): fleet-wide guard ONLY. >800 flips in one minute
+  // (over half the fleet) is a source glitch/reload - silent run. A supervisor may legitimately
+  // get many more than 30-40 notifications (each rider his own), so there is NO per-sup cap.
+  const FLEET_GUARD = 800;
   const guard = stateChanged.length > FLEET_GUARD;
   let notified = 0, muted_sups = 0, max_per_sup = 0;
   if (!guard) {
@@ -2031,7 +2029,6 @@ async function runStatusCron(env) {
     const sendQueue = [];
     for (const [u, flips] of perSup) {
       if (flips.length > max_per_sup) max_per_sup = flips.length;
-      if (flips.length > PER_SUP_CAP) { muted_sups++; continue; } // that sup only; others notify
       for (const [id, cur, old] of flips) {
         const oldState = old ? old.state : undefined;
         // 27 Nov (Micheal 24163340/24172059): ID first line, name under it, then the status
