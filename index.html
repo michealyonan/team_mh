@@ -1452,6 +1452,13 @@ header{box-shadow:0 8px 24px rgba(2,8,23,.5)}
 <div id="notifModal" style="display:none;position:fixed;inset:0;background:#000c;z-index:75;overflow:auto;padding:12px" onclick="if(event.target===this)this.style.display='none'">
   <div class="card" style="max-width:640px;margin:auto">
    <div class="row"><h3 style="margin:0">🔔 إشعارات اليوم</h3><button class="btn" id="notifClearMine" type="button" onclick="clearMyNotifs()">🗑 مسح إشعاراتي</button><button class="btn" id="notifClearAll" type="button" style="display:none" onclick="clearAllNotifs()">🗑 مسح عند الكل</button><button class="btn pr" type="button" onclick="loadNotifs(true)">🔄 تحديث</button><button class="btn" style="margin-inline-start:auto" onclick="$('notifModal').style.display='none'">✕</button></div>
+   <div id="notifAdminRow" style="display:none;margin-bottom:10px;padding:10px;border:1px solid var(--bd);border-radius:10px">
+    <div class="sub" style="margin-bottom:6px">⚙️ تحكم الإشعارات (أدمن)</div>
+    <div class="row" style="gap:8px;flex-wrap:wrap;align-items:center">
+     <button class="btn" id="notifPauseBtn" type="button" onclick="toggleNotifPause()">⏸ إيقاف الإشعارات</button>
+     <span class="sub" id="notifPauseState"></span>
+    </div>
+   </div>
    <div id="notifCompose" style="display:none;margin-bottom:10px;padding:10px;border:1px solid var(--bd);border-radius:10px">
     <div class="sub" style="margin-bottom:6px">📢 إشعار من الإدارة</div>
     <input id="ncTitle" placeholder="العنوان" style="width:100%;margin-bottom:6px">
@@ -6659,6 +6666,8 @@ async function loadNotifs(show){
    const compose=$('notifCompose');
    if(compose&&CUR&&['admin','manager'].includes(CUR.r)){compose.style.display='';fillAnnounceTargets()}
    const ca=$('notifClearAll');if(ca)ca.style.display=(CUR&&CUR.r==='admin')?'':'none';
+   const ar=$('notifAdminRow');if(ar)ar.style.display=(CUR&&CUR.r==='admin')?'':'none';
+   if(CUR&&CUR.r==='admin')loadNotifPauseState();
    const st=$('notifStatus'),list=$('notifList');
    st.textContent=items.length?('إشعارات اليوم: '+items.length):'مفيش إشعارات النهاردة 🎉';
    api('/api/notifications/read',{method:'POST'}).then(()=>{if(badge)badge.style.display='none'}).catch(()=>{});
@@ -6672,6 +6681,27 @@ async function loadNotifs(show){
    }).join('');
   }
  }catch(e){if(show)$('notifStatus').textContent='مش قادر أحمل الإشعارات — '+(e.message||e)}
+}
+// 27 Nov (24770953): admin switch to stop/start notifications from the notifications tab.
+async function loadNotifPauseState(){
+ try{
+  const r=await api('/api/admin/notif_pause');
+  setNotifPauseUI(!!r.paused);
+ }catch(e){const st=$('notifPauseState');if(st)st.textContent='مش قادر أقرأ حالة الإشعارات'}
+}
+function setNotifPauseUI(paused){
+ const b=$('notifPauseBtn'),st=$('notifPauseState');
+ if(b)b.textContent=paused?'▶️ تشغيل الإشعارات':'⏸ إيقاف الإشعارات';
+ if(st){st.textContent=paused?'الإشعارات متوقفة دلوقتي':'الإشعارات شغالة';st.style.color=paused?'#dc2626':''}
+}
+async function toggleNotifPause(){
+ try{
+  const cur=await api('/api/admin/notif_pause');
+  const pauseNow=!cur.paused;
+  if(pauseNow&&!await askConfirm('توقف إشعارات تغيير الحالة لكل المشرفين لحد ما تشغلها تاني؟'))return;
+  const r=await api('/api/admin/notif_pause',{method:'POST',body:{on:pauseNow}});
+  setNotifPauseUI(!!r.paused);
+ }catch(e){alert('مش قادر أغير حالة الإشعارات — '+(e.message||e))}
 }
 // 27 Nov (Micheal 24235100): themed in-app confirm instead of the native browser confirm()
 function askConfirm(msg){
