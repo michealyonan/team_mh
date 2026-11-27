@@ -281,11 +281,17 @@ async function chatFeatures(env) {
   } catch (e) {}
   return { photo, voice };
 }
-async function insertNotification(env, u, title, body, riderId) {
+async function insertNotification(env, u, title, body, riderId, color) {
   await env.DB.prepare('INSERT INTO notifications(u,day,title,body,rider_id,ts) VALUES(?,?,?,?,?,?)')
     .bind(u, cairoDay(), String(title || '').slice(0, 120), String(body || '').slice(0, 500), String(riderId || '').slice(0, 40), Date.now()).run();
-  await sendFcmToUser(env, u, String(title || '').slice(0, 120), String(body || '').slice(0, 500), riderId);
+  await sendFcmToUser(env, u, String(title || '').slice(0, 120), String(body || '').slice(0, 500), riderId, color);
 }
+// Status-change styling (27 Nov): emoji marker + Android small-icon tint per new state.
+const STATE_STYLE = {
+  WORKING: ['🟢', '#16a34a'], BREAK: ['☕', '#d97706'], LATE: ['🟡', '#ca8a04'],
+  TEMP_NOT_WORKING: ['🔴', '#dc2626'], ENDING: ['🟣', '#9333ea'], STARTING: ['🔵', '#2563eb'],
+  READY: ['⚪', '#6b7280'], _: ['🔔', '#475569'],
+};
 
 async function enforceDeviceLimit(env, u, maxSessions) {
   const rows = await env.DB.prepare('SELECT token FROM sessions WHERE u=? AND expires>? ORDER BY created DESC').bind(u, Date.now()).all();
@@ -325,7 +331,7 @@ async function fcmAccessToken(env) {
   _fcmTok = d.access_token; _fcmTokExp = Date.now() + 50 * 60 * 1000;
   return _fcmTok;
 }
-async function sendFcmToUser(env, u, title, body, riderId) {
+async function sendFcmToUser(env, u, title, body, riderId, color) {
   if (!env.FCM_SA_JSON) {
     try { await env.DB.prepare('INSERT INTO push_log(u,token_tail,status,resp,ts) VALUES(?,?,?,?,?)').bind(u, '', -4, 'fcm_not_configured', Date.now()).run(); } catch (e) {}
     return;
@@ -344,7 +350,7 @@ async function sendFcmToUser(env, u, title, body, riderId) {
           body: JSON.stringify({ message: {
             token: t,
             notification: { title: String(title || ''), body: String(body || '') },
-            android: { priority: 'HIGH', notification: { sound: 'default', channel_id: 'teammh_alerts' } },
+            android: { priority: 'HIGH', notification: Object.assign({ sound: 'default', channel_id: 'teammh_alerts' }, color ? { color } : {}) },
             data: { rider_id: String(riderId || ''), title: String(title || ''), body: String(body || '') },
           } }),
         });
@@ -1925,6 +1931,7 @@ async function runStatusCron(env) {
       state: String(r[14] || '').trim().slice(0, 60),
       sup: String(r[16] || '').trim().slice(0, 80),
       zone: String(r[1] || '').trim().slice(0, 80),
+      phone: String(r[4] || '').trim().slice(0, 40),
     });
   }
   // 26 Nov quota fix: previous state lives in a single status_meta row (1 row read)
@@ -2026,7 +2033,14 @@ async function runStatusCron(env) {
       if (flips.length > PER_SUP_CAP) { muted_sups++; continue; } // that sup only; others notify
       for (const [id, cur, old] of flips) {
         const oldState = old ? old.state : undefined;
-        await insertNotification(env, u, 'تغيير حالة مندوب', `${cur.name}: من "${oldState || 'بدون حالة'}" إلى "${cur.state}"`, id);
+        // 27 Nov (Micheal 24163340/24172059): ID first line, name under it, then the status
+        // change, phone, zone, and the supervisor's name. Emoji + Android icon color per new state.
+        const sm = STATE_STYLE[normLiveState(cur.state)] || STATE_STYLE._;
+        const lines = [id, cur.name || 'مندوب', 'من ' + (oldState ? normLiveState(oldState) : 'بدون حالة') + ' إلى ' + normLiveState(cur.state)];
+        if (cur.phone) lines.push('📞 ' + cur.phone);
+        if (cur.zone) lines.push('الزون: ' + cur.zone);
+        if (cur.sup) lines.push('المشرف: ' + cur.sup);
+        await insertNotification(env, u, sm[0] + ' تغيير حالة مندوب', lines.join('\n'), id, sm[1]);
         notified++;
       }
     }
