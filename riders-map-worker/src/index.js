@@ -3614,6 +3614,11 @@ async function handleFetch(request, rawEnv, ctx) {
 }
 
 async function handleScheduled(event, rawEnv, ctx) {
+    // 27 Nov (Micheal 24918669): the staging worker's cron existed only for the Turso load test and
+    // was still writing ~1,100 rows/min to the staging database after the test ended. Staging stands
+    // down here; live is untouched (STAGING is set only on the team-mh-staging worker). Delete this
+    // guard to bring the staging cron back.
+    if (rawEnv.STAGING) return;
     const env = await withDb(rawEnv);
     bumpUsage(env, ctx);
     // 26 Nov cron dedup (Micheal 22473910): same code runs at two addresses (team-mh + riders-map-relay)
