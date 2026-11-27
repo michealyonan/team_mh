@@ -2117,17 +2117,19 @@ async function runStatusCron(env) {
   await mark('presend:' + stateChanged.length);
   if (!guard) {
     const perSup = new Map();   // target user -> [[id, cur, old], ...]
-    const supCache = new Map(); // sup name -> [target usernames]
+    // 27 Nov staging (24300032): load active users ONCE (1 DB round trip) and match in JS.
+    // The old sequential per-sup queries each cost a full Turso HTTP round trip (~1s) and
+    // pushed every flip-heavy cron run past the 30s wall-clock - silent death before stats.
+    let allUsers = [];
+    try { const ur = await env.DB.prepare("SELECT u, n FROM users WHERE status='active'").all(); allUsers = ur.results || []; } catch {}
+    const resolveSup = (supName) => {
+      const lower = String(supName || '').toLowerCase();
+      let hits = allUsers.filter(x => x.n === supName || x.u === lower).map(x => x.u);
+      if (!hits.length && supName) { const needle = supName.replace(/%/g, ''); hits = allUsers.filter(x => String(x.n || '').includes(needle)).map(x => x.u); }
+      return [...new Set(hits)];
+    };
     for (const [id, cur, old] of stateChanged) {
-      let targetList = [];
-      if (cur.sup) {
-        if (!supCache.has(cur.sup)) {
-          let supRows = await env.DB.prepare("SELECT u FROM users WHERE status='active' AND (n=? OR u=?)").bind(cur.sup, cur.sup.toLowerCase()).all();
-          if (!(supRows.results || []).length) supRows = await env.DB.prepare("SELECT u FROM users WHERE status='active' AND n LIKE ?").bind('%' + cur.sup.replace(/%/g, '') + '%').all();
-          supCache.set(cur.sup, [...new Set((supRows.results || []).map(r => r.u))]);
-        }
-        targetList = supCache.get(cur.sup);
-      }
+      const targetList = cur.sup ? resolveSup(cur.sup) : [];
       for (const u of targetList) {
         if (!perSup.has(u)) perSup.set(u, []);
         perSup.get(u).push([id, cur, old]);
