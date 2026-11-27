@@ -1966,20 +1966,39 @@ async function runStatusCron(env) {
   if (!seeded) return; // first run seeds state without notifying
   // 26 Nov flood guard: >50 riders "changing state" in one 2-min run is a data-format event in the
   // source sheet, never real flips. Update state silently, send zero notifications/pushes.
-  if (changed.length > 50) return;
+  // 27 Nov fix: the flood guard now counts REAL state flips only (normalized comparison), not
+  // name/sup/zone churn or raw-format flips (W<->WORKING). The old any-change guard (>50) tripped on
+  // ordinary busy-hour churn and muted ALL state-change notifications, which looked broken.
+  const stateChanged = [];
   for (const [id, cur, old] of changed) {
     const oldState = old ? old.state : undefined;
     if (oldState === undefined || !cur.state || normLiveState(oldState) === normLiveState(cur.state)) continue;
-    const targets = new Map();
-    if (cur.sup) {
-      let supRows = await env.DB.prepare("SELECT u FROM users WHERE status='active' AND (n=? OR u=?)").bind(cur.sup, cur.sup.toLowerCase()).all();
-      if (!(supRows.results || []).length) supRows = await env.DB.prepare("SELECT u FROM users WHERE status='active' AND n LIKE ?").bind('%' + cur.sup.replace(/%/g, '') + '%').all();
-      for (const t of (supRows.results || [])) targets.set(t.u, 1);
-    }
-    for (const u of targets.keys()) {
-      await insertNotification(env, u, 'تغيير حالة مندوب', `${cur.name}: من "${oldState || 'بدون حالة'}" إلى "${cur.state}"`, id);
+    stateChanged.push([id, cur, old]);
+  }
+  // >400 real flips in one minute (~25% of the fleet at once) is a source data event, not real
+  // flips: update state silently, send zero notifications/pushes, and record the trip below.
+  const guard = stateChanged.length > 400;
+  let notified = 0;
+  if (!guard) {
+    for (const [id, cur, old] of stateChanged) {
+      const oldState = old ? old.state : undefined;
+      const targets = new Map();
+      if (cur.sup) {
+        let supRows = await env.DB.prepare("SELECT u FROM users WHERE status='active' AND (n=? OR u=?)").bind(cur.sup, cur.sup.toLowerCase()).all();
+        if (!(supRows.results || []).length) supRows = await env.DB.prepare("SELECT u FROM users WHERE status='active' AND n LIKE ?").bind('%' + cur.sup.replace(/%/g, '') + '%').all();
+        for (const t of (supRows.results || [])) targets.set(t.u, 1);
+      }
+      for (const u of targets.keys()) {
+        await insertNotification(env, u, 'تغيير حالة مندوب', `${cur.name}: من "${oldState || 'بدون حالة'}" إلى "${cur.state}"`, id);
+        notified++;
+      }
     }
   }
+  // 27 Nov: per-run stats for the admin usage page (1 write/min) so notification health is visible.
+  try {
+    await env.DB.prepare("INSERT INTO status_meta(k,v) VALUES('cron:status_stats',?) ON CONFLICT(k) DO UPDATE SET v=excluded.v")
+      .bind(JSON.stringify({ ts: Date.now(), riders: current.size, changed_any: changed.length, changed_state: stateChanged.length, notified, guard })).run();
+  } catch {}
 }
 
 // 26 Nov (19271108 upgrade 4): morning summary push to admins at 09:00 Cairo (cron 0 7 * * * UTC).
@@ -3107,6 +3126,17 @@ export default {
           const ld = await env.DB.prepare("SELECT v FROM status_meta WHERE k='cron_lock_morning'").first();
           cron = { minute_lock: lm && lm.v ? Number(lm.v) : null, minute_now: Math.floor(Date.now() / 60000), morning_lock: ld && ld.v ? ld.v : null };
         } catch {}
+        // 27 Nov: status-cron stats + recent push failures, so notification health is checkable
+        // without D1 console access. -4 = FCM not configured; other non-200 = FCM rejections.
+        let status_cron = null, push_log = null;
+        try {
+          const sr = await env.DB.prepare("SELECT v FROM status_meta WHERE k='cron:status_stats'").first();
+          if (sr && sr.v) status_cron = JSON.parse(sr.v);
+        } catch {}
+        try {
+          const pr = await env.DB.prepare('SELECT u,token_tail,status,resp,ts FROM push_log ORDER BY ts DESC LIMIT 5').all();
+          push_log = (pr.results || []).map(r => ({ u: r.u, tail: r.token_tail, status: r.status, resp: String(r.resp || '').slice(0, 160), ts: r.ts }));
+        } catch {}
         // Hiring storage footprint (Micheal 25 Nov): images are the heavy rows.
         let hiring = null;
         try {
@@ -3117,14 +3147,14 @@ export default {
         if (env.CF_API_TOKEN && env.CF_ACCOUNT_ID) {
           try {
             const used = await usageFromCloudflare(env);
-            return json({ ok: true, source: 'cloudflare', scope: 'account', limit: QUOTA_DAILY_LIMIT, used, remaining: Math.max(0, QUOTA_DAILY_LIMIT - used), day, hiring, cron, reset_at: reset.toISOString() });
+            return json({ ok: true, source: 'cloudflare', scope: 'account', limit: QUOTA_DAILY_LIMIT, used, remaining: Math.max(0, QUOTA_DAILY_LIMIT - used), day, hiring, cron, status_cron, push_log, reset_at: reset.toISOString() });
           } catch (e) {
             const used = await usageEstimate(env);
-            return json({ ok: true, source: 'estimate', scope: 'worker', cloudflare_error: String(e && e.message || e).slice(0, 200), limit: QUOTA_DAILY_LIMIT, used, remaining: Math.max(0, QUOTA_DAILY_LIMIT - used), day, hiring, cron, reset_at: reset.toISOString() });
+            return json({ ok: true, source: 'estimate', scope: 'worker', cloudflare_error: String(e && e.message || e).slice(0, 200), limit: QUOTA_DAILY_LIMIT, used, remaining: Math.max(0, QUOTA_DAILY_LIMIT - used), day, hiring, cron, status_cron, push_log, reset_at: reset.toISOString() });
           }
         }
         const used = await usageEstimate(env);
-        return json({ ok: true, source: 'estimate', scope: 'worker', limit: QUOTA_DAILY_LIMIT, used, remaining: Math.max(0, QUOTA_DAILY_LIMIT - used), day, hiring, cron, reset_at: reset.toISOString() });
+        return json({ ok: true, source: 'estimate', scope: 'worker', limit: QUOTA_DAILY_LIMIT, used, remaining: Math.max(0, QUOTA_DAILY_LIMIT - used), day, hiring, cron, status_cron, push_log, reset_at: reset.toISOString() });
       } catch (e) {
         return serverErr(e);
       }
