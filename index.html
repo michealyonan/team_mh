@@ -6674,13 +6674,31 @@ async function loadNotifs(show){
   }
  }catch(e){if(show)$('notifStatus').textContent='مش قادر أحمل الإشعارات — '+(e.message||e)}
 }
+// 27 Nov (Micheal 24235100): themed in-app confirm instead of the native browser confirm()
+function askConfirm(msg){
+ return new Promise(res=>{
+  let m=$('cfModal');
+  if(!m){
+   m=document.createElement('div');m.id='cfModal';
+   m.style.cssText='display:none;position:fixed;inset:0;background:#000c;z-index:95;padding:16px;align-items:center;justify-content:center';
+   m.innerHTML='<div class="card" style="max-width:420px;width:100%;padding:18px;margin:auto"><div id="cfMsg" style="margin-bottom:16px;line-height:1.8;white-space:pre-line"></div><div style="display:flex;gap:8px;justify-content:flex-start"><button class="btn pr" id="cfYes" type="button">تأكيد</button><button class="btn" id="cfNo" type="button">إلغاء</button></div></div>';
+   document.body.appendChild(m);
+   m.addEventListener('click',e=>{if(e.target===m){m.style.display='none';if(m._res)m._res(false)}});
+  }
+  m._res=res;
+  $('cfMsg').textContent=msg;
+  m.style.display='flex';
+  $('cfYes').onclick=()=>{m.style.display='none';res(true)};
+  $('cfNo').onclick=()=>{m.style.display='none';res(false)};
+ });
+}
 // 27 Nov (Micheal 24177597): supervisor clears his own notifications at once.
 async function clearMyNotifs(){
- if(!confirm('تمسح كل إشعاراتك مرة واحدة؟ اللي وصل الموبايل قبل كده مش بيتسحب.'))return;
+ if(!await askConfirm('تمسح كل إشعاراتك مرة واحدة؟ اللي وصل الموبايل قبل كده مش بيتسحب.'))return;
  try{const r=await api('/api/notifications/clear-mine',{method:'POST'});loadNotifs(true);alert('اتمسحت '+(r.deleted||0)+' إشعار ✅')}catch(e){alert('مش قادر أمسح — '+(e.message||e))}
 }
 async function clearAllNotifs(){
- if(!confirm('متأكد؟ ده هيمسح الإشعارات من عند كل الناس (أنت والمشرفين). اللي وصل الموبايلات قبل كده مش بيتسحب.'))return;
+ if(!await askConfirm('متأكد؟ ده هيمسح الإشعارات من عند كل الناس (أنت والمشرفين). اللي وصل الموبايلات قبل كده مش بيتسحب.'))return;
  try{const r=await api('/api/notifications/clear-all',{method:'POST'});loadNotifs(true);alert('اتمسحت '+(r.deleted||0)+' إشعار من عند الكل ✅')}catch(e){alert('مش قادر أمسح — '+(e.message||e))}
 }
 function initAndroidBridge(){
