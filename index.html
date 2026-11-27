@@ -3677,7 +3677,7 @@ async function toggleTabHidden(tab){
   try{await api('/api/ui/tabs',{method:'POST',body:{hidden:HIDDEN_TABS}})}catch(e){alert('تعذّر حفظ الإخفاء: '+authErr(e));await loadHiddenTabs();applyHiddenTabs()}
 }
 
-const REMEMBER_LOGIN_KEY='pd_remember_login',REMEMBER_LOGIN_MS=24*60*60*1000;async function enter(x,remember){CUR=x;updateLiveRoleControls(x);const monitor=x.r==='monitor',legalOnly=x.r==='legal';document.querySelector('main').style.display=(monitor||legalOnly)?'none':'';$('navMenuToggle').style.display=monitor?'none':'';document.querySelectorAll('.nav-drawer-links>button').forEach(button=>button.style.display=(monitor||legalOnly)?'none':'');if(monitor){$('liveB').style.display='';$('liveClose').style.display='none';openLivePanel()}else if(!legalOnly)$('liveClose').style.display='';try{if(remember===true)localStorage.setItem(REMEMBER_LOGIN_KEY,JSON.stringify({t:x.token||'',expires:Date.now()+REMEMBER_LOGIN_MS}));else if(remember===false)localStorage.removeItem(REMEMBER_LOGIN_KEY);sessionStorage.setItem('pd_token',x.token||'')}catch(e){}idleReset();startNotifLoop(monitor||legalOnly);initAndroidBridge();mkSetup(x);if(!monitor&&!legalOnly){captureGeo();if(!x.has_email||!x.has_phone){const nk='pd_contact_nudged_'+(x.u||'');let seen=false;try{seen=!!localStorage.getItem(nk)}catch(e){}if(!seen){try{localStorage.setItem(nk,'1')}catch(e){}openProfile();setTimeout(()=>{const e=$("pfErr");if(e){e.style.color="#fbbf24";e.textContent="📇 كمّل الجيميل ورقم الواتساب من هنا - مرة واحدة، وأي تعديل بعد كده من الملف الشخصي"}},400)}}}logDashboardOpen(x);
+const REMEMBER_LOGIN_KEY='pd_remember_login',REMEMBER_LOGIN_MS=24*60*60*1000;async function enter(x,remember){CUR=x;updateLiveRoleControls(x);const monitor=x.r==='monitor',legalOnly=x.r==='legal';document.querySelector('main').style.display=(monitor||legalOnly)?'none':'';$('navMenuToggle').style.display=monitor?'none':'';document.querySelectorAll('.nav-drawer-links>button').forEach(button=>button.style.display=(monitor||legalOnly)?'none':'');if(monitor){$('liveB').style.display='';$('liveClose').style.display='none';openLivePanel()}else if(!legalOnly)$('liveClose').style.display='';try{if(remember===true)localStorage.setItem(REMEMBER_LOGIN_KEY,JSON.stringify({t:x.token||'',expires:Date.now()+REMEMBER_LOGIN_MS}));else if(remember===false)localStorage.removeItem(REMEMBER_LOGIN_KEY);sessionStorage.setItem('pd_token',x.token||'')}catch(e){}idleReset();startNotifLoop(monitor||legalOnly);initAndroidBridge();mkSetup(x);if(!monitor&&!legalOnly){captureGeo();if(x.r==='sup'&&(!x.has_email||!x.has_phone))showContactGate()logDashboardOpen(x);
   const canViewSupervisorCharts=['admin','manager'].includes(x.r);
   $('supervisorPerformanceCard').style.display=canViewSupervisorCharts?'':'none';
   $('supervisorHoursCard').style.display=canViewSupervisorCharts?'':'none';
@@ -6871,6 +6871,7 @@ async function submitContactGate(){
  const err=$('ccErr');err.textContent='';
  try{
   await api('/api/auth/complete-contact',{method:'POST',body:{email:$('ccE').value.trim(),phone:$('ccP').value.trim(),channel:$('ccC').value}});
+  if(window.CUR){CUR.has_email=true;CUR.has_phone=true}
   $('ccModal').style.display='none';loadNotifs(false);
  }catch(e){err.textContent=authErr(e)}
 }
