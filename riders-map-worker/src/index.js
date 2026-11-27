@@ -354,8 +354,11 @@ async function fcmAccessToken(env) {
   return _fcmTok;
 }
 async function sendFcmToUser(env, u, title, body, riderId, color) {
-  // 27 Nov (24301978): staging now pushes normally - during the Turso load test it is the
-  // single notifier (the live cron stands down via /api/admin/notif_pause), so no double pushes.
+  // 27 Nov (24756762): staging no longer pushes at all. The live cron is running again (Micheal
+  // asked for his notifications back), so staging writing notifications AND pushing to the same
+  // device gave him two pushes per flip. Staging keeps its Turso writes for the load measurement;
+  // live is the only pusher.
+  if (env.STAGING) return;
   if (!env.FCM_SA_JSON) {
     try { await env.DB.prepare('INSERT INTO push_log(u,token_tail,status,resp,ts) VALUES(?,?,?,?,?)').bind(u, '', -4, 'fcm_not_configured', Date.now()).run(); } catch (e) {}
     return;
