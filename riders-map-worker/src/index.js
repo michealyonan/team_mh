@@ -1972,13 +1972,25 @@ async function runStatusCron(env) {
     if (t.length === 1) { const m = STATE_NAMES.find(x => x[0] === t.toUpperCase()); if (m) return m; }
     return t.toUpperCase();
   };
-  const res = await fetch(`https://docs.google.com/spreadsheets/d/${LIVE_SHEET_ID}/gviz/tq?tqx=out:csv&gid=${LIVE_GID}&headers=1&_=${Date.now()}`);
+  // 27 Nov staging debug: stage markers (one row, overwritten per stage) so a silently-killed
+  // cron run shows where it died. Temporary - remove after the Turso load test.
+  const mark = async (s) => { try { await env.DB.prepare("INSERT INTO status_meta(k,v) VALUES('cron:stage',?) ON CONFLICT(k) DO UPDATE SET v=excluded.v").bind(JSON.stringify({ ts: Date.now(), stage: s })).run(); } catch {} };
+  await mark('start');
+  let res;
+  try {
+    const ac = new AbortController();
+    const to = setTimeout(() => ac.abort('gviz_timeout'), 12000);
+    res = await fetch(`https://docs.google.com/spreadsheets/d/${LIVE_SHEET_ID}/gviz/tq?tqx=out:csv&gid=${LIVE_GID}&headers=1&_=${Date.now()}`, { signal: ac.signal });
+    clearTimeout(to);
+  } catch (e) { await mark('fetch_threw:' + String(e).slice(0, 80)); throw e; }
+  await mark('fetched:' + res.status);
   if (!res.ok) {
     // 27 Nov: make silent fetch bails visible (gviz throttling/5xx looked like "no changes").
     try { await env.DB.prepare("INSERT INTO status_meta(k,v) VALUES('cron:status_fetch_err',?) ON CONFLICT(k) DO UPDATE SET v=excluded.v").bind(JSON.stringify({ ts: Date.now(), status: res.status })).run(); } catch {}
     return;
   }
   const rows = parseCsv(await res.text()).slice(1);
+  await mark('parsed:' + rows.length);
   const current = new Map();
   for (const r of rows) {
     const id = String(r[2] || '').trim();
@@ -2012,6 +2024,7 @@ async function runStatusCron(env) {
     prev = new Map((prevRows.results || []).map(r => [r.rider_id, [r.state, r.name, r.sup, r.zone]]));
   }
   const seeded = prev.size > 0;
+  await mark('prev:' + seeded);
   const stmts = [];
   const changedRows = []; // 27 Nov staging: collected for multi-row INSERT (see below)
   const changed = [];
@@ -2061,10 +2074,12 @@ async function runStatusCron(env) {
       for (const r of ur || []) d1w += (r && r.meta && (r.meta.rows_written || r.meta.changes)) || 0;
     } catch {}
   }
+  await mark('upserted:' + changedRows.length);
   if (stmts.length) {
     const br = await env.DB.batch(stmts);
     for (const r of br || []) d1w += (r && r.meta && r.meta.rows_written) || 0;
   }
+  await mark('gone_done');
   // 26 Nov quota cut: only rewrite the snapshot when something actually changed (was 1 write every 2 min).
   // Rewrite the snapshot on data changes and when vanish-marks were just added (otherwise the
   // grace clock would restart every run and rows would never age out).
@@ -2099,6 +2114,7 @@ async function runStatusCron(env) {
   const guard = stateChanged.length > FLEET_GUARD;
   let notified = 0, muted_sups = 0, max_per_sup = 0;
   const sendQueue = [];
+  await mark('presend:' + stateChanged.length);
   if (!guard) {
     const perSup = new Map();   // target user -> [[id, cur, old], ...]
     const supCache = new Map(); // sup name -> [target usernames]
@@ -2146,6 +2162,7 @@ async function runStatusCron(env) {
   const stateCounts = {};
   for (const [, cur] of current) { const k = normLiveState(cur.state) || 'EMPTY'; stateCounts[k] = (stateCounts[k] || 0) + 1; }
   notified = sendQueue.length;
+  await mark('queue:' + sendQueue.length + ':' + muted_sups);
   // 27 Nov: per-run stats for the admin usage page (1 write/min) so notification health is visible.
   // hist keeps the last 9 runs: a single overwrite hid detection runs that were followed by a quiet run.
   // Stats are written BEFORE the send loop: even if a huge batch overruns the cron wall-clock
